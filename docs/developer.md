@@ -10,7 +10,7 @@ To prepare, you should:
 
 - [Set up SSH authentication with GitHub](https://help.github.com/en/github/authenticating-to-github/connecting-to-github-with-ssh).
 
-- Clone (download) your copy of the repository, and set up a remote called `upstream` that points to the main Fritz repository.
+- Clone (download) your copy of the repository, and set up a remote called `upstream` that points to the main `scope` repository.
 
   ```shell script
   git clone git@github.com:<yourname>/scope
