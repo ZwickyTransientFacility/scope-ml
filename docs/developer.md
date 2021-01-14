@@ -29,7 +29,7 @@ Then, for each feature you wish to contribute, create a pull request:
    git checkout -b rewrite-contributor-guide
    ```
 
-2. Make modifications to `scope` and commit your changes using `git add` and `git commit`.  
+2. Make modifications to `scope` and commit your changes using `git add` and `git commit`.
 Each commit message should consist of a summary line and a longer description, e.g.:
 
    ```text
@@ -55,10 +55,10 @@ Each commit message should consist of a summary line and a longer description, e
 
 ## Setting up your environment
 
-We use `black` to format the code and `flake8` to verify that code complies with [PEP8](https://www.python.org/dev/peps/pep-0008/). 
+We use `black` to format the code and `flake8` to verify that code complies with [PEP8](https://www.python.org/dev/peps/pep-0008/).
 Please install our pre-commit hook as follows:
 
-```
+```sh
 pip install pre-commit
 pre-commit install
 ```
