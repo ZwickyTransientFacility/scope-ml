@@ -58,11 +58,12 @@ To incorporate changes recommended by the reviewers, commit edits to your branch
 5. Sometimes, while you were working on your feature, the `main` branch is updated with new commits, potentially
 resulting in conflicts with your feature branch. The are two ways to resolve this situation - merging and rebasing,
 please look [here](https://www.atlassian.com/git/tutorials/merging-vs-rebasing) for a detailed discussion.
-While both ways are acceptable, we prefer the second option:
+While both ways are acceptable, since we are squashing commits from a PR before merging, we prefer the first option:
 
     ```shell script
-    git checkout rewrite-contributor-guide git rebase upstream/master
+    git merge rewrite-contributor-guide upstream/main
     ```
+Developers may merge `main` into their branch as many times as they want to.
 
 6. Once the pull request has been reviewed and approved by at least two team members, it will be merged into `scope`.
 
