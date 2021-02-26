@@ -26,7 +26,7 @@ class Scope:
 
     @staticmethod
     def doc():
-        """Build docs"""
+        """Build docs."""
         subprocess.run(["make", "html"], cwd="doc", check=True)
 
 
