@@ -1,3 +1,6 @@
 # SCoPe: ZTF source classification project
 
-[Developer guidelines](docs/developer.md)
+## Field guide
+
+## Developer guidelines
+Please find our developer guidelines [here](doc/developer.md).
