@@ -5,9 +5,6 @@ import sys
 
 class Scope:
 
-    def __init__(self):
-        pass
-
     @staticmethod
     def develop():
         """Install developer tools"""
