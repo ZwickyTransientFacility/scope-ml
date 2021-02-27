@@ -1,0 +1,5 @@
+fire>=0.4.0
+myst-parser
+pre-commit
+sphinx<3
+sphinx_press_theme

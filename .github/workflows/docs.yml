@@ -1,0 +1,45 @@
+name: Build, test, and upload docs
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+
+    - uses: actions/checkout@v2
+
+    - uses: actions/setup-python@v1
+      with:
+        python-version: '3.8'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install wheel
+        pip install -r requirements.txt
+        ./scope.py develop
+    - name: Lint sources
+      run: |
+        ./scope.py lint
+    - name: Build docs
+      run: |
+        ./scope.py doc
+    - name: Install SSH Client 🔑
+      if: github.ref == 'refs/heads/main'
+      uses: webfactory/ssh-agent@v0.4.1
+      with:
+        ssh-private-key: ${{ secrets.CI_DEPLOY_KEY }}
+
+    - name: Deploy docs
+      if: github.ref == 'refs/heads/main'
+      uses: JamesIves/github-pages-deploy-action@releases/v3
+      with:
+        FOLDER: doc/_build/html
+        REPOSITORY_NAME: ZwickyTransientFacility/scope-docs
+        BRANCH: master
+        SINGLE_COMMIT: true
+        SSH: true
