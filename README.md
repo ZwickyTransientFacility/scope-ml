@@ -1,6 +1,3 @@
 # SCoPe: ZTF source classification project
 
-## Field guide
-
-## Developer guidelines
-Please find our developer guidelines [here](doc/developer.md).
+The documentation is hosted at [https://scope.ztf.dev](https://scope.ztf.dev).

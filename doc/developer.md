@@ -82,3 +82,6 @@ conform with our code style standards. We use black to reformat Python
 code.
 
 The pre-commit hook will lint *changes* made to the source.
+
+
+## Contributing Field Guide sections
