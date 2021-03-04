@@ -90,16 +90,17 @@ class Scope:
             if kowalski_token_env is not None:
                 self.config["kowalski"]["token"] = kowalski_token_env
 
-        with status("Setting up Kowalski connection"):
-            self.kowalski = Kowalski(
-                token=self.config["kowalski"]["token"],
-                protocol=self.config["kowalski"]["protocol"],
-                host=self.config["kowalski"]["host"],
-                port=self.config["kowalski"]["port"],
-            )
-            if not self.kowalski.ping():
-                # raise ConnectionError("Could not connect to Kowalski.")
-                print("Kowalski not available")
+        if len(self.config["kowalski"]["token"]):
+            with status("Setting up Kowalski connection"):
+                self.kowalski = Kowalski(
+                    token=self.config["kowalski"]["token"],
+                    protocol=self.config["kowalski"]["protocol"],
+                    host=self.config["kowalski"]["host"],
+                    port=self.config["kowalski"]["port"],
+                )
+        else:
+            # raise ConnectionError("Could not connect to Kowalski.")
+            print("Kowalski not available")
 
     @staticmethod
     def develop():
