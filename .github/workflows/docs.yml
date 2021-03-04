@@ -17,6 +17,8 @@ jobs:
         python-version: '3.8'
 
     - name: Install dependencies and use default config
+      env:
+        KOWALSKI_TOKEN: ${{ secrets.KOWALSKI_TOKEN }}
       run: |
         python -m pip install --upgrade pip
         pip install wheel
@@ -24,6 +26,8 @@ jobs:
         cp config.defaults.yaml config.yaml
         ./scope.py develop
     - name: Lint sources
+      env:
+        KOWALSKI_TOKEN: ${{ secrets.KOWALSKI_TOKEN }}
       run: |
         ./scope.py lint
     - name: Build docs
