@@ -85,3 +85,45 @@ The pre-commit hook will lint *changes* made to the source.
 
 
 ## Contributing Field Guide sections
+
+If you would like to contribute a Field Guide section, please follow the steps below.
+
+- Make sure to follow the steps described above in the "How to contribute" section!
+
+- Add sections to `config.defaults.yaml` under `docs.field_guide.<object_class_type>`.
+  - Use `docs.field_guide.rr_lyr_ab` as an example. You need to specify the object's
+    coordinates and a title for the generated light curve plot. Optionally,
+    you may specify a period [days] - then a phase-folded light curve will also be rendered.
+
+- Make sure your `config.yaml` file contains a valid Kowalski token.
+  - See [here](https://github.com/dmitryduev/penquins) on how to generate one
+(Kowalski account required).
+  - You can use `config.defaults.yaml` as a template.
+
+- Make sure the structure of your config file is the same as the default,
+  i.e. you propagated the changes in `config.defaults.yaml`.
+  (otherwise the `scope.py` utility will later complain and ask you to fix that).
+
+- Add a Markdown file to `doc/` and call it `field_guide__<object_class>.md`.
+  - Use [`doc/field_guide__rr_lyrae.md`](field_guide__rr_lyrae.md) as a template.
+  - Light curve examples will be generated as `data/<object_class_type>.png` files using the info
+    you provided in the config.
+
+- If you wish to render a sample Gaia-based HR diagram, you need to create a "Golden" data set
+  for that class of objects and put it under `data/golden` as `<object_class>.csv`
+  - The `csv` file must follow the same structure as [`data/golden/rr_lyr.csv`].
+   Please keep the `csv` header ("ra,dec") and provide object coordinates in degrees.
+  - The HR diagram will be generated as `data/hr__<object_class>.png`
+
+- Run the `./scope.py doc` command to generate the imagery and build the documentation.
+  - If the build is successful, you can check the results in
+    [`doc/_build/html/index.html`](_build/html/index.html)
+
+- Once you're happy with the result, commit the changes to a branch on your fork
+  and open a pull request on GitHub (see the "How to contribute" section above).
+  - The GitHub Actions CI will run a subset of the testing/deployment pipeline
+    for each commit you make to your branch -
+    make sure you get a green checkmark next to the commit hash.
+  - Once the PR is reviewed, approved, and merged,
+    the CI will automatically build and deploy the docs to
+    [`https://scope.ztf.dev`](https://scope.ztf.dev)
