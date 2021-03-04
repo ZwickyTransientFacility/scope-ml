@@ -34,8 +34,8 @@ def plot_light_curve_data(
     colors = {
         1: "#28a745",
         2: "#dc3545",
-        3: "#f3dc11",
-        "default": "#00415a",
+        3: "#00415a",
+        "default": "#f3dc11",
     }
 
     mask_good_data = light_curve_data["catflags"] == 0
@@ -77,9 +77,11 @@ def plot_light_curve_data(
                 ax.invert_yaxis()
 
     ax1.set_xlabel("Time")
+    ax1.grid(lw=0.3)
     if period is not None:
         ax2.set_xlabel(f'phase [period={period:4.4g} days]')
         ax2.set_xlim(-1, 1)
+        ax2.grid(lw=0.3)
 
     if save is not None:
         fig.tight_layout()
