@@ -1,2 +1,4 @@
 deepdiff>=5.0.2
+matplotlib>=3.3
+numpy>=1.20
 questionary>=1.8.1
