@@ -251,40 +251,43 @@ class Scope:
 
         # generate images for the Field Guide
         if self.kowalski is not None and self.kowalski.ping():
-            # example light curves
-            with status("Generating example light curves"):
-                path_doc_data = pathlib.Path(__file__).parent.absolute() / "doc" / "data"
+            print("Kowalski connection not established, cannot generate docs.")
+            return
 
-                for sample_object_name, sample_object in self.config["docs"]["field_guide"].items():
-                    sample_light_curves = self._get_light_curve_data(
-                        ra=sample_object["coordinates"][0],
-                        dec=sample_object["coordinates"][1],
-                        catalog=self.config["kowalski"]["collection_sources"],
-                    )
-                    plot_light_curve_data(
-                        light_curve_data=sample_light_curves,
-                        period=sample_object["period"],
-                        title=sample_object["title"],
-                        save=path_doc_data / sample_object_name,
-                    )
+        # example light curves
+        with status("Generating example light curves"):
+            path_doc_data = pathlib.Path(__file__).parent.absolute() / "doc" / "data"
 
-            # example HR diagrams for all Golden sets
-            with status("Generating HR diagrams for Golden sets"):
-                path_gaia_hr_histogram = (
-                    pathlib.Path(__file__).parent.absolute() / "doc" / "data" / "gaia_hr_histogram.dat"
+            for sample_object_name, sample_object in self.config["docs"]["field_guide"].items():
+                sample_light_curves = self._get_light_curve_data(
+                    ra=sample_object["coordinates"][0],
+                    dec=sample_object["coordinates"][1],
+                    catalog=self.config["kowalski"]["collection_sources"],
                 )
-                # stored as ra/decs in csv format under /data/golden
-                golden_sets = pathlib.Path(__file__).parent.absolute() / "data" / "golden"
-                for golden_set in golden_sets.glob("*.csv"):
-                    golden_set_name = golden_set.stem
-                    positions = pd.read_csv(golden_set).to_numpy().tolist()
-                    gaia_sources = self._get_nearest_gaia(positions=positions)
+                plot_light_curve_data(
+                    light_curve_data=sample_light_curves,
+                    period=sample_object["period"],
+                    title=sample_object["title"],
+                    save=path_doc_data / sample_object_name,
+                )
 
-                    plot_gaia_hr(
-                        gaia_data=gaia_sources,
-                        path_gaia_hr_histogram=path_gaia_hr_histogram,
-                        save=path_doc_data / f"hr__{golden_set_name}",
-                    )
+        # example HR diagrams for all Golden sets
+        with status("Generating HR diagrams for Golden sets"):
+            path_gaia_hr_histogram = (
+                pathlib.Path(__file__).parent.absolute() / "doc" / "data" / "gaia_hr_histogram.dat"
+            )
+            # stored as ra/decs in csv format under /data/golden
+            golden_sets = pathlib.Path(__file__).parent.absolute() / "data" / "golden"
+            for golden_set in golden_sets.glob("*.csv"):
+                golden_set_name = golden_set.stem
+                positions = pd.read_csv(golden_set).to_numpy().tolist()
+                gaia_sources = self._get_nearest_gaia(positions=positions)
+
+                plot_gaia_hr(
+                    gaia_data=gaia_sources,
+                    path_gaia_hr_histogram=path_gaia_hr_histogram,
+                    save=path_doc_data / f"hr__{golden_set_name}",
+                )
 
         # build docs
         subprocess.run(["make", "html"], cwd="doc", check=True)
