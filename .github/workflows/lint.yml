@@ -22,11 +22,11 @@ jobs:
           pip install wheel
           pip install -r requirements.txt
           cp config.defaults.yaml config.yaml
+          echo lol
+          echo $KOWALSKI_TOKEN
           ./scope.py develop
       - name: Lint sources
         env:
           KOWALSKI_TOKEN: ${{ secrets.KOWALSKI_TOKEN }}
         run: |
-          echo lol
-          echo $KOWALSKI_TOKEN
           ./scope.py lint
