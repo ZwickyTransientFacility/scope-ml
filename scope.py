@@ -250,7 +250,7 @@ class Scope:
         """Build docs"""
 
         # generate images for the Field Guide
-        if self.kowalski is not None and self.kowalski.ping():
+        if (self.kowalski is None) or (not self.kowalski.ping()):
             print("Kowalski connection not established, cannot generate docs.")
             return
 
