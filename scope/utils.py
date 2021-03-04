@@ -1,12 +1,14 @@
 __all__ = [
     "load_config",
+    "plot_gaia_hr",
     "plot_light_curve_data",
 ]
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from typing import Optional
+import pathlib
+from typing import Optional, Union
 import yaml
 
 
@@ -26,6 +28,14 @@ def plot_light_curve_data(
     title: Optional[str] = None,
     save: Optional[str] = None,
 ):
+    """Plot and save to file light curve data
+
+    :param light_curve_data:
+    :param period: float [days] if set, a phase-folded light curve will be displayed
+    :param title: plot title
+    :param save: path to save the plot
+    :return:
+    """
     plt.close("all")
 
     # Official start of ZTF MSIP survey, March 1, 2018
@@ -42,7 +52,8 @@ def plot_light_curve_data(
     df = light_curve_data.loc[mask_good_data]
 
     fig = plt.figure(figsize=(16, 9))
-    fig.suptitle(title, fontsize=24)
+    if title is not None:
+        fig.suptitle(title, fontsize=24)
 
     if period is None:
         ax1 = fig.add_subplot(111)
@@ -88,25 +99,12 @@ def plot_light_curve_data(
         plt.savefig(save)
 
 
-def get_gaiadata(coords, filename):
-    """ query vizier to get gaia MG,BPRP values"""
-    print(filename)
-    # data = Xmatch_Gaia(coords[:, 0], coords[:, 1], max_distance=3.)
-    data = np.zeros((len(coords), 9))
-
-    m = data[:, 6]
-    M = m + 5 * np.log10(data[:, 0] * 0.001) + 5
-    # Mu = m + 5 * np.log10((data[:, 0] - data[:, 1]) * 0.001) + 5
-    Ml = m + 5 * np.log10((data[:, 0] + data[:, 1]) * 0.001) + 5
-
-    # Merr = [M-Mu,M-Ml]
-
-    BPRP = data[:, 7] - data[:, 8]
-
-    np.savetxt(filename, np.c_[BPRP, M, M - Ml])
-
-
-def plot_gaiaHR(figname, data):
+def plot_gaia_hr(
+    gaia_data: pd.DataFrame,
+    path_gaia_hr_histogram: Union[str, pathlib.Path],
+    title: Optional[str] = None,
+    save: Optional[str] = None,
+):
     """ Plot the Gaia HR diagram with a sample of objects over-plotted
 
     source: https://vlas.dev/post/gaia-dr2-hrd/
@@ -116,42 +114,36 @@ def plot_gaiaHR(figname, data):
     plt.rc('text', usetex=True)
 
     # load background histogram
-    h = np.loadtxt('gaia_h.dat')
-    xedges = np.loadtxt('gaia_xedges.dat')
-    yedges = np.loadtxt('gaia_yedges.dat')
+    histogram = np.loadtxt(path_gaia_hr_histogram)
 
     # make figure
     fig, ax = plt.subplots(figsize=(6, 6))
-    cmin = 20
-    cmax = None
-    if cmin is not None:
-        h[h < cmin] = None
-    if cmax is not None:
-        h[h > cmax] = None
+    if title is not None:
+        fig.suptitle(title, fontsize=24)
 
-    # f = ax.pcolormesh(xedges, yedges, h.T)
-    ax.set_xlim(xedges[0], xedges[-1])
-    ax.set_ylim(yedges[0], yedges[-1])
+    x_edges = np.arange(-0.681896, 5.04454978, 0.02848978)
+    y_edges = np.arange(-2.90934, 16.5665952, 0.0968952)
 
-    # fill the rest with scatter (set rasterized=True if saving as vector graphics)
-    # ax.scatter(bp_rp, mg, alpha=0.05, s=1, color='k', zorder=0)
+    ax.pcolormesh(x_edges, y_edges, histogram.T, antialiased=False)
+    ax.set_xlim(x_edges[0], x_edges[-1])
+    ax.set_ylim(y_edges[0], y_edges[-1])
+
     ax.invert_yaxis()
-    # cb = fig.colorbar(f, ax=ax, pad=0.02)
     ax.set_xlabel(r'$G_{BP} - G_{RP}$')
     ax.set_ylabel(r'$M_G$')
-    # cb.set_label(r"$\mathrm{Stellar~density}$")
 
     # plot sample data
-    if np.shape(data)[1] == 2:
-        plt.errorbar(data[:, 0], data[:, 1],
-                     fmt='r.', lw=0.5)
-    if np.shape(data)[1] == 3:
-        plt.errorbar(data[:, 0], data[:, 1], data[:, 2],
-                     fmt='r.', lw=0.5)
-    if np.shape(data)[1] == 4:
-        plt.errorbar(data[:, 0], data[:, 1], [data[:, 2] - data[:, 1], data[:, 1] - data[:, 3]],
-                     fmt='r.', lw=0.5)
+    ax.errorbar(
+        gaia_data["BP-RP"],
+        gaia_data["M"],
+        gaia_data["M"] - gaia_data["Ml"],
+        marker='.',
+        color="#e68a00",
+        alpha=0.75,
+        ls="",
+        lw=0.5
+    )
 
-    plt.savefig(figname)
-
-    plt.show()
+    if save is not None:
+        fig.tight_layout()
+        plt.savefig(save)

@@ -2,6 +2,7 @@
 from contextlib import contextmanager
 from deepdiff import DeepDiff
 import fire
+import numpy as np
 import os
 import pandas as pd
 import pathlib
@@ -15,6 +16,7 @@ import yaml
 
 from scope.utils import (
     load_config,
+    plot_gaia_hr,
     plot_light_curve_data,
 )
 
@@ -108,6 +110,65 @@ class Scope:
             # raise ConnectionError("Could not connect to Kowalski.")
             print("Kowalski not available")
 
+    def _get_nearest_gaia(
+            self,
+            positions: Sequence[Sequence[float]],
+            catalog: str = "Gaia_EDR3",
+            max_distance: float = 5.0,
+            distance_units: str = "arcsec",
+    ) -> pd.DataFrame:
+        """Get nearest Gaia source for a set of given positions
+
+        :param positions: R.A./Decl. [deg]
+        :param catalog: Gaia catalog to query
+        :param max_distance:
+        :param distance_units: arcsec | arcmin | deg | rad
+        :return:
+        """
+        if self.kowalski is None:
+            raise ConnectionError("Kowalski connection not established.")
+        query = {
+            "query_type": "near",
+            "query": {
+                "max_distance": max_distance,
+                "distance_units": distance_units,
+                "radec": positions,
+                "catalogs": {
+                    catalog: {
+                        "filter": {},
+                        "projection": {
+                            "parallax": 1,
+                            "parallax_error": 1,
+                            "pmra": 1,
+                            "pmra_error": 1,
+                            "pmdec": 1,
+                            "pmdec_error": 1,
+                            "phot_g_mean_mag": 1,
+                            "phot_bp_mean_mag": 1,
+                            "phot_rp_mean_mag": 1,
+                            "ra": 1,
+                            "dec": 1,
+                        }
+                    }
+                }
+            },
+            "kwargs": {
+                "limit": 1
+            }
+        }
+        response = self.kowalski.query(query=query)
+        gaia_nearest = [
+            v[0] for k, v in response.get("data").get(catalog).items()
+            if len(v) > 0
+        ]
+        df = pd.DataFrame.from_records(gaia_nearest)
+
+        df["M"] = df["phot_g_mean_mag"] + 5 * np.log10(df["parallax"] * 0.001) + 5
+        df["Ml"] = df["phot_g_mean_mag"] + 5 * np.log10((df["parallax"] + df["parallax_error"]) * 0.001) + 5
+        df["BP-RP"] = df["phot_bp_mean_mag"] - df["phot_rp_mean_mag"]
+
+        return df
+
     def _get_light_curve_data(
         self,
         ra: float,
@@ -121,6 +182,8 @@ class Scope:
         :param catalog: collection name on Kowalski
         :return: flattened light curve data as pd.DataFrame
         """
+        if self.kowalski is None:
+            raise ConnectionError("Kowalski connection not established.")
         query = {
             "query_type": "cone_search",
             "query": {
@@ -188,6 +251,7 @@ class Scope:
 
         # generate images for the Field Guide
         if self.kowalski is not None and self.kowalski.ping():
+            # example light curves
             path_doc_data = pathlib.Path(__file__).parent.absolute() / "doc" / "data"
 
             for sample_object_name, sample_object in self.config["docs"]["field_guide"].items():
@@ -203,8 +267,25 @@ class Scope:
                     save=path_doc_data / sample_object_name,
                 )
 
+            # example HR diagrams for all Golden sets
+            path_gaia_hr_histogram = (
+                pathlib.Path(__file__).parent.absolute() / "doc" / "data" / "gaia_hr_histogram.dat"
+            )
+            # stored as ra/decs in csv format under /data/golden
+            golden_sets = pathlib.Path(__file__).parent.absolute() / "data" / "golden"
+            for golden_set in golden_sets.glob("*.csv"):
+                golden_set_name = golden_set.stem
+                positions = pd.read_csv(golden_set).to_numpy().tolist()
+                gaia_sources = self._get_nearest_gaia(positions=positions)
+
+                plot_gaia_hr(
+                    gaia_data=gaia_sources,
+                    path_gaia_hr_histogram=path_gaia_hr_histogram,
+                    save=path_doc_data / f"hr__{golden_set_name}",
+                )
+
         # build docs
-        # subprocess.run(["make", "html"], cwd="doc", check=True)
+        subprocess.run(["make", "html"], cwd="doc", check=True)
 
 
 if __name__ == "__main__":
