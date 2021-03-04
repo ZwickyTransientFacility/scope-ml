@@ -187,7 +187,7 @@ class Scope:
         """Build docs"""
 
         # generate images for the Field Guide
-        if self.kowalski is not None:
+        if self.kowalski is not None and self.kowalski.ping():
             path_doc_data = pathlib.Path(__file__).parent.absolute() / "doc" / "data"
 
             for sample_object_name, sample_object in self.config["docs"]["field_guide"].items():
