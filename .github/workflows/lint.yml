@@ -27,4 +27,6 @@ jobs:
         env:
           KOWALSKI_TOKEN: ${{ secrets.KOWALSKI_TOKEN }}
         run: |
+          echo lol
+          echo $KOWALSKI_TOKEN
           ./scope.py lint
