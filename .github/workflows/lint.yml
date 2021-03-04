@@ -22,8 +22,6 @@ jobs:
           pip install wheel
           pip install -r requirements.txt
           cp config.defaults.yaml config.yaml
-          echo lol
-          echo $KOWALSKI_TOKEN
           ./scope.py develop
       - name: Lint sources
         env:

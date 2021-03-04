@@ -98,7 +98,8 @@ class Scope:
                 port=self.config["kowalski"]["port"],
             )
             if not self.kowalski.ping():
-                raise ConnectionError("Could not connect to Kowalski.")
+                # raise ConnectionError("Could not connect to Kowalski.")
+                print("Kowalski not available")
 
     @staticmethod
     def develop():
