@@ -16,16 +16,19 @@ jobs:
       with:
         python-version: '3.8'
 
-    - name: Install dependencies
+    - name: Install dependencies and use default config
       run: |
         python -m pip install --upgrade pip
         pip install wheel
         pip install -r requirements.txt
+        cp config.defaults.yaml config.yaml
         ./scope.py develop
     - name: Lint sources
       run: |
         ./scope.py lint
     - name: Build docs
+      env:
+        KOWALSKI_TOKEN: ${{ secrets.KOWALSKI_TOKEN }}
       run: |
         ./scope.py doc
     - name: Install SSH Client 🔑

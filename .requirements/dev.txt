@@ -1,0 +1,2 @@
+deepdiff>=5.0.2
+questionary>=1.8.1

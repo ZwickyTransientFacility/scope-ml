@@ -1,0 +1,6 @@
+kowalski:
+  host: kowalski.caltech.edu
+  port: 443
+  protocol: https
+  token:
+  collection_sources: ZTF_sources_20201201

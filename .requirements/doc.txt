@@ -1,5 +1,7 @@
 fire>=0.4.0
 myst-parser
+penquins>=2.1
 pre-commit
+pyyaml>=5.3.1
 sphinx<3
 sphinx_press_theme
