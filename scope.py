@@ -89,7 +89,7 @@ class Scope:
             kowalski_token_env = os.getenv("KOWALSKI_TOKEN")
             if kowalski_token_env is not None:
                 self.config["kowalski"]["token"] = kowalski_token_env
-
+        print(self.config["kowalski"])
         with status("Setting up Kowalski connection"):
             self.kowalski = Kowalski(
                 token=self.config["kowalski"]["token"],
