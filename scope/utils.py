@@ -1,9 +1,12 @@
 __all__ = [
     "load_config",
+    "plot_light_curve_data",
 ]
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+from typing import Optional
 import yaml
 
 
@@ -17,148 +20,70 @@ def load_config(config_path: str):
     return config
 
 
-def get_lc(ra, dec, kow, outputname=None, radius=1.5, remove_flagged=True):
-    """get a lightcurve from Kowalski """
+def plot_light_curve_data(
+    light_curve_data: pd.DataFrame,
+    period: Optional[float] = None,
+    title: Optional[str] = None,
+    save: Optional[str] = None,
+):
+    plt.close("all")
 
-    q = {
-        "query_type": "cone_search",
-        "query": {
-            "object_coordinates": {
-                "cone_search_radius": 2,
-                "cone_search_unit": "arcsec",
-                "radec": {
-                    "target": [ra, dec]
-                }
-            },
-            "catalogs": {
-                "DATABASE": {
-                    "filter": {},
-                    "projection": {
-                        "_id": 1,
-                        "data.hjd": 1,
-                        "data.fid": 1,
-                        "data.filter": 1,
-                        "data.mag": 1,
-                        "data.magerr": 1,
-                        "data.ra": 1,
-                        "data.dec": 1,
-                        "data.programid": 1,
-                        "data.catflags": 1}
-                }
-            }
-        },
-        "kwargs": {
-            "filter_first": False
-        }
+    # Official start of ZTF MSIP survey, March 1, 2018
+    jd_start = 2458178.5
+
+    colors = {
+        1: "#28a745",
+        2: "#dc3545",
+        3: "#f3dc11",
+        "default": "#00415a",
     }
 
-    #
-    ra_0 = ra
-    dec_0 = dec
+    mask_good_data = light_curve_data["catflags"] == 0
+    df = light_curve_data.loc[mask_good_data]
 
-    # run query
-    r = kow.query(q)
-    data = r.get('data')
+    fig = plt.figure(figsize=(16, 9))
+    fig.suptitle(title, fontsize=24)
 
-    #
-    key = list(data.keys())[0]
-    data = data[key]
-    key = list(data.keys())[0]
-    data = data[key]
-
-    # storage for outputdata
-    hjd, mag, magerr = [], [], []
-    ra, dec, fid, pid, catflags = [], [], [], [], []
-
-    # loop over ids to get the data
-    for datlist in data:
-        objid = str(datlist["_id"])
-        _fid = int(str(objid)[7])
-
-        dat = datlist["data"]
-
-        for dic in dat:
-            hjd.append(dic["hjd"])
-            mag.append(dic["mag"])
-            magerr.append(dic["magerr"])
-            ra.append(dic["ra"])
-            dec.append(dic["dec"])
-            fid.append(_fid)
-            pid.append(dic["programid"])
-            catflags.append(dic["catflags"])
-
-    # combine into one array
-    lightcurve = np.c_[hjd, mag, magerr, fid, pid, ra, dec, np.zeros_like(hjd), catflags]
-
-    if outputname is None:
-        outputname = 'lc_%0.4f_%0.4f.dat' % (ra_0, dec_0)
-
-    np.savetxt(outputname, lightcurve, fmt='%14.14g')
-    # return lightcurve
-
-
-def make_lcfig(lcfile, p=None, title=None, savename=None, splitbands=False):
-    """ given a lightcurve files (JD,mag,mag_e,filter)
-    lcfile : a file with the lightcurve (JD,mag,mag_e,filter)
-    p : float, the period to fold the lightcurve. If not specified, only the regular lighcurve is shown
-    title: str, the title of the figure
-    savename: str, the name used to save the figure
-    splitbands: bool, split the g,r,i bands
-    """
-
-    # the start of ZTF
-    ZTF_JD = 2458178.50000  # 2019 march 1
-
-    # plot the figure
-    colors = {1: '#28a745',
-              2: '#dc3545',
-              3: '#343a40',
-              'default': '#00415a', }
-
-    markers = {1: '^',
-               2: '>',
-               3: '<'}
-
-    # load the light curve
-    lc = np.loadtxt(lcfile)
-
-    # remove bad data
-    lc = lc[lc[:, 8] == 0]
-
-    # make a figure
-    fig = plt.figure(constrained_layout=False, figsize=(16, 9))
-    fig.suptitle(title, fontsize=32)
-
-    if p is None:
+    if period is None:
         ax1 = fig.add_subplot(111)
-    if p is not None:
+    else:
         ax1 = fig.add_subplot(211)
         ax2 = fig.add_subplot(212)
 
-    # plot the different ZTF bands
-    for f in [1, 2, 3]:
-        m = lc[:, 3] == f
-        ax1.errorbar(lc[m, 0] - ZTF_JD, lc[m, 1], lc[m, 2],
-                     marker='.', color=colors[f], lw=0)
-        if p is not None:
+    # plot different ZTF bands/filters
+    for band in df["filter"].unique():
+        mask_filter = df["filter"] == band
+        ax1.errorbar(
+            df.loc[mask_filter, "hjd"] - jd_start,
+            df.loc[mask_filter, "mag"],
+            df.loc[mask_filter, "magerr"],
+            marker='.',
+            color=colors[band],
+            lw=0
+        )
+        if period is not None:
             for n in [0, -1]:
-                ax2.errorbar(lc[m, 0] / p % 1 + n, lc[m, 1], lc[m, 2],
-                             marker=markers[f], color=colors[f], lw=0)
+                ax2.errorbar(
+                    df.loc[mask_filter, "hjd"] / period % 1 + n,
+                    df.loc[mask_filter, "mag"],
+                    df.loc[mask_filter, "magerr"],
+                    marker=".",
+                    color=colors[band],
+                    lw=0
+                )
 
-                # invert axes
-    for ax in [ax1, ax2]:
-        ax.invert_yaxis()
+            # invert y axes
+            for ax in [ax1, ax2]:
+                ax.invert_yaxis()
 
-    # set axes etc
-    ax1.set_xlabel('Time')
-    if p is not None:
-        ax2.set_xlabel('phase [p=%4.4g]' % p)
+    ax1.set_xlabel("Time")
+    if period is not None:
+        ax2.set_xlabel(f'phase [period={period:4.4g} days]')
         ax2.set_xlim(-1, 1)
 
-    if savename is not None:
-        plt.savefig(savename)
-    # plt.show()
-    plt.close()
+    if save is not None:
+        fig.tight_layout()
+        plt.savefig(save)
 
 
 def get_gaiadata(coords, filename):

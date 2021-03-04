@@ -4,3 +4,13 @@ kowalski:
   protocol: https
   token:
   collection_sources: ZTF_sources_20201201
+docs:
+  field_guide:
+    rr_lyr_ab:
+      coordinates: [254.9327, 30.8264]
+      period: 0.6299307435824886
+      title: RR Lyrae ab
+    rr_lyr_c:
+      coordinates: [254.7213, 32.8341]
+      period: 0.31087445597147706
+      title: RR Lyrae c

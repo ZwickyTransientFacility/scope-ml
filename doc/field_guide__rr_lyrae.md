@@ -16,8 +16,8 @@ The two main subtypes are `ab` and `c`,
 
 
 ### ZTF light curves
-![ZTF rrlyr ab](data/RRlyrae_ab.png)
-![ZTF rrlyr c](data/RRlyrae_c.png)
+![ZTF rrlyr ab](rr_lyr_ab.png)
+![ZTF rrlyr c](rr_lyr_c.png)
 
 #### Description
 RR Lyrae (ab) are easy to recognise by their distinctive light curve shape and
@@ -41,7 +41,7 @@ which occur at similar periods and have sinusoidal-like light curves.
   Reddening can be significant since these stars can be detected at large distances.
 - absolute magnitude: -1<G<1
 
-![HR diagram of RRlyrae](data/rrlyrae_HR.png)
+![HR diagram of RRlyrae](hr__rr_lyr.png)
 
 ### References and further reading:
 - Sterken & Jasschek: Light curves of variable stars
