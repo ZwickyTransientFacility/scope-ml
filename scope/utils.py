@@ -144,6 +144,10 @@ def plot_gaia_hr(
         lw=0.5
     )
 
+    # display grid behind all other elements on the plot
+    ax.set_axisbelow(True)
+    ax.grid(lw=0.3)
+
     if save is not None:
         fig.tight_layout()
         plt.savefig(save)
