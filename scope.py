@@ -11,7 +11,7 @@ from pprint import pprint
 import questionary
 import subprocess
 import sys
-from typing import Sequence
+from typing import Sequence, Union
 import yaml
 
 from scope.utils import (
@@ -114,7 +114,7 @@ class Scope:
             self,
             positions: Sequence[Sequence[float]],
             catalog: str = "Gaia_EDR3",
-            max_distance: float = 5.0,
+            max_distance: Union[float, int] = 5.0,
             distance_units: str = "arcsec",
     ) -> pd.DataFrame:
         """Get nearest Gaia source for a set of given positions
@@ -174,12 +174,16 @@ class Scope:
         ra: float,
         dec: float,
         catalog: str = "ZTF_sources_20201201",
+        cone_search_radius: Union[float, int] = 2,
+        cone_search_unit: str = "arcsec",
     ) -> pd.DataFrame:
         """Get light curve data from Kowalski
 
         :param ra: R.A. in deg
         :param dec: Decl. in deg
         :param catalog: collection name on Kowalski
+        :param cone_search_radius:
+        :param cone_search_unit: arcsec | arcmin | deg | rad
         :return: flattened light curve data as pd.DataFrame
         """
         if self.kowalski is None:
@@ -188,8 +192,8 @@ class Scope:
             "query_type": "cone_search",
             "query": {
                 "object_coordinates": {
-                    "cone_search_radius": 2,
-                    "cone_search_unit": "arcsec",
+                    "cone_search_radius": cone_search_radius,
+                    "cone_search_unit": cone_search_unit,
                     "radec": {
                         "target": [ra, dec]
                     }
