@@ -108,6 +108,10 @@ If you would like to contribute a Field Guide section, please follow the steps b
   - Use [`doc/field_guide__rr_lyrae.md`](field_guide__rr_lyrae.md) as a template.
   - Light curve examples will be generated as `data/<object_class_type>.png` files using the info
     you provided in the config.
+  - Add the following include statements to [`doc/field_guide.md`](field_guide.md):
+
+```{include} ./field_guide__<object_class>.md
+```
 
 - If you wish to render a sample Gaia-based HR diagram, you need to create a "Golden" data set
   for that class of objects and put it under `data/golden` as `<object_class>.csv`
