@@ -83,6 +83,21 @@ code.
 
 The pre-commit hook will lint *changes* made to the source.
 
+---
+
+You may want to create/activate a virtual environment, for example:
+
+```bash
+python -m venv scope-env
+source scope-env/bin/activate
+```
+
+Make sure the requirements to run it are met, e.g.:
+
+```bash
+pip install -r requirements.txt
+```
+
 
 ## Contributing Field Guide sections
 
