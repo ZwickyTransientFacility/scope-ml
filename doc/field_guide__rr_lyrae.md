@@ -12,7 +12,7 @@ The two main subtypes are `ab` and `c`,
 - Subtypes
   - RR Lyrae ab
   - RR Lyrae c
-- Occurance rate: very common, about 10<sup>5</sup> expected in ZTF data
+- Occurrence rate: very common, about 10<sup>5</sup> expected in ZTF data
 
 
 ### ZTF light curves

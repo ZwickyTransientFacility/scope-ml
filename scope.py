@@ -176,6 +176,7 @@ class Scope:
         catalog: str = "ZTF_sources_20201201",
         cone_search_radius: Union[float, int] = 2,
         cone_search_unit: str = "arcsec",
+        filter_flagged_data: bool = True,
     ) -> pd.DataFrame:
         """Get light curve data from Kowalski
 
@@ -184,6 +185,7 @@ class Scope:
         :param catalog: collection name on Kowalski
         :param cone_search_radius:
         :param cone_search_unit: arcsec | arcmin | deg | rad
+        :param filter_flagged_data: remove flagged/bad data?
         :return: flattened light curve data as pd.DataFrame
         """
         if self.kowalski is None:
@@ -229,6 +231,10 @@ class Scope:
             light_curves.append(df)
 
         df = pd.concat(light_curves, ignore_index=True)
+
+        if filter_flagged_data:
+            mask_flagged_data = df["catflags"] != 0
+            df = df.loc[mask_flagged_data]
 
         return df
 

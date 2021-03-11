@@ -38,8 +38,8 @@ def plot_light_curve_data(
     """
     plt.close("all")
 
-    # Official start of ZTF MSIP survey, March 1, 2018
-    jd_start = 2458178.5
+    # Official start of ZTF MSIP survey, March 17, 2018
+    jd_start = 2458194.5
 
     colors = {
         1: "#28a745",
