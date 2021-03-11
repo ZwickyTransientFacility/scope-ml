@@ -262,13 +262,14 @@ class Scope:
         """Build docs"""
 
         # generate taxonomy.html
-        path_static = pathlib.Path(__file__).parent.absolute() / "doc" / "_static"
-        if not path_static.exists():
-            path_static.mkdir(parents=True, exist_ok=True)
-        tdtax.write_viz(
-            self.config["taxonomy"],
-            outname=path_static / "taxonomy.html"
-        )
+        with status("Generating taxonomy visualization"):
+            path_static = pathlib.Path(__file__).parent.absolute() / "doc" / "_static"
+            if not path_static.exists():
+                path_static.mkdir(parents=True, exist_ok=True)
+            tdtax.write_viz(
+                self.config["taxonomy"],
+                outname=path_static / "taxonomy.html"
+            )
 
         # generate images for the Field Guide
         if (self.kowalski is None) or (not self.kowalski.ping()):
