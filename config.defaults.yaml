@@ -4,6 +4,41 @@ kowalski:
   protocol: https
   token:
   collection_sources: ZTF_sources_20201201
+taxonomy:
+  name: Class type
+  children:
+    - name: phenomenological
+      children:
+        - name: variable
+        - name: periodic
+        - name: long timescale
+        - name: irregular
+        - name: eclipsing
+          children:
+            - name: EA
+            - name: EB
+            - name: EW
+        - name: flaring
+        - name: bogus
+    - name: ontological
+      children:
+        - name: pulsator
+          children:
+            - name: Delta Scuti
+            - name: Cepheid
+            - name: RR Lyrae
+            - name: LPV
+              children:
+                - name: Mira
+                - name: SRV
+        - name: binary star
+          children:
+            - name: W Uma
+            - name: Beta Lyr
+            - name: RS CVn
+        - name: AGN
+        - name: YSO
+        - name: CV
 docs:
   field_guide:
     rr_lyr_ab:

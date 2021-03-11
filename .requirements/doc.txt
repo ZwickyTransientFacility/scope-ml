@@ -6,3 +6,4 @@ pre-commit
 pyyaml>=5.3.1
 sphinx<3
 sphinx_press_theme
+tdtax>=0.1.3

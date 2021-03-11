@@ -11,6 +11,8 @@ from pprint import pprint
 import questionary
 import subprocess
 import sys
+import tdtax
+from tdtax import taxonomy  # noqa: F401
 from typing import Sequence, Union
 import yaml
 
@@ -234,7 +236,7 @@ class Scope:
 
         if filter_flagged_data:
             mask_flagged_data = df["catflags"] != 0
-            df = df.loc[mask_flagged_data]
+            df = df.loc[~mask_flagged_data]
 
         return df
 
@@ -258,6 +260,15 @@ class Scope:
 
     def doc(self):
         """Build docs"""
+
+        # generate taxonomy.html
+        path_static = pathlib.Path(__file__).parent.absolute() / "doc" / "_static"
+        if not path_static.exists():
+            path_static.mkdir(parents=True, exist_ok=True)
+        tdtax.write_viz(
+            self.config["taxonomy"],
+            outname=pathlib.Path(__file__).parent.absolute() / "doc" / "_static" / "taxonomy.html"
+        )
 
         # generate images for the Field Guide
         if (self.kowalski is None) or (not self.kowalski.ping()):
