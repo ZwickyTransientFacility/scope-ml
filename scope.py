@@ -267,7 +267,7 @@ class Scope:
             path_static.mkdir(parents=True, exist_ok=True)
         tdtax.write_viz(
             self.config["taxonomy"],
-            outname=pathlib.Path(__file__).parent.absolute() / "doc" / "_static" / "taxonomy.html"
+            outname=path_static / "taxonomy.html"
         )
 
         # generate images for the Field Guide
