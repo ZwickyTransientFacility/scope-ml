@@ -3,7 +3,9 @@ kowalski:
   port: 443
   protocol: https
   token:
-  collection_sources: ZTF_sources_20201201
+  collections:
+    gaia: Gaia_EDR3
+    sources: ZTF_sources_20201201
 taxonomy:
   name: Class type
   children:

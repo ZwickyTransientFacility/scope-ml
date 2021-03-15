@@ -115,7 +115,7 @@ class Scope:
     def _get_nearest_gaia(
             self,
             positions: Sequence[Sequence[float]],
-            catalog: str = "Gaia_EDR3",
+            catalog: str = None,
             max_distance: Union[float, int] = 5.0,
             distance_units: str = "arcsec",
     ) -> pd.DataFrame:
@@ -129,6 +129,8 @@ class Scope:
         """
         if self.kowalski is None:
             raise ConnectionError("Kowalski connection not established.")
+        if catalog is None:
+            catalog = self.config["kowalski"]["collections"]["gaia"]
         query = {
             "query_type": "near",
             "query": {
@@ -284,7 +286,7 @@ class Scope:
                 sample_light_curves = self._get_light_curve_data(
                     ra=sample_object["coordinates"][0],
                     dec=sample_object["coordinates"][1],
-                    catalog=self.config["kowalski"]["collection_sources"],
+                    catalog=self.config["kowalski"]["collections"]["sources"],
                 )
                 plot_light_curve_data(
                     light_curve_data=sample_light_curves,
