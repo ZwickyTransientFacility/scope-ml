@@ -90,7 +90,7 @@ def plot_light_curve_data(
     ax1.set_xlabel("Time")
     ax1.grid(lw=0.3)
     if period is not None:
-        ax2.set_xlabel(f'phase [period={period:4.4g} days]')
+        ax2.set_xlabel(f"phase [period={period:4.4g} days]")
         ax2.set_xlim(-1, 1)
         ax2.grid(lw=0.3)
 
@@ -111,7 +111,7 @@ def plot_gaia_hr(
 
     """
     # plot the H-R diagram for 1 M stars within 200 pc from the Sun
-    plt.rc('text', usetex=True)
+    plt.rc("text", usetex=True)
 
     # load background histogram
     histogram = np.loadtxt(path_gaia_hr_histogram)
