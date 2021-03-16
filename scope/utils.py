@@ -129,10 +129,8 @@ def plot_gaia_hr(
     ax.set_ylim(y_edges[0], y_edges[-1])
 
     ax.invert_yaxis()
-    # ax.set_xlabel(r'$G_{BP} - G_{RP}$')
-    # ax.set_ylabel(r'$M_G$')
-    ax.set_xlabel("BP - RP")
-    ax.set_ylabel("M")
+    ax.set_xlabel(r"$G_{BP} - G_{RP}$")
+    ax.set_ylabel(r"$M_G$")
 
     # plot sample data
     ax.errorbar(
