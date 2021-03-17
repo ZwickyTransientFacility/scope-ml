@@ -316,6 +316,10 @@ class Scope:
         # build docs
         subprocess.run(["make", "html"], cwd="doc", check=True)
 
+    def train(self):
+        """Train classifier"""
+        pass
+
 
 if __name__ == "__main__":
     fire.Fire(Scope)
