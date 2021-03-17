@@ -8,11 +8,7 @@ from models import AbstractClassifier
 
 class DenseBlock(tf.keras.models.Model, ABC):
     def __init__(
-            self,
-            units: int,
-            activation: str = "relu",
-            repetitions: int = 1,
-            **kwargs
+        self, units: int, activation: str = "relu", repetitions: int = 1, **kwargs
     ):
         """Dense block to process light curve features
 
@@ -27,8 +23,7 @@ class DenseBlock(tf.keras.models.Model, ABC):
 
         for i in range(self.repetitions):
             vars(self)[f"dense_{i}"] = tf.keras.layers.Dense(
-                units=self.units,
-                activation=self.activation
+                units=self.units, activation=self.activation
             )
 
     def call(self, inputs, **kwargs):
@@ -41,13 +36,13 @@ class DenseBlock(tf.keras.models.Model, ABC):
 
 class ConvBlock(tf.keras.models.Model, ABC):
     def __init__(
-            self,
-            filters: int,
-            kernel_size: tuple,
-            activation: str = "relu",
-            pool_size: tuple = (2, 2),
-            repetitions: int = 1,
-            **kwargs
+        self,
+        filters: int,
+        kernel_size: tuple,
+        activation: str = "relu",
+        pool_size: tuple = (2, 2),
+        repetitions: int = 1,
+        **kwargs,
     ):
         """Convolutional block to process dmdt's constructed from light curves
 
@@ -70,7 +65,7 @@ class ConvBlock(tf.keras.models.Model, ABC):
             vars(self)[f"conv_{i}"] = tf.keras.layers.SeparableConv2D(
                 filters=self.filters,
                 kernel_size=self.kernel_size,
-                activation=self.activation
+                activation=self.activation,
             )
 
         self.max_pool = tf.keras.layers.MaxPooling2D(pool_size=self.pool_size)
@@ -85,13 +80,12 @@ class ConvBlock(tf.keras.models.Model, ABC):
 
 
 class ScopeNet(tf.keras.models.Model, ABC):
-
     def __init__(
-            self,
-            dense_branch: bool = True,
-            conv_branch: bool = True,
-            dropout_rate: float = 0.25,
-            **kwargs
+        self,
+        dense_branch: bool = True,
+        conv_branch: bool = True,
+        dropout_rate: float = 0.25,
+        **kwargs,
     ):
         """Deep Neural Net architecture for the ZTF Source Classification project
 
@@ -150,7 +144,7 @@ class ScopeNet(tf.keras.models.Model, ABC):
         x = self.dense_2(x)
 
         # Logistic regression to output the final score
-        x = tf.keras.layers.Dense(1, activation='sigmoid', name='score')(x)
+        x = tf.keras.layers.Dense(1, activation="sigmoid", name="score")(x)
 
         return x
 
