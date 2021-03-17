@@ -2,8 +2,6 @@
     Defines:
         - Abstract AbstractClassifier class. Individual classifiers should be subclasses thereof.
 
-    Author: Dr Dmitry A. Duev
-    February 2020
 """
 
 from abc import ABC, abstractmethod

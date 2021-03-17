@@ -1,10 +1,3 @@
-"""
-    Deep Neural Networks
-
-    Author: Dr Dmitry A. Duev
-    February/March 2020
-"""
-
 from abc import ABC
 import datetime
 import os
