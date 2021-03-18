@@ -292,7 +292,7 @@ class Scope:
                 sample_light_curves = self._get_light_curve_data(
                     ra=sample_object["coordinates"][0],
                     dec=sample_object["coordinates"][1],
-                    catalog=self.config["kowalski"]["collections"]["sources"]
+                    catalog=self.config["kowalski"]["collections"]["sources"],
                 )
                 plot_light_curve_data(
                     light_curve_data=sample_light_curves,
