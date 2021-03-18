@@ -3,7 +3,7 @@ import datetime
 import os
 import tensorflow as tf
 
-from models import AbstractClassifier
+from .models import AbstractClassifier
 
 
 class DenseBlock(tf.keras.models.Model, ABC):

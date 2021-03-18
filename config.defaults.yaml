@@ -6,41 +6,152 @@ kowalski:
   collections:
     gaia: Gaia_EDR3
     sources: ZTF_sources_20201201
+
 taxonomy:
-  name: Class type
-  children:
-    - name: phenomenological
-      children:
-        - name: variable
-        - name: periodic
-        - name: long timescale
-        - name: irregular
-        - name: eclipsing
-          children:
-            - name: EA
-            - name: EB
-            - name: EW
-        - name: flaring
-        - name: bogus
-    - name: ontological
-      children:
-        - name: pulsator
-          children:
-            - name: Delta Scuti
-            - name: Cepheid
-            - name: RR Lyrae
-            - name: LPV
-              children:
-                - name: Mira
-                - name: SRV
-        - name: binary star
-          children:
-            - name: W Uma
-            - name: Beta Lyr
-            - name: RS CVn
-        - name: AGN
-        - name: YSO
-        - name: CV
+  class: tds
+  name: time domain source type
+  subclasses:
+    - class: phenomenological
+      name: phenomenological
+      description: |
+        What can be said about an object given just its ZTF light curve.
+      subclasses:
+        - class: vnv
+          name: variable
+          description: |
+            Any ZTF source that shows detectable variability in its light curve
+            due to an astrophysical origin. This excludes variability due to blended photometry,
+            bright nearby stars, or any CCD artifact.
+        - class: pnp
+          name: periodic
+          description: |
+            The ZTF light curve features astrophysical periodic variability.
+            These are typically pulsators, rotating stars and (eclipsing) binaries.
+            This does not include semi-periodic or quasi-periodic variability. This
+            excludes variability due to a varying background (e.g. due to the moon),
+            or spurious periodic variability due to nearby bright stars or other artifacts.
+        - class: longt
+          name: long timescale
+          description: |
+            Any object which shows variability on timescales of 100 days. This can be a steady
+            increase/decrease in luminosity, e.g., AGN and CVs.
+            Long timescale period variable like Miras and the more
+            irregular semi-regular variables are generally included in this category.
+        - class: i
+          name: irregular
+          description: |
+            Objects which show irregular variability.
+            These are mostly accreting objects, AGN, CVs, and YSOs.
+        - class: e
+          name: eclipsing
+          description: |
+            Any source that shows eclipses in the light curve.
+            These are predominately eclipsing binaries.
+            Eclipsing planetisimals or planets with large rings would also
+            fall in this category.
+          subclasses:
+            - class: ea
+              name: detached binary
+            - class: eb
+              name: semi-detached binary
+            - class: ew
+              name: overcontact binary
+        - class: fla
+          name: flaring
+          description: |
+            Any ZTF light curve that shows flares, rapidly rising and fading events.
+            These are mostly cataclysmic variables, some young stellar objects, some AGN.
+        - class: bogus
+          name: bogus
+          description: |
+            Any light curve that seems variable, but is not due to any astrophysical variability.
+            These are galaxies that can seem to vary due to PSF variations,
+            image artifacts like ghosts, blended stars, or diffraction spikes.
+    - class: ontological
+      name: ontological
+      description: |
+        What can be said about an object given not just its ZTF light curve
+      subclasses:
+        - class: puls
+          name: pulsator
+          description: |
+            Any kind of pulsating star.
+          subclasses:
+            - class: dscu
+              name: Delta Scuti
+              description: |
+                Delta Scuti are pulsating A&F main sequence stars. The pulsation period ranges between
+                0.03 between 0.3 days, and the amplitude is typically 0.2 mag but can reach up to 0.8mag.
+                Their light curves are asymmetric, with a rapid rise and slow decay.
+            - class: ceph
+              name: Cepheid
+              description: |
+                Cepheids are radially pulsating giant stars in the instability strip.
+                Period range between 1 and 50 days, with extreme examples of 200 days.
+                Light curves shapes range from asymmetric with a steep rise
+                and slow decay, to almost sinusoidal light curve shapes.
+            - class: rrlyr
+              name: RR Lyrae
+              description: |
+                RR Lyrae are radial pulsators on the horizontal branch; they are helium core burning and
+                hydrogen shell burning. The pulsation period ranges between 0.2 and 1.0 days.
+            - class: lpv
+              name: long period variable
+              description: |
+                Long Period Variables are cool giant stars. Nearly all stars of this type show
+                some variability.
+              subclasses:
+                - class: mira
+                  name: Mira
+                  description: |
+                    AGB stars which show very high amplitude (> 2.5), long period (80-1000
+                    days) variability.
+                - class: srv
+                  name: semi-regulat variable
+                  description: |
+                    Show more irregular, and lower amplitude variability than Miras.
+        - class: bis
+          name: binary star
+          description: |
+            Any object that is a binary star.
+          subclasses:
+            - class: wuma
+              name: W Uma
+              description: |
+                Eclipsing close binary stars of spectral types F, G, or K that share a common envelope
+                of material and are thus in contact with one another.
+            - class: blyr
+              name: Beta Lyr
+              description: |
+                Binary systems were one of the components has evolved into a subgiant or giant star and
+                is filling its Roche lobe transferring mass in a disk.
+                The light curve of these systems is of type EB. The period
+                ranges between 0.3 days and 200 days.
+                Systems with a period of >100 days contains a supergiant.
+            - class: rscvn
+              name: RS CVn
+              description: |
+                A binary star where at least one of the components
+                has large stellar spots. The light curve shape is sinusoidal
+                with periods of a few hours to 14 days.
+                The shape of the light curve changes over timescales of months to years.
+        - class: agn
+          name: active galactic nuclei
+          description: |
+            Extra-galactic objects which tend to vary irregularly. Often show slowly rising
+            or fading light curves, and can also show outbursts in rare cases.
+        - class: yso
+          name: young stellar object
+          description: |
+            Pre-main-sequence stars. They typically have an accretion disk and dust around
+            them. This results in a light curve which shows irregular behavior,
+            sometimes with outbursts or dust obscuration events.
+        - class: cv
+          name: cataclysmic variable
+          description: |
+            A binary star that consists of two components:
+            a white dwarf primary, and a mass transferring secondary.
+
 docs:
   field_guide:
     rr_lyr_ab:
@@ -51,4 +162,129 @@ docs:
       coordinates: [254.7213, 32.8341]
       period: 0.31087445597147706
       title: RR Lyrae c
-#train:
+
+features:
+  phenomenological:
+    - ra
+    - dec
+#    - n
+    - median
+    - wmean
+    - chi2red
+    - roms
+    - wstd
+    - norm_peak_to_peak_amp
+    - norm_excess_var
+    - median_abs_dev
+    - iqr
+    - i60r
+    - i70r
+    - i80r
+    - i90r
+    - skew
+    - smallkurt
+    - inv_vonneumannratio
+    - welch_i
+    - stetson_j
+    - stetson_k
+    - ad
+    - sw
+    - n_ztf_alerts
+    - mean_ztf_alert_braai
+    - period
+    - significance
+    - pdot
+    - f1_power
+    - f1_BIC
+    - f1_a
+    - f1_b
+    - f1_amp
+    - f1_phi0
+    - f1_relamp1
+    - f1_relphi1
+    - f1_relamp2
+    - f1_relphi2
+    - f1_relamp3
+    - f1_relphi3
+    - f1_relamp4
+    - f1_relphi4
+  ontological:
+    - ra
+    - dec
+    - median
+    - wmean
+    - chi2red
+    - roms
+    - wstd
+    - norm_peak_to_peak_amp
+    - norm_excess_var
+    - median_abs_dev
+    - iqr
+    - i60r
+    - i70r
+    - i80r
+    - i90r
+    - skew
+    - smallkurt
+    - inv_vonneumannratio
+    - welch_i
+    - stetson_j
+    - stetson_k
+    - ad
+    - sw
+    - n_ztf_alerts
+    - mean_ztf_alert_braai
+    - period
+    - significance
+    - pdot
+    - f1_power
+    - f1_BIC
+    - f1_a
+    - f1_b
+    - f1_amp
+    - f1_phi0
+    - f1_relamp1
+    - f1_relphi1
+    - f1_relamp2
+    - f1_relphi2
+    - f1_relamp3
+    - f1_relphi3
+    - f1_relamp4
+    - f1_relphi4
+    - AllWISE__w1mpro
+    - AllWISE__w1sigmpro
+    - AllWISE__w2mpro
+    - AllWISE__w2sigmpro
+    - AllWISE__w3mpro
+    - AllWISE__w3sigmpro
+    - AllWISE__w4mpro
+    - AllWISE__w4sigmpro,
+#    - AllWISE__ph_qual,
+    - Gaia_EDR3__phot_g_mean_mag
+    - Gaia_EDR3__phot_bp_mean_mag
+    - Gaia_EDR3__phot_rp_mean_mag
+    - Gaia_EDR3__parallax
+    - Gaia_EDR3__parallax_error
+    - Gaia_EDR3__pmra
+    - Gaia_EDR3__pmra_error,
+    - Gaia_EDR3__pmdec
+    - Gaia_EDR3__pmdec_error
+    - Gaia_EDR3__astrometric_excess_noise
+    - Gaia_EDR3__phot_bp_rp_excess_factor
+    - PS1_DR1__gMeanPSFMag
+    - PS1_DR1__gMeanPSFMagErr
+    - PS1_DR1__rMeanPSFMag
+    - PS1_DR1__rMeanPSFMagErr
+    - PS1_DR1__iMeanPSFMag
+    - PS1_DR1__iMeanPSFMagErr
+    - PS1_DR1__zMeanPSFMag
+    - PS1_DR1__zMeanPSFMagErr
+    - PS1_DR1__yMeanPSFMag
+    - PS1_DR1__yMeanPSFMagErr
+
+training:
+  dataset: md5 checksum? filename? from GCS? to use for training
+  classes:
+    agn:
+      label: AGN
+      features: ontological

@@ -2,6 +2,7 @@ __all__ = [
     "Dataset",
     "load_config",
     "log",
+    "make_tdtax_taxonomy",
     "plot_gaia_hr",
     "plot_light_curve_data",
 ]
@@ -40,6 +41,26 @@ def time_stamp():
 
 def log(message):
     print(f"{time_stamp()}: {message}")
+
+
+def make_tdtax_taxonomy(taxonomy):
+    """Recursively convert taxonomy definition from config["taxonomy"]
+       into tdtax-parsable dictionary
+
+    :param taxonomy: config["taxonomy"] section
+    :return:
+    """
+    tdtax_taxonomy = dict()
+    if taxonomy["class"] not in ("tds", "phenomenological", "ontological"):
+        tdtax_taxonomy["name"] = f"{taxonomy['class']}: {taxonomy['name']}"
+    else:
+        tdtax_taxonomy["name"] = taxonomy["name"]
+    if "subclasses" in taxonomy:
+        tdtax_taxonomy["children"] = []
+        for cls in taxonomy["subclasses"]:
+            tdtax_taxonomy["children"].append(make_tdtax_taxonomy(cls))
+
+    return tdtax_taxonomy
 
 
 def plot_light_curve_data(

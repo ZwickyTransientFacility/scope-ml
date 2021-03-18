@@ -13,11 +13,14 @@ import subprocess
 import sys
 import tdtax
 from tdtax import taxonomy  # noqa: F401
-from typing import Sequence, Union
+from typing import Optional, Sequence, Union
 import yaml
 
+# from scope.nn import DNN
 from scope.utils import (
+    # Dataset,
     load_config,
+    make_tdtax_taxonomy,
     plot_gaia_hr,
     plot_light_curve_data,
 )
@@ -269,7 +272,7 @@ class Scope:
             if not path_static.exists():
                 path_static.mkdir(parents=True, exist_ok=True)
             tdtax.write_viz(
-                self.config["taxonomy"],
+                make_tdtax_taxonomy(self.config["taxonomy"]),
                 outname=path_static / "taxonomy.html"
             )
 
@@ -316,9 +319,27 @@ class Scope:
         # build docs
         subprocess.run(["make", "html"], cwd="doc", check=True)
 
-    def train(self):
+    def train(
+        self,
+        tag: str,
+        gpu: Optional[int] = None,
+        verbose: bool = False
+    ):
         """Train classifier"""
-        pass
+
+        # path_dataset = None
+        # features = self.config["features"][
+        #     self.config["training"]["classes"][tag]["features"]
+        # ]
+
+        # dataset = Dataset(
+        #     tag=tag,
+        #     path_dataset=path_dataset,
+        #     features=features,
+        #     verbose=verbose
+        # )
+        #
+        # label = self.config["training"]["classes"][tag]["label"]
 
 
 if __name__ == "__main__":
