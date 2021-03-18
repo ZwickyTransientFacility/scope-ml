@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from contextlib import contextmanager
+import datetime
 from deepdiff import DeepDiff
 import fire
 import numpy as np
@@ -13,12 +14,14 @@ import subprocess
 import sys
 import tdtax
 from tdtax import taxonomy  # noqa: F401
+import tensorflow as tf
+import tensorflow_addons as tfa
 from typing import Optional, Sequence, Union
 import yaml
 
-# from scope.nn import DNN
+from scope.nn import DNN
 from scope.utils import (
-    # Dataset,
+    Dataset,
     load_config,
     make_tdtax_taxonomy,
     plot_gaia_hr,
@@ -319,27 +322,180 @@ class Scope:
         # build docs
         subprocess.run(["make", "html"], cwd="doc", check=True)
 
+    @staticmethod
+    def fetch_models():
+        """
+        Fetch SCoPe models from GCP
+
+        :return:
+        """
+        path_models = pathlib.Path(__file__).parent / "models"
+        if not path_models.exists():
+            path_models.mkdir(parents=True, exist_ok=True)
+
+        command = [
+            "gsutil",
+            "-m",
+            "cp",
+            "-n",
+            "-r",
+            "gs://ztf-scope/models/*",
+            str(path_models),
+        ]
+        p = subprocess.run(command, check=True)
+        if p.returncode != 0:
+            raise RuntimeError("Failed to fetch SCoPe models")
+
+    @staticmethod
+    def fetch_datasets():
+        """
+        Fetch SCoPe datasets from GCP
+
+        :return:
+        """
+        path_datasets = pathlib.Path(__file__).parent / "data" / "training"
+        if not path_datasets.exists():
+            path_datasets.mkdir(parents=True, exist_ok=True)
+
+        command = [
+            "gsutil",
+            "-m",
+            "cp",
+            "-n",
+            "-r",
+            "gs://ztf-scope/datasets/*",
+            str(path_datasets),
+        ]
+        p = subprocess.run(command, check=True)
+        if p.returncode != 0:
+            raise RuntimeError("Failed to fetch SCoPe datasets")
+
     def train(
         self,
         tag: str,
+        path_dataset: str,
         gpu: Optional[int] = None,
-        verbose: bool = False
+        verbose: bool = False,
+        **kwargs
     ):
-        """Train classifier"""
+        """Train classifier
 
-        # path_dataset = None
-        # features = self.config["features"][
-        #     self.config["training"]["classes"][tag]["features"]
-        # ]
+        :param tag:
+        :param path_dataset:
+        :param gpu: GPU id to use, zero-based. check tf.config.list_physical_devices('GPU') for available devices
+        :param verbose:
+        :param kwargs:
+        :return:
+        """
 
-        # dataset = Dataset(
-        #     tag=tag,
-        #     path_dataset=path_dataset,
-        #     features=features,
-        #     verbose=verbose
-        # )
-        #
-        # label = self.config["training"]["classes"][tag]["label"]
+        train_config = self.config["training"]["classes"][tag]
+
+        features = self.config["features"][train_config["features"]]
+
+        ds = Dataset(
+            tag=tag,
+            path_dataset=path_dataset,
+            features=features,
+            verbose=verbose
+        )
+
+        label = train_config["label"]
+
+        # values from kwargs override those defined in config. if latter is absent, use reasonable default
+        threshold = kwargs.get("threshold", train_config.get("threshold", 0.5))
+        balance = kwargs.get("balance", train_config.get("balance", None))
+        weight_per_class = kwargs.get("weight_per_class", train_config.get("weight_per_class", False))
+
+        test_size = kwargs.get("test_size", 0.1)
+        val_size = kwargs.get("val_size", 0.1)
+        random_state = kwargs.get("random_state", 42)
+        norms = self.config.get("feature_norms", None)
+
+        batch_size = kwargs.get("batch_size", 32)
+        shuffle_buffer_size = kwargs.get("shuffle_buffer_size", 512)
+        epochs = kwargs.get("epochs", 200)
+
+        datasets, indexes, steps_per_epoch, class_weight = ds.make(
+            target_label=label,
+            threshold=threshold,
+            balance=balance,
+            weight_per_class=weight_per_class,
+            test_size=test_size,
+            val_size=val_size,
+            random_state=random_state,
+            norms=norms,
+            batch_size=batch_size,
+            shuffle_buffer_size=shuffle_buffer_size,
+            epochs=epochs,
+        )
+
+        # set up and train model
+
+        if gpu is not None:
+            # specified a GPU to run on?
+            gpus = tf.config.list_physical_devices("GPU")
+            tf.config.experimental.set_visible_devices(gpus[gpu], "GPU")
+        else:
+            # otherwise run on CPU
+            tf.config.experimental.set_visible_devices([], "GPU")
+
+        dense_branch = kwargs.get("dense_branch", True)
+        conv_branch = kwargs.get("conv_branch", True)
+        loss = kwargs.get("loss", "binary_crossentropy")
+        optimizer = kwargs.get("optimizer", "adam")
+        lr = float(kwargs.get("lr", 3e-4))
+        momentum = float(kwargs.get("momentum", 0.9))
+        monitor = kwargs.get("monitor", "val_loss")
+        patience = float(kwargs.get("patience", 20))
+        callbacks = kwargs.get("callbacks", ("reduce_lr_on_plateau", "early_stopping"))
+
+        pre_trained_model = kwargs.get("pre_trained_model")
+
+        classifier = DNN(name=tag)
+
+        classifier.setup(
+            dense_branch=dense_branch,
+            conv_branch=conv_branch,
+            loss=loss,
+            optimizer=optimizer,
+            lr=lr,
+            momentum=momentum,
+            monitor=monitor,
+            patience=patience,
+            callbacks=callbacks,
+        )
+
+        if pre_trained_model is not None:
+            classifier.model = tf.keras.models.load_model(pre_trained_model)
+        if verbose:
+            classifier.model.summary()
+
+        if verbose:
+            tqdm_callback = tfa.callbacks.TQDMProgressBar()
+            classifier.meta["callbacks"].append(tqdm_callback)
+
+        classifier.train(
+            datasets["train"],
+            datasets["val"],
+            steps_per_epoch["train"],
+            steps_per_epoch["val"],
+            epochs=epochs,
+            class_weight=class_weight
+        )
+
+        # eval and save
+        stats = classifier.evaluate(
+            datasets['test'],
+            callbacks=[tfa.callbacks.TQDMProgressBar()],
+            verbose=0
+        )
+        print(stats)
+
+        classifier.save(
+            output_path=f"models/{tag}",
+            output_format="hdf5",
+            tag=f'{datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")}'
+        )
 
 
 if __name__ == "__main__":

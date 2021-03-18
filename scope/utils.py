@@ -9,7 +9,6 @@ __all__ = [
 
 from ast import literal_eval
 import datetime
-import json
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -294,12 +293,12 @@ class Dataset(object):
         self,
         target_label: str = "variable",
         threshold: float = 0.5,
-        balance=None,
+        balance: Optional[float] = None,
         weight_per_class: bool = True,
         test_size: float = 0.1,
         val_size: float = 0.1,
         random_state: int = 42,
-        path_norms=None,
+        norms: Optional[dict] = None,
         batch_size: int = 256,
         shuffle_buffer_size: int = 256,
         epochs: int = 300,
@@ -315,7 +314,7 @@ class Dataset(object):
         :param test_size:
         :param val_size:
         :param random_state:
-        :param path_norms: json file with norms to use to normalize features. if None, norms are computed
+        :param norms: norms to use to normalize features. if None, norms are computed
         :param batch_size
         :param shuffle_buffer_size
         :param epochs
@@ -385,7 +384,7 @@ class Dataset(object):
         # Obviously, the same norms will have to be applied at the testing and serving stages.
 
         # load/compute feature norms:
-        if not path_norms:
+        if norms is None:
             norms = {
                 feature: np.linalg.norm(self.df_ds.loc[ds_indexes, feature])
                 for feature in self.features
@@ -395,12 +394,8 @@ class Dataset(object):
                     norms[feature] = 1.0
             if self.verbose:
                 print("Computed feature norms:\n", norms)
-        else:
-            with open(path_norms, "r") as f:
-                norms = json.load(f)
-            if self.verbose:
-                print(f"Loaded feature norms from {path_norms}:\n", norms)
 
+        # normalize features
         for feature, norm in norms.items():
             self.df_ds[feature] /= norm
 
@@ -503,7 +498,7 @@ class Dataset(object):
             print(f"Steps per epoch: {steps_per_epoch}")
 
         # Weight training data depending on the number of samples?
-        # Very useful for imbalanced classification, especially when in the cases with a small number of examples.
+        # Very useful for imbalanced classification, especially in the cases with a small number of examples.
 
         if weight_per_class:
             # weight data class depending on number of examples?

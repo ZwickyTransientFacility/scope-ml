@@ -2,6 +2,7 @@ from abc import ABC
 import datetime
 import os
 import tensorflow as tf
+from typing import Optional
 
 from .models import AbstractClassifier
 
@@ -154,13 +155,13 @@ class DNN(AbstractClassifier):
 
     def setup(
         self,
-        dense_branch=True,
-        conv_branch=True,
-        loss="binary_crossentropy",
-        optimizer="adam",
-        callbacks=("reduce_lr_on_plateau", "early_stopping", "tensorboard"),
-        tag=None,
-        logdir="logs",
+        dense_branch: bool = True,
+        conv_branch: bool = True,
+        loss: str = "binary_crossentropy",
+        optimizer: str = "adam",
+        callbacks: tuple = ("reduce_lr_on_plateau", "early_stopping"),
+        tag: Optional[str] = None,
+        logdir: str = "logs",
         **kwargs,
     ):
 

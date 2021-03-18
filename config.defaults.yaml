@@ -282,9 +282,17 @@ features:
     - PS1_DR1__yMeanPSFMag
     - PS1_DR1__yMeanPSFMagErr
 
+feature_norms:
+
 training:
   dataset: md5 checksum? filename? from GCS? to use for training
   classes:
     agn:
       label: AGN
+      # value should refer to features section of this config
       features: ontological
+      # our "labels" are floats [0., 0.25, 0.5, 0.75, 1.]
+      threshold: 0.7
+      # balance ration for the prevalent class. leave as null to use all available data
+      balance: 2.5
+      weight_per_class: false
