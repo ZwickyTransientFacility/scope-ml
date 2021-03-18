@@ -480,7 +480,7 @@ class Scope:
             steps_per_epoch["train"],
             steps_per_epoch["val"],
             epochs=epochs,
-            class_weight=class_weight
+            class_weight=class_weight,
         )
 
         # eval and save
