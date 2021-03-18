@@ -14,8 +14,6 @@ import subprocess
 import sys
 import tdtax
 from tdtax import taxonomy  # noqa: F401
-import tensorflow as tf
-import tensorflow_addons as tfa
 from typing import Optional, Sequence, Union
 import yaml
 
@@ -390,6 +388,9 @@ class Scope:
         :param kwargs:
         :return:
         """
+
+        import tensorflow as tf
+        import tensorflow_addons as tfa
 
         train_config = self.config["training"]["classes"][tag]
 
