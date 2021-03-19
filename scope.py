@@ -42,7 +42,7 @@ def status(message):
         print(f"\r[✓] {message}")
 
 
-def check_configs(config_wildcards: Sequence = ("config.*yaml", )):
+def check_configs(config_wildcards: Sequence = ("config.*yaml",)):
     """
     - Check if config files exist
     - Offer to use the config files that match the wildcards
@@ -83,7 +83,6 @@ def check_configs(config_wildcards: Sequence = ("config.*yaml", )):
 
 
 class Scope:
-
     def __init__(self):
         # check configuration
         with status("Checking configuration"):
@@ -113,11 +112,11 @@ class Scope:
             print("Kowalski not available")
 
     def _get_nearest_gaia(
-            self,
-            positions: Sequence[Sequence[float]],
-            catalog: str = None,
-            max_distance: Union[float, int] = 5.0,
-            distance_units: str = "arcsec",
+        self,
+        positions: Sequence[Sequence[float]],
+        catalog: str = None,
+        max_distance: Union[float, int] = 5.0,
+        distance_units: str = "arcsec",
     ) -> pd.DataFrame:
         """Get nearest Gaia source for a set of given positions
 
@@ -152,23 +151,24 @@ class Scope:
                             "phot_rp_mean_mag": 1,
                             "ra": 1,
                             "dec": 1,
-                        }
+                        },
                     }
-                }
+                },
             },
-            "kwargs": {
-                "limit": 1
-            }
+            "kwargs": {"limit": 1},
         }
         response = self.kowalski.query(query=query)
         gaia_nearest = [
-            v[0] for k, v in response.get("data").get(catalog).items()
-            if len(v) > 0
+            v[0] for k, v in response.get("data").get(catalog).items() if len(v) > 0
         ]
         df = pd.DataFrame.from_records(gaia_nearest)
 
         df["M"] = df["phot_g_mean_mag"] + 5 * np.log10(df["parallax"] * 0.001) + 5
-        df["Ml"] = df["phot_g_mean_mag"] + 5 * np.log10((df["parallax"] + df["parallax_error"]) * 0.001) + 5
+        df["Ml"] = (
+            df["phot_g_mean_mag"]
+            + 5 * np.log10((df["parallax"] + df["parallax_error"]) * 0.001)
+            + 5
+        )
         df["BP-RP"] = df["phot_bp_mean_mag"] - df["phot_rp_mean_mag"]
 
         return df
@@ -200,9 +200,7 @@ class Scope:
                 "object_coordinates": {
                     "cone_search_radius": cone_search_radius,
                     "cone_search_unit": cone_search_unit,
-                    "radec": {
-                        "target": [ra, dec]
-                    }
+                    "radec": {"target": [ra, dec]},
                 },
                 "catalogs": {
                     catalog: {
@@ -217,11 +215,11 @@ class Scope:
                             "data.ra": 1,
                             "data.dec": 1,
                             "data.programid": 1,
-                            "data.catflags": 1
-                        }
+                            "data.catflags": 1,
+                        },
                     }
-                }
-            }
+                },
+            },
         }
         response = self.kowalski.query(query=query)
         light_curves_raw = response.get("data").get(catalog).get("target")
@@ -269,8 +267,7 @@ class Scope:
             if not path_static.exists():
                 path_static.mkdir(parents=True, exist_ok=True)
             tdtax.write_viz(
-                self.config["taxonomy"],
-                outname=path_static / "taxonomy.html"
+                self.config["taxonomy"], outname=path_static / "taxonomy.html"
             )
 
         # generate images for the Field Guide
@@ -282,7 +279,9 @@ class Scope:
         with status("Generating example light curves"):
             path_doc_data = pathlib.Path(__file__).parent.absolute() / "doc" / "data"
 
-            for sample_object_name, sample_object in self.config["docs"]["field_guide"].items():
+            for sample_object_name, sample_object in self.config["docs"][
+                "field_guide"
+            ].items():
                 sample_light_curves = self._get_light_curve_data(
                     ra=sample_object["coordinates"][0],
                     dec=sample_object["coordinates"][1],
@@ -298,7 +297,10 @@ class Scope:
         # example HR diagrams for all Golden sets
         with status("Generating HR diagrams for Golden sets"):
             path_gaia_hr_histogram = (
-                pathlib.Path(__file__).parent.absolute() / "doc" / "data" / "gaia_hr_histogram.dat"
+                pathlib.Path(__file__).parent.absolute()
+                / "doc"
+                / "data"
+                / "gaia_hr_histogram.dat"
             )
             # stored as ra/decs in csv format under /data/golden
             golden_sets = pathlib.Path(__file__).parent.absolute() / "data" / "golden"

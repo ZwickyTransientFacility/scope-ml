@@ -68,9 +68,9 @@ def plot_light_curve_data(
             df.loc[mask_filter, "hjd"] - jd_start,
             df.loc[mask_filter, "mag"],
             df.loc[mask_filter, "magerr"],
-            marker='.',
+            marker=".",
             color=colors[band],
-            lw=0
+            lw=0,
         )
         if period is not None:
             for n in [0, -1]:
@@ -80,7 +80,7 @@ def plot_light_curve_data(
                     df.loc[mask_filter, "magerr"],
                     marker=".",
                     color=colors[band],
-                    lw=0
+                    lw=0,
                 )
 
             # invert y axes
@@ -105,7 +105,7 @@ def plot_gaia_hr(
     title: Optional[str] = None,
     save: Optional[str] = None,
 ):
-    """ Plot the Gaia HR diagram with a sample of objects over-plotted
+    """Plot the Gaia HR diagram with a sample of objects over-plotted
 
     source: https://vlas.dev/post/gaia-dr2-hrd/
 
@@ -137,11 +137,11 @@ def plot_gaia_hr(
         gaia_data["BP-RP"],
         gaia_data["M"],
         gaia_data["M"] - gaia_data["Ml"],
-        marker='.',
+        marker=".",
         color="#e68a00",
         alpha=0.75,
         ls="",
-        lw=0.5
+        lw=0.5,
     )
 
     # display grid behind all other elements on the plot
