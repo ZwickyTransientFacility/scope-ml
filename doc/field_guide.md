@@ -8,3 +8,5 @@ for more details on the taxonomy.
 
 ```{include} ./field_guide__rr_lyrae.md
 ```
+```{include} ./field_guide__w_uma.md
+```
