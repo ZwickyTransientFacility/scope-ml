@@ -258,7 +258,7 @@ features:
     - AllWISE__w3mpro
     - AllWISE__w3sigmpro
     - AllWISE__w4mpro
-    - AllWISE__w4sigmpro,
+    - AllWISE__w4sigmpro
 #    - AllWISE__ph_qual,
     - Gaia_EDR3__phot_g_mean_mag
     - Gaia_EDR3__phot_bp_mean_mag
@@ -266,7 +266,7 @@ features:
     - Gaia_EDR3__parallax
     - Gaia_EDR3__parallax_error
     - Gaia_EDR3__pmra
-    - Gaia_EDR3__pmra_error,
+    - Gaia_EDR3__pmra_error
     - Gaia_EDR3__pmdec
     - Gaia_EDR3__pmdec_error
     - Gaia_EDR3__astrometric_excess_noise
@@ -283,6 +283,77 @@ features:
     - PS1_DR1__yMeanPSFMagErr
 
 feature_norms:
+   ra: 360.0
+   dec: 360.0
+   median: 646.5515093229232
+   wmean: 646.1897516788429
+   chi2red: 1813.078823007132
+   roms: 137.73780255067854
+   wstd: 4.266916774875198
+   norm_peak_to_peak_amp: 0.32547279769806103
+   norm_excess_var: 0.007082235862727877
+   median_abs_dev: 3.199055524682245
+   iqr: 7.146580965748587
+   i60r: 8.551250752960062
+   i70r: 10.063377082768982
+   i80r: 11.714180155264815
+   i90r: 13.395838506230207
+   skew: 15790.43414438781
+   smallkurt: 1036366.4115874842
+   inv_vonneumannratio: 364.31232764399397
+   welch_i: 179391.0549184388
+   stetson_j: 11955.447878439705
+   stetson_k: 30.31096780219861
+   ad: 509.93601002648495
+   sw: 31.805127243761817
+   n_ztf_alerts: 12536.139876373429
+   mean_ztf_alert_braai: 25.476968853955995
+   period: 1921.8892300468387
+   significance: 3773.1724338198865
+   pdot: 1.0
+   f1_power: 20.649635678613592
+   f1_BIC: 48682.02858940715
+   f1_a: 646.6294719980264
+   f1_b: 0.007695822311250668
+   f1_amp: 4.524784394295156
+   f1_phi0: 51.283398344070655
+   f1_relamp1: 180.61177987928264
+   f1_relphi1: 18.039261473947434
+   f1_relamp2: 134.80467591680153
+   f1_relphi2: 16.795428723626276
+   f1_relamp3: 160.825028916958
+   f1_relphi3: 15.659485214290987
+   f1_relamp4: 61.2549916441674
+   f1_relphi4: 16.569672129536325
+   AllWISE__w1mpro: 467.09223468175963
+   AllWISE__w1sigmpro: 1.6838586639026445
+   AllWISE__w2mpro: 455.58218014755585
+   AllWISE__w2sigmpro: 3.355876189611291
+   AllWISE__w3mpro: 379.8096518626139
+   AllWISE__w3sigmpro: 5.539780862091929
+   AllWISE__w4mpro: 278.7067134892879
+   AllWISE__w4sigmpro: 4.720707468166186
+   Gaia_EDR3__phot_g_mean_mag: 624.8208081144757
+   Gaia_EDR3__phot_bp_mean_mag: 641.0043515823678
+   Gaia_EDR3__phot_rp_mean_mag: 600.7066777277842
+   Gaia_EDR3__parallax: 32.08186730725169
+   Gaia_EDR3__parallax_error: 10.1472622733237
+   Gaia_EDR3__pmra: 165.4559605296731
+   Gaia_EDR3__pmra_error: 11.543870467641847
+   Gaia_EDR3__pmdec: 211.54486113979175
+   Gaia_EDR3__pmdec_error: 11.639733327916254
+   Gaia_EDR3__astrometric_excess_noise: 96.82536072595586
+   Gaia_EDR3__phot_bp_rp_excess_factor: 69.05702520661569
+   PS1_DR1__gMeanPSFMag: 653.9873914119314
+   PS1_DR1__gMeanPSFMagErr: 1.5530782652592543
+   PS1_DR1__rMeanPSFMag: 639.7500383899326
+   PS1_DR1__rMeanPSFMagErr: 1.223597500359878
+   PS1_DR1__iMeanPSFMag: 627.2377829740633
+   PS1_DR1__iMeanPSFMagErr: 0.8650716350779337
+   PS1_DR1__zMeanPSFMag: 620.1537736266282
+   PS1_DR1__zMeanPSFMagErr: 1.3492857876956952
+   PS1_DR1__yMeanPSFMag: 604.2305303295586
+   PS1_DR1__yMeanPSFMagErr: 1.970673871202172
 
 training:
   dataset: md5 checksum? filename? from GCS? to use for training
@@ -296,3 +367,12 @@ training:
       # balance ration for the prevalent class. leave as null to use all available data
       balance: 2.5
       weight_per_class: false
+    vnv:
+      label: variable
+      # value should refer to features section of this config
+      features: phenomenological
+      # our "labels" are floats [0., 0.25, 0.5, 0.75, 1.]
+      threshold: 0.7
+      # balance ration for the prevalent class. leave as null to use all available data
+      balance:
+      weight_per_class: true

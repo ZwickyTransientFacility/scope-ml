@@ -115,6 +115,7 @@ class ScopeNet(tf.keras.models.Model, ABC):
         self.conv_1 = ConvBlock(filters=32, kernel_size=(3, 3), pool_size=(2, 2))
 
     def call(self, inputs, **kwargs):
+        print(inputs)
         features_input = inputs[0]
         dmdt_input = inputs[1]
 
@@ -257,7 +258,6 @@ class DNN(AbstractClassifier):
                     min_delta=0.0001,
                     cooldown=0,
                     min_lr=0,
-                    **kwargs,
                 )
                 self.meta["callbacks"].append(reduce_lr_on_plateau_callback)
 

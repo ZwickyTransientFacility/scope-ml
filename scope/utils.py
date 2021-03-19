@@ -201,48 +201,7 @@ class Dataset(object):
         self,
         tag: str,
         path_dataset: str,
-        features: tuple = (
-            "ad",
-            "chi2red",
-            "f1_a",
-            "f1_amp",
-            "f1_b",
-            "f1_bic",
-            "f1_phi0",
-            "f1_power",
-            "f1_relamp1",
-            "f1_relamp2",
-            "f1_relamp3",
-            "f1_relamp4",
-            "f1_relphi1",
-            "f1_relphi2",
-            "f1_relphi3",
-            "f1_relphi5",
-            "f60",
-            "f70",
-            "f80",
-            "f90",
-            "inv_vonneumannratio",
-            "iqr",
-            "median",
-            "median_abs_dev",
-            "norm_excess_var",
-            "norm_peak_to_peak_amp",
-            "pdot",
-            "period",
-            "roms",
-            "significance",
-            "skew",
-            "smallkurt",
-            "stetson_j",
-            "stetson_k",
-            "sw",
-            "welch_i",
-            "wmean",
-            "wstd",
-            "n_ztf_alerts",
-            "mean_ztf_alert_braai",
-        ),
+        features: tuple,
         verbose: bool = False,
         **kwargs,
     ):
@@ -264,19 +223,24 @@ class Dataset(object):
 
         if self.verbose:
             log(f"Loading {path_dataset}...")
-        self.df_ds = pd.read_csv(path_dataset)
+        # fixme:
+        self.df_ds = pd.read_csv(path_dataset, nrows=10000)
         if self.verbose:
             log(self.df_ds[list(features)].describe())
 
         dmdt = []
         if self.verbose:
             print("Moving dmdt's to a dedicated numpy array...")
-            for i in tqdm(self.df_ds.itertuples(), total=len(self.df_ds)):
-                # fixme: deal with None's
-                dmdt.append(np.asarray(literal_eval(self.df_ds["dmdt"][i.Index])))
+            iterator = tqdm(self.df_ds.itertuples(), total=len(self.df_ds))
         else:
-            for i in self.df_ds.itertuples():
-                dmdt.append(np.asarray(literal_eval(self.df_ds["dmdt"][i.Index])))
+            iterator = self.df_ds.itertuples()
+        for i in iterator:
+            data = np.array(literal_eval(self.df_ds["dmdt"][i.Index]))
+            if len(data.shape) == 0:
+                dmdt.append(np.zeros((26, 26)))
+            else:
+                dmdt.append(data)
+
         self.dmdt = np.array(dmdt)
         self.dmdt = np.expand_dims(self.dmdt, axis=-1)
 

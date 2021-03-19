@@ -381,8 +381,8 @@ class Scope:
     ):
         """Train classifier
 
-        :param tag:
-        :param path_dataset:
+        :param tag: classifier designation, refers to "class" in config.taxonomy...
+        :param path_dataset: local path to csv file with the dataset
         :param gpu: GPU id to use, zero-based. check tf.config.list_physical_devices('GPU') for available devices
         :param verbose:
         :param kwargs:
@@ -470,8 +470,6 @@ class Scope:
 
         if pre_trained_model is not None:
             classifier.model = tf.keras.models.load_model(pre_trained_model)
-        if verbose:
-            classifier.model.summary()
 
         if verbose:
             tqdm_callback = tfa.callbacks.TQDMProgressBar()
@@ -491,6 +489,9 @@ class Scope:
             datasets['test'], callbacks=[tfa.callbacks.TQDMProgressBar()], verbose=0
         )
         print(stats)
+
+        if verbose:
+            classifier.model.summary()
 
         classifier.save(
             output_path=f"models/{tag}",
