@@ -1,5 +1,5 @@
 deepdiff>=5.0
-gsutil>=
+gsutil>=4.60
 keras-tuner>=1.0.2
 matplotlib>=3.3
 numpy<1.20
