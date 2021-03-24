@@ -122,12 +122,8 @@ class ScopeNet(tf.keras.models.Model, ABC):
         )
 
     def call(self, inputs, **kwargs):
-        # print(inputs)
-        # print([i.shape for i in inputs])
         features_input = inputs.get("features")
         dmdt_input = inputs.get("dmdt")
-        # features_input = inputs[0]
-        # dmdt_input = inputs[1]
 
         # dense branch to digest features
         if self.dense_branch:
@@ -159,13 +155,6 @@ class ScopeNet(tf.keras.models.Model, ABC):
         x = self.dense_out(x)
 
         return x
-
-    # def model(self):
-    #     features = tf.keras.layers.Input(shape=(41, ))
-    #     dmdt = tf.keras.layers.Input(shape=(26, 26, 1))
-    #     # inputs = [features, dmdt]
-    #     inputs = {"features": features, "dmdt": dmdt}
-    #     return tf.keras.models.Model(inputs=inputs, outputs=self.call(inputs))
 
 
 class DNN(AbstractClassifier):
@@ -294,9 +283,6 @@ class DNN(AbstractClassifier):
     ):
 
         m = ScopeNet(dense_branch=dense_branch, conv_branch=conv_branch, **kwargs)
-        # m.build(input_shape={"features": (None, 42, ), "dmdt": (None, 26, 26, 1)})
-        # m.build(input_shape=[(None, 42,), (None, 26, 26, 1)])
-        # print(m.model().summary())
 
         return m
 
@@ -314,8 +300,6 @@ class DNN(AbstractClassifier):
         if class_weight is None:
             # all our problems here are binary classification ones:
             class_weight = {i: 1 for i in range(2)}
-
-        # print(train_dataset)
 
         self.meta["history"] = self.model.fit(
             train_dataset,

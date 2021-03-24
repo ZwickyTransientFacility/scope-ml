@@ -16,7 +16,7 @@ import pathlib
 from sklearn.model_selection import train_test_split
 import tensorflow as tf
 from tqdm.auto import tqdm
-from typing import Optional, Union
+from typing import Mapping, Optional, Union
 import yaml
 
 
@@ -33,16 +33,16 @@ def load_config(config_path: str):
 def time_stamp():
     """
 
-    :return: UTC time -> string
+    :return: UTC time as a formatted string
     """
     return datetime.datetime.utcnow().strftime("%Y%m%d_%H:%M:%S")
 
 
-def log(message):
+def log(message: str):
     print(f"{time_stamp()}: {message}")
 
 
-def make_tdtax_taxonomy(taxonomy):
+def make_tdtax_taxonomy(taxonomy: Mapping):
     """Recursively convert taxonomy definition from config["taxonomy"]
        into tdtax-parsable dictionary
 
@@ -205,8 +205,7 @@ class Dataset(object):
         verbose: bool = False,
         **kwargs,
     ):
-        """
-        load csv file with the dataset containing both data and labels
+        """Load csv file with the dataset containing both data and labels
         As of 20210317, it is produced by labels*.ipynb - this will change in a future PR
 
         :param tag:
@@ -270,8 +269,7 @@ class Dataset(object):
         epochs: int = 300,
         **kwargs,
     ):
-        """
-        make datasets for target_label
+        """Make datasets for target_label
 
         :param target_label:
         :param threshold:
@@ -362,56 +360,16 @@ class Dataset(object):
                 }
                 for feature in self.features
             }
-            # for feature, stats in feature_stats.items():
-            #     if np.isnan(norm) or norm == 0.0:
-            #         norms[feature] = 1.0
             if self.verbose:
                 print("Computed feature stats:\n", feature_stats)
 
         # scale features
-        # for feature, norm in norms.items():
-        #     self.df_ds[feature] /= norm
         for feature in self.features:
             stats = feature_stats.get("feature")
             if (stats is not None) and (stats["std"] != 0):
                 self.df_ds[feature] = (self.df_ds[feature] - stats["median"]) / stats[
                     "std"
                 ]
-
-        # replace zeros with median values
-        # if kwargs.get("zero_to_median", False):
-        #     for feature in norms.keys():
-        #         if feature in ("pdot", "n_ztf_alerts"):
-        #             continue
-        #         wz = self.df_ds[feature] == 0.0
-        #         if wz.sum() > 0:
-        #             if feature == "mean_ztf_alert_braai":
-        #                 median = 0.5
-        #             else:
-        #                 median = self.df_ds.loc[~wz, feature].median()
-        #             self.df_ds.loc[wz, feature] = median
-
-        # train_dataset_data = tf.data.Dataset.from_tensor_slices(
-        #     (
-        #         self.df_ds.loc[train_indexes, self.features].values,
-        #         self.dmdt[train_indexes]
-        #     )
-        # )
-        # train_dataset_labels = tf.data.Dataset.from_tensor_slices(
-        #     target[train_indexes]
-        # )
-        # train_dataset = tf.data.Dataset.zip((train_dataset_data, train_dataset_labels))
-        #
-        # val_dataset_data = tf.data.Dataset.from_tensor_slices(
-        #     (
-        #         self.df_ds.loc[val_indexes, self.features].values,
-        #         self.dmdt[val_indexes]
-        #     )
-        # )
-        # val_dataset_labels = tf.data.Dataset.from_tensor_slices(
-        #     target[val_indexes]
-        # )
-        # val_dataset = tf.data.Dataset.zip((val_dataset_data, val_dataset_labels))
 
         train_dataset = tf.data.Dataset.from_tensor_slices(
             (
