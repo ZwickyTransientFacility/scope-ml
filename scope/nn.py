@@ -1,6 +1,7 @@
 from abc import ABC
 import datetime
 import os
+import pathlib
 import tensorflow as tf
 from typing import Optional
 
@@ -104,7 +105,9 @@ class ScopeNet(tf.keras.models.Model, ABC):
         self.conv_branch = conv_branch
         self.dropout_rate = dropout_rate
 
-        self.dropout = tf.keras.layers.Dropout(rate=self.dropout_rate)
+        self.dropout_0 = tf.keras.layers.Dropout(rate=self.dropout_rate)
+        self.dropout_1 = tf.keras.layers.Dropout(rate=self.dropout_rate)
+        self.dropout_2 = tf.keras.layers.Dropout(rate=self.dropout_rate)
         self.global_average_pool = tf.keras.layers.GlobalAveragePooling2D()
 
         self.dense_0 = DenseBlock(units=256, repetitions=1)
@@ -114,23 +117,30 @@ class ScopeNet(tf.keras.models.Model, ABC):
         self.conv_0 = ConvBlock(filters=16, kernel_size=(3, 3), pool_size=(2, 2))
         self.conv_1 = ConvBlock(filters=32, kernel_size=(3, 3), pool_size=(2, 2))
 
+        self.dense_out = tf.keras.layers.Dense(
+            units=1, activation="sigmoid", name="score"
+        )
+
     def call(self, inputs, **kwargs):
-        print(inputs)
-        features_input = inputs[0]
-        dmdt_input = inputs[1]
+        # print(inputs)
+        # print([i.shape for i in inputs])
+        features_input = inputs.get("features")
+        dmdt_input = inputs.get("dmdt")
+        # features_input = inputs[0]
+        # dmdt_input = inputs[1]
 
         # dense branch to digest features
         if self.dense_branch:
             x_dense = self.dense_0(features_input)
-            x_dense = self.dropout(x_dense)
+            x_dense = self.dropout_0(x_dense)
             x_dense = self.dense_1(x_dense)
 
         # CNN branch to digest dmdt
         if self.conv_branch:
             x_conv = self.conv_0(dmdt_input)
-            x_conv = self.dropout(x_conv)
+            x_conv = self.dropout_1(x_conv)
             x_conv = self.conv_1(x_conv)
-            x_conv = self.dropout(x_conv)
+            x_conv = self.dropout_2(x_conv)
 
             x_conv = self.global_average_pool(x_conv)
 
@@ -146,9 +156,16 @@ class ScopeNet(tf.keras.models.Model, ABC):
         x = self.dense_2(x)
 
         # Logistic regression to output the final score
-        x = tf.keras.layers.Dense(1, activation="sigmoid", name="score")(x)
+        x = self.dense_out(x)
 
         return x
+
+    # def model(self):
+    #     features = tf.keras.layers.Input(shape=(41, ))
+    #     dmdt = tf.keras.layers.Input(shape=(26, 26, 1))
+    #     # inputs = [features, dmdt]
+    #     inputs = {"features": features, "dmdt": dmdt}
+    #     return tf.keras.models.Model(inputs=inputs, outputs=self.call(inputs))
 
 
 class DNN(AbstractClassifier):
@@ -261,10 +278,12 @@ class DNN(AbstractClassifier):
                 )
                 self.meta["callbacks"].append(reduce_lr_on_plateau_callback)
 
+        run_eagerly = kwargs.get("run_eagerly", False)
         self.model.compile(
             optimizer=self.meta["optimizer"],
             loss=self.meta["loss"],
             metrics=self.meta["metrics"],
+            run_eagerly=run_eagerly,
         )
 
     @staticmethod
@@ -275,6 +294,9 @@ class DNN(AbstractClassifier):
     ):
 
         m = ScopeNet(dense_branch=dense_branch, conv_branch=conv_branch, **kwargs)
+        # m.build(input_shape={"features": (None, 42, ), "dmdt": (None, 26, 26, 1)})
+        # m.build(input_shape=[(None, 42,), (None, 26, 26, 1)])
+        # print(m.model().summary())
 
         return m
 
@@ -292,6 +314,8 @@ class DNN(AbstractClassifier):
         if class_weight is None:
             # all our problems here are binary classification ones:
             class_weight = {i: 1 for i in range(2)}
+
+        # print(train_dataset)
 
         self.meta["history"] = self.model.fit(
             train_dataset,
@@ -311,18 +335,22 @@ class DNN(AbstractClassifier):
         return self.model.predict(x, **kwargs)
 
     def load(self, path_model, **kwargs):
-        self.model = tf.keras.models.load_model(path_model, **kwargs)
+        self.model.load_weights(path_model, **kwargs)
 
-    def save(self, output_path="./", output_format="hdf5", tag=None):
+    def save(
+        self,
+        tag: str,
+        output_path: str = "./",
+        output_format: str = "tf",
+    ):
 
-        assert output_format in ("SavedModel", "hdf5"), "unknown output format"
+        if output_format not in ("tf",):
+            raise ValueError("unknown output format")
 
         output_name = self.name if not tag else f"{self.name}.{tag}"
 
-        if (output_path != "./") and (not os.path.exists(output_path)):
-            os.makedirs(output_path)
+        path = pathlib.Path(output_path)
+        if not path.exists():
+            path.mkdir(parents=True, exist_ok=True)
 
-        if output_format == "SavedModel":
-            self.model.save(os.path.join(output_path, output_name))
-        elif output_format == "hdf5":
-            self.model.save(os.path.join(output_path, f"{output_name}.h5"))
+        self.model.save_weights(path / tag / output_name, save_format="tf")

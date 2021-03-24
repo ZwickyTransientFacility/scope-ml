@@ -390,14 +390,17 @@ class Scope:
         """
 
         import tensorflow as tf
-        import tensorflow_addons as tfa
 
         train_config = self.config["training"]["classes"][tag]
 
         features = self.config["features"][train_config["features"]]
 
         ds = Dataset(
-            tag=tag, path_dataset=path_dataset, features=features, verbose=verbose
+            tag=tag,
+            path_dataset=path_dataset,
+            features=features,
+            verbose=verbose,
+            **kwargs,
         )
 
         label = train_config["label"]
@@ -412,7 +415,7 @@ class Scope:
         test_size = kwargs.get("test_size", 0.1)
         val_size = kwargs.get("val_size", 0.1)
         random_state = kwargs.get("random_state", 42)
-        norms = self.config.get("feature_norms", None)
+        feature_stats = self.config.get("feature_stats", None)
 
         batch_size = kwargs.get("batch_size", 32)
         shuffle_buffer_size = kwargs.get("shuffle_buffer_size", 512)
@@ -426,7 +429,7 @@ class Scope:
             test_size=test_size,
             val_size=val_size,
             random_state=random_state,
-            norms=norms,
+            feature_stats=feature_stats,
             batch_size=batch_size,
             shuffle_buffer_size=shuffle_buffer_size,
             epochs=epochs,
@@ -451,8 +454,9 @@ class Scope:
         monitor = kwargs.get("monitor", "val_loss")
         patience = float(kwargs.get("patience", 20))
         callbacks = kwargs.get("callbacks", ("reduce_lr_on_plateau", "early_stopping"))
-
+        run_eagerly = kwargs.get("run_eagerly", False)
         pre_trained_model = kwargs.get("pre_trained_model")
+        save = kwargs.get("save", False)
 
         classifier = DNN(name=tag)
 
@@ -466,14 +470,15 @@ class Scope:
             monitor=monitor,
             patience=patience,
             callbacks=callbacks,
+            run_eagerly=run_eagerly,
         )
 
         if pre_trained_model is not None:
-            classifier.model = tf.keras.models.load_model(pre_trained_model)
+            classifier.load(pre_trained_model)
 
-        if verbose:
-            tqdm_callback = tfa.callbacks.TQDMProgressBar()
-            classifier.meta["callbacks"].append(tqdm_callback)
+        # if verbose:
+        #     tqdm_callback = tfa.callbacks.TQDMProgressBar()
+        #     classifier.meta["callbacks"].append(tqdm_callback)
 
         classifier.train(
             datasets["train"],
@@ -482,22 +487,22 @@ class Scope:
             steps_per_epoch["val"],
             epochs=epochs,
             class_weight=class_weight,
+            verbose=verbose,
         )
 
-        # eval and save
-        stats = classifier.evaluate(
-            datasets['test'], callbacks=[tfa.callbacks.TQDMProgressBar()], verbose=0
-        )
-        print(stats)
+        print("Evaluating on test set:")
+        # stats = \
+        classifier.evaluate(datasets["test"], verbose=verbose)
+        # print(stats)
 
-        if verbose:
-            classifier.model.summary()
+        if save:
+            time_tag = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
 
-        classifier.save(
-            output_path=f"models/{tag}",
-            output_format="hdf5",
-            tag=f'{datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")}',
-        )
+            classifier.save(
+                output_path=f"models/{tag}",
+                output_format="tf",
+                tag=time_tag,
+            )
 
 
 if __name__ == "__main__":

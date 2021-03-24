@@ -223,10 +223,12 @@ class Dataset(object):
 
         if self.verbose:
             log(f"Loading {path_dataset}...")
-        # fixme:
-        self.df_ds = pd.read_csv(path_dataset, nrows=10000)
+        nrows = kwargs.get("nrows", None)
+        self.df_ds = pd.read_csv(path_dataset, nrows=nrows)
         if self.verbose:
             log(self.df_ds[list(features)].describe())
+
+        self.df_ds = self.df_ds.replace([np.inf, -np.inf, np.nan], 0.0)
 
         dmdt = []
         if self.verbose:
@@ -262,7 +264,7 @@ class Dataset(object):
         test_size: float = 0.1,
         val_size: float = 0.1,
         random_state: int = 42,
-        norms: Optional[dict] = None,
+        feature_stats: Optional[dict] = None,
         batch_size: int = 256,
         shuffle_buffer_size: int = 256,
         epochs: int = 300,
@@ -278,7 +280,8 @@ class Dataset(object):
         :param test_size:
         :param val_size:
         :param random_state:
-        :param norms: norms to use to normalize features. if None, norms are computed
+        :param feature_stats: feature_stats to use to standardize features.
+                              if None, stats are computed from the data
         :param batch_size
         :param shuffle_buffer_size
         :param epochs
@@ -348,35 +351,67 @@ class Dataset(object):
         # Obviously, the same norms will have to be applied at the testing and serving stages.
 
         # load/compute feature norms:
-        if norms is None:
-            norms = {
-                feature: np.linalg.norm(self.df_ds.loc[ds_indexes, feature])
+        if feature_stats is None:
+            feature_stats = {
+                feature: {
+                    "min": np.min(self.df_ds.loc[ds_indexes, feature]),
+                    "max": np.max(self.df_ds.loc[ds_indexes, feature]),
+                    "median": np.median(self.df_ds.loc[ds_indexes, feature]),
+                    "mean": np.mean(self.df_ds.loc[ds_indexes, feature]),
+                    "std": np.std(self.df_ds.loc[ds_indexes, feature]),
+                }
                 for feature in self.features
             }
-            for feature, norm in norms.items():
-                if np.isnan(norm) or norm == 0.0:
-                    norms[feature] = 1.0
+            # for feature, stats in feature_stats.items():
+            #     if np.isnan(norm) or norm == 0.0:
+            #         norms[feature] = 1.0
             if self.verbose:
-                print("Computed feature norms:\n", norms)
+                print("Computed feature stats:\n", feature_stats)
 
-        # normalize features
-        for feature, norm in norms.items():
-            self.df_ds[feature] /= norm
+        # scale features
+        # for feature, norm in norms.items():
+        #     self.df_ds[feature] /= norm
+        for feature in self.features:
+            stats = feature_stats.get("feature")
+            if (stats is not None) and (stats["std"] != 0):
+                self.df_ds[feature] = (self.df_ds[feature] - stats["median"]) / stats[
+                    "std"
+                ]
 
         # replace zeros with median values
-        if kwargs.get("zero_to_median", False):
-            for feature in norms.keys():
-                if feature in ("pdot", "n_ztf_alerts"):
-                    continue
-                wz = self.df_ds[feature] == 0.0
-                if wz.sum() > 0:
-                    if feature == "mean_ztf_alert_braai":
-                        median = 0.5
-                    else:
-                        median = self.df_ds.loc[~wz, feature].median()
-                    self.df_ds.loc[wz, feature] = median
+        # if kwargs.get("zero_to_median", False):
+        #     for feature in norms.keys():
+        #         if feature in ("pdot", "n_ztf_alerts"):
+        #             continue
+        #         wz = self.df_ds[feature] == 0.0
+        #         if wz.sum() > 0:
+        #             if feature == "mean_ztf_alert_braai":
+        #                 median = 0.5
+        #             else:
+        #                 median = self.df_ds.loc[~wz, feature].median()
+        #             self.df_ds.loc[wz, feature] = median
 
-        # make tf.data.Dataset's:
+        # train_dataset_data = tf.data.Dataset.from_tensor_slices(
+        #     (
+        #         self.df_ds.loc[train_indexes, self.features].values,
+        #         self.dmdt[train_indexes]
+        #     )
+        # )
+        # train_dataset_labels = tf.data.Dataset.from_tensor_slices(
+        #     target[train_indexes]
+        # )
+        # train_dataset = tf.data.Dataset.zip((train_dataset_data, train_dataset_labels))
+        #
+        # val_dataset_data = tf.data.Dataset.from_tensor_slices(
+        #     (
+        #         self.df_ds.loc[val_indexes, self.features].values,
+        #         self.dmdt[val_indexes]
+        #     )
+        # )
+        # val_dataset_labels = tf.data.Dataset.from_tensor_slices(
+        #     target[val_indexes]
+        # )
+        # val_dataset = tf.data.Dataset.zip((val_dataset_data, val_dataset_labels))
 
         train_dataset = tf.data.Dataset.from_tensor_slices(
             (
