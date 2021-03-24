@@ -14,7 +14,7 @@ taxonomy:
     - class: phenomenological
       name: phenomenological
       description: |
-        What can be said about an object given just its ZTF light curve.
+        What can be said about an object given *only* ZTF data.
       subclasses:
         - class: vnv
           name: variable
@@ -33,14 +33,14 @@ taxonomy:
         - class: longt
           name: long timescale
           description: |
-            Any object which shows variability on timescales of 100 days. This can be a steady
+            Any object which shows variability on timescales of ~100+ days. This can be a steady
             increase/decrease in luminosity, e.g., AGN and CVs.
             Long timescale period variable like Miras and the more
             irregular semi-regular variables are generally included in this category.
         - class: i
           name: irregular
           description: |
-            Objects which show irregular variability.
+            Objects which show irregular/stochastic variability.
             These are mostly accreting objects, AGN, CVs, and YSOs.
         - class: e
           name: eclipsing
@@ -60,7 +60,7 @@ taxonomy:
           name: flaring
           description: |
             Any ZTF light curve that shows flares, rapidly rising and fading events.
-            These are mostly cataclysmic variables, some young stellar objects, some AGN.
+            These are mostly cataclysmic variables, some young stellar objects, M-dwarfs, and some AGN.
         - class: bogus
           name: bogus
           description: |
@@ -70,7 +70,7 @@ taxonomy:
     - class: ontological
       name: ontological
       description: |
-        What can be said about an object given not just its ZTF light curve
+        What can be said about an object given *not only* ZTF data
       subclasses:
         - class: puls
           name: pulsator
@@ -123,7 +123,7 @@ taxonomy:
             - class: blyr
               name: Beta Lyr
               description: |
-                Binary systems were one of the components has evolved into a subgiant or giant star and
+                Binary systems where one of the components has evolved into a subgiant or giant star and
                 is filling its Roche lobe transferring mass in a disk.
                 The light curve of these systems is of type EB. The period
                 ranges between 0.3 days and 200 days.
@@ -545,7 +545,7 @@ training:
       features: ontological
       # our "labels" are floats [0., 0.25, 0.5, 0.75, 1.]
       threshold: 0.7
-      # balance ration for the prevalent class. leave as null to use all available data
+      # balance ratio for the prevalent class. leave as null to use all available data
       balance: 2.5
       weight_per_class: false
     vnv:
@@ -554,6 +554,6 @@ training:
       features: phenomenological
       # our "labels" are floats [0., 0.25, 0.5, 0.75, 1.]
       threshold: 0.7
-      # balance ration for the prevalent class. leave as null to use all available data
+      # balance ratio for the prevalent class. leave as null to use all available data
       balance:
       weight_per_class: true
