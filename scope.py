@@ -476,10 +476,6 @@ class Scope:
         if pre_trained_model is not None:
             classifier.load(pre_trained_model)
 
-        # if verbose:
-        #     tqdm_callback = tfa.callbacks.TQDMProgressBar()
-        #     classifier.meta["callbacks"].append(tqdm_callback)
-
         classifier.train(
             datasets["train"],
             datasets["val"],
@@ -497,12 +493,72 @@ class Scope:
 
         if save:
             time_tag = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-
+            output_path = str(pathlib.Path(__file__).parent.absolute() / "models" / tag)
             classifier.save(
-                output_path=f"models/{tag}",
+                output_path=output_path,
                 output_format="tf",
                 tag=time_tag,
             )
+
+            return time_tag
+
+    def test(self):
+        """Test different workflows
+
+        :return:
+        """
+        import uuid
+        import shutil
+
+        # create a mock dataset and check that the training pipeline works
+        dataset = f"{uuid.uuid4().hex}.csv"
+        path_mock = pathlib.Path(__file__).parent.absolute() / "data" / "training"
+
+        try:
+            if not path_mock.exists():
+                path_mock.mkdir(parents=True, exist_ok=True)
+
+            feature_names = self.config["features"]["ontological"]
+            class_names = [
+                self.config["training"]["classes"][class_name]["label"]
+                for class_name in self.config["training"]["classes"]
+            ]
+
+            entries = []
+            for i in range(1000):
+                entry = {
+                    **{
+                        feature_name: np.random.normal(0, 0.1)
+                        for feature_name in feature_names
+                    },
+                    **{
+                        class_name: np.random.choice([0, 1])
+                        for class_name in class_names
+                    },
+                    **{"non-variable": np.random.choice([0, 1])},
+                    **{"dmdt": np.abs(np.random.random((26, 26))).tolist()},
+                }
+                entries.append(entry)
+
+            df_mock = pd.DataFrame.from_records(entries)
+            df_mock.to_csv(path_mock / dataset, index=False)
+
+            tag = "vnv"
+            time_tag = self.train(
+                tag=tag,
+                path_dataset=path_mock / dataset,
+                batch_size=32,
+                epochs=3,
+                verbose=True,
+                save=True,
+            )
+            path_model = (
+                pathlib.Path(__file__).parent.absolute() / "models" / tag / time_tag
+            )
+            shutil.rmtree(path_model)
+        finally:
+            # clean up after thyself
+            (path_mock / dataset).unlink()
 
 
 if __name__ == "__main__":
