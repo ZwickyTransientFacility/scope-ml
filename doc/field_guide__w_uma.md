@@ -9,7 +9,6 @@ W UMa stars are main-sequence overcontact binaries. In overcontact binaries both
   - eclipsing
 - Occurrence rate: very common, about 10<sup>5</sup> expected in ZTF data
 
-
 ### ZTF light curves
 ![ZTF wuma](data/w_uma.png)
 
