@@ -13,7 +13,7 @@ To prepare, you should:
 - Clone (download) your copy of the repository, and set up a remote called `upstream` that points to the main `scope` repository.
 
   ```shell script
-  git clone git@github.com:<yourname>/scope
+  git clone git@github.com:<yourname>/scope && cd scope
   git remote add upstream git@github.com:ZwickyTransientFacility/scope
   ```
 
