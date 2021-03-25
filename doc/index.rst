@@ -5,5 +5,6 @@ ZTF Variable Source Classification Project
    :maxdepth: 2
 
    field_guide
+   usage
    developer
    license

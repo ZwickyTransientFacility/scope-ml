@@ -93,9 +93,9 @@ class ScopeNet(tf.keras.models.Model, ABC):
 
         See https://arxiv.org/pdf/2102.11304.pdf for the details.
 
-        :param dense_branch:
-        :param conv_branch:
-        :param dropout_rate:
+        :param dense_branch: include dense branch to process features?
+        :param conv_branch: include convolutional branch to process dmdt's?
+        :param dropout_rate: rate to use in dropout layers
         :param kwargs:
         """
         super(ScopeNet, self).__init__(**kwargs)

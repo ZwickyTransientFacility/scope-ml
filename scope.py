@@ -17,14 +17,7 @@ from tdtax import taxonomy  # noqa: F401
 from typing import Optional, Sequence, Union
 import yaml
 
-from scope.nn import DNN
-from scope.utils import (
-    Dataset,
-    load_config,
-    make_tdtax_taxonomy,
-    plot_gaia_hr,
-    plot_light_curve_data,
-)
+from scope.utils import load_config
 
 
 @contextmanager
@@ -265,6 +258,12 @@ class Scope:
     def doc(self):
         """Build docs"""
 
+        from scope.utils import (
+            make_tdtax_taxonomy,
+            plot_gaia_hr,
+            plot_light_curve_data,
+        )
+
         # generate taxonomy.html
         with status("Generating taxonomy visualization"):
             path_static = pathlib.Path(__file__).parent.absolute() / "doc" / "_static"
@@ -390,6 +389,9 @@ class Scope:
         """
 
         import tensorflow as tf
+
+        from scope.nn import DNN
+        from scope.utils import Dataset
 
         train_config = self.config["training"]["classes"][tag]
 
