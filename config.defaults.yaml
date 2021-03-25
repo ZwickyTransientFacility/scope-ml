@@ -164,6 +164,47 @@ docs:
       title: RR Lyrae c
 
 features:
+  phenomenological_d12:
+    - ad
+    - chi2red
+    - f1_a
+    - f1_amp
+    - f1_b
+    - f1_bic
+    - f1_phi0
+    - f1_power
+    - f1_relamp1
+    - f1_relamp2
+    - f1_relamp3
+    - f1_relamp4
+    - f1_relphi1
+    - f1_relphi2
+    - f1_relphi3
+    - f1_relphi5
+    - f60
+    - f70
+    - f80
+    - f90
+    - inv_vonneumannratio
+    - iqr
+    - median
+    - median_abs_dev
+    - norm_excess_var
+    - norm_peak_to_peak_amp
+    - pdot
+    - period
+    - roms
+    - significance
+    - skew
+    - smallkurt
+    - stetson_j
+    - stetson_k
+    - sw
+    - welch_i
+    - wmean
+    - wstd
+    - n_ztf_alerts
+    - mean_ztf_alert_braai
   phenomenological:
     - ra
     - dec
