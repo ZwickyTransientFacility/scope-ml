@@ -265,6 +265,7 @@ class Dataset(object):
         threshold: float = 0.5,
         balance: Optional[float] = None,
         weight_per_class: bool = True,
+        scale_features: str = "min_max",
         test_size: float = 0.1,
         val_size: float = 0.1,
         random_state: int = 42,
@@ -280,6 +281,7 @@ class Dataset(object):
         :param threshold:
         :param balance:
         :param weight_per_class:
+        :param scale_features: min_max | median_std
         :param test_size:
         :param val_size:
         :param random_state:
@@ -372,9 +374,14 @@ class Dataset(object):
         for feature in self.features:
             stats = feature_stats.get("feature")
             if (stats is not None) and (stats["std"] != 0):
-                self.df_ds[feature] = (self.df_ds[feature] - stats["median"]) / stats[
-                    "std"
-                ]
+                if scale_features == "median_std":
+                    self.df_ds[feature] = (
+                        self.df_ds[feature] - stats["median"]
+                    ) / stats["std"]
+                elif scale_features == "min_max":
+                    self.df_ds[feature] = (self.df_ds[feature] - stats["min"]) / (
+                        stats["max"] - stats["min"]
+                    )
 
         train_dataset = tf.data.Dataset.from_tensor_slices(
             (

@@ -413,6 +413,7 @@ class Scope:
         weight_per_class = kwargs.get(
             "weight_per_class", train_config.get("weight_per_class", False)
         )
+        scale_features = kwargs.get("scale_features", "min_max")
 
         test_size = kwargs.get("test_size", 0.1)
         val_size = kwargs.get("val_size", 0.1)
@@ -428,6 +429,7 @@ class Scope:
             threshold=threshold,
             balance=balance,
             weight_per_class=weight_per_class,
+            scale_features=scale_features,
             test_size=test_size,
             val_size=val_size,
             random_state=random_state,
