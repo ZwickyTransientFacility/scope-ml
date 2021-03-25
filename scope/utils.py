@@ -1,5 +1,6 @@
 __all__ = [
     "Dataset",
+    "forgiving_true",
     "load_config",
     "log",
     "make_tdtax_taxonomy",
@@ -40,6 +41,10 @@ def time_stamp():
 
 def log(message: str):
     print(f"{time_stamp()}: {message}")
+
+
+def forgiving_true(expression):
+    return True if expression in ("t", "True", "true", "1", 1, True) else False
 
 
 def make_tdtax_taxonomy(taxonomy: Mapping):

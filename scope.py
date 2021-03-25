@@ -17,7 +17,7 @@ from tdtax import taxonomy  # noqa: F401
 from typing import Optional, Sequence, Union
 import yaml
 
-from scope.utils import load_config
+from scope.utils import forgiving_true, load_config
 
 
 @contextmanager
@@ -447,8 +447,8 @@ class Scope:
             # otherwise run on CPU
             tf.config.experimental.set_visible_devices([], "GPU")
 
-        dense_branch = kwargs.get("dense_branch", True)
-        conv_branch = kwargs.get("conv_branch", True)
+        dense_branch = kwargs.get("dense_branch", "True")
+        conv_branch = kwargs.get("conv_branch", "True")
         loss = kwargs.get("loss", "binary_crossentropy")
         optimizer = kwargs.get("optimizer", "adam")
         lr = float(kwargs.get("lr", 3e-4))
@@ -459,6 +459,12 @@ class Scope:
         run_eagerly = kwargs.get("run_eagerly", False)
         pre_trained_model = kwargs.get("pre_trained_model")
         save = kwargs.get("save", False)
+
+        # parse boolean args
+        dense_branch = forgiving_true(dense_branch)
+        conv_branch = forgiving_true(conv_branch)
+        run_eagerly = forgiving_true(run_eagerly)
+        save = forgiving_true(save)
 
         classifier = DNN(name=tag)
 
