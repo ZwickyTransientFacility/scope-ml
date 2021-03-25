@@ -91,6 +91,8 @@ class ScopeNet(tf.keras.models.Model, ABC):
     ):
         """Deep Neural Net architecture for the ZTF Source Classification project
 
+        See https://arxiv.org/pdf/2102.11304.pdf for the details.
+
         :param dense_branch:
         :param conv_branch:
         :param dropout_rate:
