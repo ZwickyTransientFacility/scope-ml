@@ -1,5 +1,5 @@
 ## Delta Scuti (dscu)
-delta Scuti variables are classic pulsating stars (i.e., they are stars passing through the [instability strip](https://en.wikipedia.org/wiki/Instability_strip)). As these stars expand and contract (i.e. pulsate) their size and temperature changes leading to regular, smooth variations in their brightness. delta Scuti stars are smaller than both Cepheids and RR Lyrae stars, which leads to a short period of oscillations (typically anywhere between 0.03 days and 0.3 days).
+Delta Scuti variables are classic pulsating stars (i.e., they are stars passing through the [instability strip](https://en.wikipedia.org/wiki/Instability_strip)). As these stars expand and contract (i.e. pulsate) their size and temperature changes leading to regular, smooth variations in their brightness. Delta Scuti stars are smaller than both Cepheids and RR Lyrae stars, which leads to a short period of oscillations (typically anywhere between 0.03 days and 0.3 days).
 
 ### Classification and numbers
 - Supertypes
