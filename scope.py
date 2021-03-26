@@ -456,7 +456,7 @@ class Scope:
         lr = float(kwargs.get("lr", 3e-4))
         momentum = float(kwargs.get("momentum", 0.9))
         monitor = kwargs.get("monitor", "val_loss")
-        patience = float(kwargs.get("patience", 20))
+        patience = int(kwargs.get("patience", 20))
         callbacks = kwargs.get("callbacks", ("reduce_lr_on_plateau", "early_stopping"))
         run_eagerly = kwargs.get("run_eagerly", False)
         pre_trained_model = kwargs.get("pre_trained_model")

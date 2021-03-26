@@ -8,8 +8,8 @@ __all__ = [
     "plot_light_curve_data",
 ]
 
-from ast import literal_eval
 import datetime
+import json
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -241,7 +241,7 @@ class Dataset(object):
         else:
             iterator = self.df_ds.itertuples()
         for i in iterator:
-            data = np.array(literal_eval(self.df_ds["dmdt"][i.Index]))
+            data = np.array(json.loads(self.df_ds["dmdt"][i.Index]))
             if len(data.shape) == 0:
                 dmdt.append(np.zeros((26, 26)))
             else:

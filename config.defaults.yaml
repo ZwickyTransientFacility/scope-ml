@@ -210,8 +210,8 @@ features:
     - n_ztf_alerts
     - mean_ztf_alert_braai
   phenomenological:
-    - ra
-    - dec
+#    - ra
+#    - dec
 #    - n
     - median
     - wmean
@@ -254,8 +254,8 @@ features:
     - f1_relamp4
     - f1_relphi4
   ontological:
-    - ra
-    - dec
+#    - ra
+#    - dec
     - median
     - wmean
     - chi2red
