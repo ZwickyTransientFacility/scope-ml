@@ -205,6 +205,7 @@ class Scope:
                         "projection": {
                             "_id": 1,
                             "filter": 1,
+                            "field": 1,
                             "data.hjd": 1,
                             "data.fid": 1,
                             "data.mag": 1,
@@ -227,6 +228,7 @@ class Scope:
             # broadcast to all data points:
             df["_id"] = light_curve["_id"]
             df["filter"] = light_curve["filter"]
+            df["field"] = light_curve["field"]
             light_curves.append(df)
 
         df = pd.concat(light_curves, ignore_index=True)

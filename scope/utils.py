@@ -127,10 +127,10 @@ def plot_light_curve_data(
                     color=colors[band],
                     lw=0,
                 )
-
-            # invert y axes
-            for ax in [ax1, ax2]:
-                ax.invert_yaxis()
+    # invert y axes since we are displaying magnitudes
+    ax1.invert_yaxis()
+    if period is not None:
+        ax2.invert_yaxis()
 
     ax1.set_xlabel("Time")
     ax1.grid(lw=0.3)
