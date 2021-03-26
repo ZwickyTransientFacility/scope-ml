@@ -75,7 +75,7 @@ def plot_light_curve_data(
         if period is not None:
             for n in [0, -1]:
                 ax2.errorbar(
-                    df.loc[mask_filter, "hjd"] / period % 1 + n,
+                    (df.loc[mask_filter, "hjd"] - jd_start) / period % 1 + n,
                     df.loc[mask_filter, "mag"],
                     df.loc[mask_filter, "magerr"],
                     marker=".",
