@@ -162,6 +162,10 @@ docs:
       coordinates: [254.7213, 32.8341]
       period: 0.31087445597147706
       title: RR Lyrae c
+    delta_scuti:
+      coordinates: [271.68356525, 30.0281826]
+      period: 0.0531738185
+      title: Delta Scuti
 
 features:
   phenomenological_d12:
