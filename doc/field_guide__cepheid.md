@@ -27,7 +27,7 @@ Fundamental-mode Cepheids are easy to recognise by their distinctive sawtooth li
     - Classical Cepheids with pulsation periods 6-20 days may have a secondary bump
 
 #### Other characteristics and selection methods
-- intrinsic Cepheids colors: Bp-Rp = 0.8 -- 2.0 mag, but as these stars are located toward the Galactic plane, the reddening may be significant
+- intrinsic Cepheids colors: Bp-Rp = 0.8 -- 2.0 mag, but as these stars are located near the Galactic plane, the reddening may be significant
 - absolute magnitude: -6<G<-2
 - located close to the Galactic plane (within ~10 degrees)
 
