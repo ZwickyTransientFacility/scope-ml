@@ -51,6 +51,10 @@ docs:
       coordinates: [254.7213, 32.8341]
       period: 0.31087445597147706
       title: RR Lyrae c
+    w_uma:
+      coordinates: [270.4229, 7.1722]
+      period: 0.26901030387060865
+      title: W Uma
     delta_scuti:
       coordinates: [279.9154053, 60.7140833]
       period: 0.064050575
