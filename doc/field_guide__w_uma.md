@@ -28,6 +28,8 @@ Contact binary lightcurves show a distinctive shape that shows two eclipses whic
 
 ![HR diagram of W Uma](data/hr__w_uma.png)
 
+![RA/Dec diagram of W Uma](data/radec__w_uma.png)
+
 ### References and further reading:
 - Sterken & Jasschek: Light curves of variable stars
 - Marsh et al, MNRAS 465, 4678–4689, 2017

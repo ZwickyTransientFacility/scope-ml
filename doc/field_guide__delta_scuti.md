@@ -29,5 +29,7 @@ Delta Scuti are easy to recognise by their distinctive light curve shape and per
 
 ![HR diagram of Delta Scuti](data/hr__delta_scuti.png)
 
+![RA/Dec diagram of Delta Scuti](data/radec__delta_scuti.png)
+
 ### References and further reading:
 - Sterken & Jasschek: Light curves of variable stars

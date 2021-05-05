@@ -33,6 +33,8 @@ Fundamental-mode Cepheids are easy to recognise by their distinctive sawtooth li
 
 ![HR diagram of classical Cepheids](data/hr__cepheid.png)
 
+![RA/Dec diagram of classical Cepheids](data/radec__cepheid.png)
+
 ### References and further reading:
 - Soszynski, I. et al. (2008) <a href="https://ui.adsabs.harvard.edu/abs/2008AcA....58..163S/abstract">The Optical Gravitational Lensing Experiment. The OGLE-III Catalog of Variable Stars. I. Classical Cepheids in the Large Magellanic Cloud</a>
 - Udalski, A. et al. (2018) <a href="https://ui.adsabs.harvard.edu/abs/2018AcA....68..315U/abstract">OGLE Collection of Galactic Cepheids</a>
