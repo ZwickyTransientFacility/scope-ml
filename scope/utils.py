@@ -171,7 +171,7 @@ def plot_gaia_density(
 
     # load the data
     hdulist = fits.open(path_gaia_density)
-    hist = hdulist[1].data['srcdens'][np.argsort(hdulist[1].data['hpx8'])]
+    hist = hdulist[1].data["srcdens"][np.argsort(hdulist[1].data["hpx8"])]
 
     # make figure
     fig, ax = plt.subplots(figsize=(6, 6))
@@ -179,75 +179,105 @@ def plot_gaia_density(
         fig.suptitle(title, fontsize=24)
 
     # background setup
-    NSIDE = 256
-    NPIX = hp.nside2npix(NSIDE)
-    coordsys = ['C','C']
+    coordsys = ["C", "C"]
     nest = True
-    
+
     # colormap
-    cm = plt.cm.get_cmap('viridis') # colorscale
-    cm.set_under('w')
-    cm.set_bad('w')
-    
+    cm = plt.cm.get_cmap("viridis")  # colorscale
+    cm.set_under("w")
+    cm.set_bad("w")
+
     # plot the data in healpy
-    norm ='log'
-    hp.mollview(hist,norm=norm,unit='Stars per sq. arcmin.',cbar=False,nest=nest,title='',coord=coordsys,notext=True,cmap=cm,flip='astro',nlocs=4,min=0.1,max=300)
+    norm = "log"
+    hp.mollview(
+        hist,
+        norm=norm,
+        unit="Stars per sq. arcmin.",
+        cbar=False,
+        nest=nest,
+        title="",
+        coord=coordsys,
+        notext=True,
+        cmap=cm,
+        flip="astro",
+        nlocs=4,
+        min=0.1,
+        max=300,
+    )
     ax = plt.gca()
     image = ax.get_images()[0]
-    cbar = fig.colorbar(image, ax=ax, ticks=[0.1,1,10,100], fraction=0.15, pad=0.05, location='bottom')
-    cbar.set_label('Stars per sq. arcmin.', size=12)
+    cbar = fig.colorbar(
+        image,
+        ax=ax,
+        ticks=[0.1, 1, 10, 100],
+        fraction=0.15,
+        pad=0.05,
+        location="bottom",
+    )
+    cbar.set_label("Stars per sq. arcmin.", size=12)
     cbar.ax.tick_params(labelsize=12)
-    
-    ax.tick_params(axis='both', which='major', labelsize=24)
-    
+
+    ax.tick_params(axis="both", which="major", labelsize=24)
+
     # borders
     lw = 3
     pi = np.pi
-    dtor = pi/180.
-    theta = np.arange(0,181)*dtor
-    hp.projplot(theta, theta*0-pi,'-k',
-                                   lw=lw,direct=True)
-    hp.projplot(theta, theta*0+0.9999*pi,'-k',
-                                   lw=lw,direct=True)
-    phi = np.arange(-180,180)*dtor
-    hp.projplot(phi*0+1.e-10, phi,'-k',
-                                   lw=lw,direct=True)
-    hp.projplot(phi*0+pi-1.e-10, phi,'-k',
-                                   lw=lw,direct=True)
-    
-    # galaxy
-    for gallat in [15,0,-15]:
-        theta = np.arange(0., 360, 0.036)
-        phi = gallat*np.ones_like(theta)
-        hp.projplot(theta, phi, 'w-', coord=['G'],lonlat=True,lw=2)
-    
-    # ecliptic
-    for ecllat in zip([0,-30,30],[2,1,1]):
-        theta = np.arange(0., 360, 0.036)
-        phi = gallat*np.ones_like(theta)
-        hp.projplot(theta, phi, 'w-', coord=['E'],lonlat=True,lw=2,ls=':')
-    
-    # graticule
-    hp.graticule(ls='-',alpha=0.1,lw=0.5)
-    
-    # NWES
-    plt.text(0.0,0.5,r'E',ha='right',transform=ax.transAxes,weight='bold')
-    plt.text(1.0,0.5,r'W',ha='left',transform=ax.transAxes,weight='bold')
-    plt.text(0.5,0.992,r'N',va='bottom',ha='center',transform=ax.transAxes,weight='bold')
-    plt.text(0.5,0.0,r'S',va='top',ha='center',transform=ax.transAxes,weight='bold')
+    dtor = pi / 180.0
+    theta = np.arange(0, 181) * dtor
+    hp.projplot(theta, theta * 0 - pi, "-k", lw=lw, direct=True)
+    hp.projplot(theta, theta * 0 + 0.9999 * pi, "-k", lw=lw, direct=True)
+    phi = np.arange(-180, 180) * dtor
+    hp.projplot(phi * 0 + 1.0e-10, phi, "-k", lw=lw, direct=True)
+    hp.projplot(phi * 0 + pi - 1.0e-10, phi, "-k", lw=lw, direct=True)
 
-    color = 'k'
+    # galaxy
+    for gallat in [15, 0, -15]:
+        theta = np.arange(0.0, 360, 0.036)
+        phi = gallat * np.ones_like(theta)
+        hp.projplot(theta, phi, "w-", coord=["G"], lonlat=True, lw=2)
+
+    # ecliptic
+    for ecllat in zip([0, -30, 30], [2, 1, 1]):
+        theta = np.arange(0.0, 360, 0.036)
+        phi = gallat * np.ones_like(theta)
+        hp.projplot(theta, phi, "w-", coord=["E"], lonlat=True, lw=2, ls=":")
+
+    # graticule
+    hp.graticule(ls="-", alpha=0.1, lw=0.5)
+
+    # NWES
+    plt.text(0.0, 0.5, r"E", ha="right", transform=ax.transAxes, weight="bold")
+    plt.text(1.0, 0.5, r"W", ha="left", transform=ax.transAxes, weight="bold")
+    plt.text(
+        0.5,
+        0.992,
+        r"N",
+        va="bottom",
+        ha="center",
+        transform=ax.transAxes,
+        weight="bold",
+    )
+    plt.text(
+        0.5, 0.0, r"S", va="top", ha="center", transform=ax.transAxes, weight="bold"
+    )
+
+    color = "k"
     lw = 10
     alpha = 1.0
 
     for pos in positions:
-        hp.projplot(pos[0], pos[1], color=color, marker='o',
-                    coord=coordsys,lonlat=True,lw=lw,alpha=alpha,
-                    zorder=10)
+        hp.projplot(
+            pos[0],
+            pos[1],
+            color=color,
+            marker="o",
+            coord=coordsys,
+            lonlat=True,
+            lw=lw,
+            alpha=alpha,
+            zorder=10,
+        )
 
     if save is not None:
         fig.tight_layout()
         plt.savefig(save)
-
-
-
