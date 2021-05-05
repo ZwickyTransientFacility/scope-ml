@@ -11,9 +11,9 @@ The canonical example is Mira.
 - Subtypes
   - Miras
   - Semiregulars
+  - OSARGs - OGLE Small Amplitude Red Giants (some astronomers do not include these under LPVs)
 - Occurrence rate: very common, about 10<sup>5</sup> expected in ZTF data
 - Non LPV wth Long Periods
-  - OSARGs - OGLE Small Amplitude Red Giants
   - RV Tau - Cepheid IIs
 - Other possible confusions
   - YSOs - their variations tend to be over shorter periods
