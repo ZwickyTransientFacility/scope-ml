@@ -230,6 +230,12 @@ def plot_gaia_density(
     hp.projplot(phi * 0 + 1.0e-10, phi, "-k", lw=lw, direct=True)
     hp.projplot(phi * 0 + pi - 1.0e-10, phi, "-k", lw=lw, direct=True)
 
+    # ZTF
+    theta = np.arange(0.0, 360, 0.036)
+    phi = -30.0 * np.ones_like(theta)
+    hp.projplot(theta, phi, "k--", coord=["C"], lonlat=True, lw=2)
+    hp.projtext(170.0, -24.0, r"ZTF Limit", lonlat=True)
+
     # galaxy
     for gallat in [15, 0, -15]:
         theta = np.arange(0.0, 360, 0.036)
@@ -244,6 +250,12 @@ def plot_gaia_density(
 
     # graticule
     hp.graticule(ls="-", alpha=0.1, lw=0.5)
+
+    # labels
+    for lat in [60, 30, 0, -30, -60]:
+        hp.projtext(360.0, lat, str(lat), lonlat=True)
+    for lon in [0, 60, 120, 240, 300]:
+        hp.projtext(lon, 0.0, str(lon), lonlat=True)
 
     # NWES
     plt.text(0.0, 0.5, r"E", ha="right", transform=ax.transAxes, weight="bold")
@@ -263,7 +275,7 @@ def plot_gaia_density(
 
     color = "k"
     lw = 10
-    alpha = 1.0
+    alpha = 0.75
 
     for pos in positions:
         hp.projplot(

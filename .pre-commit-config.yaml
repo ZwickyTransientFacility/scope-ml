@@ -10,10 +10,10 @@ repos:
     hooks:
       - id: black
         pass_filenames: true
-        exclude: .ipynb_checkpoints|data
+        exclude: .ipynb_checkpoints|data|.*\.(fits)
   - repo: https://gitlab.com/pycqa/flake8
     rev: 3.8.4
     hooks:
       - id: flake8
         pass_filenames: true
-        exclude: .ipynb_checkpoints|data|__init__.py
+        exclude: .ipynb_checkpoints|data|__init__.py|.*\.(fits)
