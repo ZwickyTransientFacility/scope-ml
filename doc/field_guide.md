@@ -11,6 +11,3 @@ for more details on the taxonomy.
 
 ```{include} ./field_guide__delta_scuti.md
 ```
-
-```{include} ./field_guide__CVs.md
-```

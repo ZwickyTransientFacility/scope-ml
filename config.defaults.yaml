@@ -51,7 +51,27 @@ docs:
       coordinates: [254.7213, 32.8341]
       period: 0.31087445597147706
       title: RR Lyrae c
+    w_uma:
+      coordinates: [270.4229, 7.1722]
+      period: 0.26901030387060865
+      title: W Uma
     delta_scuti:
       coordinates: [279.9154053, 60.7140833]
       period: 0.064050575
       title: Delta Scuti
+    cepheid_F:
+      coordinates: [0.441542, 62.424306]
+      period: 3.8785736
+      title: Fundamental-mode classical Cepheid
+    cepheid_F_1:
+      coordinates: [4.260375, 60.802722]
+      period: 6.7987667
+      title: Fundamental-mode classical Cepheid with a secondary bump
+    cepheid_1O:
+      coordinates: [321.964458, 24.422528]
+      period: 0.7703319
+      title: First-overtone classical Cepheid
+    cepheid_F1O:
+      coordinates: [292.005292, 19.949889]
+      period: 4.0442931
+      title: Double-mode classical Cepheid
