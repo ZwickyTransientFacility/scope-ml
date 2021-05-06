@@ -75,3 +75,6 @@ docs:
       coordinates: [292.005292, 19.949889]
       period: 4.0442931
       title: Double-mode classical Cepheid
+    flaring:
+      coordinates: [266.8566657, 63.0465916]
+      title: Flaring Star
