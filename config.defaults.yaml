@@ -75,6 +75,9 @@ docs:
       coordinates: [292.005292, 19.949889]
       period: 4.0442931
       title: Double-mode classical Cepheid
-    flaring:
+    flaring_dwarfnova:
       coordinates: [266.8566657, 63.0465916]
-      title: Flaring Star
+      title: Dwarf Nova (Flaring)
+    flaring_mdwarf:
+      coordinates: [103.289525, 10.194726]
+      title: M dwarf (Flaring)
