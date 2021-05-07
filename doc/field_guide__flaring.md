@@ -1,6 +1,6 @@
-## Flaring stars (flaring)
+## Flaring variables (flaring)
 
-A flare star is a variable star that dramatically increases in brightness for minutes before returning to quiescence. Most flare stars are red dwarfs, while RS Canum Venaticorum variables (RS CVn) are also known to flare due to a companion star in the binary system.
+The phenomelogical classification of ``flaring`` is any kind of outbursting source, where a variable star (or binary system) dramatically increases in brightness for minutes to hours before returning to quiescence. Most flare stars are red dwarfs, while RS Canum Venaticorum variables (RS CVn) are also known to flare due to a companion star in the binary system. Other possible sources of flaring include dwarf novae (U Geminorum-type variable stars) which are increases in luminosity in the accretion disk of a cataclysmic variable star.
 
 ### Classification and numbers
 - Supertypes
