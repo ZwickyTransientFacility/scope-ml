@@ -282,6 +282,7 @@ def plot_gaia_density(
             pos[0],
             pos[1],
             color=color,
+            markersize=5,
             marker="o",
             coord=coordsys,
             lonlat=True,
