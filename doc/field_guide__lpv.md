@@ -19,7 +19,8 @@ The canonical example is Mira.
   - YSOs - their variations tend to be over shorter periods
 
 ### ZTF light curves
-![ZTF LPV](data/lpv.png)
+![ZTF lpv](data/mira.png)
+![ZTF lpv](data/srv.png)
 
 #### Description
 Long period variables have periods from several tens of days to over thousand day and are
