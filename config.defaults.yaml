@@ -75,3 +75,10 @@ docs:
       coordinates: [292.005292, 19.949889]
       period: 4.0442931
       title: Double-mode classical Cepheid
+    mira:
+      coordinates: [9.1523, 68.0221]
+      period: 212.0066035
+      title: A Mira (Long Period Variable)
+    srv:
+      coordinates: [330.302266, 66.153712]
+      title: Semi Regular Variable
