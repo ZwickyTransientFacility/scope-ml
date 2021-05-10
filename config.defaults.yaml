@@ -1,11 +1,11 @@
 kowalski:
-  host: kowalski.caltech.edu
+  host: gloria.caltech.edu
   port: 443
   protocol: https
   token:
   collections:
     gaia: Gaia_EDR3
-    sources: ZTF_sources_20201201
+    sources: ZTF_sources_20210401
 taxonomy:
   name: Class type
   children:
@@ -81,3 +81,10 @@ docs:
     flaring_mdwarf:
       coordinates: [103.289525, 10.194726]
       title: M dwarf (Flaring)
+    mira:
+      coordinates: [9.1523, 68.0221]
+      period: 212.0066035
+      title: A Mira (Long Period Variable)
+    srv:
+      coordinates: [330.302266, 66.153712]
+      title: Semi Regular Variable
