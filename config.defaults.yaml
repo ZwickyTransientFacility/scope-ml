@@ -55,6 +55,10 @@ docs:
       coordinates: [270.4229, 7.1722]
       period: 0.26901030387060865
       title: W Uma
+    beta_lyr:
+      coordinates: [116.79866129999999, 51.4231961]
+      period: 1.836431252123213
+      title: Beta Lyrae
     delta_scuti:
       coordinates: [279.9154053, 60.7140833]
       period: 0.064050575
