@@ -20,3 +20,6 @@ for more details on the taxonomy.
 
 ```{include} ./field_guide__beta_lyr.md
 ```
+
+```{include} ./field_guide__lpv.md
+```
