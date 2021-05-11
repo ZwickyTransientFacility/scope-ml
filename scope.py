@@ -313,8 +313,8 @@ class Scope:
                 )
                 plot_light_curve_data(
                     light_curve_data=sample_light_curves,
-                    period=sample_object["period"],
-                    title=sample_object["title"],
+                    period=sample_object.get("period"),
+                    title=sample_object.get("title"),
                     save=path_doc_data / sample_object_name,
                 )
 
