@@ -20,6 +20,7 @@ from scope.utils import (
     load_config,
     plot_gaia_hr,
     plot_light_curve_data,
+    plot_gaia_density,
 )
 
 
@@ -276,6 +277,27 @@ class Scope:
         if (self.kowalski is None) or (not self.kowalski.ping()):
             print("Kowalski connection not established, cannot generate docs.")
             return
+
+        # example skymaps for all Golden sets
+        with status("Generating skymaps diagrams for Golden sets"):
+            path_doc_data = pathlib.Path(__file__).parent.absolute() / "doc" / "data"
+
+            path_gaia_density = (
+                pathlib.Path(__file__).parent.absolute()
+                / "data"
+                / "Gaia_hp8_densitymap.fits"
+            )
+            # stored as ra/decs in csv format under /data/golden
+            golden_sets = pathlib.Path(__file__).parent.absolute() / "data" / "golden"
+            for golden_set in golden_sets.glob("*.csv"):
+                golden_set_name = golden_set.stem
+                positions = pd.read_csv(golden_set).to_numpy().tolist()
+
+                plot_gaia_density(
+                    positions=positions,
+                    path_gaia_density=path_gaia_density,
+                    save=path_doc_data / f"radec__{golden_set_name}",
+                )
 
         # example light curves
         with status("Generating example light curves"):

@@ -1,4 +1,6 @@
+astropy
 fire>=0.4.0
+healpy
 myst-parser
 pandas>=1.2
 penquins>=2.1
