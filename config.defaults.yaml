@@ -1,11 +1,11 @@
 kowalski:
-  host: kowalski.caltech.edu
+  host: gloria.caltech.edu
   port: 443
   protocol: https
   token:
   collections:
     gaia: Gaia_EDR3
-    sources: ZTF_sources_20201201
+    sources: ZTF_sources_20210401
 taxonomy:
   name: Class type
   children:
@@ -55,6 +55,10 @@ docs:
       coordinates: [270.4229, 7.1722]
       period: 0.26901030387060865
       title: W Uma
+    beta_lyr:
+      coordinates: [116.79866129999999, 51.4231961]
+      period: 1.836431252123213
+      title: Beta Lyrae
     delta_scuti:
       coordinates: [279.9154053, 60.7140833]
       period: 0.064050575
@@ -81,3 +85,10 @@ docs:
     flaring_mdwarf:
       coordinates: [103.289525, 10.194726]
       title: M dwarf (Flaring)
+    mira:
+      coordinates: [9.1523, 68.0221]
+      period: 212.0066035
+      title: A Mira (Long Period Variable)
+    srv:
+      coordinates: [330.302266, 66.153712]
+      title: Semi Regular Variable
