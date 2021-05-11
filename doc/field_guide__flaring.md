@@ -20,8 +20,9 @@ Flaring stars are easy to recognise by their dramatic increase in brightness fro
 - variable
 - dramatic increases in brightness
 
-![HR diagram of Dwarf Novae](data/hr__flaring_dwarfnova.png)
-![HR diagram of M Dwarfs](data/hr__flaring_mdwarf.png)
+![HR diagram of Flaring](data/hr__flaring.png)
+
+![RA/Dec diagram of Flaring](data/radec__flaring.png)
 
 ### References and further reading:
 - Sterken & Jasschek: Light curves of variable stars
