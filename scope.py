@@ -284,7 +284,6 @@ class Scope:
 
             path_gaia_density = (
                 pathlib.Path(__file__).parent.absolute()
-                / "doc"
                 / "data"
                 / "Gaia_hp8_densitymap.fits"
             )
