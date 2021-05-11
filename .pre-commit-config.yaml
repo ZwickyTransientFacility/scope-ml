@@ -4,9 +4,9 @@ repos:
     hooks:
       - id: check-yaml
       - id: end-of-file-fixer
-        exclude: .ipynb_checkpoints|^data/*.fits|
+        exclude: .ipynb_checkpoints|^.fits|
       - id: trailing-whitespace
-        exclude: .ipynb_checkpoints|^data/*.fits|
+        exclude: .ipynb_checkpoints|^.fits|
   - repo: https://github.com/python/black
     rev: 20.8b1
     hooks:
