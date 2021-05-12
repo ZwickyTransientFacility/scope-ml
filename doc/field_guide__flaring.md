@@ -25,6 +25,5 @@ Flaring stars are easy to recognise by their increase in brightness from quiesce
 ![RA/Dec diagram of Flaring](data/radec__flaring.png)
 
 ### References and further reading:
-- Sterken & Jasschek: Light curves of variable stars
 - Taichi Kato, WZ Sge-type dwarf novae, Publications of the Astronomical Society of Japan, Volume 67, Issue 6, December 2015, 108 [arxiv:1507.07659](https://arxiv.org/pdf/1507.07659.pdf)
 - Maximilian N. Günther et al 2020 AJ 159 60, [arxiv:1901.00443](https://arxiv.org/pdf/1901.00443.pdf)
