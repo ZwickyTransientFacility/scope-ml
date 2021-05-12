@@ -40,6 +40,8 @@ easy to identify due to the slow variations.
 
 ![HR diagram of LPV](data/hr__lpv.png)
 
+![RA/Dec diagram of LPV](data/radec__lpv.png)
+
 ### References and further reading:
 - Mowlawi et al., 2018, A&A 618, A58, The first Gaia catalogue of long-period variable candidates [arxiv:1805.02035](https://arxiv.org/pdf/1805.02035.pdf)
 - Soszynski et al., 2009, AcA, 59, 239S, The Optical Gravitational Lensing Experiment. The OGLE-III Catalog of Variable Stars. IV. Long-Period Variables in the Large Magellanic Cloud [arxix:0910.1354](https://arxiv.org/pdf/0910.1354.pdf)
