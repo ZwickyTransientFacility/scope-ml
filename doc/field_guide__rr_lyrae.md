@@ -43,5 +43,7 @@ which occur at similar periods and have sinusoidal-like light curves.
 
 ![HR diagram of RRlyrae](data/hr__rr_lyr.png)
 
+![RA/Dec diagram of RRlyrae](data/radec__rr_lyr.png)
+
 ### References and further reading:
 - Sterken & Jasschek: Light curves of variable stars

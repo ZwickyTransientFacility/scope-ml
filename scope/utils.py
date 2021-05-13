@@ -4,6 +4,8 @@ __all__ = [
     "plot_light_curve_data",
 ]
 
+from astropy.io import fits
+import healpy as hp
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -58,7 +60,7 @@ def plot_light_curve_data(
     else:
         fig = plt.figure(figsize=(16, 5))
         ax1 = fig.add_subplot(111)
-        
+
     if title is not None:
         fig.suptitle(title, fontsize=24)
 
@@ -148,6 +150,147 @@ def plot_gaia_hr(
     # display grid behind all other elements on the plot
     ax.set_axisbelow(True)
     ax.grid(lw=0.3)
+
+    if save is not None:
+        fig.tight_layout()
+        plt.savefig(save)
+
+
+def plot_gaia_density(
+    positions: pd.DataFrame,
+    path_gaia_density: Union[str, pathlib.Path],
+    title: Optional[str] = None,
+    save: Optional[str] = None,
+):
+    """Plot the RA/DEC Gaia density plot with a sample of objects over-plotted
+
+    source: https://vlas.dev/post/gaia-dr2-hrd/
+
+    """
+    # plot the H-R diagram for 1 M stars within 200 pc from the Sun
+    plt.rc("text", usetex=True)
+
+    # load the data
+    hdulist = fits.open(path_gaia_density)
+    hist = hdulist[1].data["srcdens"][np.argsort(hdulist[1].data["hpx8"])]
+
+    # make figure
+    fig, ax = plt.subplots(figsize=(6, 6))
+    if title is not None:
+        fig.suptitle(title, fontsize=24)
+
+    # background setup
+    coordsys = ["C", "C"]
+    nest = True
+
+    # colormap
+    cm = plt.cm.get_cmap("viridis")  # colorscale
+    cm.set_under("w")
+    cm.set_bad("w")
+
+    # plot the data in healpy
+    norm = "log"
+    hp.mollview(
+        hist,
+        norm=norm,
+        unit="Stars per sq. arcmin.",
+        cbar=False,
+        nest=nest,
+        title="",
+        coord=coordsys,
+        notext=True,
+        cmap=cm,
+        flip="astro",
+        nlocs=4,
+        min=0.1,
+        max=300,
+    )
+    ax = plt.gca()
+    image = ax.get_images()[0]
+    cbar = fig.colorbar(
+        image,
+        ax=ax,
+        ticks=[0.1, 1, 10, 100],
+        fraction=0.15,
+        pad=0.05,
+        location="bottom",
+    )
+    cbar.set_label("Stars per sq. arcmin.", size=12)
+    cbar.ax.tick_params(labelsize=12)
+
+    ax.tick_params(axis="both", which="major", labelsize=24)
+
+    # borders
+    lw = 3
+    pi = np.pi
+    dtor = pi / 180.0
+    theta = np.arange(0, 181) * dtor
+    hp.projplot(theta, theta * 0 - pi, "-k", lw=lw, direct=True)
+    hp.projplot(theta, theta * 0 + 0.9999 * pi, "-k", lw=lw, direct=True)
+    phi = np.arange(-180, 180) * dtor
+    hp.projplot(phi * 0 + 1.0e-10, phi, "-k", lw=lw, direct=True)
+    hp.projplot(phi * 0 + pi - 1.0e-10, phi, "-k", lw=lw, direct=True)
+
+    # ZTF
+    theta = np.arange(0.0, 360, 0.036)
+    phi = -30.0 * np.ones_like(theta)
+    hp.projplot(theta, phi, "k--", coord=["C"], lonlat=True, lw=2)
+    hp.projtext(170.0, -24.0, r"ZTF Limit", lonlat=True)
+
+    # galaxy
+    for gallat in [15, 0, -15]:
+        theta = np.arange(0.0, 360, 0.036)
+        phi = gallat * np.ones_like(theta)
+        hp.projplot(theta, phi, "w-", coord=["G"], lonlat=True, lw=2)
+
+    # ecliptic
+    for ecllat in zip([0, -30, 30], [2, 1, 1]):
+        theta = np.arange(0.0, 360, 0.036)
+        phi = gallat * np.ones_like(theta)
+        hp.projplot(theta, phi, "w-", coord=["E"], lonlat=True, lw=2, ls=":")
+
+    # graticule
+    hp.graticule(ls="-", alpha=0.1, lw=0.5)
+
+    # labels
+    for lat in [60, 30, 0, -30, -60]:
+        hp.projtext(360.0, lat, str(lat), lonlat=True)
+    for lon in [0, 60, 120, 240, 300]:
+        hp.projtext(lon, 0.0, str(lon), lonlat=True)
+
+    # NWES
+    plt.text(0.0, 0.5, r"E", ha="right", transform=ax.transAxes, weight="bold")
+    plt.text(1.0, 0.5, r"W", ha="left", transform=ax.transAxes, weight="bold")
+    plt.text(
+        0.5,
+        0.992,
+        r"N",
+        va="bottom",
+        ha="center",
+        transform=ax.transAxes,
+        weight="bold",
+    )
+    plt.text(
+        0.5, 0.0, r"S", va="top", ha="center", transform=ax.transAxes, weight="bold"
+    )
+
+    color = "k"
+    lw = 10
+    alpha = 0.75
+
+    for pos in positions:
+        hp.projplot(
+            pos[0],
+            pos[1],
+            color=color,
+            markersize=5,
+            marker="o",
+            coord=coordsys,
+            lonlat=True,
+            lw=lw,
+            alpha=alpha,
+            zorder=10,
+        )
 
     if save is not None:
         fig.tight_layout()
