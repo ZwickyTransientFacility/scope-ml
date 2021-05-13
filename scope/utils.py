@@ -53,15 +53,16 @@ def plot_light_curve_data(
     mask_good_data = light_curve_data["catflags"] == 0
     df = light_curve_data.loc[mask_good_data]
 
-    fig = plt.figure(figsize=(16, 9))
-    if title is not None:
-        fig.suptitle(title, fontsize=24)
-
-    if period is None:
-        ax1 = fig.add_subplot(111)
-    else:
+    if period is not None:
+        fig = plt.figure(figsize=(16, 9))
         ax1 = fig.add_subplot(211)
         ax2 = fig.add_subplot(212)
+    else:
+        fig = plt.figure(figsize=(16, 5))
+        ax1 = fig.add_subplot(111)
+
+    if title is not None:
+        fig.suptitle(title, fontsize=24)
 
     # plot different ZTF bands/filters
     for band in df["filter"].unique():
