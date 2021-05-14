@@ -24,5 +24,7 @@ Any type of star can be in an eclipsing binary (so they may be small, large, hot
 
 ![HR diagram of Beta Lyrae](data/hr__beta_lyr.png)
 
+![Period histogram of Beta Lyrae](data/period__beta_lyr.png)
+
 ### References and further reading:
 - Sterken & Jasschek: Light curves of variable stars
