@@ -1,4 +1,4 @@
-## Cataclysmic Variables (CVs)
+## Cataclysmic Variables (cv)
 Cataclysmic variables are close binaries with active mass transfer from a late
 type main sequence star or brown dwarf to a white dwarf. There are several different
 types of CVs, depending on their causes of variability. These include novae (which
@@ -16,7 +16,7 @@ have 9-15 mag outbursts from thermonuclear events on the white dwarf surface), d
   - Z Cam dwarf nova
   - SU UMa/WZ Sge dwarf nova
   - Novalike
-  
+
 - Occurrence rate: common, several thousand expected in ZTF data
 
 
@@ -49,7 +49,7 @@ They can sometimes be confused with supernovae, flare stars or long period varia
   Reddening is usually not important except for places in the galactic plane.
 - absolute magnitude at quiescence: 8<G<14
 
-![HR diagram of CVs](data/hr__CVs.png)
+![HR diagram of CVs](data/hr__cv.png)
 
 ### References and further reading:
 - Warner 1995: Cataclysmic Variable Stars
