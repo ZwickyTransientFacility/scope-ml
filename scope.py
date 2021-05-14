@@ -350,10 +350,7 @@ class Scope:
                     print(f'No features for {golden_set_name}')
                     continue
 
-                if golden_set_name in period_limits:
-                    limits = period_limits[golden_set_name]
-                else:
-                    limits = None
+                limits = period_limits.get(golden_set_name)
 
                 if golden_set_name in period_loglimits:
                     loglimits = period_loglimits[golden_set_name]
