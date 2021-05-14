@@ -4,15 +4,15 @@ repos:
     hooks:
       - id: check-yaml
       - id: end-of-file-fixer
-        exclude: .ipynb_checkpoints|^.fits|
+        exclude: .ipynb_checkpoints|^.fits
       - id: trailing-whitespace
-        exclude: .ipynb_checkpoints|^.fits|
+        exclude: .ipynb_checkpoints|^.fits
   - repo: https://github.com/python/black
     rev: 20.8b1
     hooks:
       - id: black
         pass_filenames: true
-        exclude: .ipynb_checkpoints|data|
+        exclude: .ipynb_checkpoints|data
   - repo: https://gitlab.com/pycqa/flake8
     rev: 3.8.4
     hooks:
