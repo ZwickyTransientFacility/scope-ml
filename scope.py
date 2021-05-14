@@ -351,11 +351,7 @@ class Scope:
                     continue
 
                 limits = period_limits.get(golden_set_name)
-
-                if golden_set_name in period_loglimits:
-                    loglimits = period_loglimits[golden_set_name]
-                else:
-                    loglimits = None
+                loglimits = period_loglimits.get(golden_set_name)
 
                 plot_periods(
                     features=features,
