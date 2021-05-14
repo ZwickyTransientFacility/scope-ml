@@ -21,7 +21,7 @@ from scope.utils import (
     plot_gaia_hr,
     plot_light_curve_data,
     plot_gaia_density,
-    plot_periods
+    plot_periods,
 )
 
 
@@ -324,16 +324,20 @@ class Scope:
             print("Kowalski connection not established, cannot generate docs.")
             return
 
-        period_limits = {'cepheid': [1.0, 100.0],
-                         'delta_scuti': [0.03, 0.3],
-                         'beta_lyr': [0.3, 25],
-                         'rr_lyr': [0.2, 1.0],
-                         'w_uma': [0.2, 0.8]}
-        period_loglimits = {'cepheid': True,
-                            'delta_scuti': False,
-                            'beta_lyr': True,
-                            'rr_lyr': False,
-                            'w_uma': False}
+        period_limits = {
+            "cepheid": [1.0, 100.0],
+            "delta_scuti": [0.03, 0.3],
+            "beta_lyr": [0.3, 25],
+            "rr_lyr": [0.2, 1.0],
+            "w_uma": [0.2, 0.8],
+        }
+        period_loglimits = {
+            "cepheid": True,
+            "delta_scuti": False,
+            "beta_lyr": True,
+            "rr_lyr": False,
+            "w_uma": False,
+        }
 
         # example periods
         with status("Generating example period histograms"):
@@ -347,7 +351,7 @@ class Scope:
                 features = self._get_features(positions=positions)
 
                 if len(features) == 0:
-                    print(f'No features for {golden_set_name}')
+                    print(f"No features for {golden_set_name}")
                     continue
 
                 limits = period_limits.get(golden_set_name)

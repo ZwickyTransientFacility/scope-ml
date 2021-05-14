@@ -110,9 +110,7 @@ def plot_periods(
     title: Optional[str] = None,
     save: Optional[str] = None,
 ):
-    """Plot a histogram of periods for the sample
-
-    """
+    """Plot a histogram of periods for the sample"""
     # plot the H-R diagram for 1 M stars within 200 pc from the Sun
     plt.rc("text", usetex=True)
 
@@ -123,32 +121,37 @@ def plot_periods(
 
     if limits is not None:
         if loglimits:
-            edges = np.logspace(np.log10(limits[0]), np.log10(limits[1]),
-                                number_of_bins)
+            edges = np.logspace(
+                np.log10(limits[0]), np.log10(limits[1]), number_of_bins
+            )
         else:
             edges = np.linspace(limits[0], limits[1], number_of_bins)
     else:
         if loglimits:
-            edges = np.linspace(np.log10(0.9 * np.min(features['period'])),
-                                np.log10(1.1 * np.max(features['period'])),
-                                number_of_bins)
+            edges = np.linspace(
+                np.log10(0.9 * np.min(features["period"])),
+                np.log10(1.1 * np.max(features["period"])),
+                number_of_bins,
+            )
         else:
-            edges = np.linspace(0.9 * np.min(features['period']),
-                                1.1 * np.max(features['period']),
-                                number_of_bins)
-    hist, bin_edges = np.histogram(features['period'], bins=edges)
+            edges = np.linspace(
+                0.9 * np.min(features["period"]),
+                1.1 * np.max(features["period"]),
+                number_of_bins,
+            )
+    hist, bin_edges = np.histogram(features["period"], bins=edges)
     hist = hist / np.sum(hist)
     bins = (bin_edges[1:] + bin_edges[:-1]) / 2.0
-    ax.plot(bins, hist, linestyle='-', drawstyle='steps')
-    ax.set_xlabel('Period [day]')
-    ax.set_ylabel('Probability Density Function')
+    ax.plot(bins, hist, linestyle="-", drawstyle="steps")
+    ax.set_xlabel("Period [day]")
+    ax.set_ylabel("Probability Density Function")
 
     # display grid behind all other elements on the plot
     ax.set_axisbelow(True)
     ax.grid(lw=0.3)
 
     if loglimits:
-        ax.set_xscale('log')
+        ax.set_xscale("log")
     ax.set_xlim([0.9 * bins[0], 1.1 * bins[-1]])
 
     if save is not None:
