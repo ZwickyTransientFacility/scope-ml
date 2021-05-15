@@ -54,11 +54,11 @@ def plot_light_curve_data(
     df = light_curve_data.loc[mask_good_data]
 
     if period is not None:
-        fig = plt.figure(figsize=(16, 9))
+        fig = plt.figure(figsize=(16, 9), dpi=200)
         ax1 = fig.add_subplot(211)
         ax2 = fig.add_subplot(212)
     else:
-        fig = plt.figure(figsize=(16, 5))
+        fig = plt.figure(figsize=(16, 5), dpi=200)
         ax1 = fig.add_subplot(111)
 
     if title is not None:
@@ -177,7 +177,7 @@ def plot_gaia_hr(
     histogram = np.loadtxt(path_gaia_hr_histogram)
 
     # make figure
-    fig, ax = plt.subplots(figsize=(6, 6))
+    fig, ax = plt.subplots(figsize=(6, 6), dpi=200)
     if title is not None:
         fig.suptitle(title, fontsize=24)
 
@@ -232,7 +232,7 @@ def plot_gaia_density(
     hist = hdulist[1].data["srcdens"][np.argsort(hdulist[1].data["hpx8"])]
 
     # make figure
-    fig, ax = plt.subplots(figsize=(6, 6))
+    fig, ax = plt.subplots(figsize=(6, 6), dpi=200)
     if title is not None:
         fig.suptitle(title, fontsize=24)
 
