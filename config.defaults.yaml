@@ -6,6 +6,7 @@ kowalski:
   collections:
     gaia: Gaia_EDR3
     sources: ZTF_sources_20210401
+    features: ZTF_source_features_20210401
 taxonomy:
   name: Class type
   children:
