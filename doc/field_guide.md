@@ -29,3 +29,6 @@ for more details on the taxonomy.
 
 ```{include} ./field_guide__lpv.md
 ```
+
+```{include} ./field_guide__yso.md
+```

@@ -93,3 +93,27 @@ docs:
     srv:
       coordinates: [330.302266, 66.153712]
       title: Semi Regular Variable
+    yso_sinusoidal:
+      coordinates: [313.30835,44.21604]
+      title: YSO Sinusoidal
+    yso_quasi-periodic:
+      coordinates: [313.42558,44.44825]
+      title: YSO quasi-periodic
+    yso_stochastic:
+      coordinates: [313.364708,44.10261]
+      title: YSO stochastic
+    yso_brster:
+      coordinates: [313.31515,43.73967]
+      title: YSO burster
+    yso_outburster:
+      coordinates: [301.2751339,  36.4870689]
+      title: YSO outburster
+    yso_dippers:
+      coordinates: [313.417297,44.17929]
+      title: YSO dipper
+    yso_fader:
+      coordinates: [312.85172,44.217837]
+      title: YSO fader
+    yso_longterm-drifter:
+      coordinates: [314.57094,43.89535]
+      title: YSO longterm-drifter
