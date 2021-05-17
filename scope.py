@@ -21,6 +21,7 @@ from scope.utils import (
     plot_gaia_hr,
     plot_light_curve_data,
     plot_gaia_density,
+    plot_periods,
 )
 
 
@@ -111,6 +112,51 @@ class Scope:
             self.kowalski = None
             # raise ConnectionError("Could not connect to Kowalski.")
             print("Kowalski not available")
+
+    def _get_features(
+        self,
+        positions: Sequence[Sequence[float]],
+        catalog: str = "ZTF_source_features_20210401",
+        max_distance: Union[float, int] = 5.0,
+        distance_units: str = "arcsec",
+    ) -> pd.DataFrame:
+        """Get nearest source in feature set for a set of given positions
+
+        :param positions: R.A./Decl. [deg]
+        :param catalog: feature catalog to query
+        :param max_distance:
+        :param distance_units: arcsec | arcmin | deg | rad
+        :return:
+        """
+        if self.kowalski is None:
+            raise ConnectionError("Kowalski connection not established.")
+        if catalog is None:
+            catalog = self.config["kowalski"]["collections"]["features"]
+        query = {
+            "query_type": "near",
+            "query": {
+                "max_distance": max_distance,
+                "distance_units": distance_units,
+                "radec": positions,
+                "catalogs": {
+                    catalog: {
+                        "filter": {},
+                        "projection": {
+                            "period": 1,
+                            "ra": 1,
+                            "dec": 1,
+                        },
+                    }
+                },
+            },
+        }
+        response = self.kowalski.query(query=query)
+        features_nearest = [
+            v[0] for k, v in response.get("data").get(catalog).items() if len(v) > 0
+        ]
+        df = pd.DataFrame.from_records(features_nearest)
+
+        return df
 
     def _get_nearest_gaia(
         self,
@@ -277,6 +323,46 @@ class Scope:
         if (self.kowalski is None) or (not self.kowalski.ping()):
             print("Kowalski connection not established, cannot generate docs.")
             return
+
+        period_limits = {
+            "cepheid": [1.0, 100.0],
+            "delta_scuti": [0.03, 0.3],
+            "beta_lyr": [0.3, 25],
+            "rr_lyr": [0.2, 1.0],
+            "w_uma": [0.2, 0.8],
+        }
+        period_loglimits = {
+            "cepheid": True,
+            "delta_scuti": False,
+            "beta_lyr": True,
+            "rr_lyr": False,
+            "w_uma": False,
+        }
+
+        # example periods
+        with status("Generating example period histograms"):
+            path_doc_data = pathlib.Path(__file__).parent.absolute() / "doc" / "data"
+
+            # stored as ra/decs in csv format under /data/golden
+            golden_sets = pathlib.Path(__file__).parent.absolute() / "data" / "golden"
+            for golden_set in golden_sets.glob("*.csv"):
+                golden_set_name = golden_set.stem
+                positions = pd.read_csv(golden_set).to_numpy().tolist()
+                features = self._get_features(positions=positions)
+
+                if len(features) == 0:
+                    print(f"No features for {golden_set_name}")
+                    continue
+
+                limits = period_limits.get(golden_set_name)
+                loglimits = period_loglimits.get(golden_set_name)
+
+                plot_periods(
+                    features=features,
+                    limits=limits,
+                    loglimits=loglimits,
+                    save=path_doc_data / f"period__{golden_set_name}",
+                )
 
         # example skymaps for all Golden sets
         with status("Generating skymaps diagrams for Golden sets"):

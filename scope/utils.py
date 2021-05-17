@@ -54,11 +54,11 @@ def plot_light_curve_data(
     df = light_curve_data.loc[mask_good_data]
 
     if period is not None:
-        fig = plt.figure(figsize=(16, 9))
+        fig = plt.figure(figsize=(16, 9), dpi=200)
         ax1 = fig.add_subplot(211)
         ax2 = fig.add_subplot(212)
     else:
-        fig = plt.figure(figsize=(16, 5))
+        fig = plt.figure(figsize=(16, 5), dpi=200)
         ax1 = fig.add_subplot(111)
 
     if title is not None:
@@ -102,6 +102,63 @@ def plot_light_curve_data(
         plt.savefig(save)
 
 
+def plot_periods(
+    features: pd.DataFrame,
+    limits: Optional[list] = None,
+    loglimits: Optional[bool] = False,
+    number_of_bins: Optional[int] = 20,
+    title: Optional[str] = None,
+    save: Optional[str] = None,
+):
+    """Plot a histogram of periods for the sample"""
+    # plot the H-R diagram for 1 M stars within 200 pc from the Sun
+    plt.rc("text", usetex=True)
+
+    # make figure
+    fig, ax = plt.subplots(figsize=(6, 6))
+    if title is not None:
+        fig.suptitle(title, fontsize=24)
+
+    if limits is not None:
+        if loglimits:
+            edges = np.logspace(
+                np.log10(limits[0]), np.log10(limits[1]), number_of_bins
+            )
+        else:
+            edges = np.linspace(limits[0], limits[1], number_of_bins)
+    else:
+        if loglimits:
+            edges = np.linspace(
+                np.log10(0.9 * np.min(features["period"])),
+                np.log10(1.1 * np.max(features["period"])),
+                number_of_bins,
+            )
+        else:
+            edges = np.linspace(
+                0.9 * np.min(features["period"]),
+                1.1 * np.max(features["period"]),
+                number_of_bins,
+            )
+    hist, bin_edges = np.histogram(features["period"], bins=edges)
+    hist = hist / np.sum(hist)
+    bins = (bin_edges[1:] + bin_edges[:-1]) / 2.0
+    ax.plot(bins, hist, linestyle="-", drawstyle="steps")
+    ax.set_xlabel("Period [day]")
+    ax.set_ylabel("Probability Density Function")
+
+    # display grid behind all other elements on the plot
+    ax.set_axisbelow(True)
+    ax.grid(lw=0.3)
+
+    if loglimits:
+        ax.set_xscale("log")
+    ax.set_xlim([0.9 * bins[0], 1.1 * bins[-1]])
+
+    if save is not None:
+        fig.tight_layout()
+        plt.savefig(save)
+
+
 def plot_gaia_hr(
     gaia_data: pd.DataFrame,
     path_gaia_hr_histogram: Union[str, pathlib.Path],
@@ -120,7 +177,7 @@ def plot_gaia_hr(
     histogram = np.loadtxt(path_gaia_hr_histogram)
 
     # make figure
-    fig, ax = plt.subplots(figsize=(6, 6))
+    fig, ax = plt.subplots(figsize=(6, 6), dpi=200)
     if title is not None:
         fig.suptitle(title, fontsize=24)
 
@@ -175,7 +232,7 @@ def plot_gaia_density(
     hist = hdulist[1].data["srcdens"][np.argsort(hdulist[1].data["hpx8"])]
 
     # make figure
-    fig, ax = plt.subplots(figsize=(6, 6))
+    fig, ax = plt.subplots(figsize=(6, 6), dpi=200)
     if title is not None:
         fig.suptitle(title, fontsize=24)
 
