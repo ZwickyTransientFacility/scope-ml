@@ -86,6 +86,18 @@ docs:
     flaring_mdwarf:
       coordinates: [103.289525, 10.194726]
       title: M dwarf (Flaring)
+    cv_U_Gem:
+      coordinates: [18.884181, 37.626534]
+      title: Cataclysmic variable (U Gem dwarf nova)
+    cv_Z_Cam:
+      coordinates: [269.093260, 2.967803]
+      title: Cataclysmic variable (Z Cam dwarf nova)
+    cv_SU_UMa:
+      coordinates: [170.883476, 43.288214]
+      title: Cataclysmic variable (SU UMa/WZ Sge dwarf nova)
+    cv_Novalike:
+      coordinates: [322.961689, 49.233813]
+      title: Cataclysmic variable (Novalike)
     mira:
       coordinates: [9.1523, 68.0221]
       period: 212.0066035

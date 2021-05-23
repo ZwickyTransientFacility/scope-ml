@@ -11,7 +11,7 @@ have 9-15 mag outbursts from thermonuclear events on the white dwarf surface), d
   - aperiodic high and low states
   - periodic orbital variability
 - Subtypes
-  - nova
+  - Nova
   - U Gem dwarf nova
   - Z Cam dwarf nova
   - SU UMa/WZ Sge dwarf nova
@@ -21,10 +21,10 @@ have 9-15 mag outbursts from thermonuclear events on the white dwarf surface), d
 
 
 ### ZTF light curves
-![ZTF CV U Gem](data/CV_U_Gem.png)
-![ZTF CV Z Cam](data/CV_Z_Cam.png)
-![ZTF CV SU UMa](data/CV_SOB.png)
-![ZTF CV Novalike](data/CV_HL.png)
+![ZTF CV U Gem](data/cv_U_Gem.png)
+![ZTF CV Z Cam](data/cv_Z_Cam.png)
+![ZTF CV SU UMa](data/cv_SU_UMa.png)
+![ZTF CV Novalike](data/cv_Novalike.png)
 
 #### Description
 CVs are easy to recognize by their distinctive light curve shape, colors and
