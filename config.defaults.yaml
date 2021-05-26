@@ -105,3 +105,6 @@ docs:
     srv:
       coordinates: [330.302266, 66.153712]
       title: Semi Regular Variable
+    variable:
+      coordinates: [272.8552844, 29.9028479]
+      title: Variable stars
