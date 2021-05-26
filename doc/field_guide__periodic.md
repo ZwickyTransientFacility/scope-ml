@@ -22,9 +22,9 @@ Periodic variables have periods ranging from minutes to over a thousand days wit
 - period range: 0.001-1000 days
 - amplitude: varies from survey precision to more than a magnitude
 
-![HR diagram of LPV](data/hr__periodic.png)
+![HR diagram of Periodic](data/hr__periodic.png)
 
-![RA/Dec diagram of LPV](data/radec__periodic.png)
+![RA/Dec diagram of Periodic](data/radec__periodic.png)
 
 ### References and further reading:
 - Drake et al., 2014, ApJS 618 213 9, The Catalina Surveys Periodic Variable Catalog [arxiv:1405.4290](https://arxiv.org/pdf/1405.4290.pdf)
