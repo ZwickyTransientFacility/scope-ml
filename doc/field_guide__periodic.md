@@ -6,7 +6,7 @@ Many astrophysical objects exhibit periodic behavior, including eclipsing binari
 - Supertypes
   - variable
 - Subtypes
-  - Eclipsing 
+  - Eclipsing
   - Sinusoidal
   - Sawtooth
   - Elliptical
@@ -20,7 +20,7 @@ Periodic variables have periods ranging from minutes to over a thousand days wit
 #### Light curve characteristics
 - periodic variable
 - period range: 0.001-1000 days
-- amplitude: varies from survey precision to more than a magnitude 
+- amplitude: varies from survey precision to more than a magnitude
 
 ![HR diagram of LPV](data/hr__periodic.png)
 
