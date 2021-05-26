@@ -18,7 +18,7 @@ Many astrophysical objects exhibit periodic behavior, including eclipsing binari
 Periodic variables have periods ranging from minutes to over a thousand days with millimagnitude to magnitude level variations.
 
 #### Light curve characteristics
-- periodic variable
+- periodic variable: objects that exhibit repeating sequences of values over a fixed length of time
 - period range: 0.001-1000 days
 - amplitude: varies from survey precision to more than a magnitude
 
