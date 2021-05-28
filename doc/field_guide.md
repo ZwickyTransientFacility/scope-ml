@@ -9,6 +9,9 @@ for more details on the taxonomy.
 ```{include} ./field_guide__variable.md
 ```
 
+```{include} ./field_guide__periodic.md
+```
+
 ```{include} ./field_guide__rr_lyrae.md
 ```
 
