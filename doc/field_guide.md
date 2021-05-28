@@ -6,6 +6,9 @@ Proceed <a href="_static/taxonomy.html">here</a> to interactively inspect the ta
 tree we are employing in SCoPe. Please refer to [arXiv:2102.11304](https://arxiv.org/pdf/2102.11304.pdf)
 for more details on the taxonomy.
 
+```{include} ./field_guide__periodic.md
+```
+
 ```{include} ./field_guide__rr_lyrae.md
 ```
 
