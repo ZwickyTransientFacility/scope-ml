@@ -104,7 +104,7 @@ docs:
       title: A Mira (Long Period Variable)
     periodic:
       coordinates: [288.5243027, 1.51191]
-      period: 0.175036406641672
+      period: 0.350072813283344
       title: Periodic variable
     srv:
       coordinates: [330.302266, 66.153712]
