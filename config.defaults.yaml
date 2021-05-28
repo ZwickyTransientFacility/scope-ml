@@ -105,3 +105,7 @@ docs:
     srv:
       coordinates: [330.302266, 66.153712]
       title: Semi Regular Variable
+    eclipsing:
+      coordinates: [13.572527, 8.874651]
+      period: 1.739625
+      title: Eclipsing variable
