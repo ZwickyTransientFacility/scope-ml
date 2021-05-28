@@ -1,6 +1,6 @@
 ## Variable stars (variable)
 Variable stars are objects whose brightness is varying at a statistically significant level.
-ZTF has statistical measurements down to ~10 millimagnitudes.
+ZTF has statistical measurements depend on magnitude: down to ~10 millimagnitudes for bright stars and >0.1 mag for objects near the detection limit.
 Many astrophysical objects exhibit variable behavior, including periodic variables such as eclipsing binaries, pulsators, etc, and non-periodic variables such as AGN and YSOs.
 
 ### Classification and numbers
