@@ -102,6 +102,13 @@ docs:
       coordinates: [9.1523, 68.0221]
       period: 212.0066035
       title: A Mira (Long Period Variable)
+    periodic:
+      coordinates: [288.5243027, 1.51191]
+      period: 0.350072813283344
+      title: Periodic variable
     srv:
       coordinates: [330.302266, 66.153712]
       title: Semi Regular Variable
+    variable:
+      coordinates: [102.5537728, 44.1032507]
+      title: Variable stars
