@@ -433,7 +433,7 @@ class Scope:
         subprocess.run(["make", "html"], cwd="doc", check=True)
 
     @staticmethod
-    def fetch_models():
+    def fetch_models(gcs_path: str = "gs://ztf-scope/models"):
         """
         Fetch SCoPe models from GCP
 
@@ -449,7 +449,7 @@ class Scope:
             "cp",
             "-n",
             "-r",
-            "gs://ztf-scope/models/*",
+            str(pathlib.Path(gcs_path) / "*"),
             str(path_models),
         ]
         p = subprocess.run(command, check=True)
@@ -457,7 +457,7 @@ class Scope:
             raise RuntimeError("Failed to fetch SCoPe models")
 
     @staticmethod
-    def fetch_datasets():
+    def fetch_datasets(gcs_path: str = "gs://ztf-scope/datasets"):
         """
         Fetch SCoPe datasets from GCP
 
@@ -473,7 +473,7 @@ class Scope:
             "cp",
             "-n",
             "-r",
-            "gs://ztf-scope/datasets/*",
+            str(pathlib.Path(gcs_path) / "*"),
             str(path_datasets),
         ]
         p = subprocess.run(command, check=True)
