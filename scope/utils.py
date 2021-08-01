@@ -155,7 +155,7 @@ def plot_periods(
     loglimits: Optional[bool] = False,
     number_of_bins: Optional[int] = 20,
     title: Optional[str] = None,
-    save: Optional[str] = None,
+    save: Optional[Union[str, pathlib.Path]] = None,
 ):
     """Plot a histogram of periods for the sample"""
     # plot the H-R diagram for 1 M stars within 200 pc from the Sun
@@ -210,7 +210,7 @@ def plot_gaia_hr(
     gaia_data: pd.DataFrame,
     path_gaia_hr_histogram: Union[str, pathlib.Path],
     title: Optional[str] = None,
-    save: Optional[str] = None,
+    save: Optional[Union[str, pathlib.Path]] = None,
 ):
     """Plot the Gaia HR diagram with a sample of objects over-plotted
 
@@ -264,7 +264,7 @@ def plot_gaia_density(
     positions: pd.DataFrame,
     path_gaia_density: Union[str, pathlib.Path],
     title: Optional[str] = None,
-    save: Optional[str] = None,
+    save: Optional[Union[str, pathlib.Path]] = None,
 ):
     """Plot the RA/DEC Gaia density plot with a sample of objects over-plotted
 
