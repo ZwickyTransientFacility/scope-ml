@@ -190,7 +190,7 @@ class DNN(AbstractClassifier):
             decay = kwargs.get("decay", 0.0)
             amsgrad = kwargs.get("amsgrad", 3e-4)
             self.meta["optimizer"] = tf.keras.optimizers.Adam(
-                lr=lr,
+                learning_rate=lr,
                 beta_1=beta_1,
                 beta_2=beta_2,
                 epsilon=epsilon,
@@ -203,12 +203,12 @@ class DNN(AbstractClassifier):
             decay = kwargs.get("epsilon", 1e-6)
             nesterov = kwargs.get("nesterov", True)
             self.meta["optimizer"] = tf.keras.optimizers.SGD(
-                lr=lr, momentum=momentum, decay=decay, nesterov=nesterov
+                learning_rate=lr, momentum=momentum, decay=decay, nesterov=nesterov
             )
         else:
             print("Could not recognize optimizer, using Adam with default params")
             self.meta["optimizer"] = tf.keras.optimizers.Adam(
-                lr=3e-4,
+                learning_rate=3e-4,
                 beta_1=0.9,
                 beta_2=0.999,
                 epsilon=1e-7,

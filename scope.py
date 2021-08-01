@@ -585,7 +585,7 @@ class Scope:
             conv_branch=conv_branch,
             loss=loss,
             optimizer=optimizer,
-            lr=lr,
+            learning_rate=lr,
             momentum=momentum,
             monitor=monitor,
             patience=patience,
