@@ -449,7 +449,7 @@ class Scope:
             "cp",
             "-n",
             "-r",
-            str(pathlib.Path(gcs_path) / "*"),
+            os.path.join(gcs_path, "*.csv"),
             str(path_models),
         ]
         p = subprocess.run(command, check=True)
@@ -473,7 +473,7 @@ class Scope:
             "cp",
             "-n",
             "-r",
-            str(pathlib.Path(gcs_path) / "*"),
+            os.path.join(gcs_path, "*.csv"),
             str(path_datasets),
         ]
         p = subprocess.run(command, check=True)
