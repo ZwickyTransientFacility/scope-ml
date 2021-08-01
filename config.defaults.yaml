@@ -1,12 +1,12 @@
 kowalski:
-  host: kowalski.caltech.edu
+  host: gloria.caltech.edu
   port: 443
   protocol: https
   token:
   collections:
     gaia: Gaia_EDR3
-    sources: ZTF_sources_20201201
-
+    sources: ZTF_sources_20210401
+    features: ZTF_source_features_20210401
 taxonomy:
   class: tds
   name: time domain source type
@@ -162,10 +162,66 @@ docs:
       coordinates: [254.7213, 32.8341]
       period: 0.31087445597147706
       title: RR Lyrae c
+    w_uma:
+      coordinates: [270.4229, 7.1722]
+      period: 0.26901030387060865
+      title: W Uma
+    beta_lyr:
+      coordinates: [116.79866129999999, 51.4231961]
+      period: 1.836431252123213
+      title: Beta Lyrae
     delta_scuti:
       coordinates: [279.9154053, 60.7140833]
       period: 0.064050575
       title: Delta Scuti
+    cepheid_F:
+      coordinates: [ 0.441542, 62.424306 ]
+      period: 3.8785736
+      title: Fundamental-mode classical Cepheid
+    cepheid_F_1:
+      coordinates: [ 4.260375, 60.802722 ]
+      period: 6.7987667
+      title: Fundamental-mode classical Cepheid with a secondary bump
+    cepheid_1O:
+      coordinates: [ 321.964458, 24.422528 ]
+      period: 0.7703319
+      title: First-overtone classical Cepheid
+    cepheid_F1O:
+      coordinates: [ 292.005292, 19.949889 ]
+      period: 4.0442931
+      title: Double-mode classical Cepheid
+    flaring_dwarfnova:
+      coordinates: [ 266.8566657, 63.0465916 ]
+      title: Dwarf Nova (Flaring)
+    flaring_mdwarf:
+      coordinates: [ 103.289525, 10.194726 ]
+      title: M dwarf (Flaring)
+    cv_U_Gem:
+      coordinates: [ 18.884181, 37.626534 ]
+      title: Cataclysmic variable (U Gem dwarf nova)
+    cv_Z_Cam:
+      coordinates: [ 269.093260, 2.967803 ]
+      title: Cataclysmic variable (Z Cam dwarf nova)
+    cv_SU_UMa:
+      coordinates: [ 170.883476, 43.288214 ]
+      title: Cataclysmic variable (SU UMa/WZ Sge dwarf nova)
+    cv_Novalike:
+      coordinates: [ 322.961689, 49.233813 ]
+      title: Cataclysmic variable (Novalike)
+    mira:
+      coordinates: [ 9.1523, 68.0221 ]
+      period: 212.0066035
+      title: A Mira (Long Period Variable)
+    periodic:
+      coordinates: [ 288.5243027, 1.51191 ]
+      period: 0.350072813283344
+      title: Periodic variable
+    srv:
+      coordinates: [ 330.302266, 66.153712 ]
+      title: Semi Regular Variable
+    variable:
+      coordinates: [ 102.5537728, 44.1032507 ]
+      title: Variable stars
 
 features:
   phenomenological_d12:

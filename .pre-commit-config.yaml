@@ -4,8 +4,10 @@ repos:
     hooks:
       - id: check-yaml
       - id: end-of-file-fixer
+        exclude: .ipynb_checkpoints|data/Gaia_hp8_densitymap.fits
       - id: trailing-whitespace
-  - repo: https://github.com/psf/black
+        exclude: .ipynb_checkpoints|data/Gaia_hp8_densitymap.fits
+  - repo: https://github.com/python/black
     rev: 20.8b1
     hooks:
       - id: black
