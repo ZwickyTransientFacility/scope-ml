@@ -112,3 +112,11 @@ docs:
     variable:
       coordinates: [102.5537728, 44.1032507]
       title: Variable stars
+    rs_cvn_1:
+      coordinates: [344.8924,6.1829]
+      period: 2.834970
+      title: RS CVn
+    rs_cvn_2:
+      coordinates: [349.1745,36.5569]
+      period: 5.900631
+      title: RS CVn with modulation
