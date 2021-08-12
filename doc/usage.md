@@ -8,7 +8,7 @@ please refer to [arxiv:2102.11304](https://arxiv.org/pdf/2102.11304.pdf).
 - The training pipeline can be invoked with the `scope.py` utility. For example:
 
 ```sh
-./scope.py train --tag=vnv --path_dataset=data/training/dataset.d13.csv --batch_size=64 --epochs=100 --verbose=1 --pre_trained_model=models/vnv/20210324_220331/vnv.20210324_220331
+./scope.py train --tag=vnv --path_dataset=data/training/dataset.d15.csv --batch_size=64 --epochs=100 --verbose=1 --pre_trained_model=models/vnv/20210324_220331/vnv.20210324_220331
 ```
 
 Refer to `./scope.py train --help` for details.

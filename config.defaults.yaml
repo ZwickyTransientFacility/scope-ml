@@ -932,6 +932,7 @@ training:
   dataset: md5 checksum? filename? from GCS? to use for training
   classes:
     agn:
+      # label name from the dataset csv file
       label: AGN
       # value should refer to features section of this config
       features: ontological

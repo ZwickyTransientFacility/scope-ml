@@ -414,7 +414,7 @@ class Dataset(object):
         **kwargs,
     ):
         """Load csv file with the dataset containing both data and labels
-        As of 20210317, it is produced by labels*.ipynb - this will change in a future PR
+        As of 20210317, it is produced by labels*.ipynb - this will likely change in a future PR
 
         :param tag:
         :param path_dataset:
@@ -480,16 +480,16 @@ class Dataset(object):
     ):
         """Make datasets for target_label
 
-        :param target_label:
-        :param threshold:
-        :param balance:
+        :param target_label: corresponds to training.classes.<label> in config
+        :param threshold: our labels are floats [0, 0.25, 0.5, 0.75, 1]
+        :param balance: balance ratio for the prevalent class. if null - use all available data
         :param weight_per_class:
         :param scale_features: min_max | median_std
         :param test_size:
         :param val_size:
-        :param random_state:
+        :param random_state: set this for reproducibility
         :param feature_stats: feature_stats to use to standardize features.
-                              if None, stats are computed from the data
+                              if None, stats are computed from the data, taking balance into account
         :param batch_size
         :param shuffle_buffer_size
         :param epochs
