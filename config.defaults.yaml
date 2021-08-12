@@ -941,6 +941,7 @@ training:
       balance: 2.5
       weight_per_class: false
     vnv:
+      # label name from the dataset csv file
       label: variable
       # value should refer to features section of this config
       features: phenomenological

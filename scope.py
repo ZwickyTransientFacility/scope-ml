@@ -494,7 +494,7 @@ class Scope:
         :param path_dataset: local path to csv file with the dataset
         :param gpu: GPU id to use, zero-based. check tf.config.list_physical_devices('GPU') for available devices
         :param verbose:
-        :param kwargs:
+        :param kwargs: refer to utils.DNN.setup and utils.Dataset.make
         :return:
         """
 
