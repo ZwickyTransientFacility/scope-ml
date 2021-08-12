@@ -490,7 +490,7 @@ class Scope:
     ):
         """Train classifier
 
-        :param tag: classifier designation, refers to "class" in config.taxonomy...
+        :param tag: classifier designation, refers to "class" in config.taxonomy
         :param path_dataset: local path to csv file with the dataset
         :param gpu: GPU id to use, zero-based. check tf.config.list_physical_devices('GPU') for available devices
         :param verbose:

@@ -575,7 +575,7 @@ class Dataset(object):
 
         # scale features
         for feature in self.features:
-            stats = feature_stats.get("feature")
+            stats = feature_stats.get(feature)
             if (stats is not None) and (stats["std"] != 0):
                 if scale_features == "median_std":
                     self.df_ds[feature] = (

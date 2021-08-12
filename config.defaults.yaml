@@ -265,7 +265,7 @@ features:
     - wstd
     - n_ztf_alerts
     - mean_ztf_alert_braai
-  phenomenological:
+  phenomenological_d13:
 #    - ra
 #    - dec
 #    - n
@@ -309,7 +309,7 @@ features:
     - f1_relphi3
     - f1_relamp4
     - f1_relphi4
-  ontological:
+  ontological_d13:
 #    - ra
 #    - dec
     - median
@@ -382,260 +382,551 @@ features:
     - PS1_DR1__zMeanPSFMagErr
     - PS1_DR1__yMeanPSFMag
     - PS1_DR1__yMeanPSFMagErr
+  phenomenological:
+    - ad
+    - ccd
+    - chi2red
+    - dec
+    - f1_BIC
+    - f1_a
+    - f1_amp
+    - f1_b
+    - f1_phi0
+    - f1_power
+    - f1_relamp1
+    - f1_relamp2
+    - f1_relamp3
+    - f1_relamp4
+    - f1_relphi1
+    - f1_relphi2
+    - f1_relphi3
+    - f1_relphi4
+    - field
+    - i60r
+    - i70r
+    - i80r
+    - i90r
+    - inv_vonneumannratio
+    - iqr
+    - mean_ztf_alert_braai
+    - median
+    - median_abs_dev
+#    - n
+    - n_ztf_alerts
+    - norm_excess_var
+    - norm_peak_to_peak_amp
+#    - pdot
+    - period
+    - quad
+    - ra
+    - roms
+    - significance
+    - skew
+    - smallkurt
+    - stetson_j
+    - stetson_k
+    - sw
+    - welch_i
+    - wmean
+    - wstd
+  ontological:
+    - ad
+    - ccd
+    - chi2red
+    - dec
+    - f1_BIC
+    - f1_a
+    - f1_amp
+    - f1_b
+    - f1_phi0
+    - f1_power
+    - f1_relamp1
+    - f1_relamp2
+    - f1_relamp3
+    - f1_relamp4
+    - f1_relphi1
+    - f1_relphi2
+    - f1_relphi3
+    - f1_relphi4
+    - field
+    - i60r
+    - i70r
+    - i80r
+    - i90r
+    - inv_vonneumannratio
+    - iqr
+    - mean_ztf_alert_braai
+    - median
+    - median_abs_dev
+#    - n
+    - n_ztf_alerts
+    - norm_excess_var
+    - norm_peak_to_peak_amp
+#    - pdot
+    - period
+    - quad
+    - ra
+    - roms
+    - significance
+    - skew
+    - smallkurt
+    - stetson_j
+    - stetson_k
+    - sw
+    - welch_i
+    - wmean
+    - wstd
+#    - AllWISE___id
+#    - AllWISE__ph_qual
+    - AllWISE__w1mpro
+    - AllWISE__w1sigmpro
+    - AllWISE__w2mpro
+    - AllWISE__w2sigmpro
+    - AllWISE__w3mpro
+    - AllWISE__w3sigmpro
+    - AllWISE__w4mpro
+    - AllWISE__w4sigmpro
+#    - Gaia_EDR3___id
+    - Gaia_EDR3__astrometric_excess_noise
+    - Gaia_EDR3__parallax
+    - Gaia_EDR3__parallax_error
+    - Gaia_EDR3__phot_bp_mean_mag
+    - Gaia_EDR3__phot_bp_rp_excess_factor
+    - Gaia_EDR3__phot_g_mean_mag
+    - Gaia_EDR3__phot_rp_mean_mag
+    - Gaia_EDR3__pmdec
+    - Gaia_EDR3__pmdec_error
+    - Gaia_EDR3__pmra
+    - Gaia_EDR3__pmra_error
+#    - PS1_DR1___id
+    - PS1_DR1__gMeanPSFMag
+    - PS1_DR1__gMeanPSFMagErr
+    - PS1_DR1__iMeanPSFMag
+    - PS1_DR1__iMeanPSFMagErr
+    - PS1_DR1__qualityFlag
+    - PS1_DR1__rMeanPSFMag
+    - PS1_DR1__rMeanPSFMagErr
+    - PS1_DR1__yMeanPSFMag
+    - PS1_DR1__yMeanPSFMagErr
+    - PS1_DR1__zMeanPSFMag
+    - PS1_DR1__zMeanPSFMagErr
 
 feature_stats:
-  ad:
-    max: 128.18376934997696
-    mean: 15.500210193913036
-    median: 11.077439282781256
-    min: 0.0
-    std: 15.876869787253188
-  chi2red:
-    max: 915.9355215479488
-    mean: 128.3734785119306
-    median: 81.39580095811127
-    min: 0.0
-    std: 141.71837464161496
-  dec:
-    max: 51.3160467
-    mean: 36.09300399755001
-    median: 36.8089302
-    min: 0.8795246000000001
-    std: 9.774441269894961
-  f1_BIC:
-    max: 55545.850088422936
-    mean: 2466.9404783859877
-    median: 822.497838038317
-    min: 0.0
-    std: 4973.26501400567
-  f1_a:
-    max: 20.555081290076835
-    mean: 16.7016476151908
-    median: 16.808905545435877
-    min: 12.561802534093411
-    std: 1.5451790092056719
-  f1_amp:
-    max: 0.5086391352232238
-    mean: 0.217913374707297
-    median: 0.23480341157808193
-    min: 0.0
-    std: 0.13105091448217593
-  f1_b:
-    max: 0.0003119067445411
-    mean: -3.984322282271079e-07
-    median: -1.7837800409589736e-08
-    min: -0.0002287952951165
-    std: 3.8427784228192575e-05
-  f1_phi0:
-    max: 3.138993460297322
-    mean: -0.0018522842487696267
-    median: 0.0
-    min: -3.1400780083030284
-    std: 1.807121336859729
-  f1_power:
-    max: 0.9962069767316708
-    mean: 0.8401071604040212
-    median: 0.9425674811617903
-    min: 0.0
-    std: 0.2182178904556876
-  f1_relamp1:
-    max: 46.89435719328306
-    mean: 0.6850419112577885
-    median: 0.40608248325283886
-    min: 0.0
-    std: 2.2585405460162886
-  f1_relamp2:
-    max: 394.28148711440326
-    mean: 1.8991698838142306
-    median: 0.2423619985927272
-    min: 0.0
-    std: 13.857094369730152
-  f1_relamp3:
-    max: 22.081306157710728
-    mean: 0.24558244529297696
-    median: 0.1232197188581303
-    min: 0.0
-    std: 1.1078338394600216
-  f1_relamp4:
-    max: 11.063213042624032
-    mean: 0.1221521309269351
-    median: 0.06411365971551705
-    min: 0.0
-    std: 0.5402419565567578
-  f1_relphi1:
-    max: 0.993736398642984
-    mean: 0.4050974018728539
-    median: 0.3847119735369863
-    min: 0.0
-    std: 0.141933997863902
-  f1_relphi2:
-    max: 0.9976872040913396
-    mean: 0.7412080451618218
-    median: 0.8150775412404753
-    min: 0.0
-    std: 0.2304823244472111
-  f1_relphi3:
-    max: 0.9958706284435408
-    mean: 0.36040667702949725
-    median: 0.31471693806758955
-    min: 0.0
-    std: 0.19600300696741735
-  f1_relphi4:
-    max: 0.999701975630768
-    mean: 0.6402455391773545
-    median: 0.708693942657525
-    min: 0.0
-    std: 0.25954569613825434
-  i60r:
-    max: 0.7052000000000014
-    mean: 0.3208797999999991
-    median: 0.3380000000000009
-    min: 0.0170000000000012
-    std: 0.15884466371886724
-  i70r:
-    max: 0.8331999999999979
-    mean: 0.3726940499999994
-    median: 0.3916499999999985
-    min: 0.0200000000000013
-    std: 0.18558323408136151
-  i80r:
-    max: 0.9774000000000028
-    mean: 0.42838049999999955
-    median: 0.4500999999999973
-    min: 0.0259999999999998
-    std: 0.21430215409498352
-  i90r:
-    max: 1.1997999999999998
-    mean: 0.4903682499999998
-    median: 0.515150000000002
-    min: 0.0290999999999996
-    std: 0.24561823949869332
-  inv_vonneumannratio:
-    max: 71.60876788752633
-    mean: 3.693885089513038
-    median: 3.214942762974602
-    min: 0.0
-    std: 3.5244514681933246
-  iqr:
-    max: 0.5730000000000004
-    mean: 0.27013174999999906
-    median: 0.2866249999999999
-    min: 0.0139999999999993
-    std: 0.13312525475820686
-  mean_ztf_alert_braai:
-    max: 0.9996429748005338
-    mean: 0.8076804129094862
-    median: 0.9322394433164628
-    min: 0.0
-    std: 0.2558913457113731
+  # d15-based
   median:
-    max: 20.622
-    mean: 16.7641675
-    median: 16.852
-    min: 12.631
-    std: 1.556161060813999
-  median_abs_dev:
-    max: 0.2620000000000004
-    mean: 0.11066249999999905
-    median: 0.1189999999999997
-    min: 0.0069999999999996
-    std: 0.05087262371600262
-  n_ztf_alerts:
-    max: 4156
-    mean: 877.847
-    median: 805.0
-    min: 0
-    std: 756.8775869260505
-  norm_excess_var:
-    max: 0.0005371573224967
-    mean: 0.00011951194250108002
-    median: 9.884821724223116e-05
-    min: -7.916986315734908e-06
-    std: 9.961048471438293e-05
-  norm_peak_to_peak_amp:
-    max: 0.0394875714233722
-    mean: 0.015503849382685208
-    median: 0.016011572515849302
-    min: 0.0002135643896635
-    std: 0.008481218113689204
-#  pdot:
-#    max: 0.0
-#    mean: 0.0
-#    median: 0.0
-#    min: 0.0
-#    std: 0.0
-  period:
-    max: 41.45854949951172
-    mean: 0.8798234658446163
-    median: 0.6010188460350037
-    min: 0.0208595860749483
-    std: 1.7742063841484774
-  ra:
-    max: 359.6758769
-    mean: 243.90023848085013
-    median: 259.935487275
-    min: 0.0927373
-    std: 77.16145722302882
-  roms:
-    max: 25.40404040404041
-    mean: 8.037975342585083
-    median: 7.711046446155909
-    min: 0.0
-    std: 5.157986092261859
-  significance:
-    max: 495.15045166015625
-    mean: 209.52383236932755
-    median: 226.0513458251953
-    min: 6.9505791664123535
-    std: 116.24504254132405
-  skew:
-    max: 33.90622720529045
-    mean: -1275.2722937263065
-    median: -319.2648779654087
-    min: -20778.94743165396
-    std: 2417.836834216222
-  smallkurt:
-    max: 1835335.807427644
-    mean: 83148.09613130947
-    median: 14389.522020117014
-    min: -2.643610445299017
-    std: 182687.49291080795
-  stetson_j:
-    max: 5344.182358481043
-    mean: 392.5783778720605
-    median: 144.0287468842411
-    min: -907.609874472811
-    std: 704.3506254156605
-  stetson_k:
-    max: 0.9127880140580223
-    mean: 0.8651686878073702
-    median: 0.8672275927742372
-    min: 0.0
-    std: 0.031936696026197295
-  sw:
-    max: 0.9810750484466552
-    mean: 0.8604545010328293
-    median: 0.883013904094696
-    min: 0.0
-    std: 0.10086537409592566
-  welch_i:
-    max: 152157.98765175126
-    mean: 5878.670791277614
-    median: 678.9446962980172
-    min: -22494.67497745018
-    std: 15142.14033375962
+    min: 11.859
+    max: 21.7355
+    median: 17.192999999999998
+    mean: 17.198497876180767
+    std: 1.984417549587372
   wmean:
-    max: 20.513689643924465
-    mean: 16.676460156898415
-    median: 16.811321928446244
     min: 0.0
-    std: 1.6212516062136633
+    max: 21.72580234909332
+    median: 17.190525885310052
+    mean: 17.194469189756948
+    std: 1.9724064028988926
+  chi2red:
+    min: 0.0
+    max: 14504.867568350095
+    median: 8.349023359399014
+    mean: 43.90164979812083
+    std: 252.59980815489058
+  roms:
+    min: 0.0
+    max: 114.51620270036064
+    median: 2.390460752111644
+    mean: 3.6660180168808383
+    std: 4.379744545440027
   wstd:
-    max: 0.4079925848238782
-    mean: 0.16752170745762138
-    median: 0.1742450607167353
     min: 0.0
-    std: 0.08687656119729947
+    max: 2.255608626306496
+    median: 0.0875371400495776
+    mean: 0.09811229869829607
+    std: 0.08429406100213001
+  norm_peak_to_peak_amp:
+    min: -0.0026624340791561
+    max: 0.1968704723268617
+    median: 0.0067790238702771
+    mean: 0.008094121375282185
+    std: 0.008743865061694922
+  norm_excess_var:
+    min: -0.000112900619492
+    max: 0.0609204201612541
+    median: 1.769738951325714e-05
+    mean: 7.146689144239448e-05
+    std: 0.0007345666165872003
+  median_abs_dev:
+    min: 0.0030000000000001
+    max: 1.8210000000000013
+    median: 0.0659999999999989
+    mean: 0.07190794059530176
+    std: 0.06233962602348945
+  iqr:
+    min: 0.0060000000000002
+    max: 4.503
+    median: 0.141
+    mean: 0.15836848656470792
+    std: 0.14571166540496608
+  i60r:
+    min: 0.0085999999999994
+    max: 4.783999999999999
+    median: 0.1716000000000015
+    mean: 0.19276104619501683
+    std: 0.17420744789781734
+  i70r:
+    min: 0.0109999999999992
+    max: 5.121999999999998
+    median: 0.2028000000000034
+    mean: 0.22859205687634082
+    std: 0.2035872239632559
+  i80r:
+    min: 0.0129999999999999
+    max: 5.510200000000001
+    median: 0.2355999999999998
+    mean: 0.26673144380824426
+    std: 0.23485124406618516
+  i90r:
+    min: 0.0149999999999987
+    max: 5.943899999999999
+    median: 0.2728499999999982
+    mean: 0.3086220097322302
+    std: 0.26757399787961367
+  skew:
+    min: -2313631.3289482933
+    max: 991099.7040389637
+    median: 2.205022682495793
+    mean: 61.31085516410248
+    std: 11255.873862484796
+  smallkurt:
+    min: -3.11887814831396
+    max: 972157474.9911993
+    median: 158.06917554356693
+    mean: 131691.3802343864
+    std: 4342921.268698039
+  inv_vonneumannratio:
+    min: 0.0
+    max: 9391.44532323455
+    median: 0.6565422687368709
+    mean: 4.93473533396986
+    std: 81.77941050819155
+  welch_i:
+    min: -56346.08384684319
+    max: 4493321.414933997
+    median: 5.7813606990069095
+    mean: 2267.616080217704
+    std: 47873.865854501935
+  stetson_j:
+    min: -1609.5878099366153
+    max: 43589.80955987325
+    median: 5.442137093176486
+    mean: 72.9671030784923
+    std: 636.9630033716279
+  stetson_k:
+    min: 0.0
+    max: 0.9900279161401804
+    median: 0.8495064736265487
+    mean: 0.8452080085034379
+    std: 0.04080279802330599
+  ad:
+    min: 0.0
+    max: 176.17630087537145
+    median: 4.829378125197593
+    mean: 11.05490766018392
+    std: 16.348165501152252
+  sw:
+    min: 0.0
+    max: 0.9927340149879456
+    median: 0.9054134488105774
+    mean: 0.8523579384039067
+    std: 0.13993721180508925
+  n_ztf_alerts:
+    min: 0
+    max: 4723
+    median: 107.0
+    mean: 303.7225303791757
+    std: 463.8160278824898
+  mean_ztf_alert_braai:
+    min: 0.0
+    max: 1.0
+    median: 0.8024972106227093
+    mean: 0.6186727091350507
+    std: 0.399777890607977
+  period:
+    min: 0.0208335053175687
+    max: 517.5360717773438
+    median: 0.1684057712554931
+    mean: 6.364124402270989
+    std: 41.949603601179156
+  significance:
+    min: 6.118862628936768
+    max: 624.5211181640625
+    median: 58.54999923706055
+    mean: 114.21896548587495
+    std: 127.5865875752379
+  f1_power:
+    min: 0.0
+    max: 0.9991801222326536
+    median: 0.7729513576206686
+    mean: 0.5856637777642174
+    std: 0.39012498079263525
+  f1_BIC:
+    min: 0.0
+    max: 2891387.504941375
+    median: 230.87496827341926
+    mean: 999.6595511797041
+    std: 14770.393366693705
+  f1_a:
+    min: 11.605038108855526
+    max: 35.47802516000542
+    median: 17.204367321227384
+    mean: 17.207453638187303
+    std: 1.9754009492673177
+  f1_b:
+    min: -0.0081851219151183
+    max: 0.0062801395065665
+    median: 2.0085760689046505e-07
+    mean: 3.4800597779789258e-06
+    std: 7.780194814337619e-05
+  f1_amp:
+    min: -9.887075962261807
+    max: 13.924309960344583
+    median: 0.0
+    mean: 0.00030681938973214007
+    std: 0.13155946866638166
+  f1_phi0:
+    min: -11.724438770554938
+    max: 29.653066320859114
+    median: 0.0
+    mean: -5.380212391896144e-05
+    std: 0.13836656908106604
+  f1_relamp1:
+    min: -18.83303491356885
+    max: 7.879818700280141
+    median: 0.0
+    mean: 0.00016760276739433792
+    std: 0.07498279319084965
+  f1_relphi1:
+    min: -10.364638619695516
+    max: 9.954031288887238
+    median: 0.0
+    mean: -0.00019264295360274503
+    std: 0.07278466428116556
+  f1_relamp2:
+    min: -6.975813530902832
+    max: 4.871874483725203
+    median: 0.0
+    mean: 0.00011113187232755609
+    std: 0.043310560007686544
+  f1_relphi2:
+    min: -10.400297029937953
+    max: 6.570057847623894
+    median: 0.0
+    mean: 1.0872106471319056e-05
+    std: 0.05059444662093973
+  f1_relamp3:
+    min: -2.6981900071250675
+    max: 3.781430338071792
+    median: 0.0
+    mean: 9.560206262050944e-06
+    std: 0.029455447659825662
+  f1_relphi3:
+    min: -3.620249993449979
+    max: 2.427014067940686
+    median: 0.0
+    mean: -1.4567874903282583e-05
+    std: 0.03084918708847871
+  f1_relamp4:
+    min: -1.5591887740444768
+    max: 3.3654605530559376
+    median: 0.0
+    mean: 2.200771291810491e-05
+    std: 0.021579957892031404
+  f1_relphi4:
+    min: -1.3925247531097054
+    max: 3.512580595735894
+    median: 0.0
+    mean: -3.106283403481359e-05
+    std: 0.021489003829155504
+  AllWISE__w1mpro:
+    min: -0.64
+    max: 18.55
+    median: 13.375
+    mean: 10.39146157663123
+    std: 6.336729280993646
+  AllWISE__w1sigmpro:
+    min: 0.0
+    max: 0.541
+    median: 0.025
+    mean: 0.02828977736064503
+    std: 0.029680655722442908
+  AllWISE__w2mpro:
+    min: -1.027
+    max: 18.371
+    median: 13.38
+    mean: 10.416712919083375
+    std: 6.358968070465865
+  AllWISE__w2sigmpro:
+    min: 0.0
+    max: 0.5429999999999999
+    median: 0.0289999999999999
+    mean: 0.05173096333452405
+    std: 0.07441618446166971
+  AllWISE__w3mpro:
+    min: -2.966
+    max: 13.961
+    median: 12.18
+    mean: 9.032498107488976
+    std: 5.40822315450349
+  AllWISE__w3sigmpro:
+    min: 0.0
+    max: 0.5429999999999999
+    median: 0.0
+    mean: 0.055817588047942596
+    std: 0.12963007750540897
+  AllWISE__w4mpro:
+    min: -3.4930000000000003
+    max: 10.353
+    median: 8.818
+    mean: 6.599634083670247
+    std: 3.930799975558018
+  AllWISE__w4sigmpro:
+    min: 0.0
+    max: 0.5429999999999999
+    median: 0.0
+    mean: 0.013956541473697027
+    std: 0.07262771279115897
+  Gaia_EDR3__astrometric_excess_noise:
+    min: 0.0
+    max: 159.00471000000002
+    median: 0.0
+    mean: 0.4413401196481314
+    std: 2.654617484408687
+  Gaia_EDR3__parallax:
+    min: -22.923777811496677
+    max: 46.29583797406394
+    median: 0.3582558286094884
+    mean: 0.5084082090602149
+    std: 0.8450879304094892
+  Gaia_EDR3__parallax_error:
+    min: 0.0
+    max: 3.9449198
+    median: 0.06740824
+    mean: 0.12593136954772724
+    std: 0.17324536501697696
+  Gaia_EDR3__phot_bp_mean_mag:
+    min: 0.0
+    max: 24.21375
+    median: 17.42191
+    mean: 17.10962581305227
+    std: 3.113212898074037
+  Gaia_EDR3__phot_bp_rp_excess_factor:
+    min: 0.0
+    max: 163.73576
+    median: 1.244185
+    mean: 1.3158426238751653
+    std: 1.0058780240460925
+  Gaia_EDR3__phot_g_mean_mag:
+    min: 0.0
+    max: 22.020529
+    median: 16.873185999999997
+    mean: 16.556365949973124
+    std: 2.9032751923604057
+  Gaia_EDR3__phot_rp_mean_mag:
+    min: 0.0
+    max: 22.126274
+    median: 16.166319
+    mean: 15.811470105575822
+    std: 2.8546598354464647
+  Gaia_EDR3__pmdec:
+    min: -327.72186458913035
+    max: 360.8625803334337
+    median: -2.459304207403531
+    mean: -3.4039371930688382
+    std: 6.292282926685255
+  Gaia_EDR3__pmdec_error:
+    min: 0.0
+    max: 2.9573073
+    median: 0.06420316
+    mean: 0.12223972343607999
+    std: 0.17578232423936574
+  Gaia_EDR3__pmra:
+    min: -445.8502233328984
+    max: 411.0655015198922
+    median: -0.7855059678934171
+    mean: -0.9401638846246996
+    std: 6.396205073636185
+  Gaia_EDR3__pmra_error:
+    min: 0.0
+    max: 3.0488079
+    median: 0.07042039
+    mean: 0.13286379004737364
+    std: 0.1853519241832836
+  PS1_DR1__gMeanPSFMag:
+    min: 0.0
+    max: 27.992001
+    median: 17.5881
+    mean: 17.385813641764923
+    std: 2.998618558799227
+  PS1_DR1__gMeanPSFMagErr:
+    min: 0.0
+    max: 0.4762149999999999
+    median: 0.0162705005
+    mean: 0.02560849714412246
+    std: 0.030294569909108778
+  PS1_DR1__iMeanPSFMag:
+    min: 0.0
+    max: 21.8801
+    median: 16.6315
+    mean: 16.548635769405635
+    std: 2.0492561358125423
+  PS1_DR1__iMeanPSFMagErr:
+    min: 0.0
+    max: 0.483466
+    median: 0.010936
+    mean: 0.016503628403760233
+    std: 0.019215705218350018
+  PS1_DR1__qualityFlag:
+    min: 0.0
+    max: 174.0
+    median: 60.0
+    mean: 58.39407705445202
+    std: 11.330792461922785
+  PS1_DR1__rMeanPSFMag:
+    min: 0.0
+    max: 22.238001
+    median: 16.9951
+    mean: 16.936967671590995
+    std: 2.1596557453476377
+  PS1_DR1__rMeanPSFMagErr:
+    min: 0.0
+    max: 0.48713499
+    median: 0.012881
+    mean: 0.019732657415647375
+    std: 0.02306842342675604
+  PS1_DR1__yMeanPSFMag:
+    min: 0.0
+    max: 21.304199
+    median: 16.280001000000002
+    mean: 16.047748625891675
+    std: 2.411650378146079
+  PS1_DR1__yMeanPSFMagErr:
+    min: 0.0
+    max: 0.48370799
+    median: 0.0145479999999999
+    mean: 0.022344817664936102
+    std: 0.026862078598248854
+  PS1_DR1__zMeanPSFMag:
+    min: 0.0
+    max: 21.770599
+    median: 16.448
+    mean: 16.325237993652525
+    std: 2.086329999522018
+  PS1_DR1__zMeanPSFMagErr:
+    min: 0.0
+    max: 0.49948201
+    median: 0.011866
+    mean: 0.01834675346206806
+    std: 0.021816145036886694
 
 training:
   dataset: md5 checksum? filename? from GCS? to use for training
