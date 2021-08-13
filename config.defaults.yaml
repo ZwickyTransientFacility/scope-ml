@@ -513,6 +513,36 @@ features:
 
 feature_stats:
   # d15-based
+  ra:
+    min: 0.000637
+    max: 359.9959065
+    median: 260.57838475
+    mean: 203.8537195009122
+    std: 111.29524619256385
+  dec:
+    min: -27.97669295
+    max: 80.12096305
+    median: 35.74461235
+    mean: 33.8050848864133
+    std: 24.53928644472575
+  ccd:
+    min: 1
+    max: 16
+    median: 10.0
+    mean: 8.9215225842098
+    std: 4.407593218358259
+  quad:
+    min: 1
+    max: 4
+    median: 2.0
+    mean: 2.474682794956292
+    std: 1.11338706658081
+  field:
+    min: 250
+    max: 876
+    median: 683.0
+    mean: 658.9159381968151
+    std: 146.04044551816344
   median:
     min: 11.859
     max: 21.7355
@@ -949,5 +979,5 @@ training:
       # our "labels" are floats [0., 0.25, 0.5, 0.75, 1.]
       threshold: 0.7
       # balance ratio for the prevalent class. leave as null to use all available data
-      balance:
+      balance: 1.5
       weight_per_class: true

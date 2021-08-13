@@ -533,16 +533,31 @@ class Dataset(object):
             w_neg = ~w_pos
         index_neg = self.df_ds.loc[w_neg].index
 
-        # balance positive and negative examples if there are more negative than positive?
-        index_neg_dropped = None
+        # balance positive and negative examples?
+        index_dropped = None
         if balance:
-            neg_sample_size = int(np.sum(w_pos) * balance)
-            index_neg = (
-                self.df_ds.loc[w_neg].sample(n=neg_sample_size, random_state=1).index
+            underrepresented = min(np.sum(w_pos), np.sum(w_neg))
+            overrepresented = max(np.sum(w_pos), np.sum(w_neg))
+            sample_size = int(min(overrepresented, underrepresented * balance))
+            if neg > pos:
+                index_neg = (
+                    self.df_ds.loc[w_neg].sample(n=sample_size, random_state=1).index
+                )
+                index_dropped = self.df_ds.loc[
+                    list(set(self.df_ds.loc[w_neg].index) - set(index_neg))
+                ].index
+            else:
+                index_pos = (
+                    self.df_ds.loc[w_pos].sample(n=sample_size, random_state=1).index
+                )
+                index_dropped = self.df_ds.loc[
+                    list(set(self.df_ds.loc[w_pos].index) - set(index_pos))
+                ].index
+        if self.verbose:
+            log(
+                "Number of examples to use in training:"
+                f"\n  Positive: {len(index_pos)}\n  Negative: {len(index_neg)}\n"
             )
-            index_neg_dropped = self.df_ds.loc[
-                list(set(self.df_ds.loc[w_neg].index) - set(index_neg))
-            ].index
 
         ds_indexes = index_pos.to_list() + index_neg.to_list()
 
@@ -613,16 +628,14 @@ class Dataset(object):
                 target[test_indexes],
             )
         )
-        dropped_negatives = (
+        dropped_samples = (
             tf.data.Dataset.from_tensor_slices(
                 (
                     {
-                        "features": self.df_ds.loc[
-                            index_neg_dropped, self.features
-                        ].values,
-                        "dmdt": self.dmdt[index_neg_dropped],
+                        "features": self.df_ds.loc[index_dropped, self.features].values,
+                        "dmdt": self.dmdt[index_dropped],
                     },
-                    target[index_neg_dropped],
+                    target[index_dropped],
                 )
             )
             if balance
@@ -637,21 +650,21 @@ class Dataset(object):
         val_dataset = val_dataset.batch(batch_size).repeat(epochs)
         test_dataset = test_dataset.batch(batch_size)
 
-        dropped_negatives = dropped_negatives.batch(batch_size) if balance else None
+        dropped_samples = dropped_samples.batch(batch_size) if balance else None
 
         datasets = {
             "train": train_dataset,
             "val": val_dataset,
             "test": test_dataset,
-            "dropped_negatives": dropped_negatives,
+            "dropped_samples": dropped_samples,
         }
 
         indexes = {
             "train": np.array(train_indexes),
             "val": np.array(val_indexes),
             "test": np.array(test_indexes),
-            "dropped_negatives": np.array(index_neg_dropped.to_list())
-            if index_neg_dropped is not None
+            "dropped_samples": np.array(index_dropped.to_list())
+            if index_dropped is not None
             else None,
         }
 

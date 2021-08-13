@@ -611,6 +611,12 @@ class Scope:
         classifier.evaluate(datasets["test"], verbose=verbose)
         # print(stats)
 
+        if datasets["dropped_samples"] is not None:
+            print("Evaluating on samples dropped from the training set:")
+            # stats = \
+            classifier.evaluate(datasets["dropped_samples"], verbose=verbose)
+            # print(stats)
+
         if save:
             time_tag = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
             output_path = str(pathlib.Path(__file__).parent.absolute() / "models" / tag)
