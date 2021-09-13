@@ -658,7 +658,7 @@ class Scope:
             ]
 
             entries = []
-            for i in range(2000):
+            for i in range(1000):
                 entry = {
                     **{
                         feature_name: np.random.normal(0, 0.1)
@@ -680,8 +680,8 @@ class Scope:
             time_tag = self.train(
                 tag=tag,
                 path_dataset=path_mock / dataset,
-                batch_size=16,
-                epochs=2,
+                batch_size=32,
+                epochs=3,
                 verbose=True,
                 save=True,
             )
