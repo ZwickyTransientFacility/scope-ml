@@ -384,7 +384,7 @@ features:
     - PS1_DR1__yMeanPSFMagErr
   phenomenological:
     - ad
-    - ccd
+#    - ccd
     - chi2red
     - dec
     - f1_BIC
@@ -417,7 +417,7 @@ features:
     - norm_peak_to_peak_amp
 #    - pdot
     - period
-    - quad
+#    - quad
     - ra
     - roms
     - significance
@@ -981,3 +981,9 @@ training:
       # balance ratio for the prevalent class. leave as null to use all available data
       balance: 1.5
       weight_per_class: true
+    pnp:
+      label: periodic
+      features: phenomenological
+      threshold: 0.9
+      balance: 1
+      weight_per_class: false

@@ -600,6 +600,18 @@ class Dataset(object):
                     self.df_ds[feature] = (self.df_ds[feature] - stats["min"]) / (
                         stats["max"] - stats["min"]
                     )
+        # norms = {
+        #     feature: np.linalg.norm(self.df_ds.loc[ds_indexes, feature])
+        #     for feature in self.features
+        # }
+        # for feature, norm in norms.items():
+        #     if np.isnan(norm) or norm == 0.0:
+        #         norms[feature] = 1.0
+        # if self.verbose:
+        #     print('Computed feature norms:\n', norms)
+        #
+        # for feature, norm in norms.items():
+        #     self.df_ds[feature] /= norm
 
         train_dataset = tf.data.Dataset.from_tensor_slices(
             (

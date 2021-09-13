@@ -1,4 +1,3 @@
-from abc import ABC
 import datetime
 import os
 import pathlib
@@ -8,7 +7,7 @@ from typing import Optional
 from .models import AbstractClassifier
 
 
-class DenseBlock(tf.keras.models.Model, ABC):
+class DenseBlock(tf.keras.models.Model):
     def __init__(
         self, units: int, activation: str = "relu", repetitions: int = 1, **kwargs
     ):
@@ -36,7 +35,7 @@ class DenseBlock(tf.keras.models.Model, ABC):
         return x
 
 
-class ConvBlock(tf.keras.models.Model, ABC):
+class ConvBlock(tf.keras.models.Model):
     def __init__(
         self,
         filters: int,
@@ -81,7 +80,7 @@ class ConvBlock(tf.keras.models.Model, ABC):
         return x
 
 
-class ScopeNet(tf.keras.models.Model, ABC):
+class ScopeNet(tf.keras.models.Model):
     def __init__(
         self,
         dense_branch: bool = True,
@@ -158,6 +157,16 @@ class ScopeNet(tf.keras.models.Model, ABC):
 
         return x
 
+    def summary(self, **kwargs):
+
+        features = tf.keras.layers.Input(shape=(40,))
+        dmdt = tf.keras.layers.Input(shape=(26, 26, 1))
+        model = tf.keras.models.Model(
+            inputs=[features, dmdt],
+            outputs=self.call({"features": features, "dmdt": dmdt}),
+        )
+        return model.summary()
+
 
 class DNN(AbstractClassifier):
     """Baseline model with a statically-defined architecture"""
@@ -177,8 +186,7 @@ class DNN(AbstractClassifier):
         tf.keras.backend.clear_session()
 
         self.model = self.build_model(
-            dense_branch=dense_branch,
-            conv_branch=conv_branch,
+            dense_branch=dense_branch, conv_branch=conv_branch, **kwargs
         )
 
         self.meta["loss"] = loss
@@ -284,7 +292,72 @@ class DNN(AbstractClassifier):
         **kwargs,
     ):
 
-        m = ScopeNet(dense_branch=dense_branch, conv_branch=conv_branch, **kwargs)
+        # fixme: subclassed tf.keras.models.Model is misbehaving, need to investigate
+        # m = ScopeNet(dense_branch=dense_branch, conv_branch=conv_branch, **kwargs)
+
+        # fixme: for now, simply use Keras' Functional API
+        if (not dense_branch) and (not conv_branch):
+            raise ValueError('model must have at least one branch')
+
+        features_input = tf.keras.Input(
+            shape=kwargs.get("features_input_shape", (40,)), name='features'
+        )
+        dmdt_input = tf.keras.Input(
+            shape=kwargs.get("dmdt_input_shape", (26, 26, 1)), name='dmdt'
+        )
+
+        # dense branch to digest features
+        if dense_branch:
+            x_dense = tf.keras.layers.Dropout(0.2)(features_input)
+            x_dense = tf.keras.layers.Dense(256, activation='relu', name='dense_fc_1')(
+                x_dense
+            )
+            x_dense = tf.keras.layers.Dropout(0.25)(x_dense)
+            x_dense = tf.keras.layers.Dense(32, activation='relu', name='dense_fc_2')(
+                x_dense
+            )
+
+        # CNN branch to digest dmdt
+        if conv_branch:
+            x_conv = tf.keras.layers.Dropout(0.2)(dmdt_input)
+            x_conv = tf.keras.layers.SeparableConv2D(
+                16, (3, 3), activation='relu', name='conv_conv_1'
+            )(x_conv)
+            # x_conv = tf.keras.layers.Dropout(0.25)(x_conv)
+            x_conv = tf.keras.layers.SeparableConv2D(
+                16, (3, 3), activation='relu', name='conv_conv_2'
+            )(x_conv)
+            x_conv = tf.keras.layers.Dropout(0.25)(x_conv)
+            x_conv = tf.keras.layers.MaxPooling2D(pool_size=(2, 2))(x_conv)
+
+            x_conv = tf.keras.layers.SeparableConv2D(
+                32, (3, 3), activation='relu', name='conv_conv_3'
+            )(x_conv)
+            # x_conv = tf.keras.layers.Dropout(0.25)(x_conv)
+            x_conv = tf.keras.layers.SeparableConv2D(
+                32, (3, 3), activation='relu', name='conv_conv_4'
+            )(x_conv)
+            x_conv = tf.keras.layers.Dropout(0.25)(x_conv)
+            # x_conv = tf.keras.layers.MaxPooling2D(pool_size=(2, 2))(x_conv)
+
+            x_conv = tf.keras.layers.GlobalAveragePooling2D()(x_conv)
+
+        # concatenate
+        if dense_branch and conv_branch:
+            x = tf.keras.layers.concatenate([x_dense, x_conv])
+        elif dense_branch:
+            x = x_dense
+        elif conv_branch:
+            x = x_conv
+        x = tf.keras.layers.Dropout(0.4)(x)
+
+        # one more dense layer?
+        x = tf.keras.layers.Dense(16, activation='relu', name='fc_1')(x)
+
+        # Logistic regression to output the final score
+        x = tf.keras.layers.Dense(1, activation='sigmoid', name='score')(x)
+
+        m = tf.keras.Model(inputs=[features_input, dmdt_input], outputs=x)
 
         return m
 

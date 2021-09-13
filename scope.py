@@ -525,14 +525,16 @@ class Scope:
         )
         scale_features = kwargs.get("scale_features", "min_max")
 
-        test_size = kwargs.get("test_size", 0.1)
-        val_size = kwargs.get("val_size", 0.1)
-        random_state = kwargs.get("random_state", 42)
+        test_size = kwargs.get("test_size", train_config.get("test_size", 0.1))
+        val_size = kwargs.get("val_size", train_config.get("val_size", 0.1))
+        random_state = kwargs.get("random_state", train_config.get("random_state", 42))
         feature_stats = self.config.get("feature_stats", None)
 
-        batch_size = kwargs.get("batch_size", 32)
-        shuffle_buffer_size = kwargs.get("shuffle_buffer_size", 512)
-        epochs = kwargs.get("epochs", 200)
+        batch_size = kwargs.get("batch_size", train_config.get("batch_size", 64))
+        shuffle_buffer_size = kwargs.get(
+            "shuffle_buffer_size", train_config.get("shuffle_buffer_size", 512)
+        )
+        epochs = kwargs.get("epochs", train_config.get("epochs", 100))
 
         datasets, indexes, steps_per_epoch, class_weight = ds.make(
             target_label=label,
@@ -582,7 +584,9 @@ class Scope:
 
         classifier.setup(
             dense_branch=dense_branch,
+            features_input_shape=(len(features),),
             conv_branch=conv_branch,
+            dmdt_input_shape=(26, 26, 1),
             loss=loss,
             optimizer=optimizer,
             learning_rate=lr,
@@ -592,6 +596,9 @@ class Scope:
             callbacks=callbacks,
             run_eagerly=run_eagerly,
         )
+
+        if verbose:
+            print(classifier.model.summary())
 
         if pre_trained_model is not None:
             classifier.load(pre_trained_model)
