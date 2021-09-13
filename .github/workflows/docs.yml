@@ -7,7 +7,7 @@ on:
   pull_request:
 jobs:
   docs:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
 
@@ -19,6 +19,7 @@ jobs:
 
     - name: Install dependencies and use default config
       run: |
+        sudo apt-get update
         sudo apt install texlive texlive-latex-extra texlive-fonts-recommended dvipng cm-super --fix-missing
         python -m pip install --upgrade pip
         pip install wheel latex
