@@ -19,7 +19,7 @@ jobs:
 
     - name: Install dependencies and use default config
       run: |
-        sudo apt install texlive texlive-latex-extra texlive-fonts-recommended dvipng cm-super
+        sudo apt install texlive texlive-latex-extra texlive-fonts-recommended dvipng cm-super --fix-missing
         python -m pip install --upgrade pip
         pip install wheel latex
         pip install -r requirements.txt
