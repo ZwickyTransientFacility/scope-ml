@@ -1,20 +1,31 @@
 __all__ = [
+    "Dataset",
+    "forgiving_true",
     "load_config",
+    "log",
+    "make_tdtax_taxonomy",
+    "plot_gaia_density",
     "plot_gaia_hr",
     "plot_light_curve_data",
+    "plot_periods",
 ]
 
 from astropy.io import fits
+import datetime
+import json
 import healpy as hp
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pathlib
-from typing import Optional, Union
+from sklearn.model_selection import train_test_split
+import tensorflow as tf
+from tqdm.auto import tqdm
+from typing import Mapping, Optional, Union
 import yaml
 
 
-def load_config(config_path: str):
+def load_config(config_path: Union[str, pathlib.Path]):
     """
     Load config and secrets
     """
@@ -22,6 +33,42 @@ def load_config(config_path: str):
         config = yaml.load(config_yaml, Loader=yaml.FullLoader)
 
     return config
+
+
+def time_stamp():
+    """
+
+    :return: UTC time as a formatted string
+    """
+    return datetime.datetime.utcnow().strftime("%Y%m%d_%H:%M:%S")
+
+
+def log(message: str):
+    print(f"{time_stamp()}: {message}")
+
+
+def forgiving_true(expression):
+    return True if expression in ("t", "True", "true", "1", 1, True) else False
+
+
+def make_tdtax_taxonomy(taxonomy: Mapping):
+    """Recursively convert taxonomy definition from config["taxonomy"]
+       into tdtax-parsable dictionary
+
+    :param taxonomy: config["taxonomy"] section
+    :return:
+    """
+    tdtax_taxonomy = dict()
+    if taxonomy["class"] not in ("tds", "phenomenological", "ontological"):
+        tdtax_taxonomy["name"] = f"{taxonomy['class']}: {taxonomy['name']}"
+    else:
+        tdtax_taxonomy["name"] = taxonomy["name"]
+    if "subclasses" in taxonomy:
+        tdtax_taxonomy["children"] = []
+        for cls in taxonomy["subclasses"]:
+            tdtax_taxonomy["children"].append(make_tdtax_taxonomy(cls))
+
+    return tdtax_taxonomy
 
 
 def plot_light_curve_data(
@@ -108,7 +155,7 @@ def plot_periods(
     loglimits: Optional[bool] = False,
     number_of_bins: Optional[int] = 20,
     title: Optional[str] = None,
-    save: Optional[str] = None,
+    save: Optional[Union[str, pathlib.Path]] = None,
 ):
     """Plot a histogram of periods for the sample"""
     # plot the H-R diagram for 1 M stars within 200 pc from the Sun
@@ -163,7 +210,7 @@ def plot_gaia_hr(
     gaia_data: pd.DataFrame,
     path_gaia_hr_histogram: Union[str, pathlib.Path],
     title: Optional[str] = None,
-    save: Optional[str] = None,
+    save: Optional[Union[str, pathlib.Path]] = None,
 ):
     """Plot the Gaia HR diagram with a sample of objects over-plotted
 
@@ -217,7 +264,7 @@ def plot_gaia_density(
     positions: pd.DataFrame,
     path_gaia_density: Union[str, pathlib.Path],
     title: Optional[str] = None,
-    save: Optional[str] = None,
+    save: Optional[Union[str, pathlib.Path]] = None,
 ):
     """Plot the RA/DEC Gaia density plot with a sample of objects over-plotted
 
@@ -352,3 +399,323 @@ def plot_gaia_density(
     if save is not None:
         fig.tight_layout()
         plt.savefig(save)
+
+
+""" Datasets """
+
+
+class Dataset(object):
+    def __init__(
+        self,
+        tag: str,
+        path_dataset: str,
+        features: tuple,
+        verbose: bool = False,
+        **kwargs,
+    ):
+        """Load csv file with the dataset containing both data and labels
+        As of 20210317, it is produced by labels*.ipynb - this will likely change in a future PR
+
+        :param tag:
+        :param path_dataset:
+        :param features:
+        :param verbose:
+        """
+        self.verbose = verbose
+
+        self.tag = tag
+        self.features = features
+
+        self.target = None
+
+        if self.verbose:
+            log(f"Loading {path_dataset}...")
+        nrows = kwargs.get("nrows", None)
+        self.df_ds = pd.read_csv(path_dataset, nrows=nrows)
+        if self.verbose:
+            log(self.df_ds[list(features)].describe())
+
+        self.df_ds = self.df_ds.replace([np.inf, -np.inf, np.nan], 0.0)
+
+        dmdt = []
+        if self.verbose:
+            print("Moving dmdt's to a dedicated numpy array...")
+            iterator = tqdm(self.df_ds.itertuples(), total=len(self.df_ds))
+        else:
+            iterator = self.df_ds.itertuples()
+        for i in iterator:
+            data = np.array(json.loads(self.df_ds["dmdt"][i.Index]))
+            if len(data.shape) == 0:
+                dmdt.append(np.zeros((26, 26)))
+            else:
+                dmdt.append(data)
+
+        self.dmdt = np.array(dmdt)
+        self.dmdt = np.expand_dims(self.dmdt, axis=-1)
+
+        # drop in df_ds:
+        self.df_ds.drop(columns="dmdt")
+
+    @staticmethod
+    def threshold(a, t: float = 0.5):
+        b = np.zeros_like(a)
+        b[np.array(a) > t] = 1
+        return b
+
+    def make(
+        self,
+        target_label: str = "variable",
+        threshold: float = 0.5,
+        balance: Optional[float] = None,
+        weight_per_class: bool = True,
+        scale_features: str = "min_max",
+        test_size: float = 0.1,
+        val_size: float = 0.1,
+        random_state: int = 42,
+        feature_stats: Optional[dict] = None,
+        batch_size: int = 256,
+        shuffle_buffer_size: int = 256,
+        epochs: int = 300,
+        **kwargs,
+    ):
+        """Make datasets for target_label
+
+        :param target_label: corresponds to training.classes.<label> in config
+        :param threshold: our labels are floats [0, 0.25, 0.5, 0.75, 1]
+        :param balance: balance ratio for the prevalent class. if null - use all available data
+        :param weight_per_class:
+        :param scale_features: min_max | median_std
+        :param test_size:
+        :param val_size:
+        :param random_state: set this for reproducibility
+        :param feature_stats: feature_stats to use to standardize features.
+                              if None, stats are computed from the data, taking balance into account
+        :param batch_size
+        :param shuffle_buffer_size
+        :param epochs
+        :return:
+        """
+
+        # Note: Dataset.from_tensor_slices method requires the target variable to be of the int type.
+        # TODO: see what to do about it when trying label smoothing in the future.
+
+        target = np.asarray(
+            list(map(int, self.threshold(self.df_ds[target_label].values, t=threshold)))
+        )
+
+        self.target = np.expand_dims(target, axis=1)
+
+        neg, pos = np.bincount(target.flatten())
+        total = neg + pos
+        if self.verbose:
+            log(
+                f"Examples:\n  Total: {total}\n  Positive: {pos} ({100 * pos / total:.2f}% of total)\n"
+            )
+
+        w_pos = np.rint(self.df_ds[target_label].values) == 1
+        index_pos = self.df_ds.loc[w_pos].index
+        if target_label == "variable":
+            # 'variable' is a special case: there is an explicit 'non-variable' label:
+            w_neg = (
+                np.asarray(
+                    list(
+                        map(
+                            int,
+                            self.threshold(
+                                self.df_ds["non-variable"].values, t=threshold
+                            ),
+                        )
+                    )
+                )
+                == 1
+            )
+        else:
+            w_neg = ~w_pos
+        index_neg = self.df_ds.loc[w_neg].index
+
+        # balance positive and negative examples?
+        index_dropped = None
+        if balance:
+            underrepresented = min(np.sum(w_pos), np.sum(w_neg))
+            overrepresented = max(np.sum(w_pos), np.sum(w_neg))
+            sample_size = int(min(overrepresented, underrepresented * balance))
+            if neg > pos:
+                index_neg = (
+                    self.df_ds.loc[w_neg].sample(n=sample_size, random_state=1).index
+                )
+                index_dropped = self.df_ds.loc[
+                    list(set(self.df_ds.loc[w_neg].index) - set(index_neg))
+                ].index
+            else:
+                index_pos = (
+                    self.df_ds.loc[w_pos].sample(n=sample_size, random_state=1).index
+                )
+                index_dropped = self.df_ds.loc[
+                    list(set(self.df_ds.loc[w_pos].index) - set(index_pos))
+                ].index
+        if self.verbose:
+            log(
+                "Number of examples to use in training:"
+                f"\n  Positive: {len(index_pos)}\n  Negative: {len(index_neg)}\n"
+            )
+
+        ds_indexes = index_pos.to_list() + index_neg.to_list()
+
+        # Train/validation/test split (we will use an 81% / 9% / 10% data split by default):
+
+        train_indexes, test_indexes = train_test_split(
+            ds_indexes, shuffle=True, test_size=test_size, random_state=random_state
+        )
+        train_indexes, val_indexes = train_test_split(
+            train_indexes, shuffle=True, test_size=val_size, random_state=random_state
+        )
+
+        # Normalize features (dmdt's are already L2-normalized) (?using only the training samples?).
+        # Obviously, the same norms will have to be applied at the testing and serving stages.
+
+        # load/compute feature norms:
+        if feature_stats is None:
+            feature_stats = {
+                feature: {
+                    "min": np.min(self.df_ds.loc[ds_indexes, feature]),
+                    "max": np.max(self.df_ds.loc[ds_indexes, feature]),
+                    "median": np.median(self.df_ds.loc[ds_indexes, feature]),
+                    "mean": np.mean(self.df_ds.loc[ds_indexes, feature]),
+                    "std": np.std(self.df_ds.loc[ds_indexes, feature]),
+                }
+                for feature in self.features
+            }
+            if self.verbose:
+                print("Computed feature stats:\n", feature_stats)
+
+        # scale features
+        for feature in self.features:
+            stats = feature_stats.get(feature)
+            if (stats is not None) and (stats["std"] != 0):
+                if scale_features == "median_std":
+                    self.df_ds[feature] = (
+                        self.df_ds[feature] - stats["median"]
+                    ) / stats["std"]
+                elif scale_features == "min_max":
+                    self.df_ds[feature] = (self.df_ds[feature] - stats["min"]) / (
+                        stats["max"] - stats["min"]
+                    )
+        # norms = {
+        #     feature: np.linalg.norm(self.df_ds.loc[ds_indexes, feature])
+        #     for feature in self.features
+        # }
+        # for feature, norm in norms.items():
+        #     if np.isnan(norm) or norm == 0.0:
+        #         norms[feature] = 1.0
+        # if self.verbose:
+        #     print('Computed feature norms:\n', norms)
+        #
+        # for feature, norm in norms.items():
+        #     self.df_ds[feature] /= norm
+
+        train_dataset = tf.data.Dataset.from_tensor_slices(
+            (
+                {
+                    "features": self.df_ds.loc[train_indexes, self.features].values,
+                    "dmdt": self.dmdt[train_indexes],
+                },
+                target[train_indexes],
+            )
+        )
+        val_dataset = tf.data.Dataset.from_tensor_slices(
+            (
+                {
+                    "features": self.df_ds.loc[val_indexes, self.features].values,
+                    "dmdt": self.dmdt[val_indexes],
+                },
+                target[val_indexes],
+            )
+        )
+        test_dataset = tf.data.Dataset.from_tensor_slices(
+            (
+                {
+                    "features": self.df_ds.loc[test_indexes, self.features].values,
+                    "dmdt": self.dmdt[test_indexes],
+                },
+                target[test_indexes],
+            )
+        )
+        dropped_samples = (
+            tf.data.Dataset.from_tensor_slices(
+                (
+                    {
+                        "features": self.df_ds.loc[index_dropped, self.features].values,
+                        "dmdt": self.dmdt[index_dropped],
+                    },
+                    target[index_dropped],
+                )
+            )
+            if balance
+            else None
+        )
+
+        # Shuffle and batch the datasets:
+
+        train_dataset = (
+            train_dataset.shuffle(shuffle_buffer_size).batch(batch_size).repeat(epochs)
+        )
+        val_dataset = val_dataset.batch(batch_size).repeat(epochs)
+        test_dataset = test_dataset.batch(batch_size)
+
+        dropped_samples = dropped_samples.batch(batch_size) if balance else None
+
+        datasets = {
+            "train": train_dataset,
+            "val": val_dataset,
+            "test": test_dataset,
+            "dropped_samples": dropped_samples,
+        }
+
+        indexes = {
+            "train": np.array(train_indexes),
+            "val": np.array(val_indexes),
+            "test": np.array(test_indexes),
+            "dropped_samples": np.array(index_dropped.to_list())
+            if index_dropped is not None
+            else None,
+        }
+
+        # How many steps per epoch?
+
+        steps_per_epoch_train = len(train_indexes) // batch_size - 1
+        steps_per_epoch_val = len(val_indexes) // batch_size - 1
+        steps_per_epoch_test = len(test_indexes) // batch_size - 1
+
+        steps_per_epoch = {
+            "train": steps_per_epoch_train,
+            "val": steps_per_epoch_val,
+            "test": steps_per_epoch_test,
+        }
+        if self.verbose:
+            print(f"Steps per epoch: {steps_per_epoch}")
+
+        # Weight training data depending on the number of samples?
+        # Very useful for imbalanced classification, especially in the cases with a small number of examples.
+
+        if weight_per_class:
+            # weight data class depending on number of examples?
+            # num_training_examples_per_class = np.array([len(target) - np.sum(target), np.sum(target)])
+            num_training_examples_per_class = np.array([len(index_neg), len(index_pos)])
+
+            assert (
+                0 not in num_training_examples_per_class
+            ), "found class without any examples!"
+
+            # fewer examples -- larger weight
+            weights = (1 / num_training_examples_per_class) / np.linalg.norm(
+                (1 / num_training_examples_per_class)
+            )
+            normalized_weight = weights / np.max(weights)
+
+            class_weight = {i: w for i, w in enumerate(normalized_weight)}
+
+        else:
+            # working with binary classifiers only
+            class_weight = {i: 1 for i in range(2)}
+
+        return datasets, indexes, steps_per_epoch, class_weight
