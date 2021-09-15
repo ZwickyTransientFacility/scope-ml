@@ -607,8 +607,11 @@ class Scope:
         if pre_trained_model is not None:
             classifier.load(pre_trained_model)
 
+        time_tag = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
         wandb.init(
             project="scope",
+            tags=[tag],
+            name=f"{tag}-{time_tag}",
             config={
                 "tag": tag,
                 "label": label,
@@ -648,7 +651,6 @@ class Scope:
             # print(stats)
 
         if save:
-            time_tag = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
             output_path = str(pathlib.Path(__file__).parent.absolute() / "models" / tag)
             classifier.save(
                 output_path=output_path,
