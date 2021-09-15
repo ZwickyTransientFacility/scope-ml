@@ -502,8 +502,6 @@ class Scope:
         import wandb
         from wandb.keras import WandbCallback
 
-        wandb.login(key=self.config["wandb"]["token"])
-
         from scope.nn import DNN
         from scope.utils import Dataset
 
@@ -608,26 +606,29 @@ class Scope:
             classifier.load(pre_trained_model)
 
         time_tag = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-        wandb.init(
-            project="scope",
-            tags=[tag],
-            name=f"{tag}-{time_tag}",
-            config={
-                "tag": tag,
-                "label": label,
-                "dataset": pathlib.Path(label).name,
-                "scale_features": scale_features,
-                "learning_rate": lr,
-                "epochs": epochs,
-                "patience": patience,
-                "random_state": random_state,
-                "batch_size": batch_size,
-                "architecture": "scope-net",
-                "dense_branch": dense_branch,
-                "conv_branch": conv_branch,
-            },
-        )
-        classifier.meta["callbacks"].append(WandbCallback())
+
+        if not kwargs.get("test", False):
+            wandb.login(key=self.config["wandb"]["token"])
+            wandb.init(
+                project="scope",
+                tags=[tag],
+                name=f"{tag}-{time_tag}",
+                config={
+                    "tag": tag,
+                    "label": label,
+                    "dataset": pathlib.Path(label).name,
+                    "scale_features": scale_features,
+                    "learning_rate": lr,
+                    "epochs": epochs,
+                    "patience": patience,
+                    "random_state": random_state,
+                    "batch_size": batch_size,
+                    "architecture": "scope-net",
+                    "dense_branch": dense_branch,
+                    "conv_branch": conv_branch,
+                },
+            )
+            classifier.meta["callbacks"].append(WandbCallback())
 
         classifier.train(
             datasets["train"],
@@ -709,6 +710,7 @@ class Scope:
                 epochs=3,
                 verbose=True,
                 save=True,
+                test=True,
             )
             path_model = (
                 pathlib.Path(__file__).parent.absolute() / "models" / tag / time_tag
