@@ -350,7 +350,7 @@ def plot_gaia_density(
     # ecliptic
     for ecllat in zip([0, -30, 30], [2, 1, 1]):
         theta = np.arange(0.0, 360, 0.036)
-        phi = gallat * np.ones_like(theta)
+        phi = ecllat * np.ones_like(theta)
         hp.projplot(theta, phi, "w-", coord=["E"], lonlat=True, lw=2, ls=":")
 
     # graticule
