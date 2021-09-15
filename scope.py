@@ -499,6 +499,15 @@ class Scope:
         """
 
         import tensorflow as tf
+
+        if gpu is not None:
+            # specified a GPU to run on?
+            gpus = tf.config.list_physical_devices("GPU")
+            tf.config.experimental.set_visible_devices(gpus[gpu], "GPU")
+        else:
+            # otherwise run on CPU
+            tf.config.experimental.set_visible_devices([], "GPU")
+
         import wandb
         from wandb.keras import WandbCallback
 
@@ -554,15 +563,6 @@ class Scope:
         )
 
         # set up and train model
-
-        if gpu is not None:
-            # specified a GPU to run on?
-            gpus = tf.config.list_physical_devices("GPU")
-            tf.config.experimental.set_visible_devices(gpus[gpu], "GPU")
-        else:
-            # otherwise run on CPU
-            tf.config.experimental.set_visible_devices([], "GPU")
-
         dense_branch = kwargs.get("dense_branch", True)
         conv_branch = kwargs.get("conv_branch", True)
         loss = kwargs.get("loss", "binary_crossentropy")
