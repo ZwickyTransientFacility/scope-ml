@@ -499,6 +499,10 @@ class Scope:
         """
 
         import tensorflow as tf
+        import wandb
+        from wandb.keras import WandbCallback
+
+        wandb.login(key=self.config["wandb"]["token"])
 
         from scope.nn import DNN
         from scope.utils import Dataset
@@ -602,6 +606,25 @@ class Scope:
 
         if pre_trained_model is not None:
             classifier.load(pre_trained_model)
+
+        wandb.init(
+            project="scope",
+            config={
+                "tag": tag,
+                "label": label,
+                "dataset": pathlib.Path(label).name,
+                "scale_features": scale_features,
+                "learning_rate": lr,
+                "epochs": epochs,
+                "patience": patience,
+                "random_state": random_state,
+                "batch_size": batch_size,
+                "architecture": "scope-net",
+                "dense_branch": dense_branch,
+                "conv_branch": conv_branch,
+            },
+        )
+        classifier.meta["callbacks"].append(WandbCallback())
 
         classifier.train(
             datasets["train"],
