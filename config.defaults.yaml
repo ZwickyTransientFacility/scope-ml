@@ -8,6 +8,7 @@ kowalski:
     sources: ZTF_sources_20210401
     features: ZTF_source_features_20210401
 wandb:
+  project: scope
   token:
 taxonomy:
   class: tds

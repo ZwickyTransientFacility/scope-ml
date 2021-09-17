@@ -33,3 +33,21 @@ but could also be overridden with optional `scope.py train` arguments, e.g.
 
 - Feature stats to be used for feature scaling/standardization before training
   is defined in `config.yaml` under `feature_stats`.
+
+- We use [Weights & Biases](https://wandb.com) to track experiments.
+  Project details and access credentials can be defined in `config.yaml` under `wandb`.
+
+An example `bash` script to train all classifier families:
+
+```sh
+for class in pnp longt i fla ew eb ea e agn bis blyr ceph dscu lpv mir puls rrlyr rscvn srv wuma yso; \
+  do echo $class; \
+  for state in 1 2 3 4 5 6 7 8 9 42; \
+    do ./scope.py train \
+      --tag=$class --path_dataset=data/training/dataset.d15.csv \
+      --scale_features=min_max --batch_size=64 \
+      --epochs=300 --patience=30 --random_state=$state \
+      --verbose=1 --gpu=1 --conv_branch=true --save; \
+  done; \
+done;
+```

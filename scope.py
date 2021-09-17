@@ -610,7 +610,7 @@ class Scope:
         if not kwargs.get("test", False):
             wandb.login(key=self.config["wandb"]["token"])
             wandb.init(
-                project="scope",
+                project=self.config["wandb"]["project"],
                 tags=[tag],
                 name=f"{tag}-{time_tag}",
                 config={
