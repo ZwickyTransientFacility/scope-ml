@@ -616,7 +616,7 @@ class Scope:
                 config={
                     "tag": tag,
                     "label": label,
-                    "dataset": pathlib.Path(label).name,
+                    "dataset": pathlib.Path(path_dataset).name,
                     "scale_features": scale_features,
                     "learning_rate": lr,
                     "epochs": epochs,
