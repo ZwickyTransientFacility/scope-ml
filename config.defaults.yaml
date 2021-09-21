@@ -9,6 +9,7 @@ kowalski:
     features: ZTF_source_features_20210401
 wandb:
   project: scope
+  # Get your W&B token at https://wandb.ai/authorize
   token:
 taxonomy:
   class: tds
