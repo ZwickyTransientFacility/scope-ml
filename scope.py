@@ -641,15 +641,42 @@ class Scope:
         )
 
         print("Evaluating on test set:")
-        # stats = \
-        classifier.evaluate(datasets["test"], verbose=verbose)
-        # print(stats)
+        stats = classifier.evaluate(datasets["test"], verbose=verbose)
+        print(stats)
+
+        param_names = (
+            "loss",
+            "tp",
+            "fp",
+            "tn",
+            "fn",
+            "accuracy",
+            "precision",
+            "recall",
+            "auc",
+        )
+        if not kwargs.get("test", False):
+            # log model performance on the test set
+            for param, value in zip(param_names, stats):
+                wandb.run.summary[f"test_{param}"] = value
+            p, r = wandb.run.summary["test_precision"], wandb.run.summary["test_recall"]
+            wandb.run.summary["test_f1"] = 2 * p * r / (p + r)
 
         if datasets["dropped_samples"] is not None:
+            # log model performance on the dropped samples
             print("Evaluating on samples dropped from the training set:")
-            # stats = \
-            classifier.evaluate(datasets["dropped_samples"], verbose=verbose)
-            # print(stats)
+            stats = classifier.evaluate(datasets["dropped_samples"], verbose=verbose)
+            print(stats)
+
+            if not kwargs.get("test", False):
+                for param, value in zip(param_names, stats):
+                    print(param, value)
+                    wandb.run.summary[f"dropped_samples_{param}"] = value
+                p, r = (
+                    wandb.run.summary["dropped_samples_precision"],
+                    wandb.run.summary["dropped_samples_recall"],
+                )
+                wandb.run.summary["dropped_samples_f1"] = 2 * p * r / (p + r)
 
         if save:
             output_path = str(pathlib.Path(__file__).parent.absolute() / "models" / tag)
