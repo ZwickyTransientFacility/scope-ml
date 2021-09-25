@@ -640,9 +640,11 @@ class Scope:
             verbose=verbose,
         )
 
-        print("Evaluating on test set:")
+        if verbose:
+            print("Evaluating on test set:")
         stats = classifier.evaluate(datasets["test"], verbose=verbose)
-        print(stats)
+        if verbose:
+            print(stats)
 
         param_names = (
             "loss",
@@ -664,13 +666,14 @@ class Scope:
 
         if datasets["dropped_samples"] is not None:
             # log model performance on the dropped samples
-            print("Evaluating on samples dropped from the training set:")
+            if verbose:
+                print("Evaluating on samples dropped from the training set:")
             stats = classifier.evaluate(datasets["dropped_samples"], verbose=verbose)
-            print(stats)
+            if verbose:
+                print(stats)
 
             if not kwargs.get("test", False):
                 for param, value in zip(param_names, stats):
-                    print(param, value)
                     wandb.run.summary[f"dropped_samples_{param}"] = value
                 p, r = (
                     wandb.run.summary["dropped_samples_precision"],
@@ -680,6 +683,8 @@ class Scope:
 
         if save:
             output_path = str(pathlib.Path(__file__).parent.absolute() / "models" / tag)
+            if verbose:
+                print(f"Saving model to {output_path}")
             classifier.save(
                 output_path=output_path,
                 output_format="tf",
