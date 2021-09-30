@@ -500,6 +500,17 @@ class Scope:
 
         import tensorflow as tf
 
+        if gpu is not None:
+            # specified a GPU to run on?
+            gpus = tf.config.list_physical_devices("GPU")
+            tf.config.experimental.set_visible_devices(gpus[gpu], "GPU")
+        else:
+            # otherwise run on CPU
+            tf.config.experimental.set_visible_devices([], "GPU")
+
+        import wandb
+        from wandb.keras import WandbCallback
+
         from scope.nn import DNN
         from scope.utils import Dataset
 
@@ -552,15 +563,6 @@ class Scope:
         )
 
         # set up and train model
-
-        if gpu is not None:
-            # specified a GPU to run on?
-            gpus = tf.config.list_physical_devices("GPU")
-            tf.config.experimental.set_visible_devices(gpus[gpu], "GPU")
-        else:
-            # otherwise run on CPU
-            tf.config.experimental.set_visible_devices([], "GPU")
-
         dense_branch = kwargs.get("dense_branch", True)
         conv_branch = kwargs.get("conv_branch", True)
         loss = kwargs.get("loss", "binary_crossentropy")
@@ -603,6 +605,31 @@ class Scope:
         if pre_trained_model is not None:
             classifier.load(pre_trained_model)
 
+        time_tag = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+
+        if not kwargs.get("test", False):
+            wandb.login(key=self.config["wandb"]["token"])
+            wandb.init(
+                project=self.config["wandb"]["project"],
+                tags=[tag],
+                name=f"{tag}-{time_tag}",
+                config={
+                    "tag": tag,
+                    "label": label,
+                    "dataset": pathlib.Path(path_dataset).name,
+                    "scale_features": scale_features,
+                    "learning_rate": lr,
+                    "epochs": epochs,
+                    "patience": patience,
+                    "random_state": random_state,
+                    "batch_size": batch_size,
+                    "architecture": "scope-net",
+                    "dense_branch": dense_branch,
+                    "conv_branch": conv_branch,
+                },
+            )
+            classifier.meta["callbacks"].append(WandbCallback())
+
         classifier.train(
             datasets["train"],
             datasets["val"],
@@ -613,20 +640,51 @@ class Scope:
             verbose=verbose,
         )
 
-        print("Evaluating on test set:")
-        # stats = \
-        classifier.evaluate(datasets["test"], verbose=verbose)
-        # print(stats)
+        if verbose:
+            print("Evaluating on test set:")
+        stats = classifier.evaluate(datasets["test"], verbose=verbose)
+        if verbose:
+            print(stats)
+
+        param_names = (
+            "loss",
+            "tp",
+            "fp",
+            "tn",
+            "fn",
+            "accuracy",
+            "precision",
+            "recall",
+            "auc",
+        )
+        if not kwargs.get("test", False):
+            # log model performance on the test set
+            for param, value in zip(param_names, stats):
+                wandb.run.summary[f"test_{param}"] = value
+            p, r = wandb.run.summary["test_precision"], wandb.run.summary["test_recall"]
+            wandb.run.summary["test_f1"] = 2 * p * r / (p + r)
 
         if datasets["dropped_samples"] is not None:
-            print("Evaluating on samples dropped from the training set:")
-            # stats = \
-            classifier.evaluate(datasets["dropped_samples"], verbose=verbose)
-            # print(stats)
+            # log model performance on the dropped samples
+            if verbose:
+                print("Evaluating on samples dropped from the training set:")
+            stats = classifier.evaluate(datasets["dropped_samples"], verbose=verbose)
+            if verbose:
+                print(stats)
+
+            if not kwargs.get("test", False):
+                for param, value in zip(param_names, stats):
+                    wandb.run.summary[f"dropped_samples_{param}"] = value
+                p, r = (
+                    wandb.run.summary["dropped_samples_precision"],
+                    wandb.run.summary["dropped_samples_recall"],
+                )
+                wandb.run.summary["dropped_samples_f1"] = 2 * p * r / (p + r)
 
         if save:
-            time_tag = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
             output_path = str(pathlib.Path(__file__).parent.absolute() / "models" / tag)
+            if verbose:
+                print(f"Saving model to {output_path}")
             classifier.save(
                 output_path=output_path,
                 output_format="tf",
@@ -684,6 +742,7 @@ class Scope:
                 epochs=3,
                 verbose=True,
                 save=True,
+                test=True,
             )
             path_model = (
                 pathlib.Path(__file__).parent.absolute() / "models" / tag / time_tag

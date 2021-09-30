@@ -7,6 +7,10 @@ kowalski:
     gaia: Gaia_EDR3
     sources: ZTF_sources_20210401
     features: ZTF_source_features_20210401
+wandb:
+  project: scope
+  # Get your W&B token at https://wandb.ai/authorize
+  token:
 taxonomy:
   class: tds
   name: time domain source type
@@ -961,24 +965,16 @@ feature_stats:
 training:
   dataset: md5 checksum? filename? from GCS? to use for training
   classes:
-    agn:
-      # label name from the dataset csv file
-      label: AGN
-      # value should refer to features section of this config
-      features: ontological
-      # our "labels" are floats [0., 0.25, 0.5, 0.75, 1.]
-      threshold: 0.7
-      # balance ratio for the prevalent class. leave as null to use all available data
-      balance: 2.5
-      weight_per_class: false
+    # phenomenological classes
     vnv:
-      # label name from the dataset csv file
+      # value of label should refer to dataset.dN.csv
       label: variable
+      # conv_branch: false
       # value should refer to features section of this config
       features: phenomenological
       # our "labels" are floats [0., 0.25, 0.5, 0.75, 1.]
-      threshold: 0.7
-      # balance ratio for the prevalent class. leave as null to use all available data
+      threshold: 0.9
+      # balance ratio for the prevalent class. leave null to use all available data
       balance:
       weight_per_class: true
     pnp:
@@ -986,4 +982,125 @@ training:
       features: phenomenological
       threshold: 0.9
       balance: 1
+      weight_per_class: false
+    longt:
+      label: long timescale
+      features: phenomenological
+      threshold: 0.9
+      balance: 2.5
+      weight_per_class: false
+    i:
+      label: irregular
+      features: phenomenological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
+    fla:
+      label: flaring
+      features: phenomenological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
+    ew:
+      label: EW
+      features: phenomenological
+      threshold: 0.7
+      balance:
+      weight_per_class: false
+    eb:
+      label: EB
+      features: phenomenological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
+    ea:
+      label: EA
+      features: phenomenological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
+    e:
+      label: eclipsing
+      features: phenomenological
+      threshold: 0.7
+      balance:
+      weight_per_class: false
+    # ontological classes
+    agn:
+      label: AGN
+      features: ontological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: true
+    bis:
+      label: binary star
+      features: ontological
+      threshold: 0.7
+      balance:
+      weight_per_class: false
+    blyr:
+      label: Beta Lyr
+      features: ontological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
+    ceph:
+      label: Cepheid
+      features: ontological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
+    dscu:
+      label: Delta Scu
+      features: ontological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
+    lpv:
+      label: LPV
+      features: ontological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
+    mir:
+      label: Mira
+      features: ontological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
+    puls:
+      label: pulsator
+      features: ontological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
+    rrlyr:
+      label: RR Lyrae
+      features: ontological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
+    rscvn:
+      label: RS CVn
+      features: ontological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
+    srv:
+      label: SRV
+      features: ontological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
+    wuma:
+      label: W Uma
+      features: ontological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
+    yso:
+      label: YSO
+      features: ontological
+      threshold: 0.7
+      balance: 2.5
       weight_per_class: false
