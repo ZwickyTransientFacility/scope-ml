@@ -8,6 +8,10 @@ kowalski:
     sources: ZTF_sources_20210401
     features: ZTF_source_features_20210401
     classifications: ZTF_source_classifications_DR5
+fritz:
+  token:
+  protocol: https
+  host: fritz.science
 wandb:
   project: scope
   # Get your W&B token at https://wandb.ai/authorize
