@@ -86,6 +86,6 @@ hierarchy:
             - class: Blazar
         - class: YSO
         - class: CV
-provenance: https://arxiv.org/pdf/2102.11304.pdf
-version: 1.0.0
+provenance: https://arxiv.org/pdf/2102.11304.pdf; https://scope.ztf.dev
+version: 1.1.1
 isLatest: true
