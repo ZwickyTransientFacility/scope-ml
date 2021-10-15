@@ -23,7 +23,10 @@ kowalski = Kowalski(
 def get_features(
     source_ids: List[int],
     features_catalog: str = "ZTF_source_features_DR5",
+    **kwargs,
 ):
+    verbose = kwargs.get("verbose", False)
+
     if not hasattr(source_ids, "__iter__"):
         source_ids = (source_ids,)
 
@@ -41,9 +44,10 @@ def get_features(
         raise ValueError(f"No data found for source ids {source_ids}")
 
     df = pd.DataFrame.from_records(source_data)
-    print(df)
     dmdt = np.expand_dims(np.array([d for d in df['dmdt'].values]), axis=-1)
-    print(dmdt.shape)
+    if verbose:
+        print(df)
+        print(dmdt.shape)
 
     return df, dmdt
 
@@ -105,6 +109,7 @@ def run(
     path_model: Union[str, pathlib.Path],
     model_class: str,
     source_ids: List[int],
+    **kwargs,
 ):
     """Run SCoPe DNN model on a list of source ids
 
@@ -123,7 +128,9 @@ def run(
     :param source_ids:
     :return:
     """
-    print(source_ids)
+    verbose = kwargs.get("verbose", False)
+    if verbose:
+        print(source_ids)
 
     # get raw features
     features, dmdt = get_features(source_ids)
@@ -144,18 +151,22 @@ def run(
                     stats["max"] - stats["min"]
                 )
 
-    print(features)
+    verbose = kwargs.get("verbose", False)
+    if verbose:
+        print(features)
 
     if str(path_model).endswith(".h5"):
         model = tf.keras.models.load_model(path_model)
     else:
         model = make_model(features_input_shape=(len(feature_names),))
-        # print(model.summary())
+        if verbose:
+            print(model.summary())
         model.load_weights(path_model).expect_partial()
 
     preds = model.predict([features[feature_names].values, dmdt])
     features[model_class] = preds
-    print(features[["_id", model_class]])
+    if verbose:
+        print(features[["_id", model_class]])
 
 
 if __name__ == "__main__":
