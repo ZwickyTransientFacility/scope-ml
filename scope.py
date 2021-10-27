@@ -67,11 +67,9 @@ def check_configs(config_wildcards: Sequence = ("config.*yaml",)):
                 config_defaults = yaml.load(config_yaml, Loader=yaml.FullLoader)
             with open(path / config) as config_yaml:
                 config_wildcard = yaml.load(config_yaml, Loader=yaml.FullLoader)
-            deep_diff = DeepDiff(config_wildcard, config_defaults, ignore_order=True)
+            deep_diff = DeepDiff(config_defaults, config_wildcard, ignore_order=True)
             difference = {
-                k: v
-                for k, v in deep_diff.items()
-                if k in ("dictionary_item_added", "dictionary_item_removed")
+                k: v for k, v in deep_diff.items() if k in ("dictionary_item_removed",)
             }
             if len(difference) > 0:
                 print("config.yaml structure differs from config.defaults.yaml")
