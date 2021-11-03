@@ -341,15 +341,15 @@ def plot_gaia_density(
     hp.projplot(theta, phi, "k--", coord=["C"], lonlat=True, lw=2)
     hp.projtext(170.0, -24.0, r"ZTF Limit", lonlat=True)
 
+    theta = np.arange(0.0, 360, 0.036)
+
     # galaxy
     for gallat in [15, 0, -15]:
-        theta = np.arange(0.0, 360, 0.036)
         phi = gallat * np.ones_like(theta)
         hp.projplot(theta, phi, "w-", coord=["G"], lonlat=True, lw=2)
 
     # ecliptic
-    for ecllat in zip([0, -30, 30], [2, 1, 1]):
-        theta = np.arange(0.0, 360, 0.036)
+    for ecllat in [0, -30, 30]:
         phi = ecllat * np.ones_like(theta)
         hp.projplot(theta, phi, "w-", coord=["E"], lonlat=True, lw=2, ls=":")
 
