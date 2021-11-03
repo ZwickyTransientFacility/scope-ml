@@ -308,9 +308,8 @@ class DNN(AbstractClassifier):
 
         # dense branch to digest features
         if dense_branch:
-            x_dense = tf.keras.layers.Dropout(0.2)(features_input)
             x_dense = tf.keras.layers.Dense(256, activation='relu', name='dense_fc_1')(
-                x_dense
+                features_input
             )
             x_dense = tf.keras.layers.Dropout(0.25)(x_dense)
             x_dense = tf.keras.layers.Dense(32, activation='relu', name='dense_fc_2')(
@@ -319,10 +318,9 @@ class DNN(AbstractClassifier):
 
         # CNN branch to digest dmdt
         if conv_branch:
-            x_conv = tf.keras.layers.Dropout(0.2)(dmdt_input)
             x_conv = tf.keras.layers.SeparableConv2D(
                 16, (3, 3), activation='relu', name='conv_conv_1'
-            )(x_conv)
+            )(dmdt_input)
             # x_conv = tf.keras.layers.Dropout(0.25)(x_conv)
             x_conv = tf.keras.layers.SeparableConv2D(
                 16, (3, 3), activation='relu', name='conv_conv_2'
