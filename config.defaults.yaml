@@ -7,41 +7,160 @@ kowalski:
     gaia: Gaia_EDR3
     sources: ZTF_sources_20210401
     features: ZTF_source_features_20210401
+    classifications: ZTF_source_classifications_DR5
+fritz:
+  token:
+  protocol: https
+  host: fritz.science
+wandb:
+  project: scope
+  # Get your W&B token at https://wandb.ai/authorize
+  token:
 taxonomy:
-  name: Class type
-  children:
-    - name: phenomenological
-      children:
-        - name: variable
-        - name: periodic
-        - name: long timescale
-        - name: irregular
-        - name: eclipsing
-          children:
-            - name: EA
-            - name: EB
-            - name: EW
-        - name: flaring
-        - name: bogus
-    - name: ontological
-      children:
-        - name: pulsator
-          children:
-            - name: Delta Scuti
-            - name: Cepheid
-            - name: RR Lyrae
-            - name: LPV
-              children:
-                - name: Mira
-                - name: SRV
-        - name: binary star
-          children:
-            - name: W Uma
-            - name: Beta Lyr
-            - name: RS CVn
-        - name: AGN
-        - name: YSO
-        - name: CV
+  class: tds
+  name: time domain source type
+  subclasses:
+    - class: phenomenological
+      name: phenomenological
+      description: |
+        What can be said about an object given *only* ZTF data.
+      subclasses:
+        - class: vnv
+          name: variable
+          description: |
+            Any ZTF source that shows detectable variability in its light curve
+            due to an astrophysical origin. This excludes variability due to blended photometry,
+            bright nearby stars, or any CCD artifact.
+        - class: pnp
+          name: periodic
+          description: |
+            The ZTF light curve features astrophysical periodic variability.
+            These are typically pulsators, rotating stars and (eclipsing) binaries.
+            This does not include semi-periodic or quasi-periodic variability. This
+            excludes variability due to a varying background (e.g. due to the moon),
+            or spurious periodic variability due to nearby bright stars or other artifacts.
+        - class: longt
+          name: long timescale
+          description: |
+            Any object which shows variability on timescales of ~100+ days. This can be a steady
+            increase/decrease in luminosity, e.g., AGN and CVs.
+            Long timescale period variable like Miras and the more
+            irregular semi-regular variables are generally included in this category.
+        - class: i
+          name: irregular
+          description: |
+            Objects which show irregular/stochastic variability.
+            These are mostly accreting objects, AGN, CVs, and YSOs.
+        - class: e
+          name: eclipsing
+          description: |
+            Any source that shows eclipses in the light curve.
+            These are predominately eclipsing binaries.
+            Eclipsing planetisimals or planets with large rings would also
+            fall in this category.
+          subclasses:
+            - class: ea
+              name: detached binary
+            - class: eb
+              name: semi-detached binary
+            - class: ew
+              name: overcontact binary
+        - class: fla
+          name: flaring
+          description: |
+            Any ZTF light curve that shows flares, rapidly rising and fading events.
+            These are mostly cataclysmic variables, some young stellar objects, M-dwarfs, and some AGN.
+        - class: bogus
+          name: bogus
+          description: |
+            Any light curve that seems variable, but is not due to any astrophysical variability.
+            These are galaxies that can seem to vary due to PSF variations,
+            image artifacts like ghosts, blended stars, or diffraction spikes.
+    - class: ontological
+      name: ontological
+      description: |
+        What can be said about an object given *not only* ZTF data
+      subclasses:
+        - class: puls
+          name: pulsator
+          description: |
+            Any kind of pulsating star.
+          subclasses:
+            - class: dscu
+              name: Delta Scuti
+              description: |
+                Delta Scuti are pulsating A&F main sequence stars. The pulsation period ranges between
+                0.03 between 0.3 days, and the amplitude is typically 0.2 mag but can reach up to 0.8mag.
+                Their light curves are asymmetric, with a rapid rise and slow decay.
+            - class: ceph
+              name: Cepheid
+              description: |
+                Cepheids are radially pulsating giant stars in the instability strip.
+                Period range between 1 and 50 days, with extreme examples of 200 days.
+                Light curves shapes range from asymmetric with a steep rise
+                and slow decay, to almost sinusoidal light curve shapes.
+            - class: rrlyr
+              name: RR Lyrae
+              description: |
+                RR Lyrae are radial pulsators on the horizontal branch; they are helium core burning and
+                hydrogen shell burning. The pulsation period ranges between 0.2 and 1.0 days.
+            - class: lpv
+              name: long period variable
+              description: |
+                Long Period Variables are cool giant stars. Nearly all stars of this type show
+                some variability.
+              subclasses:
+                - class: mira
+                  name: Mira
+                  description: |
+                    AGB stars which show very high amplitude (> 2.5), long period (80-1000
+                    days) variability.
+                - class: srv
+                  name: semi-regulat variable
+                  description: |
+                    Show more irregular, and lower amplitude variability than Miras.
+        - class: bis
+          name: binary star
+          description: |
+            Any object that is a binary star.
+          subclasses:
+            - class: wuma
+              name: W Uma
+              description: |
+                Eclipsing close binary stars of spectral types F, G, or K that share a common envelope
+                of material and are thus in contact with one another.
+            - class: blyr
+              name: Beta Lyr
+              description: |
+                Binary systems where one of the components has evolved into a subgiant or giant star and
+                is filling its Roche lobe transferring mass in a disk.
+                The light curve of these systems is of type EB. The period
+                ranges between 0.3 days and 200 days.
+                Systems with a period of >100 days contains a supergiant.
+            - class: rscvn
+              name: RS CVn
+              description: |
+                A binary star where at least one of the components
+                has large stellar spots. The light curve shape is sinusoidal
+                with periods of a few hours to 14 days.
+                The shape of the light curve changes over timescales of months to years.
+        - class: agn
+          name: active galactic nuclei
+          description: |
+            Extra-galactic objects which tend to vary irregularly. Often show slowly rising
+            or fading light curves, and can also show outbursts in rare cases.
+        - class: yso
+          name: young stellar object
+          description: |
+            Pre-main-sequence stars. They typically have an accretion disk and dust around
+            them. This results in a light curve which shows irregular behavior,
+            sometimes with outbursts or dust obscuration events.
+        - class: cv
+          name: cataclysmic variable
+          description: |
+            A binary star that consists of two components:
+            a white dwarf primary, and a mass transferring secondary.
+
 docs:
   field_guide:
     rr_lyr_ab:
@@ -65,52 +184,52 @@ docs:
       period: 0.064050575
       title: Delta Scuti
     cepheid_F:
-      coordinates: [0.441542, 62.424306]
+      coordinates: [ 0.441542, 62.424306 ]
       period: 3.8785736
       title: Fundamental-mode classical Cepheid
     cepheid_F_1:
-      coordinates: [4.260375, 60.802722]
+      coordinates: [ 4.260375, 60.802722 ]
       period: 6.7987667
       title: Fundamental-mode classical Cepheid with a secondary bump
     cepheid_1O:
-      coordinates: [321.964458, 24.422528]
+      coordinates: [ 321.964458, 24.422528 ]
       period: 0.7703319
       title: First-overtone classical Cepheid
     cepheid_F1O:
-      coordinates: [292.005292, 19.949889]
+      coordinates: [ 292.005292, 19.949889 ]
       period: 4.0442931
       title: Double-mode classical Cepheid
     flaring_dwarfnova:
-      coordinates: [266.8566657, 63.0465916]
+      coordinates: [ 266.8566657, 63.0465916 ]
       title: Dwarf Nova (Flaring)
     flaring_mdwarf:
-      coordinates: [103.289525, 10.194726]
+      coordinates: [ 103.289525, 10.194726 ]
       title: M dwarf (Flaring)
     cv_U_Gem:
-      coordinates: [18.884181, 37.626534]
+      coordinates: [ 18.884181, 37.626534 ]
       title: Cataclysmic variable (U Gem dwarf nova)
     cv_Z_Cam:
-      coordinates: [269.093260, 2.967803]
+      coordinates: [ 269.093260, 2.967803 ]
       title: Cataclysmic variable (Z Cam dwarf nova)
     cv_SU_UMa:
-      coordinates: [170.883476, 43.288214]
+      coordinates: [ 170.883476, 43.288214 ]
       title: Cataclysmic variable (SU UMa/WZ Sge dwarf nova)
     cv_Novalike:
-      coordinates: [322.961689, 49.233813]
+      coordinates: [ 322.961689, 49.233813 ]
       title: Cataclysmic variable (Novalike)
     mira:
-      coordinates: [9.1523, 68.0221]
+      coordinates: [ 9.1523, 68.0221 ]
       period: 212.0066035
       title: A Mira (Long Period Variable)
     periodic:
-      coordinates: [288.5243027, 1.51191]
+      coordinates: [ 288.5243027, 1.51191 ]
       period: 0.350072813283344
       title: Periodic variable
     srv:
-      coordinates: [330.302266, 66.153712]
+      coordinates: [ 330.302266, 66.153712 ]
       title: Semi Regular Variable
     variable:
-      coordinates: [102.5537728, 44.1032507]
+      coordinates: [ 102.5537728, 44.1032507 ]
       title: Variable stars
     rs_cvn_1:
       coordinates: [344.8924,6.1829]
@@ -120,3 +239,882 @@ docs:
       coordinates: [349.1745,36.5569]
       period: 5.900631
       title: RS CVn with modulation
+
+
+features:
+  phenomenological_d12:
+    - ad
+    - chi2red
+    - f1_a
+    - f1_amp
+    - f1_b
+    - f1_bic
+    - f1_phi0
+    - f1_power
+    - f1_relamp1
+    - f1_relamp2
+    - f1_relamp3
+    - f1_relamp4
+    - f1_relphi1
+    - f1_relphi2
+    - f1_relphi3
+    - f1_relphi5
+    - f60
+    - f70
+    - f80
+    - f90
+    - inv_vonneumannratio
+    - iqr
+    - median
+    - median_abs_dev
+    - norm_excess_var
+    - norm_peak_to_peak_amp
+    - pdot
+    - period
+    - roms
+    - significance
+    - skew
+    - smallkurt
+    - stetson_j
+    - stetson_k
+    - sw
+    - welch_i
+    - wmean
+    - wstd
+    - n_ztf_alerts
+    - mean_ztf_alert_braai
+  phenomenological_d13:
+#    - ra
+#    - dec
+#    - n
+    - median
+    - wmean
+    - chi2red
+    - roms
+    - wstd
+    - norm_peak_to_peak_amp
+    - norm_excess_var
+    - median_abs_dev
+    - iqr
+    - i60r
+    - i70r
+    - i80r
+    - i90r
+    - skew
+    - smallkurt
+    - inv_vonneumannratio
+    - welch_i
+    - stetson_j
+    - stetson_k
+    - ad
+    - sw
+    - n_ztf_alerts
+    - mean_ztf_alert_braai
+    - period
+    - significance
+#    - pdot
+    - f1_power
+    - f1_BIC
+    - f1_a
+    - f1_b
+    - f1_amp
+    - f1_phi0
+    - f1_relamp1
+    - f1_relphi1
+    - f1_relamp2
+    - f1_relphi2
+    - f1_relamp3
+    - f1_relphi3
+    - f1_relamp4
+    - f1_relphi4
+  ontological_d13:
+#    - ra
+#    - dec
+    - median
+    - wmean
+    - chi2red
+    - roms
+    - wstd
+    - norm_peak_to_peak_amp
+    - norm_excess_var
+    - median_abs_dev
+    - iqr
+    - i60r
+    - i70r
+    - i80r
+    - i90r
+    - skew
+    - smallkurt
+    - inv_vonneumannratio
+    - welch_i
+    - stetson_j
+    - stetson_k
+    - ad
+    - sw
+    - n_ztf_alerts
+    - mean_ztf_alert_braai
+    - period
+    - significance
+#    - pdot
+    - f1_power
+    - f1_BIC
+    - f1_a
+    - f1_b
+    - f1_amp
+    - f1_phi0
+    - f1_relamp1
+    - f1_relphi1
+    - f1_relamp2
+    - f1_relphi2
+    - f1_relamp3
+    - f1_relphi3
+    - f1_relamp4
+    - f1_relphi4
+    - AllWISE__w1mpro
+    - AllWISE__w1sigmpro
+    - AllWISE__w2mpro
+    - AllWISE__w2sigmpro
+    - AllWISE__w3mpro
+    - AllWISE__w3sigmpro
+    - AllWISE__w4mpro
+    - AllWISE__w4sigmpro
+#    - AllWISE__ph_qual,
+    - Gaia_EDR3__phot_g_mean_mag
+    - Gaia_EDR3__phot_bp_mean_mag
+    - Gaia_EDR3__phot_rp_mean_mag
+    - Gaia_EDR3__parallax
+    - Gaia_EDR3__parallax_error
+    - Gaia_EDR3__pmra
+    - Gaia_EDR3__pmra_error
+    - Gaia_EDR3__pmdec
+    - Gaia_EDR3__pmdec_error
+    - Gaia_EDR3__astrometric_excess_noise
+    - Gaia_EDR3__phot_bp_rp_excess_factor
+    - PS1_DR1__gMeanPSFMag
+    - PS1_DR1__gMeanPSFMagErr
+    - PS1_DR1__rMeanPSFMag
+    - PS1_DR1__rMeanPSFMagErr
+    - PS1_DR1__iMeanPSFMag
+    - PS1_DR1__iMeanPSFMagErr
+    - PS1_DR1__zMeanPSFMag
+    - PS1_DR1__zMeanPSFMagErr
+    - PS1_DR1__yMeanPSFMag
+    - PS1_DR1__yMeanPSFMagErr
+  phenomenological:
+    - ad
+#    - ccd
+    - chi2red
+#    - dec
+    - f1_BIC
+    - f1_a
+    - f1_amp
+    - f1_b
+    - f1_phi0
+    - f1_power
+    - f1_relamp1
+    - f1_relamp2
+    - f1_relamp3
+    - f1_relamp4
+    - f1_relphi1
+    - f1_relphi2
+    - f1_relphi3
+    - f1_relphi4
+    - field
+    - i60r
+    - i70r
+    - i80r
+    - i90r
+    - inv_vonneumannratio
+    - iqr
+    - mean_ztf_alert_braai
+    - median
+    - median_abs_dev
+#    - n
+    - n_ztf_alerts
+    - norm_excess_var
+    - norm_peak_to_peak_amp
+#    - pdot
+    - period
+#    - quad
+#    - ra
+    - roms
+    - significance
+    - skew
+    - smallkurt
+    - stetson_j
+    - stetson_k
+    - sw
+    - welch_i
+    - wmean
+    - wstd
+  ontological:
+    - ad
+    - ccd
+    - chi2red
+    - dec
+    - f1_BIC
+    - f1_a
+    - f1_amp
+    - f1_b
+    - f1_phi0
+    - f1_power
+    - f1_relamp1
+    - f1_relamp2
+    - f1_relamp3
+    - f1_relamp4
+    - f1_relphi1
+    - f1_relphi2
+    - f1_relphi3
+    - f1_relphi4
+    - field
+    - i60r
+    - i70r
+    - i80r
+    - i90r
+    - inv_vonneumannratio
+    - iqr
+    - mean_ztf_alert_braai
+    - median
+    - median_abs_dev
+#    - n
+    - n_ztf_alerts
+    - norm_excess_var
+    - norm_peak_to_peak_amp
+#    - pdot
+    - period
+    - quad
+    - ra
+    - roms
+    - significance
+    - skew
+    - smallkurt
+    - stetson_j
+    - stetson_k
+    - sw
+    - welch_i
+    - wmean
+    - wstd
+#    - AllWISE___id
+#    - AllWISE__ph_qual
+    - AllWISE__w1mpro
+    - AllWISE__w1sigmpro
+    - AllWISE__w2mpro
+    - AllWISE__w2sigmpro
+    - AllWISE__w3mpro
+    - AllWISE__w3sigmpro
+    - AllWISE__w4mpro
+    - AllWISE__w4sigmpro
+#    - Gaia_EDR3___id
+    - Gaia_EDR3__astrometric_excess_noise
+    - Gaia_EDR3__parallax
+    - Gaia_EDR3__parallax_error
+    - Gaia_EDR3__phot_bp_mean_mag
+    - Gaia_EDR3__phot_bp_rp_excess_factor
+    - Gaia_EDR3__phot_g_mean_mag
+    - Gaia_EDR3__phot_rp_mean_mag
+    - Gaia_EDR3__pmdec
+    - Gaia_EDR3__pmdec_error
+    - Gaia_EDR3__pmra
+    - Gaia_EDR3__pmra_error
+#    - PS1_DR1___id
+    - PS1_DR1__gMeanPSFMag
+    - PS1_DR1__gMeanPSFMagErr
+    - PS1_DR1__iMeanPSFMag
+    - PS1_DR1__iMeanPSFMagErr
+    - PS1_DR1__qualityFlag
+    - PS1_DR1__rMeanPSFMag
+    - PS1_DR1__rMeanPSFMagErr
+    - PS1_DR1__yMeanPSFMag
+    - PS1_DR1__yMeanPSFMagErr
+    - PS1_DR1__zMeanPSFMag
+    - PS1_DR1__zMeanPSFMagErr
+
+feature_stats:
+  # d15-based
+  ra:
+    min: 0.000637
+    max: 359.9959065
+    median: 260.57838475
+    mean: 203.8537195009122
+    std: 111.29524619256385
+  dec:
+    min: -27.97669295
+    max: 80.12096305
+    median: 35.74461235
+    mean: 33.8050848864133
+    std: 24.53928644472575
+  ccd:
+    min: 1
+    max: 16
+    median: 10.0
+    mean: 8.9215225842098
+    std: 4.407593218358259
+  quad:
+    min: 1
+    max: 4
+    median: 2.0
+    mean: 2.474682794956292
+    std: 1.11338706658081
+  field:
+    min: 250
+    max: 876
+    median: 683.0
+    mean: 658.9159381968151
+    std: 146.04044551816344
+  median:
+    min: 11.859
+    max: 21.7355
+    median: 17.192999999999998
+    mean: 17.198497876180767
+    std: 1.984417549587372
+  wmean:
+    min: 0.0
+    max: 21.72580234909332
+    median: 17.190525885310052
+    mean: 17.194469189756948
+    std: 1.9724064028988926
+  chi2red:
+    min: 0.0
+    max: 14504.867568350095
+    median: 8.349023359399014
+    mean: 43.90164979812083
+    std: 252.59980815489058
+  roms:
+    min: 0.0
+    max: 114.51620270036064
+    median: 2.390460752111644
+    mean: 3.6660180168808383
+    std: 4.379744545440027
+  wstd:
+    min: 0.0
+    max: 2.255608626306496
+    median: 0.0875371400495776
+    mean: 0.09811229869829607
+    std: 0.08429406100213001
+  norm_peak_to_peak_amp:
+    min: -0.0026624340791561
+    max: 0.1968704723268617
+    median: 0.0067790238702771
+    mean: 0.008094121375282185
+    std: 0.008743865061694922
+  norm_excess_var:
+    min: -0.000112900619492
+    max: 0.0609204201612541
+    median: 1.769738951325714e-05
+    mean: 7.146689144239448e-05
+    std: 0.0007345666165872003
+  median_abs_dev:
+    min: 0.0030000000000001
+    max: 1.8210000000000013
+    median: 0.0659999999999989
+    mean: 0.07190794059530176
+    std: 0.06233962602348945
+  iqr:
+    min: 0.0060000000000002
+    max: 4.503
+    median: 0.141
+    mean: 0.15836848656470792
+    std: 0.14571166540496608
+  i60r:
+    min: 0.0085999999999994
+    max: 4.783999999999999
+    median: 0.1716000000000015
+    mean: 0.19276104619501683
+    std: 0.17420744789781734
+  i70r:
+    min: 0.0109999999999992
+    max: 5.121999999999998
+    median: 0.2028000000000034
+    mean: 0.22859205687634082
+    std: 0.2035872239632559
+  i80r:
+    min: 0.0129999999999999
+    max: 5.510200000000001
+    median: 0.2355999999999998
+    mean: 0.26673144380824426
+    std: 0.23485124406618516
+  i90r:
+    min: 0.0149999999999987
+    max: 5.943899999999999
+    median: 0.2728499999999982
+    mean: 0.3086220097322302
+    std: 0.26757399787961367
+  skew:
+    min: -2313631.3289482933
+    max: 991099.7040389637
+    median: 2.205022682495793
+    mean: 61.31085516410248
+    std: 11255.873862484796
+  smallkurt:
+    min: -3.11887814831396
+    max: 972157474.9911993
+    median: 158.06917554356693
+    mean: 131691.3802343864
+    std: 4342921.268698039
+  inv_vonneumannratio:
+    min: 0.0
+    max: 9391.44532323455
+    median: 0.6565422687368709
+    mean: 4.93473533396986
+    std: 81.77941050819155
+  welch_i:
+    min: -56346.08384684319
+    max: 4493321.414933997
+    median: 5.7813606990069095
+    mean: 2267.616080217704
+    std: 47873.865854501935
+  stetson_j:
+    min: -1609.5878099366153
+    max: 43589.80955987325
+    median: 5.442137093176486
+    mean: 72.9671030784923
+    std: 636.9630033716279
+  stetson_k:
+    min: 0.0
+    max: 0.9900279161401804
+    median: 0.8495064736265487
+    mean: 0.8452080085034379
+    std: 0.04080279802330599
+  ad:
+    min: 0.0
+    max: 176.17630087537145
+    median: 4.829378125197593
+    mean: 11.05490766018392
+    std: 16.348165501152252
+  sw:
+    min: 0.0
+    max: 0.9927340149879456
+    median: 0.9054134488105774
+    mean: 0.8523579384039067
+    std: 0.13993721180508925
+  n_ztf_alerts:
+    min: 0
+    max: 4723
+    median: 107.0
+    mean: 303.7225303791757
+    std: 463.8160278824898
+  mean_ztf_alert_braai:
+    min: 0.0
+    max: 1.0
+    median: 0.8024972106227093
+    mean: 0.6186727091350507
+    std: 0.399777890607977
+  period:
+    min: 0.0208335053175687
+    max: 517.5360717773438
+    median: 0.1684057712554931
+    mean: 6.364124402270989
+    std: 41.949603601179156
+  significance:
+    min: 6.118862628936768
+    max: 624.5211181640625
+    median: 58.54999923706055
+    mean: 114.21896548587495
+    std: 127.5865875752379
+  f1_power:
+    min: 0.0
+    max: 0.9991801222326536
+    median: 0.7729513576206686
+    mean: 0.5856637777642174
+    std: 0.39012498079263525
+  f1_BIC:
+    min: 0.0
+    max: 2891387.504941375
+    median: 230.87496827341926
+    mean: 999.6595511797041
+    std: 14770.393366693705
+  f1_a:
+    min: 11.605038108855526
+    max: 35.47802516000542
+    median: 17.204367321227384
+    mean: 17.207453638187303
+    std: 1.9754009492673177
+  f1_b:
+    min: -0.0081851219151183
+    max: 0.0062801395065665
+    median: 2.0085760689046505e-07
+    mean: 3.4800597779789258e-06
+    std: 7.780194814337619e-05
+  f1_amp:
+    min: -9.887075962261807
+    max: 13.924309960344583
+    median: 0.0
+    mean: 0.00030681938973214007
+    std: 0.13155946866638166
+  f1_phi0:
+    min: -11.724438770554938
+    max: 29.653066320859114
+    median: 0.0
+    mean: -5.380212391896144e-05
+    std: 0.13836656908106604
+  f1_relamp1:
+    min: -18.83303491356885
+    max: 7.879818700280141
+    median: 0.0
+    mean: 0.00016760276739433792
+    std: 0.07498279319084965
+  f1_relphi1:
+    min: -10.364638619695516
+    max: 9.954031288887238
+    median: 0.0
+    mean: -0.00019264295360274503
+    std: 0.07278466428116556
+  f1_relamp2:
+    min: -6.975813530902832
+    max: 4.871874483725203
+    median: 0.0
+    mean: 0.00011113187232755609
+    std: 0.043310560007686544
+  f1_relphi2:
+    min: -10.400297029937953
+    max: 6.570057847623894
+    median: 0.0
+    mean: 1.0872106471319056e-05
+    std: 0.05059444662093973
+  f1_relamp3:
+    min: -2.6981900071250675
+    max: 3.781430338071792
+    median: 0.0
+    mean: 9.560206262050944e-06
+    std: 0.029455447659825662
+  f1_relphi3:
+    min: -3.620249993449979
+    max: 2.427014067940686
+    median: 0.0
+    mean: -1.4567874903282583e-05
+    std: 0.03084918708847871
+  f1_relamp4:
+    min: -1.5591887740444768
+    max: 3.3654605530559376
+    median: 0.0
+    mean: 2.200771291810491e-05
+    std: 0.021579957892031404
+  f1_relphi4:
+    min: -1.3925247531097054
+    max: 3.512580595735894
+    median: 0.0
+    mean: -3.106283403481359e-05
+    std: 0.021489003829155504
+  AllWISE__w1mpro:
+    min: -0.64
+    max: 18.55
+    median: 13.375
+    mean: 10.39146157663123
+    std: 6.336729280993646
+  AllWISE__w1sigmpro:
+    min: 0.0
+    max: 0.541
+    median: 0.025
+    mean: 0.02828977736064503
+    std: 0.029680655722442908
+  AllWISE__w2mpro:
+    min: -1.027
+    max: 18.371
+    median: 13.38
+    mean: 10.416712919083375
+    std: 6.358968070465865
+  AllWISE__w2sigmpro:
+    min: 0.0
+    max: 0.5429999999999999
+    median: 0.0289999999999999
+    mean: 0.05173096333452405
+    std: 0.07441618446166971
+  AllWISE__w3mpro:
+    min: -2.966
+    max: 13.961
+    median: 12.18
+    mean: 9.032498107488976
+    std: 5.40822315450349
+  AllWISE__w3sigmpro:
+    min: 0.0
+    max: 0.5429999999999999
+    median: 0.0
+    mean: 0.055817588047942596
+    std: 0.12963007750540897
+  AllWISE__w4mpro:
+    min: -3.4930000000000003
+    max: 10.353
+    median: 8.818
+    mean: 6.599634083670247
+    std: 3.930799975558018
+  AllWISE__w4sigmpro:
+    min: 0.0
+    max: 0.5429999999999999
+    median: 0.0
+    mean: 0.013956541473697027
+    std: 0.07262771279115897
+  Gaia_EDR3__astrometric_excess_noise:
+    min: 0.0
+    max: 159.00471000000002
+    median: 0.0
+    mean: 0.4413401196481314
+    std: 2.654617484408687
+  Gaia_EDR3__parallax:
+    min: -22.923777811496677
+    max: 46.29583797406394
+    median: 0.3582558286094884
+    mean: 0.5084082090602149
+    std: 0.8450879304094892
+  Gaia_EDR3__parallax_error:
+    min: 0.0
+    max: 3.9449198
+    median: 0.06740824
+    mean: 0.12593136954772724
+    std: 0.17324536501697696
+  Gaia_EDR3__phot_bp_mean_mag:
+    min: 0.0
+    max: 24.21375
+    median: 17.42191
+    mean: 17.10962581305227
+    std: 3.113212898074037
+  Gaia_EDR3__phot_bp_rp_excess_factor:
+    min: 0.0
+    max: 163.73576
+    median: 1.244185
+    mean: 1.3158426238751653
+    std: 1.0058780240460925
+  Gaia_EDR3__phot_g_mean_mag:
+    min: 0.0
+    max: 22.020529
+    median: 16.873185999999997
+    mean: 16.556365949973124
+    std: 2.9032751923604057
+  Gaia_EDR3__phot_rp_mean_mag:
+    min: 0.0
+    max: 22.126274
+    median: 16.166319
+    mean: 15.811470105575822
+    std: 2.8546598354464647
+  Gaia_EDR3__pmdec:
+    min: -327.72186458913035
+    max: 360.8625803334337
+    median: -2.459304207403531
+    mean: -3.4039371930688382
+    std: 6.292282926685255
+  Gaia_EDR3__pmdec_error:
+    min: 0.0
+    max: 2.9573073
+    median: 0.06420316
+    mean: 0.12223972343607999
+    std: 0.17578232423936574
+  Gaia_EDR3__pmra:
+    min: -445.8502233328984
+    max: 411.0655015198922
+    median: -0.7855059678934171
+    mean: -0.9401638846246996
+    std: 6.396205073636185
+  Gaia_EDR3__pmra_error:
+    min: 0.0
+    max: 3.0488079
+    median: 0.07042039
+    mean: 0.13286379004737364
+    std: 0.1853519241832836
+  PS1_DR1__gMeanPSFMag:
+    min: 0.0
+    max: 27.992001
+    median: 17.5881
+    mean: 17.385813641764923
+    std: 2.998618558799227
+  PS1_DR1__gMeanPSFMagErr:
+    min: 0.0
+    max: 0.4762149999999999
+    median: 0.0162705005
+    mean: 0.02560849714412246
+    std: 0.030294569909108778
+  PS1_DR1__iMeanPSFMag:
+    min: 0.0
+    max: 21.8801
+    median: 16.6315
+    mean: 16.548635769405635
+    std: 2.0492561358125423
+  PS1_DR1__iMeanPSFMagErr:
+    min: 0.0
+    max: 0.483466
+    median: 0.010936
+    mean: 0.016503628403760233
+    std: 0.019215705218350018
+  PS1_DR1__qualityFlag:
+    min: 0.0
+    max: 174.0
+    median: 60.0
+    mean: 58.39407705445202
+    std: 11.330792461922785
+  PS1_DR1__rMeanPSFMag:
+    min: 0.0
+    max: 22.238001
+    median: 16.9951
+    mean: 16.936967671590995
+    std: 2.1596557453476377
+  PS1_DR1__rMeanPSFMagErr:
+    min: 0.0
+    max: 0.48713499
+    median: 0.012881
+    mean: 0.019732657415647375
+    std: 0.02306842342675604
+  PS1_DR1__yMeanPSFMag:
+    min: 0.0
+    max: 21.304199
+    median: 16.280001000000002
+    mean: 16.047748625891675
+    std: 2.411650378146079
+  PS1_DR1__yMeanPSFMagErr:
+    min: 0.0
+    max: 0.48370799
+    median: 0.0145479999999999
+    mean: 0.022344817664936102
+    std: 0.026862078598248854
+  PS1_DR1__zMeanPSFMag:
+    min: 0.0
+    max: 21.770599
+    median: 16.448
+    mean: 16.325237993652525
+    std: 2.086329999522018
+  PS1_DR1__zMeanPSFMagErr:
+    min: 0.0
+    max: 0.49948201
+    median: 0.011866
+    mean: 0.01834675346206806
+    std: 0.021816145036886694
+
+training:
+  dataset: md5 checksum? filename? from GCS? to use for training
+  classes:
+    # phenomenological classes
+    vnv:
+      # value of label should refer to dataset.dN.csv
+      label: variable
+      # conv_branch: false
+      # value should refer to features section of this config
+      features: phenomenological
+      # our "labels" are floats [0., 0.25, 0.5, 0.75, 1.]
+      threshold: 0.9
+      # balance ratio for the prevalent class. leave null to use all available data
+      balance:
+      weight_per_class: true
+    pnp:
+      label: periodic
+      features: phenomenological
+      threshold: 0.9
+      balance: 1
+      weight_per_class: false
+    longt:
+      label: long timescale
+      features: phenomenological
+      threshold: 0.9
+      balance: 2.5
+      weight_per_class: false
+    i:
+      label: irregular
+      features: phenomenological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
+    fla:
+      label: flaring
+      features: phenomenological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
+    ew:
+      label: EW
+      features: phenomenological
+      threshold: 0.7
+      balance:
+      weight_per_class: false
+    eb:
+      label: EB
+      features: phenomenological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
+    ea:
+      label: EA
+      features: phenomenological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
+    e:
+      label: eclipsing
+      features: phenomenological
+      threshold: 0.7
+      balance:
+      weight_per_class: false
+    # ontological classes
+    agn:
+      label: AGN
+      features: ontological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: true
+    bis:
+      label: binary star
+      features: ontological
+      threshold: 0.7
+      balance:
+      weight_per_class: false
+    blyr:
+      label: Beta Lyr
+      features: ontological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
+    ceph:
+      label: Cepheid
+      features: ontological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
+    dscu:
+      label: Delta Scu
+      features: ontological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
+    lpv:
+      label: LPV
+      features: ontological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
+    mir:
+      label: Mira
+      features: ontological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
+    puls:
+      label: pulsator
+      features: ontological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
+    rrlyr:
+      label: RR Lyrae
+      features: ontological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
+    rscvn:
+      label: RS CVn
+      features: ontological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
+    srv:
+      label: SRV
+      features: ontological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
+    wuma:
+      label: W Uma
+      features: ontological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
+    yso:
+      label: YSO
+      features: ontological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false

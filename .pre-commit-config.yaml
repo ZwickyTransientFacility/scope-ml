@@ -4,7 +4,7 @@ repos:
     hooks:
       - id: check-yaml
       - id: end-of-file-fixer
-        exclude: .ipynb_checkpoints|data/Gaia_hp8_densitymap.fits
+        exclude: .ipynb_checkpoints|data/Gaia_hp8_densitymap.fits|tools/classification_stats.ipynb
       - id: trailing-whitespace
         exclude: .ipynb_checkpoints|data/Gaia_hp8_densitymap.fits
   - repo: https://github.com/python/black
@@ -12,10 +12,10 @@ repos:
     hooks:
       - id: black
         pass_filenames: true
-        exclude: .ipynb_checkpoints|data
+        exclude: .ipynb_checkpoints|data|^.fits
   - repo: https://gitlab.com/pycqa/flake8
     rev: 3.8.4
     hooks:
       - id: flake8
         pass_filenames: true
-        exclude: .ipynb_checkpoints|data|__init__.py
+        exclude: .ipynb_checkpoints|data|^.fits|__init__.py
