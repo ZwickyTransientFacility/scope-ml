@@ -10,6 +10,7 @@ import csv
 ## load dataset
 parser = argparse.ArgumentParser()
 parser.add_argument("inputfile")
+parser.add_argument("--id", type=int, default=1, help="group id on Fritz")
 args = parser.parse_args()
 with open(args.inputfile) as f:
     data = csv.reader(f)
@@ -37,7 +38,7 @@ sample = data[~data['train']]
 with open('token.txt', 'r') as f:
     token = f.read()
 
-def upload(group_id):
+def upload():
     import requests
 
     def api(method, endpoint, data=None):
@@ -55,7 +56,7 @@ def upload(group_id):
         
         # upload 
         json = { "catalog": "ZTF_sources_20210401",
-                  "group_ids": [group_id]} 
+                  "group_ids": [args.id]} 
         json['light_curve_ids'] = [int(i)]
         response = requests.post(
           url='https://fritz.science/api/archive',
@@ -71,7 +72,7 @@ def upload(group_id):
         # annotate
         url = 'https://fritz.science/api/sources/%s/annotations' %obj_id
         json = { "origin": "ML_DR5_d15_v1",
-              "group_ids": [348]}
+              "group_ids": [args.id]}
         
         Gaia = {'Plx': row['Gaia_EDR3__parallax'],'Mag_G': row['Gaia_EDR3__phot_g_mean_mag'],'Mag_Bp': row['Gaia_EDR3__phot_bp_mean_mag'],'Mag_Rp': row['Gaia_EDR3__phot_rp_mean_mag']}
 
@@ -84,4 +85,4 @@ def upload(group_id):
           json=json,
           headers=headers,)
 
-upload(371)
+upload()
