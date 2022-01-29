@@ -3,50 +3,17 @@ import pdb
 import json
 from penquins import Kowalski
 import numpy as np
+from scope import Scope
+import argparse
+import csv
 
-def get_highscoring_objects(otype='vnv',condition="$or",
-    limit=0.9,limit_dnn=None,limit_xgb=None,):
-
-    if limit_dnn == None:
-        limit_dnn = limit
-    if limit_xgb == None:
-        limit_xgb = limit
-
-    ### example
-    q = {"query_type": "find",
-             "query": {
-                 "catalog": "ZTF_source_classifications_DR5",
-                 "filter": { condition : [{'%s_xgb' %otype: { '$gt': limit_xgb }},
-                                    {'%s_dnn' %otype: { '$gt': limit_dnn }}],
-                           },
-                 "projection": {}
-             },
-             "kwargs": {     }
-             }
-
-    r = G.query(q)
-
-    return pd.DataFrame(r['data'])
-
-def get_stats(ids):
-    qs = [
-           {"query_type": "find",
-             "query": {
-                 "catalog": "ZTF_source_features_DR5",
-                 "filter": {'_id': i
-                            },
-                 "projection": {}
-             },
-             "kwargs": {     }
-             }
-        for i in ids
-    ]
-    rs = G.batch_query(qs, n_treads=32)
-
-    return pd.DataFrame([s['data'][0] for s in rs])
-
-# load dataset
-trainingset = pd.read_csv('dataset.d15.csv')
+## load dataset
+parser = argparse.ArgumentParser()
+parser.add_argument("inputfile")
+args = parser.parse_args()
+with open(args.inputfile) as f:
+    data = csv.reader(f)
+    trainingset = pd.DataFrame(data)
 
 # Kowalski
 with open('password.txt', 'r') as f:
@@ -54,21 +21,24 @@ with open('password.txt', 'r') as f:
 G = Kowalski(username=password[0], password=password[1], host='gloria.caltech.edu', timeout=1000)
 
 # get scores and data and combine
-scores = get_highscoring_objects(otype='vnv',condition='$or')
+obj = Scope()
+scores = obj.get_highscoring_objects(otype='vnv',condition='$or')
 
 index = scores.index
 condition = ((scores["vnv_dnn"]>0.95)&(scores['vnv_xgb']<=0.1)) | ((scores["vnv_dnn"]<=0.1)&(scores['vnv_xgb']>0.95))
 disagreements = index[condition]
 disagreeing_scores = scores.iloc[disagreements,:]
 
-stats = get_stats(disagreeing_scores['_id'])
+stats = obj.get_stats(disagreeing_scores['_id'])
 data = pd.merge(disagreeing_scores,stats,left_on='_id',right_on='_id')
 data['train'] = np.isin(data['_id'],trainingset['ztf_id'])
 sample = data[~data['train']]
 
-def upload():
+with open('token.txt', 'r') as f:
+    token = f.read()
+
+def upload(group_id):
     import requests
-    token = "9f78fcea-61f0-4b71-8b9f-d1b1b573fd4d" # Jason's Fritz token
 
     def api(method, endpoint, data=None):
         headers = {'Authorization': f'token {token}'}
@@ -85,7 +55,7 @@ def upload():
         
         # upload 
         json = { "catalog": "ZTF_sources_20210401",
-                  "group_ids": [371]} #group id for the upload location
+                  "group_ids": [group_id]} 
         json['light_curve_ids'] = [int(i)]
         response = requests.post(
           url='https://fritz.science/api/archive',
@@ -96,10 +66,7 @@ def upload():
         try:
             obj_id = response.json()['data']['obj_id']
         except:
-            print('failed to upload target')
             continue
-
-        print(obj_id)
 
         # annotate
         url = 'https://fritz.science/api/sources/%s/annotations' %obj_id
@@ -117,4 +84,4 @@ def upload():
           json=json,
           headers=headers,)
 
-upload()
+upload(371)
