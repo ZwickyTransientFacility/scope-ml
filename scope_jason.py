@@ -3,7 +3,7 @@ import pdb
 import json
 from penquins import Kowalski
 import numpy as np
-from scope import Scope
+from scope.fritz import get_highscoring_objects, get_stats
 import argparse
 import csv
 
@@ -22,15 +22,14 @@ with open('password.txt', 'r') as f:
 G = Kowalski(username=password[0], password=password[1], host='gloria.caltech.edu', timeout=1000)
 
 # get scores and data and combine
-obj = Scope()
-scores = obj.get_highscoring_objects(otype='vnv',condition='$or')
+scores = get_highscoring_objects(otype='vnv',condition='$or')
 
 index = scores.index
 condition = ((scores["vnv_dnn"]>0.95)&(scores['vnv_xgb']<=0.1)) | ((scores["vnv_dnn"]<=0.1)&(scores['vnv_xgb']>0.95))
 disagreements = index[condition]
 disagreeing_scores = scores.iloc[disagreements,:]
 
-stats = obj.get_stats(disagreeing_scores['_id'])
+stats = get_stats(disagreeing_scores['_id'])
 data = pd.merge(disagreeing_scores,stats,left_on='_id',right_on='_id')
 data['train'] = np.isin(data['_id'],trainingset['ztf_id'])
 sample = data[~data['train']]
