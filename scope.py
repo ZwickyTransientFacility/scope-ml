@@ -750,5 +750,6 @@ class Scope:
             # clean up after thyself
             (path_mock / dataset).unlink()
 
+
 if __name__ == "__main__":
     fire.Fire(Scope)
