@@ -9,7 +9,9 @@ from time import sleep
 
 # define the baseurl and set the token to connect
 BASE_URL = 'https://fritz.science/'
-token = "9f78fcea-61f0-4b71-8b9f-d1b1b573fd4d"  # put your Fritz token here. You can get it from your Fritz profile page
+
+# put your Fritz token here. You can get it from your Fritz profile page
+token = "<token>"
 
 
 def api(
