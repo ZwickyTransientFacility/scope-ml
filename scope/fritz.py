@@ -1,5 +1,7 @@
 import urllib
 import requests
+import pathlib
+import yaml
 from typing import Optional, Mapping
 import numpy as np
 import pandas as pd
@@ -59,7 +61,10 @@ def get_stats(G, ids):
 
 
 # define the baseurl and set the token to connect
-BASE_URL = 'https://fritz.science/'
+config_path = pathlib.Path(__file__).parent.parent.absolute() / "fritz.yaml"
+with open(config_path) as config_yaml:
+    config = yaml.load(config_yaml, Loader=yaml.FullLoader)
+BASE_URL = f"{config['fritz']['protocol']}://{config['fritz']['host']}/"
 
 
 def api(
