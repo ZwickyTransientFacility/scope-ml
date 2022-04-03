@@ -115,7 +115,7 @@ But there are still some key things.
 
    Then, you can use `pip install -r requirements.txt` to install other python packages.
 
-   When you meet an error, you can install it by `conda install xxx` , and remove it from `.ruquirements/dev.txt` . After that, you can use `pip install -r requirements.txt` again.
+   When you meet an error, you can install it by `conda install xxx` , and remove it from `.requirements/dev.txt` . After that, you can use `pip install -r requirements.txt` again.
 
 3. If some packages keep making errors.  You are supposed to update the conda environment.
 
@@ -129,6 +129,7 @@ python -m pip install tensorflow-metal
 ```
 
 The `.requirements/dev-M1.txt` , please use this file to overwrite the `.requirements/dev.txt` .
+You can use this order `cp -f .requirements/dev-M1.txt .requirements/dev.txt` to finish this process.
 ```txt
 deepdiff>=5.0
 gsutil>=4.60
