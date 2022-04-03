@@ -34,7 +34,6 @@ Each commit message should consist of a summary line and a longer description, e
 
    ```text
    Rewrite the contributor guide
-
    While reading through the contributor guide, I noticed several places
    in which instructions were out of order. I therefore reorganized all
    sections to follow logically, and fixed several grammar mistakes along
@@ -69,13 +68,15 @@ Developers may merge `main` into their branch as many times as they want to.
 
 ## Setting up your environment
 
+### Windows Linux MacOS (AMD64)
+
 We use `black` to format the code and `flake8` to verify that code complies with [PEP8](https://www.python.org/dev/peps/pep-0008/).
 Please install our pre-commit hook as follows:
 
-    ```shell script
-    pip install pre-commit
-    pre-commit install
-    ```
+```shell script
+pip install pre-commit
+pre-commit install
+```
 
 This will check your changes before each commit to ensure that they
 conform with our code style standards. We use black to reformat Python
@@ -98,6 +99,55 @@ Make sure the requirements to run it are met, e.g.:
 pip install -r requirements.txt
 ```
 
+### MacOS(ARM64)
+
+#### Tensorflow for Mac OS M1
+
+You are supposed to install the correct version of Tensorflow. Specifically, it should fit the ARM64 architecture, and the Mac OS based on M1 series CPU.
+
+Apple official provides effective version. At this page `https://developer.apple.com/metal/tensorflow-plugin/` you can gain the methods to finish it.
+
+But there are still some key things.
+
+1. Anaconda doesn't work properly. In its place, You're going to use Miniforge3, also a conda environment, which is specifically adapted to Apple's operating system. Anaconda does not provide the correct version.
+
+2. After you have successfully installed tensorflow-deps, tensorflow-macos, tensorflow-metal, you are going to modify the file `requirements.txt` before you install any other software. You are supposed to remove `tensorflow<2.6` `tensorflow-addons>=0.12` from `.ruquirements/dev.txt` .
+
+   Then, you can use `pip install -r requirements.txt` to install other python packages.
+
+   When you meet an error, you can install it by `conda install xxx` , and remove it from `.ruquirements/dev.txt` . After that, you can use `pip install -r requirements.txt` again.
+
+3. If some packages keep making errors.  You are supposed to update the conda environment.
+
+#### Specific operation
+
+To install the tensorflow for Mac OS 
+```zsh
+conda install -c apple tensorflow-deps
+python -m pip install tensorflow-macos
+python -m pip install tensorflow-metal
+```
+
+The `.requirements/dev-M1.txt` , please use this file to overwrite the `.requirements/dev.txt` .
+```txt
+deepdiff>=5.0
+gsutil>=4.60
+keras-tuner>=1.0.2
+matplotlib>=3.3
+pytest>=6.1.2
+questionary>=1.8.1
+scikit-learn>=0.24.1
+wandb>=0.12.1
+```
+
+You need to install some packages separately.
+```zsh
+conda install numpy
+conda install openblas #to fix the numpy
+conda install healpy
+conda install pandas
+```
+
 
 ## Contributing Field Guide sections
 
@@ -112,7 +162,7 @@ If you would like to contribute a Field Guide section, please follow the steps b
 
 - Make sure your `config.yaml` file contains a valid Kowalski token.
   - See [here](https://github.com/dmitryduev/penquins) on how to generate one
-(Kowalski account required).
+  (Kowalski account required).
   - You can use `config.defaults.yaml` as a template.
 
 - Make sure the structure of your config file is the same as the default,
