@@ -121,7 +121,7 @@ But there are still some key things.
 
 #### Specific operation
 
-To install the tensorflow for Mac OS 
+To install the tensorflow for Mac OS
 ```zsh
 conda install -c apple tensorflow-deps
 python -m pip install tensorflow-macos
