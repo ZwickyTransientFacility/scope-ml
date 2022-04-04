@@ -7,10 +7,10 @@ import csv
 
 # load dataset
 parser = argparse.ArgumentParser()
-parser.add_argument("inputfile")
-parser.add_argument("--id", type=int, default=1, help="group id on Fritz")
+parser.add_argument("-file", help="dataset")
+parser.add_argument("-id", type=int, default=1, help="group id on Fritz")
 args = parser.parse_args()
-with open(args.inputfile) as f:
+with open(args.file) as f:
     data = csv.reader(f)
     trainingset = pd.DataFrame(data)
 
