@@ -4,54 +4,19 @@ import numpy as np
 from scope.fritz import get_highscoring_objects, get_stats
 import argparse
 import csv
-
-# load dataset
-parser = argparse.ArgumentParser()
-parser.add_argument("-file", help="dataset")
-parser.add_argument("-id", type=int, default=1, help="group id on Fritz")
-args = parser.parse_args()
-with open(args.file) as f:
-    data = csv.reader(f)
-    trainingset = pd.DataFrame(data)
-
-# Kowalski
-with open('password.txt', 'r') as f:
-    password = f.read().splitlines()
-G = Kowalski(
-    username=password[0], password=password[1], host='gloria.caltech.edu', timeout=1000
-)
-
-# get scores and data and combine
-scores = get_highscoring_objects(G, otype='vnv', condition='$or')
-
-index = scores.index
-condition = ((scores["vnv_dnn"] > 0.95) & (scores['vnv_xgb'] <= 0.1)) | (
-    (scores["vnv_dnn"] <= 0.1) & (scores['vnv_xgb'] > 0.95)
-)
-disagreements = index[condition]
-disagreeing_scores = scores.iloc[disagreements, :]
-
-stats = get_stats(G, disagreeing_scores['_id'])
-data = pd.merge(disagreeing_scores, stats, left_on='_id', right_on='_id')
-data['train'] = np.isin(data['_id'], trainingset['ztf_id'])
-sample = data[~data['train']]
-
-with open('token.txt', 'r') as f:
-    token = f.read()
+import json
 
 
-def upload():
+def upload(data):
     import requests
 
     def api(method, endpoint, data=None):
-        headers = {'Authorization': f'token {token}'}
         response = requests.request(method, endpoint, json=data, headers=headers)
         return response
 
-    headers = {"Authorization": f"token {token}"}
+    headers = {"Authorization": f"token {args.token}"}
 
-    for index, row in sample.iterrows():
-        # print(row)
+    for index, row in data.iterrows():
         i = row['_id']
 
         # upload
@@ -96,4 +61,40 @@ def upload():
         )
 
 
-upload()
+if __name__ == "__main__":
+    # load dataset
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-file", help="dataset")
+    parser.add_argument("-id", type=int, default=1, help="group id on Fritz")
+    parser.add_argument(
+        "-token",
+        type=str,
+        help="put your Fritz token here. You can get it from your Fritz profile page",
+    )
+    args = parser.parse_args()
+    with open(args.file) as f:
+        data = csv.reader(f)
+        trainingset = pd.DataFrame(data)
+
+    # setup connection to gloria to get the lightcurves
+    with open('secrets.json', 'r') as f:
+        secrets = json.load(f)
+    G = Kowalski(**secrets['gloria'], verbose=False)
+
+    # get scores and data and combine
+    scores = get_highscoring_objects(G, otype='vnv', condition='$or')
+
+    index = scores.index
+    condition = ((scores["vnv_dnn"] > 0.95) & (scores['vnv_xgb'] <= 0.1)) | (
+        (scores["vnv_dnn"] <= 0.1) & (scores['vnv_xgb'] > 0.95)
+    )
+    disagreements = index[condition]
+    disagreeing_scores = scores.iloc[disagreements, :]
+
+    stats = get_stats(G, disagreeing_scores['_id'])
+    data = pd.merge(disagreeing_scores, stats, left_on='_id', right_on='_id')
+    data['train'] = np.isin(data['_id'], trainingset['ztf_id'])
+    sample = data[~data['train']]
+
+    # upload disagreeing objects to target group id on Fritz
+    upload(sample)

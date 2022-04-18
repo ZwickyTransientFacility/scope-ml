@@ -67,6 +67,10 @@ process:
 
 output: data with classifcation column appended.
 
+```sh
+./scope_download_classification.py -file sample.csv -group_ids [360] -token 9f78fcea-61f0-4b71-8b9f-d1b2b573fd4c
+```
+
 ## Scope Upload Classification
 inputs:
 1. data containing ra, dec, period, and labels
@@ -81,6 +85,10 @@ process:
 2. save the objects to Fritz group
 3. upload the classification of the objects in the dataset to target group on Fritz
 
+```sh
+./scope_download_classification.py -file sample.csv -group_ids [360] -taxonomy_id 7 -classification flaring -token 9f78fcea-61f0-4b71-8b9f-d1b2b573fd4c
+```
+
 ## Scope Upload Disagreements
 inputs:
 1. dataset
@@ -94,3 +102,7 @@ process:
 4. get different statistics of those disagreeing objects and combine to a dataframe
 5. filter those disagreeing objects that are contained in the training set and remove them
 6. upload the remaining disagreeing objects to target group on Fritz
+
+```sh
+./scope_download_classification.py -file dataset.d15.csv -id 360 -token 9f78fcea-61f0-4b71-8b9f-d1b2b573fd4c
+```
