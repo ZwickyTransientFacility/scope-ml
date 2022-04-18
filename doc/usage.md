@@ -68,7 +68,7 @@ process:
 output: data with classifcation column appended.
 
 ```sh
-./scope_download_classification.py -file sample.csv -group_ids [360] -token 9f78fcea-61f0-4b71-8b9f-d1b2b573fd4c
+./scope_download_classification.py -file sample.csv -group_ids [360] -token sample_token
 ```
 
 ## Scope Upload Classification
@@ -86,7 +86,7 @@ process:
 3. upload the classification of the objects in the dataset to target group on Fritz
 
 ```sh
-./scope_download_classification.py -file sample.csv -group_ids [360] -taxonomy_id 7 -classification flaring -token 9f78fcea-61f0-4b71-8b9f-d1b2b573fd4c
+./scope_download_classification.py -file sample.csv -group_ids [360] -taxonomy_id 7 -classification flaring -token sample_token
 ```
 
 ## Scope Upload Disagreements
@@ -104,5 +104,5 @@ process:
 6. upload the remaining disagreeing objects to target group on Fritz
 
 ```sh
-./scope_download_classification.py -file dataset.d15.csv -id 360 -token 9f78fcea-61f0-4b71-8b9f-d1b2b573fd4c
+./scope_download_classification.py -file dataset.d15.csv -id 360 -token sample_token
 ```
