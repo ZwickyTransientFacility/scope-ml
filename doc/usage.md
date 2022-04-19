@@ -51,3 +51,58 @@ for class in pnp longt i fla ew eb ea e agn bis blyr ceph dscu lpv mir puls rrly
   done; \
 done;
 ```
+
+## Scope Download Classification
+inputs:
+1. data containing ra, dec, and period
+2. gloria object
+3. group id on Fritz
+4. Fritz token
+
+process:
+1. get object ids of all the data from Fritz using the ra, dec, and period
+2. save the objects to Fritz group
+3. get the classification of the objects in the dataset from Fritz
+4. append the classification to a new column on the dataset
+
+output: data with classifcation column appended.
+
+```sh
+./scope_download_classification.py -file sample.csv -group_ids [360] -token sample_token
+```
+
+## Scope Upload Classification
+inputs:
+1. data containing ra, dec, period, and labels
+2. gloria object
+3. target group id on Fritz for upload
+4. Scope taxonomy id
+5. Class name of objects
+6. Fritz token
+
+process:
+1. get object ids of all the data from Fritz using the ra, dec, and period
+2. save the objects to Fritz group
+3. upload the classification of the objects in the dataset to target group on Fritz
+
+```sh
+./scope_download_classification.py -file sample.csv -group_ids [360] -taxonomy_id 7 -classification flaring -token sample_token
+```
+
+## Scope Upload Disagreements
+inputs:
+1. dataset
+2. group id on Fritz
+3. gloria object
+
+process:
+1. read in the csv dataset to pandas dataframe
+2. get high scoring objects on DNN or on XGBoost from Fritz
+3. get objects that have high confidence on DNN but low confidence on XGBoost and vice versa
+4. get different statistics of those disagreeing objects and combine to a dataframe
+5. filter those disagreeing objects that are contained in the training set and remove them
+6. upload the remaining disagreeing objects to target group on Fritz
+
+```sh
+./scope_download_classification.py -file dataset.d15.csv -id 360 -token sample_token
+```
