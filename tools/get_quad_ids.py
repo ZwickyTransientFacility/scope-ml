@@ -1,4 +1,5 @@
 from penquins import Kowalski
+import json
 
 def get_field_ids(catalog,field=301,ccd=2,quad=3,minobs=5,n=10):
     '''Get ids as a list for a specific quad of a CCD for a particular ZTF field.
@@ -36,7 +37,7 @@ def get_field_ids(catalog,field=301,ccd=2,quad=3,minobs=5,n=10):
             }
         }
 
-    r = k.query(q)
+    r = gloria.query(q)
     data = r.get('data')
     return [data[i]['_id'] for i in range(len(data))]
 
