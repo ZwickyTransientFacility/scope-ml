@@ -1,5 +1,15 @@
 # Usage
 
+## Download ids for a ZTF quad
+
+```python
+get_field_ids.py
+ZTF_sources_20210401 -field 301 -ccd 2 -quad 3 -minobs 5 -skip 0 -limit 20 -token sample_token
+```
+
+It can then be put in a loop to, say, get 100 ids at a time from a quad,
+and/or loop over quads and CCDs to get all ids for a field.
+
 ## Training deep learning models
 
 For details on the SCoPe taxonomy and architecture,
