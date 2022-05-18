@@ -200,6 +200,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "-output",
         action='store',
+        default='output.txt',
         type=argparse.FileType('w'),
         help="file to write output to",
     )
@@ -264,7 +265,7 @@ if __name__ == "__main__":
     #    data = get_field_ids(catalog='ZTF_sources_20210401',limit=args.limit)
     # print(data)
 
-    if args.all_quads is not None:
+    if args.all_quads:
         get_all_ids(
             get_field_ids,
             catalog=args.catalog,
