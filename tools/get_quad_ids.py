@@ -17,6 +17,7 @@ def get_all_ids(
     quad_range=4,
     minobs=20,
     limit=10000,
+    verbose=2,
     output_dir=os.path.join(os.path.dirname(__file__), "output/"),
 ):
     '''
@@ -51,33 +52,36 @@ def get_all_ids(
 
     # Write metadata in this file
     f = open(output_dir + "data.txt", "w")
-    string = (
-        "Catalog: "
-        + catalog
-        + "\nMin points: "
-        + str(minobs)
-        + "\nField: "
-        + str(field)
-        + "\nCCD Range: [1,"
-        + str(ccd_range)
-        + "] "
-        + "\nQuad Range: [1,"
-        + str(quad_range)
-        + "]\n.\n.\n.\n\n"
-    )
-    f.writelines(string)
-    for ccd in tqdm(range(1, ccd_range + 1)):
-        for quad in tqdm(range(1, quad_range + 1)):
+    if verbose > 0:
+        string = (
+            "Catalog: "
+            + catalog
+            + "\nMin points: "
+            + str(minobs)
+            + "\nField: "
+            + str(field)
+            + "\nCCD Range: [1,"
+            + str(ccd_range)
+            + "] "
+            + "\nQuad Range: [1,"
+            + str(quad_range)
+            + "]\n.\n.\n.\n\n"
+        )
+        f.writelines(string)
 
-            hf = h5py.File(
-                output_dir
-                + 'data_ccd_'
-                + str(ccd).zfill(2)
-                + '_quad_'
-                + str(quad)
-                + '.h5',
-                'w',
-            )
+    for ccd in tqdm(range(1, ccd_range + 1), disable=(not (verbose > 1))):
+        for quad in range(1, quad_range + 1):
+
+            if verbose > 1:
+                hf = h5py.File(
+                    output_dir
+                    + 'data_ccd_'
+                    + str(ccd).zfill(2)
+                    + '_quad_'
+                    + str(quad)
+                    + '.h5',
+                    'w',
+                )
             i = 0
             total_time = 0
             while 1:
@@ -91,26 +95,29 @@ def get_all_ids(
                     limit=limit,
                 )
                 # Write to hdf5
-                dset = hf.create_dataset('dataset_' + str(i).zfill(3), data=data)
-                dset.attrs['exec_time'] = time_taken  # add attribute for time taken
+                if verbose > 1:
+                    dset = hf.create_dataset('dataset_' + str(i).zfill(3), data=data)
+                    dset.attrs['exec_time'] = time_taken  # add attribute for time taken
                 total_time += time_taken
                 if len(data) < limit:
-                    length = len(data) + (i * limit)
-                    string = (
-                        "\nCCD: "
-                        + str(ccd)
-                        + " Quad: "
-                        + str(quad)
-                        + "\nNumber of ids: "
-                        + str(length)
-                        + "\nExecution Time: "
-                        + str(round(total_time * 1000, 4))
-                        + " ms\n"
-                    )
-                    f.writelines(string)  # Write metadata for each quad
+                    if verbose > 0:
+                        length = len(data) + (i * limit)
+                        string = (
+                            "\nCCD: "
+                            + str(ccd)
+                            + " Quad: "
+                            + str(quad)
+                            + "\nNumber of ids: "
+                            + str(length)
+                            + "\nExecution Time: "
+                            + str(round(total_time * 1000, 4))
+                            + " ms\n"
+                        )
+                        f.writelines(string)  # Write metadata for each quad
                     break
                 i += 1
-            hf.close()
+            if verbose > 1:
+                hf.close()
     f.close()
 
 
@@ -171,7 +178,7 @@ def get_field_ids(catalog, field=301, ccd=4, quad=3, minobs=20, skip=0, limit=10
                 "field": {"$eq": field},
                 "ccd": {"$eq": ccd},
                 "quad": {"$eq": quad},
-                "nobs": {"$gt": minobs},
+                "n": {"$gt": minobs},
             },
             "projection": {
                 "_id": 1,
@@ -247,7 +254,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "-limit", type=int, default=10000, help="number of rows to return (default 10)"
     )
-
+    parser.add_argument("-verbose", type=int, default=2, help="how much data to store")
     parser.add_argument(
         "--all-quads",
         action="store_true",
@@ -274,9 +281,18 @@ if __name__ == "__main__":
             quad_range=args.quad_range,
             minobs=args.minobs,
             limit=args.limit,
+            verbose=args.verbose,
             output_dir=os.path.join(os.path.dirname(__file__), args.output_dir),
         )
 
     else:
-        data, _ = get_field_ids(catalog=args.catalog, limit=args.limit)
+        data, _ = get_field_ids(
+            catalog=args.catalog,
+            field=args.field,
+            ccd=args.ccd,
+            quad=args.quad,
+            minobs=args.minobs,
+            skip=args.skip,
+            limit=args.limit,
+        )
         pd.DataFrame(data).to_csv(args.output, index=False, header=False)
