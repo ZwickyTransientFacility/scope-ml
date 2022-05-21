@@ -69,6 +69,7 @@ def clean_data(features_df, feature_names, feature_stats, flag_ids=None):
         stats = feature_stats.get(feature)
         features_df[feature] = features_df[feature].fillna(stats['mean'])
     if flag_ids is not None:
+        # os.makedirs(os.path.dirname(flag_ids), exist_ok=True)
         with open(flag_ids, "w") as outfile:
             json.dump(missing_dict, outfile)
     # print(type(features_df), type(feature_names), type(feature_stats))
@@ -80,48 +81,56 @@ def get_features(
     features_catalog: str = "ZTF_source_features_DR5",
     **kwargs,
 ):
-    verbose = kwargs.get("verbose", False)
-    query_length = kwargs.get("query_length", 1000)
+    # TODO: Code profiling, check time taken for querying features. check time taken for reading csv of already computed features.
+    # Use schoty to run inference
+    filename = "preds/ccd_01_quad_1/features.csv"
+    if os.path.exists(filename):
+        df = pd.read_csv(filename)
+        dmdt = np.expand_dims(np.array([d for d in df['dmdt'].values]), axis=-1)
+    else:
+        verbose = kwargs.get("verbose", False)
+        query_length = kwargs.get("query_length", 1000)
 
-    if not hasattr(source_ids, "__iter__"):
-        source_ids = (source_ids,)
+        if not hasattr(source_ids, "__iter__"):
+            source_ids = (source_ids,)
 
-    id = 0
-    df_collection = []
-    dmdt_collection = []
-    while 1:
-        query = {
-            "query_type": "find",
-            "query": {
-                "catalog": features_catalog,
-                "filter": {
-                    "_id": {
-                        "$in": source_ids[
-                            (id * query_length) : ((id + 1) * query_length)
-                        ]
-                    }
+        id = 0
+        df_collection = []
+        dmdt_collection = []
+        while 1:
+            query = {
+                "query_type": "find",
+                "query": {
+                    "catalog": features_catalog,
+                    "filter": {
+                        "_id": {
+                            "$in": source_ids[
+                                (id * query_length) : ((id + 1) * query_length)
+                            ]
+                        }
+                    },
                 },
-            },
-        }
-        response = kowalski.query(query=query)
-        source_data = response.get("data")
+            }
+            response = kowalski.query(query=query)
+            source_data = response.get("data")
 
-        if len(source_data) == 0:
-            raise ValueError(f"No data found for source ids {source_ids}")
+            if len(source_data) == 0:
+                raise ValueError(f"No data found for source ids {source_ids}")
 
-        df_temp = pd.DataFrame.from_records(source_data)
-        df_collection += [df_temp]
-        dmdt_temp = np.expand_dims(
-            np.array([d for d in df_temp['dmdt'].values]), axis=-1
-        )
-        dmdt_collection += [dmdt_temp]
+            df_temp = pd.DataFrame.from_records(source_data)
+            df_collection += [df_temp]
+            dmdt_temp = np.expand_dims(
+                np.array([d for d in df_temp['dmdt'].values]), axis=-1
+            )
+            dmdt_collection += [dmdt_temp]
 
-        if ((id + 1) * query_length) > len(source_ids):
-            break
-        id += 1
+            if ((id + 1) * query_length) > len(source_ids):
+                break
+            id += 1
 
-    df = pd.concat(df_collection, axis=0)
-    dmdt = np.vstack(dmdt_collection)
+        df = pd.concat(df_collection, axis=0)
+        dmdt = np.vstack(dmdt_collection)
+        df.to_csv("preds/ccd_01_quad_1_features.csv", index=False)
 
     if verbose:
         print(df)
@@ -265,11 +274,19 @@ def run(
         ]
     )
     features[model_class] = preds
-    if verbose:
-        print(features[["_id", model_class]])
 
     output_file = kwargs.get("output", "preds.csv")
-    features[["_id", model_class]].to_csv(output_file)
+    preds_df = features[["_id", model_class]]
+    preds_df.reset_index(inplace=True, drop=True)
+    preds_df.to_csv(output_file, index=False)
+    # dirname = "preds/ccd_0_quad_1/"
+    # filename = "all_preds.csv"
+    # TODO: append predictions to a grand df
+    # if os.path.exists(dirname+filename):
+    #     preds_df1 = pd.read_csv(dirname+filename)
+
+    if verbose:
+        print(preds_df)
 
 
 if __name__ == "__main__":
