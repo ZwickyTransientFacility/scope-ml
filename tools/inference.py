@@ -32,6 +32,10 @@ kowalski = Kowalski(
 
 
 def gettime(f):
+    '''
+    Wrapper function that prints the time taken by a function f.
+    '''
+
     def timed(*args, **kw):
         ts = time.time()
         result = f(*args, **kw)
@@ -45,14 +49,17 @@ def gettime(f):
 missing_dict = {}
 
 
-@gettime
+# @gettime
 def make_missing_dict(source_ids):
+    '''
+    Make a dictionary for storing the missing features for all objects.
+    '''
     for id in source_ids:
         missing_dict[id] = []
 
 
-@gettime
-def clean_data(features_df, feature_names, feature_stats, flag_ids=None):
+# @gettime
+def clean_data(features_df, feature_names, feature_stats, ccd, quad, flag_ids=False):
     '''
     Impute missing values in features data
     Parameters
@@ -63,53 +70,68 @@ def clean_data(features_df, feature_names, feature_stats, flag_ids=None):
         features of interest for inference
     feature_stats : dict
         feature statistics from config.yaml
-    flag_ids : str
-        json file where flagged ids and features with missing values will be stored
+    flag_ids : bool
+        whether to store flagged ids and features with missing values
+    ccd : int
+        CCD number [1,16]
+    quad : int
+        CCD quad number [1,4]
     Returns
     -------
     Clean dataframe with no missing values.
     '''
     assert isinstance(features_df, pd.DataFrame), "df needs to be a pd.DataFrame"
+
+    # file to store flagged ids and features with missing values
+    filename = "preds/ccd_" + str(ccd).zfill(2) + "_quad_" + str(quad) + "/flagged.json"
     for feature in (
         features_df[feature_names]
         .columns[features_df[feature_names].isna().any()]
         .tolist()
     ):
-        # print(feature, "stats mean", stats['mean']) # for debugging
-        if flag_ids is not None:
+        if flag_ids:
             for id in features_df[features_df[feature].isnull()]['_id'].values:
                 if id not in missing_dict.keys():
                     missing_dict[id.astype(int)] = []
-                missing_dict[id.astype(int)] += [feature]
-        stats = feature_stats.get(feature)
+                missing_dict[id.astype(int)] += [feature]  # add feature to dict
+        stats = feature_stats.get(feature)  # get stats of feature from config.yaml
+
+        # fill missing values with mean
         features_df[feature] = features_df[feature].fillna(stats['mean'])
-    if flag_ids is not None:
-        os.makedirs(os.path.dirname(flag_ids), exist_ok=True)
-        with open(flag_ids, "w") as outfile:
-            json.dump(missing_dict, outfile)
-    # print(type(features_df), type(feature_names), type(feature_stats))
+    if flag_ids:
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        with open(filename, "w") as outfile:
+            try:
+                json.dump(missing_dict, outfile)  # dump dictionary to a json file
+            except Exception as e:
+                print("error dumping flagged to json, message: ", e)
     return features_df
 
 
-@gettime
+# @gettime
 def get_features(
     source_ids: List[int],
     features_catalog: str = "ZTF_source_features_DR5",
     verbose: bool = False,
     **kwargs,
 ):
-    # TODO: Code profiling, check time taken for querying features. check time taken for reading csv of already computed features.
-    # Use schoty to run inference
-    dirname = "preds/ccd_01_quad_1/"
-    filename = "features.csv"
+    ccd = kwargs.get("ccd", 1)
+    quad = kwargs.get("quad", 1)
+    features_path = kwargs.get("features_path", None)
+    if features_path is not None:
+        filename = features_path
+    else:
+        filename = (
+            "preds/ccd_" + str(ccd).zfill(2) + "_quad_" + str(quad) + "/features.csv"
+        )
 
-    if os.path.exists(dirname + filename):
-        # print("Features already present!")
-        df = pd.read_pickle(dirname + filename)
+    # Check if features are already stored
+    if os.path.exists(filename):
+        df = pd.read_pickle(filename)
         # df = pd.read_csv(dirname + filename)
         dmdt = np.expand_dims(np.array([d for d in df['dmdt'].values]), axis=-1)
-        # print("dmdt shape and type", dmdt.shape, type(dmdt))
 
+    # query features if not already stored
     else:
         query_length = kwargs.get("query_length", 1000)
 
@@ -138,10 +160,10 @@ def get_features(
                 raise ValueError(f"No data found for source ids {source_ids}")
 
             df_temp = pd.DataFrame.from_records(source_data)
-            df_collection += [df_temp]
             dmdt_temp = np.expand_dims(
                 np.array([d for d in df_temp['dmdt'].values]), axis=-1
             )
+            df_collection += [df_temp]
             dmdt_collection += [dmdt_temp]
 
             if ((id + 1) * query_length) > len(source_ids):
@@ -150,17 +172,18 @@ def get_features(
 
         df = pd.concat(df_collection, axis=0)
         dmdt = np.vstack(dmdt_collection)
-        df.to_pickle(dirname + filename)
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        df.to_pickle(filename)
         # df.to_csv(dirname + filename, index=False)
 
         if verbose:
             print(df)
-            print("dmdt shape and type", dmdt.shape, type(dmdt))
+            print("dmdt shape", dmdt.shape)
 
     return df, dmdt
 
 
-@gettime
+# @gettime
 def make_model(**kwargs):
     features_input = tf.keras.Input(
         shape=kwargs.get("features_input_shape", (40,)), name="features"
@@ -214,7 +237,7 @@ def make_model(**kwargs):
     return m
 
 
-@gettime
+# @gettime
 def run(
     path_model: Union[str, pathlib.Path],
     model_class: str,
@@ -235,15 +258,25 @@ def run(
 
     :param path_model:
     :param model_class:
-    :param source_ids:
+    :param ccd:
+    :param quad:
     :return:
     """
-    source_ids_filename = kwargs.get(
-        "source_ids_filename", "output/data_ccd_01_quad_1.h5"
-    )
+
+    # get arguments
+    ccd = kwargs.get("ccd", 1)
+    quad = kwargs.get("quad", 1)
     tm = kwargs.get("time", False)
+    verbose = kwargs.get("verbose", False)
+    flag_ids = kwargs.get("flag_ids", False)
+
+    # default file location for source ids
+    default_file = "output/data_ccd_" + str(ccd).zfill(2) + "_quad_" + str(quad) + ".h5"
+    source_ids_filename = kwargs.get("source_ids_filename", default_file)
+
     filename = os.path.join(BASE_DIR, source_ids_filename)
 
+    # read source ids from hdf5 file
     ts = time.time()
     source_ids = []
     with h5py.File(filename, "r") as f:
@@ -259,19 +292,20 @@ def run(
             + " s"
         )
 
-    verbose = kwargs.get("verbose", False)
     if verbose:
-        print(len(source_ids))
+        print("Number of ids:", len(source_ids))
 
     # get raw features
     features, dmdt = get_features(
         source_ids=source_ids,
         features_catalog="ZTF_source_features_DR5",
         verbose=verbose,
+        ccd=ccd,
+        quad=quad,
     )
 
-    ts = time.time()
     # scale features
+    ts = time.time()
     train_config = config["training"]["classes"][model_class]
     feature_names = config["features"][train_config["features"]]
     feature_stats = config.get("feature_stats", None)
@@ -292,10 +326,10 @@ def run(
             "min max scaling".ljust(JUST) + "\t --> \t" + str(round(te - ts, 4)) + " s"
         )
 
-    verbose = kwargs.get("verbose", False)
     if verbose:
         print(features)
 
+    # Load pre-trained model
     ts = time.time()
     if str(path_model).endswith(".h5"):
         model = tf.keras.models.load_model(path_model)
@@ -313,9 +347,9 @@ def run(
             + " s"
         )
 
+    # Impute missing data and flag source ids containing missing values
     make_missing_dict(source_ids)
-    flag_ids = kwargs.get("flag_ids", None)
-    features = clean_data(features, feature_names, feature_stats, flag_ids)
+    features = clean_data(features, feature_names, feature_stats, ccd, quad, flag_ids)
 
     ts = time.time()
     preds = model.predict([features[feature_names].values, dmdt])
@@ -329,20 +363,25 @@ def run(
             + " s"
         )
 
-    output_file = kwargs.get("output", "preds.csv")
+    output_file = kwargs.get(
+        "output",
+        "preds/ccd_"
+        + str(ccd).zfill(2)
+        + "_quad_"
+        + str(quad)
+        + "/"
+        + model_class
+        + ".csv",
+    )
     preds_df = features[["_id", model_class]]
     preds_df.reset_index(inplace=True, drop=True)
-    # preds_df.to_csv(output_file, index=False)
-    preds_df.to_pickle(output_file)
 
-    # dirname = "preds/ccd_0_quad_1/"
-    # filename = "all_preds.csv"
-    # TODO: append predictions to a grand df
-    # if os.path.exists(dirname+filename):
-    #     preds_df1 = pd.read_csv(dirname+filename)
+    os.makedirs(os.path.dirname(output_file), exist_ok=True)
+    preds_df.to_csv(output_file, index=False)
+    # preds_df.to_pickle(output_file)
 
     if verbose:
-        print(preds_df)
+        print("Predictions:\n", preds_df)
 
 
 if __name__ == "__main__":
