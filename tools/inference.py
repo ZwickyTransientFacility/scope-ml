@@ -3,19 +3,20 @@ import numpy as np
 import pandas as pd
 import pathlib
 from penquins import Kowalski
-import tensorflow as tf
+import warnings
 from typing import List, Union
 import yaml
-import warnings
 import json
 import os
+import time
 import h5py
+import tensorflow as tf
 
-warnings.filterwarnings('ignore')
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
-tf.get_logger().setLevel('INFO')
+warnings.filterwarnings('ignore')
+
 BASE_DIR = os.path.dirname(__file__)
+JUST = 50
 
 
 config_path = pathlib.Path(__file__).parent.parent.absolute() / "config.yaml"
@@ -29,14 +30,28 @@ kowalski = Kowalski(
     port=config["kowalski"]["port"],
 )
 
+
+def gettime(f):
+    def timed(*args, **kw):
+        ts = time.time()
+        result = f(*args, **kw)
+        te = time.time()
+        print(str(f.__name__).ljust(JUST) + "\t --> \t" + str(round(te - ts, 4)) + " s")
+        return result
+
+    return timed
+
+
 missing_dict = {}
 
 
+@gettime
 def make_missing_dict(source_ids):
     for id in source_ids:
         missing_dict[id] = []
 
 
+@gettime
 def clean_data(features_df, feature_names, feature_stats, flag_ids=None):
     '''
     Impute missing values in features data
@@ -69,26 +84,33 @@ def clean_data(features_df, feature_names, feature_stats, flag_ids=None):
         stats = feature_stats.get(feature)
         features_df[feature] = features_df[feature].fillna(stats['mean'])
     if flag_ids is not None:
-        # os.makedirs(os.path.dirname(flag_ids), exist_ok=True)
+        os.makedirs(os.path.dirname(flag_ids), exist_ok=True)
         with open(flag_ids, "w") as outfile:
             json.dump(missing_dict, outfile)
     # print(type(features_df), type(feature_names), type(feature_stats))
     return features_df
 
 
+@gettime
 def get_features(
     source_ids: List[int],
     features_catalog: str = "ZTF_source_features_DR5",
+    verbose: bool = False,
     **kwargs,
 ):
     # TODO: Code profiling, check time taken for querying features. check time taken for reading csv of already computed features.
     # Use schoty to run inference
-    filename = "preds/ccd_01_quad_1/features.csv"
-    if os.path.exists(filename):
-        df = pd.read_csv(filename)
+    dirname = "preds/ccd_01_quad_1/"
+    filename = "features.csv"
+
+    if os.path.exists(dirname + filename):
+        # print("Features already present!")
+        df = pd.read_pickle(dirname + filename)
+        # df = pd.read_csv(dirname + filename)
         dmdt = np.expand_dims(np.array([d for d in df['dmdt'].values]), axis=-1)
+        # print("dmdt shape and type", dmdt.shape, type(dmdt))
+
     else:
-        verbose = kwargs.get("verbose", False)
         query_length = kwargs.get("query_length", 1000)
 
         if not hasattr(source_ids, "__iter__"):
@@ -98,23 +120,21 @@ def get_features(
         df_collection = []
         dmdt_collection = []
         while 1:
+            limit = query_length
+            skip = id * limit
             query = {
                 "query_type": "find",
                 "query": {
                     "catalog": features_catalog,
-                    "filter": {
-                        "_id": {
-                            "$in": source_ids[
-                                (id * query_length) : ((id + 1) * query_length)
-                            ]
-                        }
-                    },
+                    "filter": {"_id": {"$in": source_ids}},
                 },
+                "kwargs": {"limit": limit, "skip": skip},
             }
             response = kowalski.query(query=query)
             source_data = response.get("data")
 
-            if len(source_data) == 0:
+            if source_data is None:
+                print(response)
                 raise ValueError(f"No data found for source ids {source_ids}")
 
             df_temp = pd.DataFrame.from_records(source_data)
@@ -130,15 +150,17 @@ def get_features(
 
         df = pd.concat(df_collection, axis=0)
         dmdt = np.vstack(dmdt_collection)
-        df.to_csv("preds/ccd_01_quad_1_features.csv", index=False)
+        df.to_pickle(dirname + filename)
+        # df.to_csv(dirname + filename, index=False)
 
-    if verbose:
-        print(df)
-        print(dmdt.shape)
+        if verbose:
+            print(df)
+            print("dmdt shape and type", dmdt.shape, type(dmdt))
 
     return df, dmdt
 
 
+@gettime
 def make_model(**kwargs):
     features_input = tf.keras.Input(
         shape=kwargs.get("features_input_shape", (40,)), name="features"
@@ -192,6 +214,7 @@ def make_model(**kwargs):
     return m
 
 
+@gettime
 def run(
     path_model: Union[str, pathlib.Path],
     model_class: str,
@@ -218,22 +241,36 @@ def run(
     source_ids_filename = kwargs.get(
         "source_ids_filename", "output/data_ccd_01_quad_1.h5"
     )
+    tm = kwargs.get("time", False)
     filename = os.path.join(BASE_DIR, source_ids_filename)
+
+    ts = time.time()
     source_ids = []
     with h5py.File(filename, "r") as f:
         for key in list(f.keys()):
             source_ids.append(list(map(int, f[key])))
-    # source_ids = source_ids[0]
     source_ids = [item for sublist in source_ids for item in sublist]
+    te = time.time()
+    if tm:
+        print(
+            "read source_ids from .h5".ljust(JUST)
+            + "\t --> \t"
+            + str(round(te - ts, 4))
+            + " s"
+        )
 
     verbose = kwargs.get("verbose", False)
     if verbose:
         print(len(source_ids))
 
-    # source_ids = source_ids[:1000]
     # get raw features
-    features, dmdt = get_features(source_ids)
+    features, dmdt = get_features(
+        source_ids=source_ids,
+        features_catalog="ZTF_source_features_DR5",
+        verbose=verbose,
+    )
 
+    ts = time.time()
     # scale features
     train_config = config["training"]["classes"][model_class]
     feature_names = config["features"][train_config["features"]]
@@ -249,11 +286,17 @@ def run(
                 features[feature] = (features[feature] - stats["min"]) / (
                     stats["max"] - stats["min"]
                 )
+    te = time.time()
+    if tm:
+        print(
+            "min max scaling".ljust(JUST) + "\t --> \t" + str(round(te - ts, 4)) + " s"
+        )
 
     verbose = kwargs.get("verbose", False)
     if verbose:
         print(features)
 
+    ts = time.time()
     if str(path_model).endswith(".h5"):
         model = tf.keras.models.load_model(path_model)
     else:
@@ -261,24 +304,37 @@ def run(
         if verbose:
             print(model.summary())
         model.load_weights(path_model).expect_partial()
+    te = time.time()
+    if tm:
+        print(
+            "load pre-trained model".ljust(JUST)
+            + "\t --> \t"
+            + str(round(te - ts, 4))
+            + " s"
+        )
 
     make_missing_dict(source_ids)
     flag_ids = kwargs.get("flag_ids", None)
     features = clean_data(features, feature_names, feature_stats, flag_ids)
 
-    # preds = model.predict([features[feature_names].values, dmdt])
-    preds = model.predict(
-        [
-            np.asarray(features[feature_names].values).astype('float32'),
-            np.asarray(dmdt).astype('float32'),
-        ]
-    )
+    ts = time.time()
+    preds = model.predict([features[feature_names].values, dmdt])
     features[model_class] = preds
+    te = time.time()
+    if tm:
+        print(
+            "inference (model.predict())".ljust(JUST)
+            + "\t --> \t"
+            + str(round(te - ts, 4))
+            + " s"
+        )
 
     output_file = kwargs.get("output", "preds.csv")
     preds_df = features[["_id", model_class]]
     preds_df.reset_index(inplace=True, drop=True)
-    preds_df.to_csv(output_file, index=False)
+    # preds_df.to_csv(output_file, index=False)
+    preds_df.to_pickle(output_file)
+
     # dirname = "preds/ccd_0_quad_1/"
     # filename = "all_preds.csv"
     # TODO: append predictions to a grand df
