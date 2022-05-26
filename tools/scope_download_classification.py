@@ -42,7 +42,7 @@ def download_classification(file, gloria, group_ids):
             json = {"objId": obj_id, "inviteGroupIds": group_ids}
             response = api("POST", "/api/source_groups", args.token, json)
 
-        # get classificaiton
+        # get classification
         response = api(
             "GET", f"/api/sources/{obj_id}/classifications", args.token)
         data = response.json().get("data")
