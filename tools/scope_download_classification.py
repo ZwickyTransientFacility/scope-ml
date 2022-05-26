@@ -4,13 +4,13 @@ import json
 import pandas as pd
 from penquins import Kowalski
 from time import sleep
-from scope.fritz import save_newsource, api
+from scope.fritz import api
 
 
 def download_classification(file, gloria, group_ids):
     """
     Upload labels to Fritz
-    :param file: file containing labels (csv)
+    :param file: file containing objects without labels (csv)
     :param gloria: Gloria object
     :param group_ids: group id on Fritz for upload target location (list)
     """
@@ -18,10 +18,8 @@ def download_classification(file, gloria, group_ids):
     file["classification"] = pd.NaT
 
     for index, row in file.iterrows():
-        if index > 5:
-            break
         # get information from objects
-        ra, dec, period = float(row.ra), float(row.dec), float(row.period)
+        ra, dec = float(row.ra), float(row.dec)
 
         # get object id
         response = api(
@@ -34,11 +32,9 @@ def download_classification(file, gloria, group_ids):
             obj_id = data["sources"][0]["id"]
         print(f"object {index} id:", obj_id)
 
-        # save new source
+        # no labels if new source
         if obj_id is None:
-            obj_id = save_newsource(
-                gloria, group_ids, ra, dec, period=period, return_id=True
-            )
+            file.at[index, 'classification'] = None
 
         # save existing source
         else:
