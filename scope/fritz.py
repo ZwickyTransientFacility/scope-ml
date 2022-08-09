@@ -64,7 +64,7 @@ def get_stats(G, ids):
 config_path = pathlib.Path(__file__).parent.parent.absolute() / "fritz.yaml"
 with open(config_path) as config_yaml:
     config = yaml.load(config_yaml, Loader=yaml.FullLoader)
-BASE_URL = f"{config['fritz']['protocol']}://{config['fritz']['host']}/"
+BASE_URL = "https://fritz.science/"
 
 
 def api(
