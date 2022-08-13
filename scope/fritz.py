@@ -66,7 +66,6 @@ with open(config_path) as config_yaml:
     config = yaml.load(config_yaml, Loader=yaml.FullLoader)
 BASE_URL = "https://fritz.science/"
 
-
 def api(
     method: str,
     endpoint: str,
@@ -237,7 +236,8 @@ def save_newsource(
     group_ids,
     ra,
     dec,
-    radius=1.5,
+    token,
+    radius=2.0,
     obj_id=None,
     dryrun=False,
     period=None,
@@ -273,7 +273,7 @@ def save_newsource(
         obj_id = radec_to_iau_name(ra_mean, dec_mean, prefix="ZTFJ")
 
         # a source exists on F already?
-        response = api("GET", f"/api/sources?&ra={ra}&dec={dec}&radius={2/3600}")
+        response = api("GET", f"/api/sources?&ra={ra}&dec={dec}&radius={radius/3600}", token)
         data = response.json().get("data")
         if data["totalMatches"] > 0:
             # print(data)
@@ -290,9 +290,9 @@ def save_newsource(
                 "group_ids": group_ids,
                 "origin": "Fritz",
             }
-            response = api("POST", "/api/sources", post_source_data)
+            response = api("POST", "/api/sources", token, post_source_data)
             if response.json()["status"] == "error":
-                print("Failed to save {obj_id} as a Source")
+                print(f"Failed to save {obj_id} as a Source")
                 return None
 
         print("Found %d lightcurves" % len(light_curves))
@@ -319,7 +319,7 @@ def save_newsource(
 
         if (len(photometry.get("mag", ())) > 0) & (not dryrun):
             print("Attempting to upload as %s" % obj_id)
-            response = api("PUT", "/api/photometry", photometry)
+            response = api("PUT", "/api/photometry", token, photometry)
             if response.json()["status"] == "error":
                 print('Failed to post to Fritz')
                 return None
@@ -331,7 +331,7 @@ def save_newsource(
             "group_ids": group_ids,
             "data": {'period': period},
         }
-        response = api("POST", "api/sources/%s/annotations" % obj_id, data=data)
+        response = api("POST", "api/sources/%s/annotations" % obj_id, token, data=data)
 
     if return_id is True:
         return obj_id
