@@ -99,6 +99,12 @@ Make sure the requirements to run it are met, e.g.:
 pip install -r requirements.txt
 ```
 
+Ensure that Python can import from `scope` by modifying the `PYTHONPATH` environment variable, e.g. by adding the following to your `.bash_profile`:
+
+```bash
+export PYTHONPATH="$PYTHONPATH:$HOME/scope"
+```
+
 ### MacOS(ARM64)
 
 #### Tensorflow for Mac OS M1

@@ -94,9 +94,10 @@ process:
 1. get object ids of all the data from Fritz using the ra, dec, and period
 2. save the objects to Fritz group
 3. upload the classification of the objects in the dataset to target group on Fritz
+4. to avoid duplicate classification uploads in Fritz, use -classification ''
 
 ```sh
-./scope_download_classification.py -file sample.csv -group_ids 500 250 750 -taxonomy_id 7 -classification flaring -token sample_token
+./scope_upload_classification.py -file sample.csv -group_ids 500 250 750 -taxonomy_id 7 -classification flaring -token sample_token
 ```
 
 ## Scope Upload Disagreements
@@ -114,5 +115,5 @@ process:
 6. upload the remaining disagreeing objects to target group on Fritz
 
 ```sh
-./scope_download_classification.py -file dataset.d15.csv -id 360 -token sample_token
+./scope_upload_disagreements.py -file dataset.d15.csv -id 360 -token sample_token
 ```

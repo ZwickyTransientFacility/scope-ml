@@ -1,13 +1,10 @@
 #!/usr/bin/env python
-import sys
 import argparse
 import json
 import pandas as pd
 from penquins import Kowalski
 from time import sleep
 from scope.fritz import save_newsource, api
-
-sys.path.append('../../scope')
 
 
 def upload_classification(
@@ -62,16 +59,18 @@ def upload_classification(
                 json = {"objId": obj_id, "inviteGroupIds": add_group_ids}
                 response = api("POST", "/api/source_groups", args.token, json)
 
-        # upload classification
-        # allow for multiple classifications at once?
-        json = {
-            "obj_id": obj_id,
-            "classification": classification,
-            "taxonomy_id": taxonomy_id,
-            "probability": prob,
-            "group_ids": group_ids,
-        }
-        response = api("POST", "/api/classification", args.token, json)
+        # allow classification assignment to be skipped (useful to avoid duplicates)
+        if classification != '':
+            # upload classification
+            json = {
+                "obj_id": obj_id,
+                "classification": classification,
+                "taxonomy_id": taxonomy_id,
+                "probability": prob,
+                "group_ids": group_ids,
+            }
+            response = api("POST", "/api/classification", args.token, json)
+            print(response.json())
 
 
 if __name__ == "__main__":
