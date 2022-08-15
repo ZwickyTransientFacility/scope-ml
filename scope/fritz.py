@@ -66,6 +66,7 @@ with open(config_path) as config_yaml:
     config = yaml.load(config_yaml, Loader=yaml.FullLoader)
 BASE_URL = "https://fritz.science/"
 
+
 def api(
     method: str,
     endpoint: str,
@@ -273,7 +274,9 @@ def save_newsource(
         obj_id = radec_to_iau_name(ra_mean, dec_mean, prefix="ZTFJ")
 
         # a source exists on F already?
-        response = api("GET", f"/api/sources?&ra={ra}&dec={dec}&radius={radius/3600}", token)
+        response = api(
+            "GET", f"/api/sources?&ra={ra}&dec={dec}&radius={radius/3600}", token
+        )
         data = response.json().get("data")
         if data["totalMatches"] > 0:
             # print(data)

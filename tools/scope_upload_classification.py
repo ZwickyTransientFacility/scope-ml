@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 import sys
-sys.path.append('../../scope')
 import argparse
-import csv
 import json
 import pandas as pd
 from penquins import Kowalski
 from time import sleep
 from scope.fritz import save_newsource, api
+
+sys.path.append('../../scope')
 
 
 def upload_classification(
