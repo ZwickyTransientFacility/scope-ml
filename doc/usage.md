@@ -96,7 +96,7 @@ process:
 3. upload the classification of the objects in the dataset to target group on Fritz
 
 ```sh
-./scope_download_classification.py -file sample.csv -group_ids [360] -taxonomy_id 7 -classification flaring -token sample_token
+./scope_download_classification.py -file sample.csv -group_ids 500 250 750 -taxonomy_id 7 -classification flaring -token sample_token
 ```
 
 ## Scope Upload Disagreements
