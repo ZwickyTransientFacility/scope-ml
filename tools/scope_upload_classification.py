@@ -45,11 +45,15 @@ def upload_classification(
         else:
             # check which groups source is already in
             add_group_ids = group_ids.copy()
-            response = api("GET", f"/api/sources/{obj_id}/groups", args.token)
+            # response = api("GET", f"/api/sources/{obj_id}/groups", args.token)
+            response = api("GET", f"/api/sources/{obj_id}", args.token)
             data = response.json().get("data")
 
+            data_groups = data['groups']
+            data_classes = data['classifications']
+
             # remove existing groups from list of groups
-            for entry in data:
+            for entry in data_groups:
                 existing_group_id = entry['id']
                 if existing_group_id in add_group_ids:
                     add_group_ids.remove(existing_group_id)
@@ -59,8 +63,12 @@ def upload_classification(
                 json = {"objId": obj_id, "inviteGroupIds": add_group_ids}
                 response = api("POST", "/api/source_groups", args.token, json)
 
-        # allow classification assignment to be skipped (useful to avoid duplicates)
-        if classification != '':
+        # allow classification assignment to be skipped, check for duplicates
+        existing_classes = []
+        for entry in data_classes:
+            existing_classes += [entry['classification']]
+
+        if (classification != '') and (classification not in existing_classes):
             # upload classification
             json = {
                 "obj_id": obj_id,
@@ -70,7 +78,6 @@ def upload_classification(
                 "group_ids": group_ids,
             }
             response = api("POST", "/api/classification", args.token, json)
-            print(response.json())
 
 
 if __name__ == "__main__":
