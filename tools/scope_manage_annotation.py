@@ -24,8 +24,10 @@ def manage_annotation(action, source, group_ids, token, origin, key, value):
         return
 
     # check if source is single object or csv file of many
-    if source[-4:] == '.csv':
+    if source.endswith('.csv'):
         file = pd.read_csv(source)  # modify input formats to prepare for loop
+        if 'obj_id' not in file.columns:
+            raise KeyError('CSV file must include column obj_id for ZTF source IDs.')
         obj_ids = file['obj_id']
         if (action == 'update') | (action == 'post'):
             values = file[key]
@@ -64,10 +66,9 @@ def manage_annotation(action, source, group_ids, token, origin, key, value):
 
                         # Check value if performing update or post actions
                         if value is None:
-                            print(
-                                'Error: please specify annotation value to update or post.'
+                            raise ValueError(
+                                'please specify annotation value to update or post.'
                             )
-                            return
 
                         # After passing check, revise annotation with PUT
                         else:
@@ -124,8 +125,7 @@ def manage_annotation(action, source, group_ids, token, origin, key, value):
 
             # Check value if performing update or post actions
             if value is None:
-                print('Error: please specify annotation value to update or post.')
-                return
+                raise ValueError('please specify annotation value to update or post.')
 
             # After passing check, post annotation with POST
             else:
