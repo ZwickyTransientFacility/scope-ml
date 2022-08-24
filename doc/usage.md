@@ -120,3 +120,22 @@ process:
 ```sh
 ./scope_upload_disagreements.py -file dataset.d15.csv -id 360 -token sample_token
 ```
+
+## Scope Manage Annotation
+inputs:
+1. action (one of "post", "update", or "delete")
+2. source (ZTF ID or path to .csv file with multiple objects (ID column "obj_id"))
+3. target group id(s) on Fritz
+4. Fritz token
+5. origin name of annotation
+6. key name of annotation
+7. value of annotation (required for "post" and "update" - if source is a .csv file, value will auto-populate from source[key])
+
+process:
+1. for each source, find existing annotations (for "update" and "delete" actions)
+2. interact with API to make desired changes to annotations
+3. confirm changes with printed messages
+
+```sh
+./scope_manage_annotation.py -action post -source sample.csv -group_ids 200 300 400 -token sample_token -origin revisedperiod -key period
+```
