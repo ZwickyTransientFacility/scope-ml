@@ -5,22 +5,37 @@ import pandas as pd
 from penquins import Kowalski
 from time import sleep
 from scope.fritz import save_newsource, api
+import math
+import warnings
 
 
 def upload_classification(
-    file, gloria, group_ids, taxonomy_id: int, classification: str
+    file: str,
+    gloria,
+    group_ids: list,
+    taxonomy_id: int,
+    classification: list,
+    token: str,
+    taxonomy_map: str,
+    comment: str,
 ):
     """
     Upload labels to Fritz
-    :param file: file containing labels (csv)
+    :param file: path to CSV file containing labels (str)
     :param gloria: Gloria object
-    :param group_ids: group id on Fritz for upload target location (int int int ...)
+    :param group_ids: list of group ids on Fritz for upload target location [int, int, ...]
     :param taxonomy_id: scope taxonomy id (int)
-    :param classification: classified object (str)
+    :param classification: list of classifications [str, str, ...]
+    :param token: Fritz token (str)
+    :param taxonomy_map: if classification is ['read'], path to JSON file containing taxonomy mapping (str)
+    :param comment: single comment to post (str)
     """
 
-    # get information from objects
-    for index, row in file.iterrows():
+    # read in file to csv
+    sources = pd.read_csv(file)
+    columns = sources.columns
+
+    for index, row in sources.iterrows():
         probs = {}
         cls_list = []
         existing_classes = []
@@ -32,11 +47,11 @@ def upload_classification(
                 | (classification[0] == 'Read')
                 | (classification[0] == 'READ')
             ):
-                with open(args.taxonomy_map, 'r') as f:
-                    taxonomy_map = JSON.load(f)
+                with open(taxonomy_map, 'r') as f:
+                    tax_map = JSON.load(f)
 
                 classes = [
-                    key for key in taxonomy_map.keys()
+                    key for key in tax_map.keys()
                 ]  # define list of columns to examine
                 row_classes = row[classes]  # limit current row to specific columns
                 nonzero_keys = row_classes.keys()[
@@ -44,7 +59,7 @@ def upload_classification(
                 ]  # determine which dataset classifications are nonzero
 
                 for val in nonzero_keys:
-                    cls = taxonomy_map[val]
+                    cls = tax_map[val]
                     if (
                         cls != 'None'
                     ):  # if Fritz taxonomy value exists, add to class list
@@ -58,12 +73,20 @@ def upload_classification(
                     cls_list += [cls]
                     probs[cls] = row.iloc[-1 * len(classification) + i]
 
-        ra, dec, period = float(row.ra), float(row.dec), float(row.period)
+        ra, dec = float(row.ra), float(row.dec)
+
+        # Check for and assign period
+        period = None  # default
+        if 'period' in columns:
+            period = float(row.period)
+            if math.isnan(period):
+                period = None
+                warnings.warn('period is NaN - skipping period upload.')
+        else:
+            warnings.warn('period column is missing - skipping period upload.')
 
         # get object id
-        response = api(
-            "GET", f"/api/sources?&ra={ra}&dec={dec}&radius={2/3600}", args.token
-        )
+        response = api("GET", f"/api/sources?&ra={ra}&dec={dec}&radius={2/3600}", token)
         sleep(0.9)
         data = response.json().get("data")
         obj_id = None
@@ -74,7 +97,7 @@ def upload_classification(
         # save new source
         if obj_id is None:
             obj_id = save_newsource(
-                gloria, group_ids, ra, dec, args.token, period=period, return_id=True
+                gloria, group_ids, ra, dec, token, period=period, return_id=True
             )
             data_groups = []
             data_classes = []
@@ -82,7 +105,7 @@ def upload_classification(
         else:
             # check which groups source is already in
             add_group_ids = group_ids.copy()
-            response = api("GET", f"/api/sources/{obj_id}", args.token)
+            response = api("GET", f"/api/sources/{obj_id}", token)
             data = response.json().get("data")
 
             data_groups = data['groups']
@@ -97,7 +120,7 @@ def upload_classification(
             if len(add_group_ids) > 0:
                 # save to new group_ids
                 json = {"objId": obj_id, "inviteGroupIds": add_group_ids}
-                response = api("POST", "/api/source_groups", args.token, json)
+                response = api("POST", "/api/source_groups", token, json)
 
             # check for existing classifications
             for entry in data_classes:
@@ -116,13 +139,11 @@ def upload_classification(
                         "probability": prob,
                         "group_ids": group_ids,
                     }
-                    response = api("POST", "/api/classification", args.token, json)
+                    response = api("POST", "/api/classification", token, json)
 
-        if args.comment is not None:
+        if comment is not None:
             # get comment text
-            response_comments = api(
-                "GET", f"/api/sources/{obj_id}/comments", args.token
-            )
+            response_comments = api("GET", f"/api/sources/{obj_id}/comments", token)
             data_comments = response_comments.json().get("data")
 
             # check for existing comments
@@ -131,13 +152,11 @@ def upload_classification(
                 existing_comments += [entry['text']]
 
             # post all non-duplicate comments
-            if args.comment not in existing_comments:
+            if comment not in existing_comments:
                 json = {
-                    "text": args.comment,
+                    "text": comment,
                 }
-                response = api(
-                    "POST", f"/api/sources/{obj_id}/comments", args.token, json
-                )
+                response = api("POST", f"/api/sources/{obj_id}/comments", token, json)
 
 
 if __name__ == "__main__":
@@ -180,10 +199,14 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    # read in file to csv
-    sample = pd.read_csv(args.file)
-
     # upload classification objects
     upload_classification(
-        sample, gloria, args.group_ids, args.taxonomy_id, args.classification
+        args.file,
+        gloria,
+        args.group_ids,
+        args.taxonomy_id,
+        args.classification,
+        args.token,
+        args.taxonomy_map,
+        args.comment,
     )
