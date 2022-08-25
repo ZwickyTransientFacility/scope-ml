@@ -9,22 +9,25 @@ import math
 
 
 def upload_classification(
-    file,
+    file: str,
     gloria,
-    group_ids,
+    group_ids: list,
     taxonomy_id: int,
-    classification: str,
+    classification: list,
     token: str,
     taxonomy_map: str,
     comment: str,
 ):
     """
     Upload labels to Fritz
-    :param file: file containing labels (csv)
+    :param file: path to CSV file containing labels (str)
     :param gloria: Gloria object
-    :param group_ids: group id on Fritz for upload target location (int int int ...)
+    :param group_ids: list of group ids on Fritz for upload target location [int, int, ...]
     :param taxonomy_id: scope taxonomy id (int)
-    :param classification: classified object (str)
+    :param classification: list of classifications [str, str, ...]
+    :param token: Fritz token (str)
+    :param taxonomy_map: if classification is ['read'], path to JSON file containing taxonomy mapping (str)
+    :param comment: single comment to post (str)
     """
 
     # read in file to csv
