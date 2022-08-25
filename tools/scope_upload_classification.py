@@ -6,6 +6,7 @@ from penquins import Kowalski
 from time import sleep
 from scope.fritz import save_newsource, api
 import math
+import warnings
 
 
 def upload_classification(
@@ -80,6 +81,9 @@ def upload_classification(
             period = float(row.period)
             if math.isnan(period):
                 period = None
+                warnings.warn('period is NaN - skipping period upload.')
+        else:
+            warnings.warn('period column is missing - skipping period upload.')
 
         # get object id
         response = api("GET", f"/api/sources?&ra={ra}&dec={dec}&radius={2/3600}", token)
