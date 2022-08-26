@@ -106,7 +106,11 @@ def download_classification(file: str, gloria, group_ids: list, token: str):
             sources.at[index, 'probability'] = prb_list
             sources.at[index, 'period_origin'] = origin_list
             sources.at[index, 'period'] = period_list
-            sources.to_csv(file, index=False)
+
+            filename = (
+                file.removesuffix('.csv') + '_fritzDownload' + '.csv'
+            )  # rename updated file
+            sources.to_csv(filename, index=False)
 
         else:
             warnings.warn(f'Unable to find source {index} on Fritz.')
