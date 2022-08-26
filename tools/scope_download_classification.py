@@ -14,11 +14,13 @@ def download_classification(file: str, gloria, group_ids: list, token: str):
     Download labels from Fritz
     :param file: CSV file containing obj_id column or "parse" to query by group ids (str)
     :param gloria: Gloria object
-    :param group_ids: group ids on Fritz for download target location (list)
+    :param group_ids: target group ids on Fritz for download (list)
     :param token: Fritz token (str)
     """
 
     if (file == "parse") | (file == 'Parse') | (file == 'PARSE'):
+        if group_ids is None:
+            raise ValueError('Specify group_ids to query Fritz.')
         response = api("GET", "/api/sources", token, {"group_ids": group_ids})
         source_data = response.json().get("data")
 
@@ -36,7 +38,10 @@ def download_classification(file: str, gloria, group_ids: list, token: str):
                 "GET",
                 '/api/sources',
                 token,
-                {"group_ids": group_ids, 'pageNumber': pageNum + 1},
+                {
+                    "group_ids": group_ids,
+                    'pageNumber': pageNum + 1,
+                },  # page numbers start at 1
             )
             page_data = page_response.json().get('data')
             for src in page_data['sources']:
