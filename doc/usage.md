@@ -75,7 +75,7 @@ process:
 3. get the classification of the objects in the dataset from Fritz
 4. append the classification to a new column on the dataset
 
-output: data with classifcation column appended.
+output: data with classification column appended.
 
 ```sh
 ./scope_download_classification.py -file sample.csv -group_ids [360] -token sample_token
@@ -83,20 +83,24 @@ output: data with classifcation column appended.
 
 ## Scope Upload Classification
 inputs:
-1. data containing ra, dec, period, and labels
-2. gloria object
-3. target group id on Fritz for upload
-4. Scope taxonomy id
-5. Class name of objects
-6. Fritz token
+0. gloria object (create a file named secrets.json with Kowalski username+password or token, host, port and protocol)
+1. CSV file containing ra, dec, period, and labels
+2. target group id(s) on Fritz for upload
+3. Scope taxonomy id
+4. Class name of objects. Set this to "read" and include taxonomy map to automatically upload multiple classes at once.
+5. Fritz token
+6. Taxonomy map ("label in file":"Fritz taxonomy name", JSON format).
+7. Comment to post (if specified)
 
 process:
 1. get object ids of all the data from Fritz using the ra, dec, and period
 2. save the objects to Fritz group
 3. upload the classification of the objects in the dataset to target group on Fritz
+4. duplicate classifications will not be uploaded to Fritz. If n classifications are manually specified, probabilities will be sourced from the last n columns of the dataset.
+5. (post comment to each uploaded source)
 
 ```sh
-./scope_download_classification.py -file sample.csv -group_ids [360] -taxonomy_id 7 -classification flaring -token sample_token
+./scope_upload_classification.py -file sample.csv -group_ids 500 250 750 -taxonomy_id 7 -classification variable flaring -token sample_token -taxonomy_map map.json -comment vetted
 ```
 
 ## Scope Upload Disagreements
@@ -114,5 +118,24 @@ process:
 6. upload the remaining disagreeing objects to target group on Fritz
 
 ```sh
-./scope_download_classification.py -file dataset.d15.csv -id 360 -token sample_token
+./scope_upload_disagreements.py -file dataset.d15.csv -id 360 -token sample_token
+```
+
+## Scope Manage Annotation
+inputs:
+1. action (one of "post", "update", or "delete")
+2. source (ZTF ID or path to .csv file with multiple objects (ID column "obj_id"))
+3. target group id(s) on Fritz
+4. Fritz token
+5. origin name of annotation
+6. key name of annotation
+7. value of annotation (required for "post" and "update" - if source is a .csv file, value will auto-populate from source[key])
+
+process:
+1. for each source, find existing annotations (for "update" and "delete" actions)
+2. interact with API to make desired changes to annotations
+3. confirm changes with printed messages
+
+```sh
+./scope_manage_annotation.py -action post -source sample.csv -group_ids 200 300 400 -token sample_token -origin revisedperiod -key period
 ```
