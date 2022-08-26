@@ -64,21 +64,21 @@ done;
 
 ## Scope Download Classification
 inputs:
-1. data containing ra, dec, and period
+1. CSV file containing obj_id and/or ra dec coordinates. Set to "parse" to download sources by group id.
 2. gloria object
-3. group id on Fritz
+3. target group id(s) on Fritz for download (if CSV file not provided)
 4. Fritz token
 
 process:
-1. get object ids of all the data from Fritz using the ra, dec, and period
-2. save the objects to Fritz group
-3. get the classification of the objects in the dataset from Fritz
-4. append the classification to a new column on the dataset
+1. if CSV file provided, query by object ids or ra, dec
+2. if CSV file not provided, query based on group id(s)
+3. get the classification/probabilities/periods of the objects in the dataset from Fritz
+4. append these values as new columns on the dataset, save to new file
 
-output: data with classification column appended.
+output: data with new columns appended.
 
 ```sh
-./scope_download_classification.py -file sample.csv -group_ids [360] -token sample_token
+./scope_download_classification.py -file sample.csv -group_ids 360 361 -token sample_token
 ```
 
 ## Scope Upload Classification
