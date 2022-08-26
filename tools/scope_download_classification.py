@@ -6,18 +6,51 @@ from penquins import Kowalski
 from time import sleep
 from scope.fritz import api
 import warnings
+import numpy as np
 
 
 def download_classification(file: str, gloria, group_ids: list, token: str):
     """
     Download labels from Fritz
-    :param file: CSV file containing obj_id column or "all" (str)
+    :param file: CSV file containing obj_id column or "parse" to query by group ids (str)
     :param gloria: Gloria object
-    :param group_ids: group id on Fritz for download target location (list)
+    :param group_ids: group ids on Fritz for download target location (list)
+    :param token: Fritz token (str)
     """
 
-    # read in CSV file
-    sources = pd.read_csv(file)
+    if (file == "parse") | (file == 'Parse') | (file == 'PARSE'):
+        response = api("GET", "/api/sources", token, {"group_ids": group_ids})
+        source_data = response.json().get("data")
+
+        # determine number of pages
+        allMatches = source_data['totalMatches']
+        nPerPage = source_data['numPerPage']
+        pages = int(np.ceil(allMatches / nPerPage))
+
+        ids = []
+        ras = []
+        decs = []
+        # iterate over all pages in results
+        for pageNum in range(pages):
+            page_response = api(
+                "GET",
+                '/api/sources',
+                token,
+                {"group_ids": group_ids, 'pageNumber': pageNum + 1},
+            )
+            page_data = page_response.json().get('data')
+            for src in page_data['sources']:
+                ids += [src['id']]
+                ras += [src['ra']]
+                decs += [src['dec']]
+
+        # create dataframe from query results
+        sources = pd.DataFrame({'obj_id': ids, 'ra': ras, 'dec': decs})
+        print(f'Downloading {len(sources)} sources.')
+    else:
+        # read in CSV file
+        sources = pd.read_csv(file)
+
     columns = sources.columns
 
     # create new empty columns
