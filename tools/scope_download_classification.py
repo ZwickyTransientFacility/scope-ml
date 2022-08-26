@@ -18,7 +18,7 @@ def download_classification(file: str, gloria, group_ids: list, token: str):
     :param token: Fritz token (str)
     """
 
-    if (file == "parse") | (file == 'Parse') | (file == 'PARSE'):
+    if file in ["parse", 'Parse', 'PARSE']:
         if group_ids is None:
             raise ValueError('Specify group_ids to query Fritz.')
         response = api("GET", "/api/sources", token, {"group_ids": group_ids})
