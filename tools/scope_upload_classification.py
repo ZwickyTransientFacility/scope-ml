@@ -6,6 +6,7 @@ from penquins import Kowalski
 from scope.fritz import save_newsource, api
 import math
 import warnings
+from requests.exceptions import InvalidJSONError
 
 # from time import sleep
 
@@ -19,7 +20,8 @@ def upload_classification(
     token: str,
     taxonomy_map: str,
     comment: str,
-    resume: int,
+    start: int,
+    stop: int,
 ):
     """
     Upload labels to Fritz
@@ -37,8 +39,11 @@ def upload_classification(
     sources = pd.read_csv(file)
     columns = sources.columns
 
-    if resume is not None:
-        sources = sources.loc[resume:]
+    if start is not None:
+        if stop is not None:
+            sources = sources.loc[start:stop]
+        else:
+            sources = sources.loc[start:]
 
     for index, row in sources.iterrows():
         probs = {}
@@ -91,45 +96,60 @@ def upload_classification(
             warnings.warn('period column is missing - skipping period upload.')
 
         # get object id
-        response = api("GET", f"/api/sources?&ra={ra}&dec={dec}&radius={2/3600}", token)
-        # sleep(0.9)
-        data = response.json().get("data")
+        for attempt in range(10):
+            try:
+                response = api(
+                    "GET", f"/api/sources?&ra={ra}&dec={dec}&radius={2/3600}", token
+                )
+                # sleep(0.9)
+                data = response.json().get("data")
+                break
+            except InvalidJSONError:
+                print(f'Error - Retrying (attempt {attempt+1}).')
+
         obj_id = None
         if data["totalMatches"] > 0:
             obj_id = data["sources"][0]["id"]
         print(f"object {index} id:", obj_id)
 
-        # save new source
-        if obj_id is None:
-            obj_id = save_newsource(
-                gloria, group_ids, ra, dec, token, period=period, return_id=True
-            )
-            data_groups = []
-            data_classes = []
-        # save existing source
-        else:
-            # check which groups source is already in
-            add_group_ids = group_ids.copy()
-            response = api("GET", f"/api/sources/{obj_id}", token)
-            data = response.json().get("data")
+        obj_id = save_newsource(
+            gloria, group_ids, ra, dec, token, period=period, return_id=True
+        )
+        data_groups = []
+        data_classes = []
 
-            data_groups = data['groups']
-            data_classes = data['classifications']
+        # check which groups source is already in
+        add_group_ids = group_ids.copy()
+        for attempt in range(10):
+            try:
+                response = api("GET", f"/api/sources/{obj_id}", token)
+                data = response.json().get("data")
+                break
+            except InvalidJSONError:
+                print(f'Error - Retrying (attempt {attempt+1}).')
 
-            # remove existing groups from list of groups
-            for entry in data_groups:
-                existing_group_id = entry['id']
-                if existing_group_id in add_group_ids:
-                    add_group_ids.remove(existing_group_id)
+        data_groups = data['groups']
+        data_classes = data['classifications']
 
-            if len(add_group_ids) > 0:
-                # save to new group_ids
-                json = {"objId": obj_id, "inviteGroupIds": add_group_ids}
-                response = api("POST", "/api/source_groups", token, json)
+        # remove existing groups from list of groups
+        for entry in data_groups:
+            existing_group_id = entry['id']
+            if existing_group_id in add_group_ids:
+                add_group_ids.remove(existing_group_id)
 
-            # check for existing classifications
-            for entry in data_classes:
-                existing_classes += [entry['classification']]
+        if len(add_group_ids) > 0:
+            # save to new group_ids
+            json = {"objId": obj_id, "inviteGroupIds": add_group_ids}
+            for attempt in range(10):
+                try:
+                    response = api("POST", "/api/source_groups", token, json)
+                    break
+                except InvalidJSONError:
+                    print(f'Error - Retrying (attempt {attempt+1}).')
+
+        # check for existing classifications
+        for entry in data_classes:
+            existing_classes += [entry['classification']]
 
         # allow classification assignment to be skipped
         if classification is not None:
@@ -144,12 +164,24 @@ def upload_classification(
                         "probability": prob,
                         "group_ids": group_ids,
                     }
-                    response = api("POST", "/api/classification", token, json)
+                    for attempt in range(10):
+                        try:
+                            response = api("POST", "/api/classification", token, json)
+                            break
+                        except InvalidJSONError:
+                            print(f'Error - Retrying (attempt {attempt+1}).')
 
         if comment is not None:
             # get comment text
-            response_comments = api("GET", f"/api/sources/{obj_id}/comments", token)
-            data_comments = response_comments.json().get("data")
+            for attempt in range(10):
+                try:
+                    response_comments = api(
+                        "GET", f"/api/sources/{obj_id}/comments", token
+                    )
+                    data_comments = response_comments.json().get("data")
+                    break
+                except InvalidJSONError:
+                    print(f'Error - Retrying (attempt {attempt+1}).')
 
             # check for existing comments
             existing_comments = []
@@ -161,7 +193,14 @@ def upload_classification(
                 json = {
                     "text": comment,
                 }
-                response = api("POST", f"/api/sources/{obj_id}/comments", token, json)
+                for attempt in range(10):
+                    try:
+                        response = api(
+                            "POST", f"/api/sources/{obj_id}/comments", token, json
+                        )
+                        break
+                    except InvalidJSONError:
+                        print(f'Error - Retrying (attempt {attempt+1}).')
 
 
 if __name__ == "__main__":
@@ -203,7 +242,12 @@ if __name__ == "__main__":
         help="Post specified string to comments for sources in file",
     )
     parser.add_argument(
-        "-resume", type=int, help="Index to resume uploading in event of interruption"
+        "-start", type=int, help="Index to start uploading in event of interruption"
+    )
+    parser.add_argument(
+        "-stop",
+        type=int,
+        help="Index to stop uploading in event of interruption (inclusive)",
     )
     args = parser.parse_args()
 
@@ -217,5 +261,6 @@ if __name__ == "__main__":
         args.token,
         args.taxonomy_map,
         args.comment,
-        args.resume,
+        args.start,
+        args.stop,
     )
