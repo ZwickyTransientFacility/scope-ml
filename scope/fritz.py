@@ -274,23 +274,6 @@ def save_newsource(
         )
         obj_id = radec_to_iau_name(ra_mean, dec_mean, prefix="ZTFJ")
 
-        # a source exists on F already?
-        # for attempt in range(10):
-        #    try:
-        #        response = api(
-        #            "GET", f"/api/sources?&ra={ra}&dec={dec}&radius={radius/3600}", token
-        #        )
-        #        data = response.json().get("data")
-        #        break
-        #    except InvalidJSONError:
-        #        print(f'Error - Retrying (attempt {attempt+1}).')
-
-        # if data["totalMatches"] > 0:
-        # print(data)
-        # save source to the groupids if it is already on Fritz
-        #    print("%s already exists on Fritz!" % data["sources"][0]['id'])
-        #    return None
-
         # post new source to Fritz
         if not dryrun:
             post_source_data = {
@@ -321,7 +304,9 @@ def save_newsource(
 
     # get photometry; drop flagged/nan data
     df_photometry = make_photometry(light_curves, drop_flagged=True)
-    df_photometry = df_photometry.dropna().reset_index(drop=True)
+    df_photometry = (
+        df_photometry.dropna().drop_duplicates('expid').reset_index(drop=True)
+    )
 
     # if no photometry exists or there is a difference, post the lightcurves
     if len(data) != len(df_photometry):
@@ -355,10 +340,11 @@ def save_newsource(
                     response = api("PUT", "/api/photometry", token, photometry)
                     if response.json()["status"] == "error":
                         print('Failed to post to Fritz')
+                        print(response.json())
                         return None
                     break
                 except InvalidJSONError:
-                    print(f'Error - Retrying (attempt {attempt+1}). c')
+                    print(f'Error - Retrying (attempt {attempt+1}).')
 
     if period is not None:
         # upload the period if it is provided
