@@ -314,8 +314,8 @@ def save_newsource(
         # if existing photometry, identify new data and ignore existing
         if len(data) > 0:
             df_phot_existing = pd.DataFrame(data)
-            indices_new = np.where(df_photometry['mjd'] > df_phot_existing['mjd'])
-            df_photometry = df_photometry.loc[indices_new]
+            indices_new = df_photometry['mjd'] > np.max(df_phot_existing['mjd'])
+            df_photometry = df_photometry[indices_new]
 
         # hardcoded this because it is easier, but if Fritz ever changes
         # this number will change
