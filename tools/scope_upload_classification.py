@@ -3,10 +3,11 @@ import argparse
 import json as JSON
 import pandas as pd
 from penquins import Kowalski
-from time import sleep
 from scope.fritz import save_newsource, api
 import math
 import warnings
+
+# from time import sleep
 
 
 def upload_classification(
@@ -18,6 +19,7 @@ def upload_classification(
     token: str,
     taxonomy_map: str,
     comment: str,
+    resume: int,
 ):
     """
     Upload labels to Fritz
@@ -34,6 +36,9 @@ def upload_classification(
     # read in file to csv
     sources = pd.read_csv(file)
     columns = sources.columns
+
+    if resume is not None:
+        sources = sources.loc[resume:]
 
     for index, row in sources.iterrows():
         probs = {}
@@ -87,7 +92,7 @@ def upload_classification(
 
         # get object id
         response = api("GET", f"/api/sources?&ra={ra}&dec={dec}&radius={2/3600}", token)
-        sleep(0.9)
+        # sleep(0.9)
         data = response.json().get("data")
         obj_id = None
         if data["totalMatches"] > 0:
@@ -197,6 +202,9 @@ if __name__ == "__main__":
         type=str,
         help="Post specified string to comments for sources in file",
     )
+    parser.add_argument(
+        "-resume", type=int, help="Index to resume uploading in event of interruption"
+    )
     args = parser.parse_args()
 
     # upload classification objects
@@ -209,4 +217,5 @@ if __name__ == "__main__":
         args.token,
         args.taxonomy_map,
         args.comment,
+        args.resume,
     )

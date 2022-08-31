@@ -91,6 +91,7 @@ inputs:
 5. Fritz token
 6. Taxonomy map ("label in file":"Fritz taxonomy name", JSON format).
 7. Comment to post (if specified)
+8. Index to resume uploading (in event of interruption)
 
 process:
 1. get object ids of all the data from Fritz using the ra, dec, and period
@@ -100,7 +101,7 @@ process:
 5. (post comment to each uploaded source)
 
 ```sh
-./scope_upload_classification.py -file sample.csv -group_ids 500 250 750 -taxonomy_id 7 -classification variable flaring -token sample_token -taxonomy_map map.json -comment vetted
+./scope_upload_classification.py -file sample.csv -group_ids 500 250 750 -taxonomy_id 7 -classification variable flaring -token sample_token -taxonomy_map map.json -comment vetted -resume 35
 ```
 
 ## Scope Upload Disagreements
