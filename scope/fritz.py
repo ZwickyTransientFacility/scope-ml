@@ -293,7 +293,7 @@ def save_newsource(
                         print(f"Failed to save {obj_id} as a Source")
                         return None
                     break
-                except InvalidJSONError:
+                except (InvalidJSONError, ConnectionError):
                     print(f'Error - Retrying (attempt {attempt+1}).')
 
     # start by checking for existing photometry
@@ -302,7 +302,7 @@ def save_newsource(
             response = api("GET", f'/api/sources/{obj_id}/photometry', token)
             data = response.json().get('data')
             break
-        except InvalidJSONError:
+        except (InvalidJSONError, ConnectionError):
             print(f'Error - Retrying (attempt {attempt+1}).')
 
     # get photometry; drop flagged/nan data
@@ -346,7 +346,7 @@ def save_newsource(
                         print(response.json())
                         return None
                     break
-                except InvalidJSONError:
+                except (InvalidJSONError, ConnectionError):
                     print(f'Error - Retrying (attempt {attempt+1}).')
 
     if period is not None:
@@ -362,7 +362,7 @@ def save_newsource(
                     "POST", "api/sources/%s/annotations" % obj_id, token, data=data
                 )
                 break
-            except InvalidJSONError:
+            except (InvalidJSONError, ConnectionError):
                 print(f'Error - Retrying (attempt {attempt+1}).')
 
     if return_id is True:
