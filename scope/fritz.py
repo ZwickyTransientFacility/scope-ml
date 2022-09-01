@@ -7,6 +7,8 @@ import numpy as np
 import pandas as pd
 from requests.exceptions import InvalidJSONError
 
+MAX_ATTEMPTS = 10
+
 
 def get_highscoring_objects(
     G,
@@ -284,7 +286,7 @@ def save_newsource(
                 "group_ids": group_ids,
                 "origin": "Fritz",
             }
-            for attempt in range(10):
+            for attempt in range(MAX_ATTEMPTS):
                 try:
                     response = api("POST", "/api/sources", token, post_source_data)
                     if response.json()["status"] == "error":
@@ -295,7 +297,7 @@ def save_newsource(
                     print(f'Error - Retrying (attempt {attempt+1}).')
 
     # start by checking for existing photometry
-    for attempt in range(10):
+    for attempt in range(MAX_ATTEMPTS):
         try:
             response = api("GET", f'/api/sources/{obj_id}/photometry', token)
             data = response.json().get('data')
@@ -336,7 +338,7 @@ def save_newsource(
 
         if (len(photometry.get("mag", ())) > 0) & (not dryrun):
             print("Attempting to upload as %s" % obj_id)
-            for attempt in range(10):
+            for attempt in range(MAX_ATTEMPTS):
                 try:
                     response = api("PUT", "/api/photometry", token, photometry)
                     if response.json()["status"] == "error":
@@ -354,7 +356,7 @@ def save_newsource(
             "group_ids": group_ids,
             "data": {'period': period},
         }
-        for attempt in range(10):
+        for attempt in range(MAX_ATTEMPTS):
             try:
                 response = api(
                     "POST", "api/sources/%s/annotations" % obj_id, token, data=data

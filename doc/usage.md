@@ -91,7 +91,7 @@ inputs:
 5. Fritz token
 6. Taxonomy map ("label in file":"Fritz taxonomy name", JSON format).
 7. Comment to post (if specified)
-8. Index to start uploading
+8. Index to start uploading (zero-based)
 9. Index to stop uploading (inclusive)
 
 process:

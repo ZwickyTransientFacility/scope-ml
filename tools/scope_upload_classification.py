@@ -9,6 +9,7 @@ import warnings
 from requests.exceptions import InvalidJSONError
 
 # from time import sleep
+MAX_ATTEMPTS = 10
 
 
 def upload_classification(
@@ -96,7 +97,7 @@ def upload_classification(
             warnings.warn('period column is missing - skipping period upload.')
 
         # get object id
-        for attempt in range(10):
+        for attempt in range(MAX_ATTEMPTS):
             try:
                 response = api(
                     "GET", f"/api/sources?&ra={ra}&dec={dec}&radius={2/3600}", token
@@ -120,7 +121,7 @@ def upload_classification(
 
         # check which groups source is already in
         add_group_ids = group_ids.copy()
-        for attempt in range(10):
+        for attempt in range(MAX_ATTEMPTS):
             try:
                 response = api("GET", f"/api/sources/{obj_id}", token)
                 data = response.json().get("data")
@@ -140,7 +141,7 @@ def upload_classification(
         if len(add_group_ids) > 0:
             # save to new group_ids
             json = {"objId": obj_id, "inviteGroupIds": add_group_ids}
-            for attempt in range(10):
+            for attempt in range(MAX_ATTEMPTS):
                 try:
                     response = api("POST", "/api/source_groups", token, json)
                     break
@@ -164,7 +165,7 @@ def upload_classification(
                         "probability": prob,
                         "group_ids": group_ids,
                     }
-                    for attempt in range(10):
+                    for attempt in range(MAX_ATTEMPTS):
                         try:
                             response = api("POST", "/api/classification", token, json)
                             break
@@ -173,7 +174,7 @@ def upload_classification(
 
         if comment is not None:
             # get comment text
-            for attempt in range(10):
+            for attempt in range(MAX_ATTEMPTS):
                 try:
                     response_comments = api(
                         "GET", f"/api/sources/{obj_id}/comments", token
@@ -193,7 +194,7 @@ def upload_classification(
                 json = {
                     "text": comment,
                 }
-                for attempt in range(10):
+                for attempt in range(MAX_ATTEMPTS):
                     try:
                         response = api(
                             "POST", f"/api/sources/{obj_id}/comments", token, json
@@ -241,13 +242,11 @@ if __name__ == "__main__":
         type=str,
         help="Post specified string to comments for sources in file",
     )
-    parser.add_argument(
-        "-start", type=int, help="Index to start uploading in event of interruption"
-    )
+    parser.add_argument("-start", type=int, help="Zero-based index to start uploading")
     parser.add_argument(
         "-stop",
         type=int,
-        help="Index to stop uploading in event of interruption (inclusive)",
+        help="Index to stop uploading (inclusive)",
     )
     args = parser.parse_args()
 
