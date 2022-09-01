@@ -7,6 +7,7 @@ from scope.fritz import save_newsource, api
 import math
 import warnings
 from requests.exceptions import InvalidJSONError
+from urllib3.exceptions import ProtocolError
 
 # from time import sleep
 MAX_ATTEMPTS = 10
@@ -105,7 +106,7 @@ def upload_classification(
                 # sleep(0.9)
                 data = response.json().get("data")
                 break
-            except (InvalidJSONError, ConnectionError):
+            except (InvalidJSONError, ConnectionError, ProtocolError, OSError):
                 print(f'Error - Retrying (attempt {attempt+1}).')
 
         obj_id = None
@@ -126,7 +127,7 @@ def upload_classification(
                 response = api("GET", f"/api/sources/{obj_id}", token)
                 data = response.json().get("data")
                 break
-            except (InvalidJSONError, ConnectionError):
+            except (InvalidJSONError, ConnectionError, ProtocolError, OSError):
                 print(f'Error - Retrying (attempt {attempt+1}).')
 
         data_groups = data['groups']
@@ -145,7 +146,7 @@ def upload_classification(
                 try:
                     response = api("POST", "/api/source_groups", token, json)
                     break
-                except (InvalidJSONError, ConnectionError):
+                except (InvalidJSONError, ConnectionError, ProtocolError, OSError):
                     print(f'Error - Retrying (attempt {attempt+1}).')
 
         # check for existing classifications
@@ -169,7 +170,12 @@ def upload_classification(
                         try:
                             response = api("POST", "/api/classification", token, json)
                             break
-                        except (InvalidJSONError, ConnectionError):
+                        except (
+                            InvalidJSONError,
+                            ConnectionError,
+                            ProtocolError,
+                            OSError,
+                        ):
                             print(f'Error - Retrying (attempt {attempt+1}).')
 
         if comment is not None:
@@ -181,7 +187,7 @@ def upload_classification(
                     )
                     data_comments = response_comments.json().get("data")
                     break
-                except (InvalidJSONError, ConnectionError):
+                except (InvalidJSONError, ConnectionError, ProtocolError, OSError):
                     print(f'Error - Retrying (attempt {attempt+1}).')
 
             # check for existing comments
@@ -200,7 +206,7 @@ def upload_classification(
                             "POST", f"/api/sources/{obj_id}/comments", token, json
                         )
                         break
-                    except (InvalidJSONError, ConnectionError):
+                    except (InvalidJSONError, ConnectionError, ProtocolError, OSError):
                         print(f'Error - Retrying (attempt {attempt+1}).')
 
 
