@@ -5,6 +5,10 @@ import yaml
 from typing import Optional, Mapping
 import numpy as np
 import pandas as pd
+from requests.exceptions import InvalidJSONError
+from urllib3.exceptions import ProtocolError
+
+MAX_ATTEMPTS = 10
 
 
 def get_highscoring_objects(
@@ -250,6 +254,7 @@ def save_newsource(
     if len(light_curves) < 1:
         print('No lightcurves found for this objects!')
         return None
+    print("Found %d lightcurves" % len(light_curves))
 
     # generate position-based name if obj_id not set
     if obj_id is None:
@@ -273,17 +278,6 @@ def save_newsource(
         )
         obj_id = radec_to_iau_name(ra_mean, dec_mean, prefix="ZTFJ")
 
-        # a source exists on F already?
-        response = api(
-            "GET", f"/api/sources?&ra={ra}&dec={dec}&radius={radius/3600}", token
-        )
-        data = response.json().get("data")
-        if data["totalMatches"] > 0:
-            # print(data)
-            # save source to the groupids if it is already on Fritz
-            print("%s already exists on Fritz!" % data["sources"][0]['id'])
-            return None
-
         # post new source to Fritz
         if not dryrun:
             post_source_data = {
@@ -293,15 +287,38 @@ def save_newsource(
                 "group_ids": group_ids,
                 "origin": "Fritz",
             }
-            response = api("POST", "/api/sources", token, post_source_data)
-            if response.json()["status"] == "error":
-                print(f"Failed to save {obj_id} as a Source")
-                return None
+            for attempt in range(MAX_ATTEMPTS):
+                try:
+                    response = api("POST", "/api/sources", token, post_source_data)
+                    if response.json()["status"] == "error":
+                        print(f"Failed to save {obj_id} as a Source")
+                        return None
+                    break
+                except (InvalidJSONError, ConnectionError, ProtocolError, OSError):
+                    print(f'Error - Retrying (attempt {attempt+1}).')
 
-        print("Found %d lightcurves" % len(light_curves))
+    # start by checking for existing photometry
+    for attempt in range(MAX_ATTEMPTS):
+        try:
+            response = api("GET", f'/api/sources/{obj_id}/photometry', token)
+            data = response.json().get('data')
+            break
+        except (InvalidJSONError, ConnectionError, ProtocolError, OSError):
+            print(f'Error - Retrying (attempt {attempt+1}).')
 
-        # post photometry to obj_id; drop flagged data
-        df_photometry = make_photometry(light_curves, drop_flagged=True)
+    # get photometry; drop flagged/nan data
+    df_photometry = make_photometry(light_curves, drop_flagged=True)
+    df_photometry = (
+        df_photometry.dropna().drop_duplicates('expid').reset_index(drop=True)
+    )
+
+    # if no photometry exists or there is a difference, post the lightcurves
+    if len(data) != len(df_photometry):
+        # if existing photometry, identify new data and ignore existing
+        if len(data) > 0:
+            df_phot_existing = pd.DataFrame(data)
+            indices_new = df_photometry['mjd'] > np.max(df_phot_existing['mjd'])
+            df_photometry = df_photometry[indices_new]
 
         # hardcoded this because it is easier, but if Fritz ever changes
         # this number will change
@@ -322,10 +339,16 @@ def save_newsource(
 
         if (len(photometry.get("mag", ())) > 0) & (not dryrun):
             print("Attempting to upload as %s" % obj_id)
-            response = api("PUT", "/api/photometry", token, photometry)
-            if response.json()["status"] == "error":
-                print('Failed to post to Fritz')
-                return None
+            for attempt in range(MAX_ATTEMPTS):
+                try:
+                    response = api("PUT", "/api/photometry", token, photometry)
+                    if response.json()["status"] == "error":
+                        print('Failed to post to Fritz')
+                        print(response.json())
+                        return None
+                    break
+                except (InvalidJSONError, ConnectionError, ProtocolError, OSError):
+                    print(f'Error - Retrying (attempt {attempt+1}).')
 
     if period is not None:
         # upload the period if it is provided
@@ -334,7 +357,14 @@ def save_newsource(
             "group_ids": group_ids,
             "data": {'period': period},
         }
-        response = api("POST", "api/sources/%s/annotations" % obj_id, token, data=data)
+        for attempt in range(MAX_ATTEMPTS):
+            try:
+                response = api(
+                    "POST", "api/sources/%s/annotations" % obj_id, token, data=data
+                )
+                break
+            except (InvalidJSONError, ConnectionError, ProtocolError, OSError):
+                print(f'Error - Retrying (attempt {attempt+1}).')
 
     if return_id is True:
         return obj_id
