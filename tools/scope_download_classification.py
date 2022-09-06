@@ -3,10 +3,52 @@ import argparse
 import json as JSON
 import pandas as pd
 from penquins import Kowalski
-from time import sleep
+
+# from time import sleep
 from scope.fritz import api
 import warnings
 import numpy as np
+
+NUM_PER_PAGE = 500
+
+
+def organize_source_data(src):
+    id = src['id']
+    ra = src['ra']
+    dec = src['dec']
+
+    data_classes = src['classifications']
+    cls_list = ''
+    prb_list = ''
+    for entry in data_classes:
+        cls = entry['classification']
+        prb = entry['probability']
+        cls_list += cls + ';'  # same format as download from Fritz frontend
+        prb_list += str(prb) + ';'
+
+    cls_list = cls_list[:-1]  # remove trailing semicolon
+    prb_list = prb_list[:-1]
+
+    # loop through annotations, checking for periods
+    data_annot = src['annotations']
+    origin_list = ''
+    period_list = ''
+    for entry in data_annot:
+        annot_origin = entry['origin']
+        annot_data = entry['data']
+
+        annot_name = [x for x in annot_data.keys()][0]
+        annot_value = [x for x in annot_data.values()][0]
+
+        # if period is found, add to list
+        if annot_name == 'period':
+            origin_list += annot_origin + ';'
+            period_list += str(annot_value) + ';'
+
+    origin_list = origin_list[:-1]
+    period_list = period_list[:-1]
+
+    return id, ra, dec, cls_list, prb_list, origin_list, period_list
 
 
 def download_classification(file: str, gloria, group_ids: list, token: str):
@@ -18,10 +60,23 @@ def download_classification(file: str, gloria, group_ids: list, token: str):
     :param token: Fritz token (str)
     """
 
+    ids = []
+    ras = []
+    decs = []
+    classes = []
+    probs = []
+    period_origins = []
+    periods = []
+
     if file in ["parse", 'Parse', 'PARSE']:
         if group_ids is None:
             raise ValueError('Specify group_ids to query Fritz.')
-        response = api("GET", "/api/sources", token, {"group_ids": group_ids})
+        response = api(
+            "GET",
+            "/api/sources",
+            token,
+            {"group_ids": group_ids, "numPerPage": NUM_PER_PAGE},
+        )
         source_data = response.json().get("data")
 
         # determine number of pages
@@ -29,29 +84,57 @@ def download_classification(file: str, gloria, group_ids: list, token: str):
         nPerPage = source_data['numPerPage']
         pages = int(np.ceil(allMatches / nPerPage))
 
-        ids = []
-        ras = []
-        decs = []
         # iterate over all pages in results
         for pageNum in range(pages):
+            print(f'Page {pageNum + 1} of {pages}')
             page_response = api(
                 "GET",
                 '/api/sources',
                 token,
                 {
                     "group_ids": group_ids,
+                    'numPerPage': NUM_PER_PAGE,
                     'pageNumber': pageNum + 1,
                 },  # page numbers start at 1
             )
             page_data = page_response.json().get('data')
             for src in page_data['sources']:
+                (
+                    id,
+                    ra,
+                    dec,
+                    cls_list,
+                    prb_list,
+                    origin_list,
+                    period_list,
+                ) = organize_source_data(src)
+
                 ids += [src['id']]
                 ras += [src['ra']]
                 decs += [src['dec']]
+                classes += [cls_list]
+                probs += [prb_list]
+                period_origins += [origin_list]
+                periods += [period_list]
 
         # create dataframe from query results
-        sources = pd.DataFrame({'obj_id': ids, 'ra': ras, 'dec': decs})
-        print(f'Downloading {len(sources)} sources.')
+        sources = pd.DataFrame(
+            {
+                'obj_id': ids,
+                'ra': ras,
+                'dec': decs,
+                'classification': classes,
+                'probability': probs,
+                'period_origin': period_origins,
+                'period': periods,
+            }
+        )
+        filename = (
+            file.removesuffix('.csv') + '_fritzDownload_new' + '.csv'
+        )  # rename updated file
+        sources.to_csv(filename, index=False)
+        return
+        # print(f'Downloading {len(sources)} sources.')
     else:
         # read in CSV file
         sources = pd.read_csv(file)
@@ -76,10 +159,12 @@ def download_classification(file: str, gloria, group_ids: list, token: str):
         if search_by_obj_id:
             obj_id = row.obj_id
             response = api("GET", '/api/sources/%s' % obj_id, token)
-            sleep(0.9)
+            # sleep(0.9)
             data = response.json().get("data")
             if len(data) == 0:
                 warnings.warn('No results from obj_id search - querying by ra/dec.')
+            else:
+                src = data
 
         # continue with coordinate search if obj_id unsuccsessful
         if len(data) == 0:
@@ -89,11 +174,12 @@ def download_classification(file: str, gloria, group_ids: list, token: str):
                 response = api(
                     "GET", f"/api/sources?&ra={ra}&dec={dec}&radius={2/3600}", token
                 )
-                sleep(0.9)
+                # sleep(0.9)
                 data = response.json().get("data")
                 obj_id = None
                 if data["totalMatches"] > 0:
-                    obj_id = data["sources"][0]["id"]
+                    src = data["sources"][0]
+                    obj_id = src["id"]
                     sources.at[index, 'obj_id'] = obj_id
             else:
                 raise KeyError(
@@ -104,42 +190,29 @@ def download_classification(file: str, gloria, group_ids: list, token: str):
 
         # if successful search, get and save labels/probabilities/period annotations to sources dataframe
         if obj_id is not None:
-            response = api("GET", f"/api/sources/{obj_id}/classifications", token)
-            data = response.json().get("data")
 
-            annot_response = api(
-                "GET", f'/api/sources/{obj_id}/annotations', token
-            ).json()
-            data_annot = annot_response.get('data')
+            # response = api("GET", f"/api/sources/{obj_id}/classifications", token)
+            # data = response.json().get("data")
 
-            cls_list = ''
-            prb_list = ''
-            for entry in data:
-                cls = entry['classification']
-                prb = entry['probability']
-                cls_list += cls + ';'  # same format as download from Fritz frontend
-                prb_list += str(prb) + ';'
-            cls_list = cls_list[:-1]  # remove trailing semicolon
-            prb_list = prb_list[:-1]
+            # annot_response = api(
+            #    "GET", f'/api/sources/{obj_id}/annotations', token
+            # ).json()
+            # data_annot = annot_response.get('data')
 
-            # loop through annotations, checking for periods
-            origin_list = ''
-            period_list = ''
-            for entry in data_annot:
-                annot_origin = entry['origin']
-                annot_data = entry['data']
-
-                annot_name = [x for x in annot_data.keys()][0]
-                annot_value = [x for x in annot_data.values()][0]
-
-                # if period is found, add to list
-                if annot_name == 'period':
-                    origin_list += annot_origin + ';'
-                    period_list += str(annot_value) + ';'
-            origin_list = origin_list[:-1]
-            period_list = period_list[:-1]
+            (
+                id,
+                ra,
+                dec,
+                cls_list,
+                prb_list,
+                origin_list,
+                period_list,
+            ) = organize_source_data(src)
 
             # store to new columns
+            # sources.at[index, 'id'] = id
+            sources.at[index, 'ra'] = ra
+            sources.at[index, 'dec'] = dec
             sources.at[index, 'classification'] = cls_list
             sources.at[index, 'probability'] = prb_list
             sources.at[index, 'period_origin'] = origin_list
