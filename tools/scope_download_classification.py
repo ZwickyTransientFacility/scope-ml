@@ -10,6 +10,7 @@ import warnings
 import numpy as np
 
 NUM_PER_PAGE = 500
+CHECKPOINT_NUM = 500
 
 
 def organize_source_data(src):
@@ -138,6 +139,7 @@ def download_classification(file: str, gloria, group_ids: list, token: str):
     else:
         # read in CSV file
         sources = pd.read_csv(file)
+        filename = file.removesuffix('.csv') + '_fritzDownload' + '.csv'  # rename file
 
     columns = sources.columns
 
@@ -209,6 +211,14 @@ def download_classification(file: str, gloria, group_ids: list, token: str):
                 period_list,
             ) = organize_source_data(src)
 
+            # ids += [id]
+            # ras += [ra]
+            # decs += [dec]
+            # classes += [cls_list]
+            # probs += [prb_list]
+            # period_origins += [origin_list]
+            # periods += [period_list]
+
             # store to new columns
             # sources.at[index, 'id'] = id
             sources.at[index, 'ra'] = ra
@@ -218,13 +228,23 @@ def download_classification(file: str, gloria, group_ids: list, token: str):
             sources.at[index, 'period_origin'] = origin_list
             sources.at[index, 'period'] = period_list
 
-            filename = (
-                file.removesuffix('.csv') + '_fritzDownload' + '.csv'
-            )  # rename updated file
-            sources.to_csv(filename, index=False)
+            # sources['ra'] = ras
+            # sources['dec'] = decs
+            # sources['classification'] = classes
+            # sources['probability'] = probs
+            # sources['period_origin'] = period_origins
+            # sources['period'] = periods
+
+            # occasional checkpoint at specified number of sources
+            if (index + 1) % CHECKPOINT_NUM == 0:
+                print(f'Saving checkpoint at index {index}.')
+                sources.to_csv(filename, index=False)
 
         else:
             warnings.warn(f'Unable to find source {index} on Fritz.')
+
+        # final save
+        sources.to_csv(filename, index=False)
 
     return sources
 
