@@ -3,17 +3,17 @@ import argparse
 import json as JSON
 import pandas as pd
 from penquins import Kowalski
-
-# from time import sleep
 from scope.fritz import api
 import warnings
 import numpy as np
+
+# from time import sleep
 
 NUM_PER_PAGE = 500
 CHECKPOINT_NUM = 500
 
 
-def organize_source_data(src):
+def organize_source_data(src: pd.DataFrame):
     id = src['id']
     ra = src['ra']
     dec = src['dec']
@@ -52,7 +52,7 @@ def organize_source_data(src):
     return id, ra, dec, cls_list, prb_list, origin_list, period_list
 
 
-def download_classification(file: str, gloria, group_ids: list, token: str):
+def download_classification(file: str, gloria, group_ids: list, token: str, start: int):
     """
     Download labels from Fritz
     :param file: CSV file containing obj_id column or "parse" to query by group ids (str)
@@ -68,6 +68,8 @@ def download_classification(file: str, gloria, group_ids: list, token: str):
     probs = []
     period_origins = []
     periods = []
+
+    filename = file.removesuffix('.csv') + '_fritzDownload' + '.csv'  # rename file
 
     if file in ["parse", 'Parse', 'PARSE']:
         if group_ids is None:
@@ -85,9 +87,17 @@ def download_classification(file: str, gloria, group_ids: list, token: str):
         nPerPage = source_data['numPerPage']
         pages = int(np.ceil(allMatches / nPerPage))
 
+        if start != 0:
+            filename = (
+                filename.removesuffix('.csv') + f'_continued_page_{start}' + '.csv'
+            )
+            print('Downloading sources...')
+        else:
+            start = 1
+            print(f'Downloading {allMatches} sources...')
         # iterate over all pages in results
-        for pageNum in range(pages):
-            print(f'Page {pageNum + 1} of {pages}')
+        for pageNum in range(start, pages + 1):
+            print(f'Page {pageNum} of {pages}...')
             page_response = api(
                 "GET",
                 '/api/sources',
@@ -95,7 +105,7 @@ def download_classification(file: str, gloria, group_ids: list, token: str):
                 {
                     "group_ids": group_ids,
                     'numPerPage': NUM_PER_PAGE,
-                    'pageNumber': pageNum + 1,
+                    'pageNumber': pageNum,
                 },  # page numbers start at 1
             )
             page_data = page_response.json().get('data')
@@ -118,135 +128,114 @@ def download_classification(file: str, gloria, group_ids: list, token: str):
                 period_origins += [origin_list]
                 periods += [period_list]
 
-        # create dataframe from query results
-        sources = pd.DataFrame(
-            {
-                'obj_id': ids,
-                'ra': ras,
-                'dec': decs,
-                'classification': classes,
-                'probability': probs,
-                'period_origin': period_origins,
-                'period': periods,
-            }
-        )
-        filename = (
-            file.removesuffix('.csv') + '_fritzDownload_new' + '.csv'
-        )  # rename updated file
-        sources.to_csv(filename, index=False)
-        return
-        # print(f'Downloading {len(sources)} sources.')
+            # create dataframe from query results
+            sources = pd.DataFrame(
+                {
+                    'obj_id': ids,
+                    'ra': ras,
+                    'dec': decs,
+                    'classification': classes,
+                    'probability': probs,
+                    'period_origin': period_origins,
+                    'period': periods,
+                }
+            )
+
+            sources.to_csv(filename, index=False)
+            print(f'Saved page {pageNum}.')
+        return sources
+
     else:
         # read in CSV file
         sources = pd.read_csv(file)
-        filename = file.removesuffix('.csv') + '_fritzDownload' + '.csv'  # rename file
+        if start != 0:
+            # continue from checkpoint
+            sources = sources[start:]
+            filename = (
+                filename.removesuffix('.csv') + f'_continued_index_{start}' + '.csv'
+            )
 
-    columns = sources.columns
+        columns = sources.columns
 
-    # create new empty columns
-    sources["classification"] = None
-    sources["probability"] = None
-    sources["period_origin"] = None
-    sources["period"] = None
-    # add obj_id column if not passed in
-    if 'obj_id' not in columns:
-        sources["obj_id"] = None
-        search_by_obj_id = False
-    else:
-        search_by_obj_id = True
+        # create new empty columns
+        sources["classification"] = None
+        sources["probability"] = None
+        sources["period_origin"] = None
+        sources["period"] = None
+        # add obj_id column if not passed in
+        if 'obj_id' not in columns:
+            sources["obj_id"] = None
+            search_by_obj_id = False
+        else:
+            search_by_obj_id = True
 
-    for index, row in sources.iterrows():
-        # query objects, starting with obj_id
-        data = []
-        if search_by_obj_id:
-            obj_id = row.obj_id
-            response = api("GET", '/api/sources/%s' % obj_id, token)
-            # sleep(0.9)
-            data = response.json().get("data")
-            if len(data) == 0:
-                warnings.warn('No results from obj_id search - querying by ra/dec.')
-            else:
-                src = data
-
-        # continue with coordinate search if obj_id unsuccsessful
-        if len(data) == 0:
-            if ('ra' in columns) & ('dec' in columns):
-                # query by ra/dec to get object id
-                ra, dec = row.ra, row.dec
-                response = api(
-                    "GET", f"/api/sources?&ra={ra}&dec={dec}&radius={2/3600}", token
-                )
+        for index, row in sources.iterrows():
+            # query objects, starting with obj_id
+            data = []
+            if search_by_obj_id:
+                obj_id = row.obj_id
+                response = api("GET", '/api/sources/%s' % obj_id, token)
                 # sleep(0.9)
                 data = response.json().get("data")
-                obj_id = None
-                if data["totalMatches"] > 0:
-                    src = data["sources"][0]
-                    obj_id = src["id"]
-                    sources.at[index, 'obj_id'] = obj_id
+                if len(data) == 0:
+                    warnings.warn('No results from obj_id search - querying by ra/dec.')
+                else:
+                    src = data
+
+            # continue with coordinate search if obj_id unsuccsessful
+            if len(data) == 0:
+                if ('ra' in columns) & ('dec' in columns):
+                    # query by ra/dec to get object id
+                    ra, dec = row.ra, row.dec
+                    response = api(
+                        "GET", f"/api/sources?&ra={ra}&dec={dec}&radius={2/3600}", token
+                    )
+                    # sleep(0.9)
+                    data = response.json().get("data")
+                    obj_id = None
+                    if data["totalMatches"] > 0:
+                        src = data["sources"][0]
+                        obj_id = src["id"]
+                        sources.at[index, 'obj_id'] = obj_id
+                else:
+                    raise KeyError(
+                        'Attemped to search by coordinates, but unable to find ra and dec columns.'
+                    )
+
+            print(f"object {index} id:", obj_id)
+
+            # if successful search, get and save labels/probabilities/period annotations to sources dataframe
+            if obj_id is not None:
+                (
+                    id,
+                    ra,
+                    dec,
+                    cls_list,
+                    prb_list,
+                    origin_list,
+                    period_list,
+                ) = organize_source_data(src)
+
+                # store to new columns
+                sources.at[index, 'ra'] = ra
+                sources.at[index, 'dec'] = dec
+                sources.at[index, 'classification'] = cls_list
+                sources.at[index, 'probability'] = prb_list
+                sources.at[index, 'period_origin'] = origin_list
+                sources.at[index, 'period'] = period_list
+
+                # occasional checkpoint at specified number of sources
+                if (index + 1) % CHECKPOINT_NUM == 0:
+                    sources.to_csv(filename, index=False)
+                    print(f'Saved checkpoint at index {index}.')
+
             else:
-                raise KeyError(
-                    'Attemped to search by coordinates, but unable to find ra and dec columns.'
-                )
+                warnings.warn(f'Unable to find source {index} on Fritz.')
 
-        print(f"object {index} id:", obj_id)
+            # final save
+            sources.to_csv(filename, index=False)
 
-        # if successful search, get and save labels/probabilities/period annotations to sources dataframe
-        if obj_id is not None:
-
-            # response = api("GET", f"/api/sources/{obj_id}/classifications", token)
-            # data = response.json().get("data")
-
-            # annot_response = api(
-            #    "GET", f'/api/sources/{obj_id}/annotations', token
-            # ).json()
-            # data_annot = annot_response.get('data')
-
-            (
-                id,
-                ra,
-                dec,
-                cls_list,
-                prb_list,
-                origin_list,
-                period_list,
-            ) = organize_source_data(src)
-
-            # ids += [id]
-            # ras += [ra]
-            # decs += [dec]
-            # classes += [cls_list]
-            # probs += [prb_list]
-            # period_origins += [origin_list]
-            # periods += [period_list]
-
-            # store to new columns
-            # sources.at[index, 'id'] = id
-            sources.at[index, 'ra'] = ra
-            sources.at[index, 'dec'] = dec
-            sources.at[index, 'classification'] = cls_list
-            sources.at[index, 'probability'] = prb_list
-            sources.at[index, 'period_origin'] = origin_list
-            sources.at[index, 'period'] = period_list
-
-            # sources['ra'] = ras
-            # sources['dec'] = decs
-            # sources['classification'] = classes
-            # sources['probability'] = probs
-            # sources['period_origin'] = period_origins
-            # sources['period'] = periods
-
-            # occasional checkpoint at specified number of sources
-            if (index + 1) % CHECKPOINT_NUM == 0:
-                print(f'Saving checkpoint at index {index}.')
-                sources.to_csv(filename, index=False)
-
-        else:
-            warnings.warn(f'Unable to find source {index} on Fritz.')
-
-        # final save
-        sources.to_csv(filename, index=False)
-
-    return sources
+        return sources
 
 
 if __name__ == "__main__":
@@ -264,7 +253,10 @@ if __name__ == "__main__":
         type=str,
         help="put your Fritz token here. You can get it from your Fritz profile page",
     )
+    parser.add_argument(
+        "-start", type=int, default=0, help="start page/index for continued download"
+    )
     args = parser.parse_args()
 
     # download object classifications in the file
-    download_classification(args.file, gloria, args.group_ids, args.token)
+    download_classification(args.file, gloria, args.group_ids, args.token, args.start)
