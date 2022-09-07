@@ -68,17 +68,18 @@ inputs:
 2. gloria object
 3. target group id(s) on Fritz for download (if CSV file not provided)
 4. Fritz token
+5. Index or page number (if in "parse" mode) to begin downloading (optional)
 
 process:
 1. if CSV file provided, query by object ids or ra, dec
-2. if CSV file not provided, query based on group id(s)
+2. if CSV file not provided, bulk query based on group id(s)
 3. get the classification/probabilities/periods of the objects in the dataset from Fritz
 4. append these values as new columns on the dataset, save to new file
 
 output: data with new columns appended.
 
 ```sh
-./scope_download_classification.py -file sample.csv -group_ids 360 361 -token sample_token
+./scope_download_classification.py -file sample.csv -group_ids 360 361 -token sample_token -start 10
 ```
 
 ## Scope Upload Classification
