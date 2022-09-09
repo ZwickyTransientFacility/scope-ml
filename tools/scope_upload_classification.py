@@ -8,9 +8,13 @@ import math
 import warnings
 from requests.exceptions import InvalidJSONError
 from urllib3.exceptions import ProtocolError
+import yaml
+import pathlib
 
 # from time import sleep
 MAX_ATTEMPTS = 10
+RADIUS_ARCSEC = 2
+UPLOAD_BATCHSIZE = 100
 
 
 def upload_classification(
@@ -24,6 +28,7 @@ def upload_classification(
     comment: str,
     start: int,
     stop: int,
+    skip_phot: bool = False,
 ):
     """
     Upload labels to Fritz
@@ -35,6 +40,9 @@ def upload_classification(
     :param token: Fritz token (str)
     :param taxonomy_map: if classification is ['read'], path to JSON file containing taxonomy mapping (str)
     :param comment: single comment to post (str)
+    :param start: index in CSV file to start upload (int)
+    :param stop: index in CSV file to stop upload (inclusive) (int)
+    :skip_phot: if True, only upload groups and classifications (no photometry) (bool)
     """
 
     # read in file to csv
@@ -47,43 +55,46 @@ def upload_classification(
         else:
             sources = sources.loc[start:]
 
+    # for classification "read" mode, load taxonomy map
+    read_classes = False
+    if classification is not None:
+        if (
+            (classification[0] == "read")
+            | (classification[0] == 'Read')
+            | (classification[0] == 'READ')
+        ):
+            read_classes = True
+            with open(taxonomy_map, 'r') as f:
+                tax_map = JSON.load(f)
+
+            classes = [
+                key for key in tax_map.keys()
+            ]  # define list of columns to examine
+
+    dict_list = []
     for index, row in sources.iterrows():
         probs = {}
         cls_list = []
         existing_classes = []
 
-        # for classification "read" mode, load taxonomy map
-        if classification is not None:
-            if (
-                (classification[0] == "read")
-                | (classification[0] == 'Read')
-                | (classification[0] == 'READ')
-            ):
-                with open(taxonomy_map, 'r') as f:
-                    tax_map = JSON.load(f)
+        if read_classes:
+            row_classes = row[classes]  # limit current row to specific columns
+            nonzero_keys = row_classes.keys()[
+                row_classes > 0
+            ]  # determine which dataset classifications are nonzero
 
-                classes = [
-                    key for key in tax_map.keys()
-                ]  # define list of columns to examine
-                row_classes = row[classes]  # limit current row to specific columns
-                nonzero_keys = row_classes.keys()[
-                    row_classes > 0
-                ]  # determine which dataset classifications are nonzero
-
-                for val in nonzero_keys:
-                    cls = tax_map[val]
-                    if (
-                        cls != 'None'
-                    ):  # if Fritz taxonomy value exists, add to class list
-                        probs[cls] = row[val]
-                        cls_list += [cls]
-
-            else:
-                # for manual i classifications, use last i columns for probability
-                for i in range(len(classification)):
-                    cls = classification[i]
+            for val in nonzero_keys:
+                cls = tax_map[val]
+                if cls != 'None':  # if Fritz taxonomy value exists, add to class list
+                    probs[cls] = row[val]
                     cls_list += [cls]
-                    probs[cls] = row.iloc[-1 * len(classification) + i]
+
+        else:
+            # for manual i classifications, use last i columns for probability
+            for i in range(len(classification)):
+                cls = classification[i]
+                cls_list += [cls]
+                probs[cls] = row.iloc[-1 * len(classification) + i]
 
         ra, dec = float(row.ra), float(row.dec)
 
@@ -101,7 +112,9 @@ def upload_classification(
         for attempt in range(MAX_ATTEMPTS):
             try:
                 response = api(
-                    "GET", f"/api/sources?&ra={ra}&dec={dec}&radius={2/3600}", token
+                    "GET",
+                    f"/api/sources?&ra={ra}&dec={dec}&radius={RADIUS_ARCSEC/3600}",
+                    token,
                 )
                 # sleep(0.9)
                 data = response.json().get("data")
@@ -109,29 +122,36 @@ def upload_classification(
             except (InvalidJSONError, ConnectionError, ProtocolError, OSError):
                 print(f'Error - Retrying (attempt {attempt+1}).')
 
+        existing_source = []
         obj_id = None
         if data["totalMatches"] > 0:
-            obj_id = data["sources"][0]["id"]
+            existing_source = data['sources'][0]
+            obj_id = existing_source["id"]
         print(f"object {index} id:", obj_id)
 
-        obj_id = save_newsource(
-            gloria, group_ids, ra, dec, token, period=period, return_id=True
-        )
+        # save_newsource can only be skipped if source exists
+        if (len(existing_source) == 0) | (not skip_phot):
+            if len(existing_source) == 0:
+                warnings.warn('Cannot skip new source - saving.')
+            obj_id = save_newsource(
+                gloria,
+                group_ids,
+                ra,
+                dec,
+                token,
+                period=period,
+                return_id=True,
+                radius=RADIUS_ARCSEC,
+            )
+
         data_groups = []
         data_classes = []
 
         # check which groups source is already in
         add_group_ids = group_ids.copy()
-        for attempt in range(MAX_ATTEMPTS):
-            try:
-                response = api("GET", f"/api/sources/{obj_id}", token)
-                data = response.json().get("data")
-                break
-            except (InvalidJSONError, ConnectionError, ProtocolError, OSError):
-                print(f'Error - Retrying (attempt {attempt+1}).')
-
-        data_groups = data['groups']
-        data_classes = data['classifications']
+        if len(existing_source) > 0:
+            data_groups = existing_source['groups']
+            data_classes = existing_source['classifications']
 
         # remove existing groups from list of groups
         for entry in data_groups:
@@ -166,17 +186,7 @@ def upload_classification(
                         "probability": prob,
                         "group_ids": group_ids,
                     }
-                    for attempt in range(MAX_ATTEMPTS):
-                        try:
-                            response = api("POST", "/api/classification", token, json)
-                            break
-                        except (
-                            InvalidJSONError,
-                            ConnectionError,
-                            ProtocolError,
-                            OSError,
-                        ):
-                            print(f'Error - Retrying (attempt {attempt+1}).')
+                    dict_list += [json]
 
         if comment is not None:
             # get comment text
@@ -209,13 +219,29 @@ def upload_classification(
                     except (InvalidJSONError, ConnectionError, ProtocolError, OSError):
                         print(f'Error - Retrying (attempt {attempt+1}).')
 
+        # batch upload classifications
+        if (index + 1) % UPLOAD_BATCHSIZE == 0:
+            print('uploading classifications...')
+            json_classes = {'classifications': dict_list}
+            for attempt in range(MAX_ATTEMPTS):
+                try:
+                    response = api("POST", "/api/classification", token, json_classes)
+                    break
+                except (
+                    InvalidJSONError,
+                    ConnectionError,
+                    ProtocolError,
+                    OSError,
+                ):
+                    print(f'Error - Retrying (attempt {attempt+1}).')
+
 
 if __name__ == "__main__":
     # setup connection to gloria to get the lightcurves
-    # secrets file requires Kowalski username/password or token, host, port, and protocol
-    with open('secrets.json', 'r') as f:
-        secrets = JSON.load(f)
-    gloria = Kowalski(**secrets['gloria'], verbose=False)
+    config_path = pathlib.Path(__file__).parent.parent.absolute() / "config.yaml"
+    with open(config_path) as config_yaml:
+        config = yaml.load(config_yaml, Loader=yaml.FullLoader)
+    gloria = Kowalski(**config['kowalski'], verbose=False)
 
     # pass Fritz token as command line argument
     parser = argparse.ArgumentParser()
@@ -254,6 +280,13 @@ if __name__ == "__main__":
         type=int,
         help="Index to stop uploading (inclusive)",
     )
+    parser.add_argument(
+        "-skip_phot",
+        type=bool,
+        default=False,
+        help="Skip photometry upload, only post groups and classifications.",
+    )
+
     args = parser.parse_args()
 
     # upload classification objects
@@ -268,4 +301,5 @@ if __name__ == "__main__":
         args.comment,
         args.start,
         args.stop,
+        args.skip_phot,
     )
