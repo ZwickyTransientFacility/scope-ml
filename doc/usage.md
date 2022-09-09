@@ -84,7 +84,7 @@ output: data with new columns appended.
 
 ## Scope Upload Classification
 inputs:
-0. gloria object (create a file named secrets.json with Kowalski username+password or token, host, port and protocol)
+0. gloria object (include Kowalski host, port, protocol, and token or username+password in config.yaml)
 1. CSV file containing ra, dec, period, and labels
 2. target group id(s) on Fritz for upload
 3. Scope taxonomy id
@@ -94,16 +94,17 @@ inputs:
 7. Comment to post (if specified)
 8. Index to start uploading (zero-based)
 9. Index to stop uploading (inclusive)
+10. Skip photometry upload (existing sources only)
 
 process:
 1. get object ids of all the data from Fritz using the ra, dec, and period
 2. save the objects to Fritz group
-3. upload the classification of the objects in the dataset to target group on Fritz
+3. in batches, upload the classifications of the objects in the dataset to target group on Fritz
 4. duplicate classifications will not be uploaded to Fritz. If n classifications are manually specified, probabilities will be sourced from the last n columns of the dataset.
 5. (post comment to each uploaded source)
 
 ```sh
-./scope_upload_classification.py -file sample.csv -group_ids 500 250 750 -taxonomy_id 7 -classification variable flaring -token sample_token -taxonomy_map map.json -comment vetted -start 35 -stop 50
+./scope_upload_classification.py -file sample.csv -group_ids 500 250 750 -taxonomy_id 7 -classification variable flaring -token sample_token -taxonomy_map map.json -comment vetted -start 35 -stop 50 -skip_phot False
 ```
 
 ## Scope Upload Disagreements

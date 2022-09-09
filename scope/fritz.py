@@ -250,7 +250,7 @@ def save_newsource(
 ):
 
     # get the lightcurves
-    light_curves = get_lightcurves(gloria, ra, dec, 2.0)
+    light_curves = get_lightcurves(gloria, ra, dec, radius)
     if len(light_curves) < 1:
         print('No lightcurves found for this objects!')
         return None
