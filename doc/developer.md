@@ -66,9 +66,7 @@ Developers may merge `main` into their branch as many times as they want to.
 
 6. Once the pull request has been reviewed and approved by at least two team members, it will be merged into `scope`.
 
-## Setting up your environment
-
-### Windows Linux MacOS (AMD64)
+## Setting up your environment (Windows/Linux/macOS)
 
 We use `black` to format the code and `flake8` to verify that code complies with [PEP8](https://www.python.org/dev/peps/pep-0008/).
 Please install our pre-commit hook as follows:
@@ -86,56 +84,50 @@ The pre-commit hook will lint *changes* made to the source.
 
 ---
 
-You may want to create/activate a virtual environment, for example:
+You may want to create/activate a virtual environment, for example using conda:
 
 ```bash
-python -m venv scope-env
-source scope-env/bin/activate
+conda create -n scope-env
+conda activate scope-env
 ```
 
-Make sure the requirements to run it are met, e.g.:
-
-```bash
-pip install -r requirements.txt
-```
-
-Ensure that Python can import from `scope` by modifying the `PYTHONPATH` environment variable, e.g. by adding the following to your `.bash_profile`:
+Ensure that Python can import from `scope` by modifying the `PYTHONPATH` environment variable, e.g. by adding the following to `~/.bash_profile`:
 
 ```bash
 export PYTHONPATH="$PYTHONPATH:$HOME/scope"
 ```
 
-### MacOS(ARM64)
+---
 
-#### Tensorflow for Mac OS M1
+### Instructions for macOS (ARM64)
 
-You are supposed to install the correct version of Tensorflow. Specifically, it should fit the ARM64 architecture, and the Mac OS based on M1 series CPU.
+Skip to the next section if using Windows/Linux or macOS (AMD64).
 
-Apple official provides effective version. At this page `https://developer.apple.com/metal/tensorflow-plugin/` you can gain the methods to finish it.
+#### Use miniforge3 to install packages
 
-But there are still some key things.
+There have been issues with Anaconda on Macs with Apple Silicon. We recommend using miniforge3 (`https://github.com/conda-forge/miniforge`), which is a conda environment specifically adapted to the newest Macs.
 
-1. Anaconda doesn't work properly. In its place, You're going to use Miniforge3, also a conda environment, which is specifically adapted to Apple's operating system. Anaconda does not provide the correct version.
+#### Install tensorflow for macOS/Apple Silicon
 
-2. After you have successfully installed tensorflow-deps, tensorflow-macos, tensorflow-metal, you are going to modify the file `requirements.txt` before you install any other software. You are supposed to remove `tensorflow<2.6` `tensorflow-addons>=0.12` from `.ruquirements/dev.txt` .
+You will need to install the correct version of tensorflow for the ARM64 architecture used by Macs with Apple Silicon. Apple provides an effective version here: `https://developer.apple.com/metal/tensorflow-plugin/`.
 
-   Then, you can use `pip install -r requirements.txt` to install other python packages.
-
-   When you meet an error, you can install it by `conda install xxx` , and remove it from `.requirements/dev.txt` . After that, you can use `pip install -r requirements.txt` again.
-
-3. If some packages keep making errors.  You are supposed to update the conda environment.
-
-#### Specific operation
-
-To install the tensorflow for Mac OS
-```zsh
+To install tensorflow for macOS, run:
+```bash
 conda install -c apple tensorflow-deps
 python -m pip install tensorflow-macos
 python -m pip install tensorflow-metal
 ```
 
-The `.requirements/dev-M1.txt` , please use this file to overwrite the `.requirements/dev.txt` .
-You can use this order `cp -f .requirements/dev-M1.txt .requirements/dev.txt` to finish this process.
+#### Modify remaining requirements
+
+After successfully installing tensorflow-deps, tensorflow-macos, tensorflow-metal, modify the remaining software requirements before installing anything else. Overwrite the `.requirements/dev.txt` file with the updated requirements from `.requirements/dev-M1.txt` by running the following from the scope directory:
+
+```bash
+cp -f .requirements/dev-M1.txt .requirements/dev.txt
+```
+
+This removes `tensorflow<2.6` `tensorflow-addons>=0.12` from `.requirements/dev.txt` . The file should now list the following requirements:
+
 ```txt
 deepdiff>=5.0
 gsutil>=4.60
@@ -147,14 +139,41 @@ scikit-learn>=0.24.1
 wandb>=0.12.1
 ```
 
-You need to install some packages separately.
-```zsh
+Continue the installation by following the below instructions for all operating systems.
+
+---
+### All Windows/Linux/macOS
+
+#### Install required packages
+
+Install the required python packages by running:
+```bash
+pip install -r requirements.txt
+```
+
+#### Troubleshooting
+
+Upon encountering installation errors, manually install the package in question using  `conda install xxx` , and remove it from `.requirements/dev.txt`. After that, re-run `pip install -r requirements.txt` to continue.
+
+You may need to install some packages separately, e.g.:
+```bash
+conda install healpy
 conda install numpy
 conda install openblas #to fix the numpy
-conda install healpy
 conda install pandas
 ```
 
+If the installation continues to raise errors, update the conda environment and try again.
+
+#### Create and modify config.yaml
+
+From the included config.defaults.yaml, make a copy called config.yaml:
+
+```bash
+cp config.defaults.yaml config.yaml
+```
+
+Edit config.yaml to include Kowalski and Fritz tokens in the associated empty `token:` fields.
 
 ## Contributing Field Guide sections
 
@@ -182,7 +201,8 @@ If you would like to contribute a Field Guide section, please follow the steps b
     you provided in the config.
   - Add the following include statements to [`doc/field_guide.md`](field_guide.md):
 
-```{include} ./field_guide__<object_class>.md
+```
+{include} ./field_guide__<object_class>.md
 ```
 
 - If you wish to render a sample Gaia-based HR diagram, you need to create a "Golden" data set
