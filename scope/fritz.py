@@ -303,9 +303,14 @@ def save_newsource(
         df_photometry.dropna().drop_duplicates('expid').reset_index(drop=True)
     )
 
-    # hardcoded this because it is easier, but if Fritz ever changes
-    # this number will change
-    instrument_id = 1
+    # Get up-to-date ZTF instrument id
+    name = 'ZTF'
+    response_instruments = api('GET', 'api/instrument', token)
+    instrument_data = response_instruments.json().get('data')
+
+    for instrument in instrument_data:
+        if instrument['name'] == name:
+            instrument_id = instrument['id']
 
     photometry = {
         "obj_id": obj_id,
