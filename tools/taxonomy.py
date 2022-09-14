@@ -84,6 +84,14 @@ def post(
     )
     print(response.json())
 
+    response_json = response.json()
+    if response_json['status'] == 'success':
+        tax_id = response_json['data']['taxonomy_id']
+        print(f'Posted taxonomy (ID = {tax_id}.)')
+    else:
+        message = response_json['message']
+        print(f'Did not post taxonomy - message: {message}.')
+
 
 if __name__ == "__main__":
     fire.Fire(post)
