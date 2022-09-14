@@ -75,6 +75,7 @@ def upload_classification(
     for index, row in sources.iterrows():
         probs = {}
         cls_list = []
+        tax_dict = {}
         existing_classes = []
 
         if read_classes:
@@ -84,10 +85,12 @@ def upload_classification(
             ]  # determine which dataset classifications are nonzero
 
             for val in nonzero_keys:
-                cls = tax_map[val]
+                cls = tax_map[val]['fritz_label']
+                tax_id = tax_map[val]['taxonomy_id']
                 if cls != 'None':  # if Fritz taxonomy value exists, add to class list
                     probs[cls] = row[val]
                     cls_list += [cls]
+                    tax_dict[cls] = tax_id
 
         else:
             # for manual i classifications, use last i columns for probability
@@ -177,12 +180,13 @@ def upload_classification(
         if classification is not None:
             for cls in cls_list:
                 if cls not in existing_classes:
+                    tax = tax_dict[cls]
                     prob = probs[cls]
                     # post all non-duplicate classifications
                     json = {
                         "obj_id": obj_id,
                         "classification": cls,
-                        "taxonomy_id": taxonomy_id,
+                        "taxonomy_id": tax,
                         "probability": prob,
                         "group_ids": group_ids,
                     }
@@ -250,9 +254,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "-taxonomy_id",
         type=int,
-        nargs='?',
-        default=9,
-        const=9,
         help="Fritz scope taxonomy id",
     )
     # parser.add_argument("-classification", type=str, help="name of object class")
@@ -283,7 +284,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "-skip_phot",
         type=bool,
+        nargs='?',
         default=False,
+        const=True,
         help="Skip photometry upload, only post groups and classifications.",
     )
 

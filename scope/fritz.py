@@ -297,58 +297,47 @@ def save_newsource(
                 except (InvalidJSONError, ConnectionError, ProtocolError, OSError):
                     print(f'Error - Retrying (attempt {attempt+1}).')
 
-    # start by checking for existing photometry
-    for attempt in range(MAX_ATTEMPTS):
-        try:
-            response = api("GET", f'/api/sources/{obj_id}/photometry', token)
-            data = response.json().get('data')
-            break
-        except (InvalidJSONError, ConnectionError, ProtocolError, OSError):
-            print(f'Error - Retrying (attempt {attempt+1}).')
-
     # get photometry; drop flagged/nan data
     df_photometry = make_photometry(light_curves, drop_flagged=True)
     df_photometry = (
         df_photometry.dropna().drop_duplicates('expid').reset_index(drop=True)
     )
 
-    # if no photometry exists or there is a difference, post the lightcurves
-    if len(data) != len(df_photometry):
-        # if existing photometry, identify new data and ignore existing
-        if len(data) > 0:
-            df_phot_existing = pd.DataFrame(data)
-            indices_new = df_photometry['mjd'] > np.max(df_phot_existing['mjd'])
-            df_photometry = df_photometry[indices_new]
+    # Get up-to-date ZTF instrument id
+    name = 'ZTF'
+    response_instruments = api('GET', 'api/instrument', token)
+    instrument_data = response_instruments.json().get('data')
 
-        # hardcoded this because it is easier, but if Fritz ever changes
-        # this number will change
-        instrument_id = 1
+    for instrument in instrument_data:
+        if instrument['name'] == name:
+            instrument_id = instrument['id']
+            break
 
-        photometry = {
-            "obj_id": obj_id,
-            "instrument_id": instrument_id,
-            "mjd": df_photometry["mjd"].tolist(),
-            "mag": df_photometry["mag"].tolist(),
-            "magerr": df_photometry["magerr"].tolist(),
-            "limiting_mag": df_photometry["zp"].tolist(),
-            "magsys": df_photometry["magsys"].tolist(),
-            "filter": df_photometry["ztf_filter"].tolist(),
-            "ra": df_photometry["ra"].tolist(),
-            "dec": df_photometry["dec"].tolist(),
-        }
+    photometry = {
+        "obj_id": obj_id,
+        "instrument_id": instrument_id,
+        "mjd": df_photometry["mjd"].tolist(),
+        "mag": df_photometry["mag"].tolist(),
+        "magerr": df_photometry["magerr"].tolist(),
+        "limiting_mag": df_photometry["zp"].tolist(),
+        "magsys": df_photometry["magsys"].tolist(),
+        "filter": df_photometry["ztf_filter"].tolist(),
+        "ra": df_photometry["ra"].tolist(),
+        "dec": df_photometry["dec"].tolist(),
+    }
 
-        if (len(photometry.get("mag", ())) > 0) & (not dryrun):
-            print("Attempting to upload as %s" % obj_id)
-            for attempt in range(MAX_ATTEMPTS):
-                try:
-                    response = api("PUT", "/api/photometry", token, photometry)
-                    if response.json()["status"] == "error":
-                        print('Failed to post to Fritz')
-                        print(response.json())
-                        return None
-                    break
-                except (InvalidJSONError, ConnectionError, ProtocolError, OSError):
-                    print(f'Error - Retrying (attempt {attempt+1}).')
+    if (len(photometry.get("mag", ())) > 0) & (not dryrun):
+        print("Uploading photmetry for %s" % obj_id)
+        for attempt in range(MAX_ATTEMPTS):
+            try:
+                response = api("PUT", "/api/photometry", token, photometry)
+                if response.json()["status"] == "error":
+                    print('Failed to post photometry to Fritz')
+                    print(response.json())
+                    return None
+                break
+            except (InvalidJSONError, ConnectionError, ProtocolError, OSError):
+                print(f'Error - Retrying (attempt {attempt+1}).')
 
     if period is not None:
         # upload the period if it is provided
