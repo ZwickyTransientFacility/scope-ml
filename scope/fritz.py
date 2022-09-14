@@ -311,6 +311,7 @@ def save_newsource(
     for instrument in instrument_data:
         if instrument['name'] == name:
             instrument_id = instrument['id']
+            break
 
     photometry = {
         "obj_id": obj_id,
