@@ -26,6 +26,7 @@ def post(
     provenance: Optional[str] = None,
 ):
     """Post taxonomy to Fritz
+       NOTE: token in config.yaml must have 'Post taxonomy' permission
 
     $ ./taxonomy.py \
       --taxonomy='phenomenological.yaml' \
