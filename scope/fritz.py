@@ -327,7 +327,7 @@ def save_newsource(
     }
 
     if (len(photometry.get("mag", ())) > 0) & (not dryrun):
-        print("Uploading photmetry for %s" % obj_id)
+        print("Uploading photometry for %s" % obj_id)
         for attempt in range(MAX_ATTEMPTS):
             try:
                 response = api("PUT", "/api/photometry", token, photometry)
