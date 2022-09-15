@@ -51,8 +51,12 @@ def upload_classification(
 
     if start is not None:
         sources = sources.loc[start:]
+    else:
+        start = sources.index[0]
     if stop is not None:
         sources = sources.loc[:stop]
+    else:
+        stop = sources.index[-1]
 
     # for classification "read" mode, load taxonomy map
     read_classes = False
@@ -223,7 +227,7 @@ def upload_classification(
                         print(f'Error - Retrying (attempt {attempt+1}).')
 
         # batch upload classifications
-        if ((index - start) + 1) % UPLOAD_BATCHSIZE == 0:
+        if (((index - start) + 1) % UPLOAD_BATCHSIZE == 0) | (index == stop):
             print('uploading classifications...')
             json_classes = {'classifications': dict_list}
             for attempt in range(MAX_ATTEMPTS):
