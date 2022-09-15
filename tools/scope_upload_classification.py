@@ -14,7 +14,7 @@ import pathlib
 # from time import sleep
 MAX_ATTEMPTS = 10
 RADIUS_ARCSEC = 2
-UPLOAD_BATCHSIZE = 100
+UPLOAD_BATCHSIZE = 10
 
 
 def upload_classification(
@@ -50,10 +50,9 @@ def upload_classification(
     columns = sources.columns
 
     if start is not None:
-        if stop is not None:
-            sources = sources.loc[start:stop]
-        else:
-            sources = sources.loc[start:]
+        sources = sources.loc[start:]
+    if stop is not None:
+        sources = sources.loc[:stop]
 
     # for classification "read" mode, load taxonomy map
     read_classes = False
@@ -134,7 +133,7 @@ def upload_classification(
 
         # save_newsource can only be skipped if source exists
         if (len(existing_source) == 0) | (not skip_phot):
-            if len(existing_source) == 0:
+            if (len(existing_source) == 0) & (skip_phot):
                 warnings.warn('Cannot skip new source - saving.')
             obj_id = save_newsource(
                 gloria,
@@ -224,12 +223,13 @@ def upload_classification(
                         print(f'Error - Retrying (attempt {attempt+1}).')
 
         # batch upload classifications
-        if (index + 1) % UPLOAD_BATCHSIZE == 0:
+        if ((index - start) + 1) % UPLOAD_BATCHSIZE == 0:
             print('uploading classifications...')
             json_classes = {'classifications': dict_list}
             for attempt in range(MAX_ATTEMPTS):
                 try:
                     response = api("POST", "/api/classification", token, json_classes)
+                    dict_list = []
                     break
                 except (
                     InvalidJSONError,
@@ -238,6 +238,10 @@ def upload_classification(
                     OSError,
                 ):
                     print(f'Error - Retrying (attempt {attempt+1}).')
+                    if (attempt + 1) == MAX_ATTEMPTS:
+                        raise RuntimeError(
+                            'Reached max attempts without successful classification upload.'
+                        )
 
 
 if __name__ == "__main__":
