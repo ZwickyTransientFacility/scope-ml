@@ -50,10 +50,9 @@ def upload_classification(
     columns = sources.columns
 
     if start is not None:
-        if stop is not None:
-            sources = sources.loc[start:stop]
-        else:
-            sources = sources.loc[start:]
+        sources = sources.loc[start:]
+    if stop is not None:
+        sources = sources.loc[:stop]
 
     # for classification "read" mode, load taxonomy map
     read_classes = False
