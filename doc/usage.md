@@ -80,22 +80,23 @@ inputs:
 2. gloria object
 3. target group id(s) on Fritz for download (if CSV file not provided)
 4. Fritz token
+5. Index or page number (if in "parse" mode) to begin downloading (optional)
 
 process:
 1. if CSV file provided, query by object ids or ra, dec
-2. if CSV file not provided, query based on group id(s)
+2. if CSV file not provided, bulk query based on group id(s)
 3. get the classification/probabilities/periods of the objects in the dataset from Fritz
 4. append these values as new columns on the dataset, save to new file
 
 output: data with new columns appended.
 
 ```sh
-./scope_download_classification.py -file sample.csv -group_ids 360 361 -token sample_token
+./scope_download_classification.py -file sample.csv -group_ids 360 361 -token sample_token -start 10
 ```
 
 ## Scope Upload Classification
 inputs:
-0. gloria object (create a file named secrets.json with Kowalski username+password or token, host, port and protocol)
+0. gloria object (include Kowalski host, port, protocol, and token or username+password in config.yaml)
 1. CSV file containing ra, dec, period, and labels
 2. target group id(s) on Fritz for upload
 3. Scope taxonomy id
@@ -103,16 +104,19 @@ inputs:
 5. Fritz token
 6. Taxonomy map ("label in file":"Fritz taxonomy name", JSON format).
 7. Comment to post (if specified)
+8. Index to start uploading (zero-based)
+9. Index to stop uploading (inclusive)
+10. Skip photometry upload (existing sources only)
 
 process:
 1. get object ids of all the data from Fritz using the ra, dec, and period
 2. save the objects to Fritz group
-3. upload the classification of the objects in the dataset to target group on Fritz
+3. in batches, upload the classifications of the objects in the dataset to target group on Fritz
 4. duplicate classifications will not be uploaded to Fritz. If n classifications are manually specified, probabilities will be sourced from the last n columns of the dataset.
 5. (post comment to each uploaded source)
 
 ```sh
-./scope_upload_classification.py -file sample.csv -group_ids 500 250 750 -taxonomy_id 7 -classification variable flaring -token sample_token -taxonomy_map map.json -comment vetted
+./scope_upload_classification.py -file sample.csv -group_ids 500 250 750 -taxonomy_id 7 -classification variable flaring -token sample_token -taxonomy_map map.json -comment vetted -start 35 -stop 50 -skip_phot False
 ```
 
 ## Scope Upload Disagreements
