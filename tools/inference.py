@@ -6,7 +6,7 @@ import pathlib
 from penquins import Kowalski
 import xgboost as xgb
 import warnings
-from typing import List, Union
+from typing import Union
 import yaml
 import json
 import os
