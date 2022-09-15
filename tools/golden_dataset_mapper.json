@@ -1,0 +1,276 @@
+{
+"variable":
+    {"fritz_label": "variable",
+      "taxonomy_id": 1012
+    },
+
+"periodic":
+    {"fritz_label": "periodic",
+      "taxonomy_id": 1012
+    },
+
+"pulsator":
+    {"fritz_label": "Pulsating",
+      "taxonomy_id": 1011
+    },
+
+"RR Lyrae":
+    {"fritz_label": "RR Lyrae",
+      "taxonomy_id": 1011
+    },
+
+"Cepheid":
+    {"fritz_label": "Cepheid",
+      "taxonomy_id": 1011
+    },
+
+"multi periodic":
+    {"fritz_label": "multi periodic",
+      "taxonomy_id": 1012
+    },
+
+"sinusoidal":
+    {"fritz_label": "sinusoidal",
+      "taxonomy_id": 1012
+    },
+
+"non-variable":
+    {"fritz_label": "non-variable",
+      "taxonomy_id": 1012
+    },
+
+"bogus":
+    {"fritz_label": "bogus",
+      "taxonomy_id": 1012
+    },
+
+"bright star":
+    {"fritz_label": "bright star",
+      "taxonomy_id": 1012
+    },
+
+"long timescale":
+    {"fritz_label": "long timescale",
+      "taxonomy_id": 1012
+    },
+
+"irregular":
+    {"fritz_label": "irregular",
+      "taxonomy_id": 1012
+    },
+
+"blend":
+    {"fritz_label": "blend",
+      "taxonomy_id": 1012
+    },
+
+"galaxy":
+    {"fritz_label": "galaxy",
+      "taxonomy_id": 1012
+    },
+
+"eclipsing":
+    {"fritz_label": "eclipsing",
+      "taxonomy_id": 1012
+    },
+
+"EW":
+    {"fritz_label": "EW",
+      "taxonomy_id": 1012
+    },
+
+"flaring":
+    {"fritz_label": "flaring",
+      "taxonomy_id": 1012
+    },
+
+"ccd artifact":
+    {"fritz_label": "ccd artifact",
+      "taxonomy_id": 1012
+    },
+
+"binary star":
+    {"fritz_label": "Eclipsing",
+      "taxonomy_id": 1011
+    },
+
+"detached eclipsing MS-MS":
+    {"fritz_label": "detached MS-MS",
+      "taxonomy_id": 1011
+    },
+
+"W UMa":
+    {"fritz_label": "W Ursae Maj",
+      "taxonomy_id": 1011
+    },
+
+"RR Lyrae ab":
+    {"fritz_label": "RRab",
+      "taxonomy_id": 1011
+    },
+
+"RR Lyrae c":
+    {"fritz_label": "RRc",
+      "taxonomy_id": 1011
+    },
+
+"Delta Scu":
+    {"fritz_label": "Delta Scuti",
+      "taxonomy_id": 1011
+    },
+
+"RR Lyrae d":
+    {"fritz_label": "RRd",
+      "taxonomy_id": 1011
+    },
+
+"Cepheid type-II":
+    {"fritz_label": "Population II Cepheid",
+      "taxonomy_id": 1011
+    },
+
+"RS CVn":
+    {"fritz_label": "RS CVn",
+    "taxonomy_id": 1011
+    },
+
+"EB":
+    {"fritz_label": "EB",
+      "taxonomy_id": 1012
+    },
+
+"Beta Lyr":
+    {"fritz_label": "Beta Lyrae",
+      "taxonomy_id": 1011
+    },
+
+"sawtooth":
+    {"fritz_label": "sawtooth",
+      "taxonomy_id": 1012
+    },
+
+"RR Lyrae Blazhko":
+    {"fritz_label": "Blazhko",
+      "taxonomy_id": 1011
+    },
+
+"EA":
+    {"fritz_label": "EA",
+      "taxonomy_id": 1012
+    },
+
+"YSO":
+    {"fritz_label": "YSO",
+      "taxonomy_id": 1011
+    },
+
+"dipping":
+    {"fritz_label": "dipping",
+      "taxonomy_id": 1012
+    },
+
+"wrong period":
+    {"fritz_label": "wrong period",
+      "taxonomy_id": 1012
+    },
+
+"double period":
+    {"fritz_label": "double period",
+      "taxonomy_id": 1012
+    },
+
+"AGN":
+    {"fritz_label": "AGN",
+      "taxonomy_id": 1011
+    },
+
+"RV Tau":
+    {"fritz_label": "RV Tau",
+      "taxonomy_id": 1011
+    },
+
+"LPV":
+    {"fritz_label": "LPV",
+      "taxonomy_id": 1011
+    },
+
+"Mira":
+    {"fritz_label": "Mira",
+      "taxonomy_id": 1011
+    },
+
+"half period":
+    {"fritz_label": "half period",
+      "taxonomy_id": 1012
+    },
+
+"SRV":
+    {"fritz_label": "Semiregular",
+      "taxonomy_id": 1011
+    },
+
+"W Virginis":
+    {"fritz_label": "W Vir",
+      "taxonomy_id": 1011
+    },
+
+"compact binary":
+    {"fritz_label": "Compact Binary",
+      "taxonomy_id": 1011
+    },
+
+"eclipsing WD+dM (NN Ser)":
+    {"fritz_label": "NN Ser",
+      "taxonomy_id": 1011
+    },
+
+"nice":
+    {"fritz_label": "None",
+      "taxonomy_id": -1
+    },
+
+"niice":
+    {"fritz_label": "None",
+      "taxonomy_id": -1
+    },
+
+"F":
+    {"fritz_label": "Fundamental",
+      "taxonomy_id": 1011
+    },
+
+"O":
+    {"fritz_label": "Overtone",
+      "taxonomy_id": 1011
+    },
+
+"BL Her":
+    {"fritz_label": "BL Her",
+      "taxonomy_id": 1011
+    },
+
+"OSARG":
+    {"fritz_label": "OSARG",
+      "taxonomy_id": 1011
+    },
+
+"eclipsing sdB+dM (HW Vir)":
+    {"fritz_label": "HW Vir",
+      "taxonomy_id": 1011
+    },
+
+"elliptical":
+    {"fritz_label": "ellipsoidal",
+      "taxonomy_id": 1012
+    },
+
+"Redback pulsar":
+    {"fritz_label": "Redback Pulsar",
+      "taxonomy_id": 1011
+    },
+
+"CV":
+    {"fritz_label": "Cataclysmic",
+      "taxonomy_id": 1011
+    }
+}
