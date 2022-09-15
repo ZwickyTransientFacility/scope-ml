@@ -239,6 +239,10 @@ def upload_classification(
                     OSError,
                 ):
                     print(f'Error - Retrying (attempt {attempt+1}).')
+                    if (attempt + 1) == MAX_ATTEMPTS:
+                        raise RuntimeError(
+                            'Reached max attempts without successful classification upload.'
+                        )
 
 
 if __name__ == "__main__":
