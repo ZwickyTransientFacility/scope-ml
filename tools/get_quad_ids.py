@@ -44,7 +44,7 @@ def get_all_ids(
         Relative directory path to save output files to
     Returns
     =======
-    Directory containing hdf5 files for each quad in the specified range
+    Stores separate hdf5 files for each quad in the specified range in a directory
 
     USAGE: get_all_ids(get_field_ids, 'ZTF_sources_20210401',field=301,ccd_range=2,quad_range=4,\
         minobs=5,limit=2000)
@@ -153,7 +153,7 @@ def get_all_field_ids(
 
     Returns
     -------
-    Directory containing hdf5 files for each quad in the specified range
+    Single hdf5 file (field_<field_number>.h5) for all the quads in the specified range. 
 
     USAGE: get_all_ids(get_field_ids, 'ZTF_sources_20210401',field=301,ccd_range=2,quad_range=4,\
         minobs=5,limit=2000)
@@ -216,7 +216,7 @@ def get_all_field_ids(
             print("error dumping to json, message: ", e)
 
 
-def get_field_ids(catalog, field=301, ccd=4, quad=3, minobs=20, skip=0, limit=10):
+def get_field_ids(catalog, field=301, ccd=4, quad=3, minobs=20, skip=0, limit=10000):
     '''Get ids for a specific quad of a CCD for a particular ZTF field.
     Parameters
     ----------
@@ -234,7 +234,7 @@ def get_field_ids(catalog, field=301, ccd=4, quad=3, minobs=20, skip=0, limit=10
         How many of the selected rows to skip
         Along with limit this can be used to loop over a quad in chunks
     limit : int
-        How many of the selected rows to return. Default is 10
+        How many of the selected rows to return. Default is 10000
     Returns
     -------
     ids : list
@@ -340,7 +340,7 @@ if __name__ == "__main__":
         "--skip", type=int, default=0, help="number of rows to skip (default 0)"
     )
     parser.add_argument(
-        "--limit", type=int, default=10000, help="number of rows to return (default 10)"
+        "--limit", type=int, default=10000, help="number of rows to return (default 10000)"
     )
     parser.add_argument(
         "--verbose",

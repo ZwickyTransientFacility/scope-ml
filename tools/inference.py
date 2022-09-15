@@ -80,12 +80,14 @@ def clean_data(
     -------
     Clean dataframe with no missing values.
     '''
-    assert isinstance(features_df, pd.DataFrame), "df needs to be a pd.DataFrame"
+    assert isinstance(
+        features_df, pd.DataFrame), "df needs to be a pd.DataFrame"
 
     # file to store flagged ids and features with missing values
     if not whole_field:
         filename = (
-            "preds/ccd_" + str(ccd).zfill(2) + "_quad_" + str(quad) + "/flagged.json"
+            "preds/ccd_" + str(ccd).zfill(2) + "_quad_"
+            + str(quad) + "/flagged.json"
         )
     else:
         filename = "preds/field_" + str(field) + "/flagged.json"
@@ -125,9 +127,11 @@ def make_model(**kwargs):
 
     # dense branch to digest features
     x_dense = tf.keras.layers.Dropout(0.2)(features_input)
-    x_dense = tf.keras.layers.Dense(256, activation='relu', name='dense_fc_1')(x_dense)
+    x_dense = tf.keras.layers.Dense(
+        256, activation='relu', name='dense_fc_1')(x_dense)
     x_dense = tf.keras.layers.Dropout(0.25)(x_dense)
-    x_dense = tf.keras.layers.Dense(32, activation='relu', name='dense_fc_2')(x_dense)
+    x_dense = tf.keras.layers.Dense(
+        32, activation='relu', name='dense_fc_2')(x_dense)
 
     # CNN branch to digest dmdt
     x_conv = tf.keras.layers.Dropout(0.2)(dmdt_input)
@@ -281,6 +285,7 @@ def run(
     ts = time.time()
     # features = pd.read_csv(features_filename+".csv")
     features = pd.read_pickle(features_filename + ".pkl")
+    feature_stats = config.get("feature_stats", None)
     te = time.time()
     if tm:
         print(
@@ -291,13 +296,13 @@ def run(
         )
 
     if not xgbst:
-        dmdt = np.expand_dims(np.array([d for d in features['dmdt'].values]), axis=-1)
+        dmdt = np.expand_dims(
+            np.array([d for d in features['dmdt'].values]), axis=-1)
 
         # scale features
         ts = time.time()
         train_config = config["training"]["classes"][model_class]
         feature_names = config["features"][train_config["features"]]
-        feature_stats = config.get("feature_stats", None)
         scale_features = "min_max"
 
         for feature in feature_names:
@@ -352,7 +357,7 @@ def run(
             quad,
             flag_ids,
             whole_field,
-        )
+        )  # 1
 
         ts = time.time()
         preds = model.predict([features[feature_names].values, dmdt])
@@ -371,7 +376,16 @@ def run(
         # xgboost inferencing
         train_config = path_model[-7]
         feature_names = config["inference"]["xgb"][train_config]
-
+        features = clean_data(
+            features,
+            feature_names,
+            feature_stats,
+            field,
+            ccd,
+            quad,
+            flag_ids,
+            whole_field,
+        )
         model = xgb.XGBRegressor()
         model.load_model(path_model)
 
@@ -386,7 +400,8 @@ def run(
                 + str(round(te - ts, 4))
                 + " s"
             )
-        preds_df = features[["_id", model_class + '_xgb' + train_config]].round(2)
+        preds_df = features[["_id", model_class
+                             + '_xgb' + train_config]].round(2)
         preds_df.reset_index(inplace=True, drop=True)
 
     out_dir = os.path.join(os.path.dirname(__file__), "../preds/")
