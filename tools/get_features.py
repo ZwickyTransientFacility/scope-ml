@@ -1,13 +1,10 @@
-from tarfile import DEFAULT_FORMAT
 import fire
 import numpy as np
 import pandas as pd
 import pathlib
 from penquins import Kowalski
-import warnings
-from typing import List, Union
+from typing import List
 import yaml
-import json
 import os
 import time
 import h5py
@@ -92,7 +89,7 @@ def get_features(
     dmdt = np.vstack(dmdt_collection)
     os.makedirs(os.path.dirname(outfile), exist_ok=True)
     if (
-        restart == False
+        restart is False
         and os.path.exists(outfile + ".pkl")
         and os.path.exists(outfile + ".csv")
     ):
@@ -142,7 +139,7 @@ def get_field_features(
             "query_type": "find",
             "query": {
                 "catalog": features_catalog,
-                "filter": {"_id": {"$in": source_ids[id * limit : (id + 1) * limit]}},
+                "filter": {"_id": {"$in": source_ids[id * limit: (id + 1) * limit]}},
             },
             # "kwargs": {"limit": limit, "skip": skip},
         }
@@ -175,7 +172,7 @@ def get_field_features(
     dmdt = np.vstack(dmdt_collection)
     os.makedirs(os.path.dirname(outfile), exist_ok=True)
     if (
-        restart == False
+        restart is False
         and os.path.exists(outfile + ".pkl")
         and os.path.exists(outfile + ".csv")
     ):
@@ -249,7 +246,8 @@ def run(**kwargs):
             + ".h5"
         )
     else:
-        default_file = "../ids/field_" + str(field) + "/field_" + str(field) + ".h5"
+        default_file = "../ids/field_" + \
+            str(field) + "/field_" + str(field) + ".h5"
 
     source_ids_filename = kwargs.get("source_ids_filename", default_file)
 
