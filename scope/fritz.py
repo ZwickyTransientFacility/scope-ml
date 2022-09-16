@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 from requests.exceptions import InvalidJSONError
 from urllib3.exceptions import ProtocolError
+from json.decoder import JSONDecodeError
 
 MAX_ATTEMPTS = 10
 
@@ -294,7 +295,13 @@ def save_newsource(
                         print(f"Failed to save {obj_id} as a Source")
                         return None
                     break
-                except (InvalidJSONError, ConnectionError, ProtocolError, OSError):
+                except (
+                    InvalidJSONError,
+                    ConnectionError,
+                    ProtocolError,
+                    OSError,
+                    JSONDecodeError,
+                ):
                     print(f'Error - Retrying (attempt {attempt+1}).')
 
     # get photometry; drop flagged/nan data
@@ -310,7 +317,13 @@ def save_newsource(
         try:
             response_instruments = api('GET', 'api/instrument', token)
             break
-        except (InvalidJSONError, ConnectionError, ProtocolError, OSError):
+        except (
+            InvalidJSONError,
+            ConnectionError,
+            ProtocolError,
+            OSError,
+            JSONDecodeError,
+        ):
             print(f'Error - Retrying (attempt {attempt+1}).')
 
     instrument_data = response_instruments.json().get('data')
@@ -343,7 +356,13 @@ def save_newsource(
                     print(response.json())
                     return None
                 break
-            except (InvalidJSONError, ConnectionError, ProtocolError, OSError):
+            except (
+                InvalidJSONError,
+                ConnectionError,
+                ProtocolError,
+                OSError,
+                JSONDecodeError,
+            ):
                 print(f'Error - Retrying (attempt {attempt+1}).')
 
     if period is not None:
@@ -359,7 +378,13 @@ def save_newsource(
                     "POST", "api/sources/%s/annotations" % obj_id, token, data=data
                 )
                 break
-            except (InvalidJSONError, ConnectionError, ProtocolError, OSError):
+            except (
+                InvalidJSONError,
+                ConnectionError,
+                ProtocolError,
+                OSError,
+                JSONDecodeError,
+            ):
                 print(f'Error - Retrying (attempt {attempt+1}).')
 
     if return_id is True:
