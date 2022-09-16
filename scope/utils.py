@@ -243,7 +243,7 @@ def plot_gaia_hr(
     ax.errorbar(
         gaia_data["BP-RP"],
         gaia_data["M"],
-        gaia_data["M"] - gaia_data["Ml"],
+        gaia_data["Ml"] - gaia_data["M"],
         marker=".",
         color="#e68a00",
         alpha=0.75,
