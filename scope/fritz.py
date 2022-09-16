@@ -305,7 +305,14 @@ def save_newsource(
 
     # Get up-to-date ZTF instrument id
     name = 'ZTF'
-    response_instruments = api('GET', 'api/instrument', token)
+
+    for attempt in range(MAX_ATTEMPTS):
+        try:
+            response_instruments = api('GET', 'api/instrument', token)
+            break
+        except (InvalidJSONError, ConnectionError, ProtocolError, OSError):
+            print(f'Error - Retrying (attempt {attempt+1}).')
+
     instrument_data = response_instruments.json().get('data')
 
     for instrument in instrument_data:
