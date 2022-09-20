@@ -139,7 +139,7 @@ def get_field_features(
             "query_type": "find",
             "query": {
                 "catalog": features_catalog,
-                "filter": {"_id": {"$in": source_ids[id * limit: (id + 1) * limit]}},
+                "filter": {"_id": {"$in": source_ids[id * limit : (id + 1) * limit]}},
             },
             # "kwargs": {"limit": limit, "skip": skip},
         }
@@ -246,8 +246,7 @@ def run(**kwargs):
             + ".h5"
         )
     else:
-        default_file = "../ids/field_" + \
-            str(field) + "/field_" + str(field) + ".h5"
+        default_file = "../ids/field_" + str(field) + "/field_" + str(field) + ".h5"
 
     source_ids_filename = kwargs.get("source_ids_filename", default_file)
 
