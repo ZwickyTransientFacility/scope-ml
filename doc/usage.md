@@ -61,6 +61,18 @@ for class in pnp longt i fla ew eb ea e agn bis blyr ceph dscu lpv mir puls rrly
   done; \
 done;
 ```
+## Running inference
+
+* Inference requires the following steps: download ids of a field, download features for all downloaded ids, run inference for all available pre-trained models.
+* Requires `models/` folder in the root directory containing the pre-trained models for `dnn` and `xgboost`.
+* The commands for inference of the field `<field_number>` (in order)
+  ```
+  python tools/get_quad_ids.py --field=<field_number>
+  python tools/get_features.py --field=<field_number>
+  ./get_all_preds.sh <field_number>
+  ```
+* Creates a single `.csv` file containing all ids of the field in the rows and inference scores for different classes across the columns.
+
 
 ## Scope Download Classification
 inputs:

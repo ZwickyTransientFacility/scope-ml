@@ -89,7 +89,8 @@ def download_classification(file: str, gloria, group_ids: list, token: str, star
     id_origins = []
     ztf_ids = []
 
-    filename = file.removesuffix('.csv') + '_fritzDownload' + '.csv'  # rename file
+    filename = file.removesuffix(
+        '.csv') + '_fritzDownload' + '.csv'  # rename file
 
     if file in ["parse", 'Parse', 'PARSE']:
         if group_ids is None:
@@ -109,7 +110,8 @@ def download_classification(file: str, gloria, group_ids: list, token: str, star
 
         if start != 0:
             filename = (
-                filename.removesuffix('.csv') + f'_continued_page_{start}' + '.csv'
+                filename.removesuffix('.csv')
+                + f'_continued_page_{start}' + '.csv'
             )
             print('Downloading sources...')
         else:
@@ -178,7 +180,8 @@ def download_classification(file: str, gloria, group_ids: list, token: str, star
             # continue from checkpoint
             sources = sources[start:]
             filename = (
-                filename.removesuffix('.csv') + f'_continued_index_{start}' + '.csv'
+                filename.removesuffix('.csv')
+                + f'_continued_index_{start}' + '.csv'
             )
 
         columns = sources.columns
@@ -206,7 +209,8 @@ def download_classification(file: str, gloria, group_ids: list, token: str, star
                 # sleep(0.9)
                 data = response.json().get("data")
                 if len(data) == 0:
-                    warnings.warn('No results from obj_id search - querying by ra/dec.')
+                    warnings.warn(
+                        'No results from obj_id search - querying by ra/dec.')
                 else:
                     src = data
 
@@ -279,7 +283,8 @@ if __name__ == "__main__":
     # pass Fritz token as command line argument
     parser = argparse.ArgumentParser()
     parser.add_argument("-file", help="dataset")
-    parser.add_argument("-group_ids", type=int, nargs='+', help="list of group ids")
+    parser.add_argument("-group_ids", type=int, nargs='+',
+                        help="list of group ids")
     parser.add_argument(
         "-token",
         type=str,
@@ -291,4 +296,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # download object classifications in the file
-    download_classification(args.file, gloria, args.group_ids, args.token, args.start)
+    download_classification(
+        args.file, gloria, args.group_ids, args.token, args.start)
