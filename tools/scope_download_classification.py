@@ -34,6 +34,8 @@ def organize_source_data(src: pd.DataFrame):
     data_annot = src['annotations']
     origin_list = ''
     period_list = ''
+    id_origin_list = ''
+    id_list = ''
     for entry in data_annot:
         annot_origin = entry['origin']
         annot_data = entry['data']
@@ -46,10 +48,26 @@ def organize_source_data(src: pd.DataFrame):
             origin_list += annot_origin + ';'
             period_list += str(annot_value) + ';'
 
+        elif annot_name == 'ztf_id':
+            id_origin_list += annot_origin + ';'
+            id_list += str(annot_value) + ';'
+
     origin_list = origin_list[:-1]
     period_list = period_list[:-1]
+    id_origin_list = id_origin_list[:-1]
+    id_list = id_list[:-1]
 
-    return id, ra, dec, cls_list, prb_list, origin_list, period_list
+    return (
+        id,
+        ra,
+        dec,
+        cls_list,
+        prb_list,
+        origin_list,
+        period_list,
+        id_origin_list,
+        id_list,
+    )
 
 
 def download_classification(file: str, gloria, group_ids: list, token: str, start: int):
@@ -68,6 +86,8 @@ def download_classification(file: str, gloria, group_ids: list, token: str, star
     probs = []
     period_origins = []
     periods = []
+    id_origins = []
+    ztf_ids = []
 
     filename = file.removesuffix('.csv') + '_fritzDownload' + '.csv'  # rename file
 
@@ -118,6 +138,8 @@ def download_classification(file: str, gloria, group_ids: list, token: str, star
                     prb_list,
                     origin_list,
                     period_list,
+                    id_origin_list,
+                    id_list,
                 ) = organize_source_data(src)
 
                 ids += [src['id']]
@@ -127,6 +149,8 @@ def download_classification(file: str, gloria, group_ids: list, token: str, star
                 probs += [prb_list]
                 period_origins += [origin_list]
                 periods += [period_list]
+                id_origins += [id_origin_list]
+                ztf_ids += [id_list]
 
             # create dataframe from query results
             sources = pd.DataFrame(
@@ -138,6 +162,8 @@ def download_classification(file: str, gloria, group_ids: list, token: str, star
                     'probability': probs,
                     'period_origin': period_origins,
                     'period': periods,
+                    'ztf_id_origin': id_origins,
+                    'ztf_id': ztf_ids,
                 }
             )
 
@@ -162,6 +188,8 @@ def download_classification(file: str, gloria, group_ids: list, token: str, star
         sources["probability"] = None
         sources["period_origin"] = None
         sources["period"] = None
+        sources["ztf_id_origin"] = None
+        sources["ztf_id"] = None
         # add obj_id column if not passed in
         if 'obj_id' not in columns:
             sources["obj_id"] = None
@@ -214,6 +242,8 @@ def download_classification(file: str, gloria, group_ids: list, token: str, star
                     prb_list,
                     origin_list,
                     period_list,
+                    id_origin_list,
+                    id_list,
                 ) = organize_source_data(src)
 
                 # store to new columns
@@ -223,6 +253,8 @@ def download_classification(file: str, gloria, group_ids: list, token: str, star
                 sources.at[index, 'probability'] = prb_list
                 sources.at[index, 'period_origin'] = origin_list
                 sources.at[index, 'period'] = period_list
+                sources.at[index, 'ztf_id_origin'] = origin_list
+                sources.at[index, 'ztf_id'] = period_list
 
                 # occasional checkpoint at specified number of sources
                 if (index + 1) % CHECKPOINT_NUM == 0:
