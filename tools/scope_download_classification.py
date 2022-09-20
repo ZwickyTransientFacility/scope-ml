@@ -251,7 +251,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "-token",
         type=str,
-        help="put your Fritz token here. You can get it from your Fritz profile page",
+        help="4d0665f8-32de-4c5a-81d7-b719612b62c0",
     )
     parser.add_argument(
         "-start", type=int, default=0, help="start page/index for continued download"

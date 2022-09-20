@@ -66,7 +66,7 @@ def get_stats(G, ids):
 
 
 # define the baseurl and set the token to connect
-config_path = pathlib.Path(__file__).parent.parent.absolute() / "fritz.yaml"
+config_path = pathlib.Path(__file__).parent.parent.absolute() / "config.yaml"
 with open(config_path) as config_yaml:
     config = yaml.load(config_yaml, Loader=yaml.FullLoader)
 BASE_URL = "https://fritz.science/"
