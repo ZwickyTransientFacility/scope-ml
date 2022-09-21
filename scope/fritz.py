@@ -2,6 +2,7 @@ import urllib
 import requests
 import pathlib
 import yaml
+import time
 from typing import Optional, Mapping
 import numpy as np
 import pandas as pd
@@ -79,6 +80,7 @@ def api(
     data: Optional[Mapping] = None,
     base_url: str = BASE_URL,
     max_attempts: int = 1,
+    sleep_time: int = 5,
 ):
     method = method.upper()
     headers = {"Authorization": f"token {token}"}
@@ -94,6 +96,7 @@ def api(
 
     for attempt in range(max_attempts):
         try:
+            time.sleep(sleep_time)
             response = requests.request(**kwargs)
             break
         except (
@@ -104,6 +107,7 @@ def api(
             JSONDecodeError,
         ):
             print(f'Error - Retrying (attempt {attempt+1}).')
+            continue
 
     return response
 
