@@ -2,6 +2,7 @@ import urllib
 import requests
 import pathlib
 import yaml
+import time
 from typing import Optional, Mapping
 import numpy as np
 import pandas as pd
@@ -66,7 +67,7 @@ def get_stats(G, ids):
 
 
 # define the baseurl and set the token to connect
-config_path = pathlib.Path(__file__).parent.parent.absolute() / "fritz.yaml"
+config_path = pathlib.Path(__file__).parent.parent.absolute() / "config.yaml"
 with open(config_path) as config_yaml:
     config = yaml.load(config_yaml, Loader=yaml.FullLoader)
 BASE_URL = "https://fritz.science/"
@@ -78,6 +79,8 @@ def api(
     token: str,
     data: Optional[Mapping] = None,
     base_url: str = BASE_URL,
+    max_attempts: int = 1,
+    sleep_time: int = 5,
 ):
     method = method.upper()
     headers = {"Authorization": f"token {token}"}
@@ -90,7 +93,21 @@ def api(
         kwargs["json"] = data
     elif method == "GET":
         kwargs["params"] = data
-    response = requests.request(**kwargs)
+
+    for attempt in range(max_attempts):
+        try:
+            time.sleep(sleep_time)
+            response = requests.request(**kwargs)
+            break
+        except (
+            InvalidJSONError,
+            ConnectionError,
+            ProtocolError,
+            OSError,
+            JSONDecodeError,
+        ):
+            print(f'Error - Retrying (attempt {attempt+1}).')
+            continue
 
     return response
 
@@ -288,21 +305,17 @@ def save_newsource(
                 "group_ids": group_ids,
                 "origin": "Fritz",
             }
-            for attempt in range(MAX_ATTEMPTS):
-                try:
-                    response = api("POST", "/api/sources", token, post_source_data)
-                    if response.json()["status"] == "error":
-                        print(f"Failed to save {obj_id} as a Source")
-                        return None
-                    break
-                except (
-                    InvalidJSONError,
-                    ConnectionError,
-                    ProtocolError,
-                    OSError,
-                    JSONDecodeError,
-                ):
-                    print(f'Error - Retrying (attempt {attempt+1}).')
+
+            response = api(
+                "POST",
+                "/api/sources",
+                token,
+                post_source_data,
+                max_attempts=MAX_ATTEMPTS,
+            )
+            if response.json()["status"] == "error":
+                print(f"Failed to save {obj_id} as a Source")
+                return None
 
     # get photometry; drop flagged/nan data
     df_photometry = make_photometry(light_curves, drop_flagged=True)
@@ -313,18 +326,9 @@ def save_newsource(
     # Get up-to-date ZTF instrument id
     name = 'ZTF'
 
-    for attempt in range(MAX_ATTEMPTS):
-        try:
-            response_instruments = api('GET', 'api/instrument', token)
-            break
-        except (
-            InvalidJSONError,
-            ConnectionError,
-            ProtocolError,
-            OSError,
-            JSONDecodeError,
-        ):
-            print(f'Error - Retrying (attempt {attempt+1}).')
+    response_instruments = api(
+        'GET', 'api/instrument', token, max_attempts=MAX_ATTEMPTS
+    )
 
     instrument_data = response_instruments.json().get('data')
 
@@ -348,22 +352,13 @@ def save_newsource(
 
     if (len(photometry.get("mag", ())) > 0) & (not dryrun):
         print("Uploading photometry for %s" % obj_id)
-        for attempt in range(MAX_ATTEMPTS):
-            try:
-                response = api("PUT", "/api/photometry", token, photometry)
-                if response.json()["status"] == "error":
-                    print('Failed to post photometry to Fritz')
-                    print(response.json())
-                    return None
-                break
-            except (
-                InvalidJSONError,
-                ConnectionError,
-                ProtocolError,
-                OSError,
-                JSONDecodeError,
-            ):
-                print(f'Error - Retrying (attempt {attempt+1}).')
+        response = api(
+            "PUT", "/api/photometry", token, photometry, max_attempts=MAX_ATTEMPTS
+        )
+        if response.json()["status"] == "error":
+            print('Failed to post photometry to Fritz')
+            print(response.json())
+            return None
 
     if period is not None:
         # upload the period if it is provided
@@ -372,20 +367,13 @@ def save_newsource(
             "group_ids": group_ids,
             "data": {'period': period},
         }
-        for attempt in range(MAX_ATTEMPTS):
-            try:
-                response = api(
-                    "POST", "api/sources/%s/annotations" % obj_id, token, data=data
-                )
-                break
-            except (
-                InvalidJSONError,
-                ConnectionError,
-                ProtocolError,
-                OSError,
-                JSONDecodeError,
-            ):
-                print(f'Error - Retrying (attempt {attempt+1}).')
+        response = api(
+            "POST",
+            "api/sources/%s/annotations" % obj_id,
+            token,
+            data=data,
+            max_attempts=MAX_ATTEMPTS,
+        )
 
     if return_id is True:
         return obj_id
