@@ -39,18 +39,17 @@ def organize_source_data(src: pd.DataFrame):
     for entry in data_annot:
         annot_origin = entry['origin']
         annot_data = entry['data']
+        annot_name = [x for x in annot_data.keys()]
 
-        annot_name = [x for x in annot_data.keys()][0]
-        annot_value = [x for x in annot_data.values()][0]
+        for n in annot_name:
+            # if period is found, add to list
+            if n == 'period':
+                origin_list += annot_origin + ';'
+                period_list += str(annot_data[n]) + ';'
 
-        # if period is found, add to list
-        if annot_name == 'period':
-            origin_list += annot_origin + ';'
-            period_list += str(annot_value) + ';'
-
-        elif annot_name == 'ztf_id':
-            id_origin_list += annot_origin + ';'
-            id_list += str(annot_value) + ';'
+            elif n == 'ztf_id':
+                id_origin_list += annot_origin + ';'
+                id_list += str(annot_data[n]) + ';'
 
     origin_list = origin_list[:-1]
     period_list = period_list[:-1]
