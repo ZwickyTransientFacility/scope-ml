@@ -56,7 +56,18 @@ def organize_source_data(src: pd.DataFrame):
     id_origin_list = id_origin_list[:-1]
     id_list = id_list[:-1]
 
-    return (
+    dct = {}
+    (
+        dct['obj_id'],
+        dct['ra'],
+        dct['dec'],
+        dct['classification'],
+        dct['probability'],
+        dct['period_origin'],
+        dct['period'],
+        dct['ztf_id_origin'],
+        dct['ztf_id'],
+    ) = (
         id,
         ra,
         dec,
@@ -68,6 +79,8 @@ def organize_source_data(src: pd.DataFrame):
         id_list,
     )
 
+    return dct
+
 
 def download_classification(file: str, gloria, group_ids: list, token: str, start: int):
     """
@@ -78,15 +91,7 @@ def download_classification(file: str, gloria, group_ids: list, token: str, star
     :param token: Fritz token (str)
     """
 
-    ids = []
-    ras = []
-    decs = []
-    classes = []
-    probs = []
-    period_origins = []
-    periods = []
-    id_origins = []
-    ztf_ids = []
+    dict_list = []
 
     filename = file.removesuffix('.csv') + '_fritzDownload' + '.csv'  # rename file
 
@@ -128,46 +133,16 @@ def download_classification(file: str, gloria, group_ids: list, token: str, star
                 },  # page numbers start at 1
             )
             page_data = page_response.json().get('data')
-            for src in page_data['sources']:
-                (
-                    id,
-                    ra,
-                    dec,
-                    cls_list,
-                    prb_list,
-                    origin_list,
-                    period_list,
-                    id_origin_list,
-                    id_list,
-                ) = organize_source_data(src)
 
-                ids += [src['id']]
-                ras += [src['ra']]
-                decs += [src['dec']]
-                classes += [cls_list]
-                probs += [prb_list]
-                period_origins += [origin_list]
-                periods += [period_list]
-                id_origins += [id_origin_list]
-                ztf_ids += [id_list]
+            for src in page_data['sources']:
+                dct = organize_source_data(src)
+                dict_list += [dct]
 
             # create dataframe from query results
-            sources = pd.DataFrame(
-                {
-                    'obj_id': ids,
-                    'ra': ras,
-                    'dec': decs,
-                    'classification': classes,
-                    'probability': probs,
-                    'period_origin': period_origins,
-                    'period': periods,
-                    'ztf_id_origin': id_origins,
-                    'ztf_id': ztf_ids,
-                }
-            )
-
+            sources = pd.json_normalize(dict_list)
             sources.to_csv(filename, index=False)
             print(f'Saved page {pageNum}.')
+
         return sources
 
     else:
