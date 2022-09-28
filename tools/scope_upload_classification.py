@@ -6,13 +6,10 @@ from penquins import Kowalski
 from scope.fritz import save_newsource, api
 import math
 import warnings
-from requests.exceptions import InvalidJSONError
-from urllib3.exceptions import ProtocolError
-from json.decoder import JSONDecodeError
 import yaml
 import pathlib
+from tools import scope_manage_annotation
 
-# from time import sleep
 MAX_ATTEMPTS = 10
 RADIUS_ARCSEC = 2
 UPLOAD_BATCHSIZE = 10
@@ -29,6 +26,7 @@ def upload_classification(
     comment: str,
     start: int,
     stop: int,
+    origin: str,
     skip_phot: bool = False,
 ):
     """
@@ -43,6 +41,7 @@ def upload_classification(
     :param comment: single comment to post (str)
     :param start: index in CSV file to start upload (int)
     :param stop: index in CSV file to stop upload (inclusive) (int)
+    :origin: origin of uploaded data, posted to id annotation (str)
     :skip_phot: if True, only upload groups and classifications (no photometry) (bool)
     """
 
@@ -116,30 +115,24 @@ def upload_classification(
             warnings.warn('period column is missing - skipping period upload.')
 
         # get object id
-        for attempt in range(MAX_ATTEMPTS):
-            try:
-                response = api(
-                    "GET",
-                    f"/api/sources?&ra={ra}&dec={dec}&radius={RADIUS_ARCSEC/3600}",
-                    token,
-                )
-                # sleep(0.9)
-                data = response.json().get("data")
-                break
-            except (
-                InvalidJSONError,
-                ConnectionError,
-                ProtocolError,
-                OSError,
-                JSONDecodeError,
-            ):
-                print(f'Error - Retrying (attempt {attempt+1}).')
+        response = api(
+            "GET",
+            f"/api/sources?&ra={ra}&dec={dec}&radius={RADIUS_ARCSEC/3600}",
+            token,
+        )
+        data = response.get('data')
 
         existing_source = []
         obj_id = None
         if data["totalMatches"] > 0:
-            existing_source = data['sources'][0]
-            obj_id = existing_source["id"]
+            # get most recent source
+            for src in data['sources']:
+                src_id = src['id']
+                if src_id[:4] == 'ZTFJ':
+                    existing_source = src
+                    obj_id = src_id
+                    break
+
         print(f"object {index} id:", obj_id)
 
         # save_newsource can only be skipped if source exists
@@ -175,18 +168,7 @@ def upload_classification(
         if len(add_group_ids) > 0:
             # save to new group_ids
             json = {"objId": obj_id, "inviteGroupIds": add_group_ids}
-            for attempt in range(MAX_ATTEMPTS):
-                try:
-                    response = api("POST", "/api/source_groups", token, json)
-                    break
-                except (
-                    InvalidJSONError,
-                    ConnectionError,
-                    ProtocolError,
-                    OSError,
-                    JSONDecodeError,
-                ):
-                    print(f'Error - Retrying (attempt {attempt+1}).')
+            response = api("POST", "/api/source_groups", token, json)
 
         # check for existing classifications
         for entry in data_classes:
@@ -210,21 +192,8 @@ def upload_classification(
 
         if comment is not None:
             # get comment text
-            for attempt in range(MAX_ATTEMPTS):
-                try:
-                    response_comments = api(
-                        "GET", f"/api/sources/{obj_id}/comments", token
-                    )
-                    data_comments = response_comments.json().get("data")
-                    break
-                except (
-                    InvalidJSONError,
-                    ConnectionError,
-                    ProtocolError,
-                    OSError,
-                    JSONDecodeError,
-                ):
-                    print(f'Error - Retrying (attempt {attempt+1}).')
+            response_comments = api("GET", f"/api/sources/{obj_id}/comments", token)
+            data_comments = response_comments.json().get("data")
 
             # check for existing comments
             existing_comments = []
@@ -236,42 +205,22 @@ def upload_classification(
                 json = {
                     "text": comment,
                 }
-                for attempt in range(MAX_ATTEMPTS):
-                    try:
-                        response = api(
-                            "POST", f"/api/sources/{obj_id}/comments", token, json
-                        )
-                        break
-                    except (
-                        InvalidJSONError,
-                        ConnectionError,
-                        ProtocolError,
-                        OSError,
-                        JSONDecodeError,
-                    ):
-                        print(f'Error - Retrying (attempt {attempt+1}).')
+                response = api("POST", f"/api/sources/{obj_id}/comments", token, json)
+
+        # Post ZTF ID as annotation
+        if origin is not None:
+            ztfid = row['ztf_id']
+            scope_manage_annotation.manage_annotation(
+                'POST', obj_id, group_ids, token, origin, 'ztf_id', ztfid
+            )
 
         # batch upload classifications
-        if (((index - start) + 1) % UPLOAD_BATCHSIZE == 0) | (index == stop):
-            print('uploading classifications...')
-            json_classes = {'classifications': dict_list}
-            for attempt in range(MAX_ATTEMPTS):
-                try:
-                    response = api("POST", "/api/classification", token, json_classes)
-                    dict_list = []
-                    break
-                except (
-                    InvalidJSONError,
-                    ConnectionError,
-                    ProtocolError,
-                    OSError,
-                    JSONDecodeError,
-                ):
-                    print(f'Error - Retrying (attempt {attempt+1}).')
-                    if (attempt + 1) == MAX_ATTEMPTS:
-                        raise RuntimeError(
-                            'Reached max attempts without successful classification upload.'
-                        )
+        if len(dict_list) != 0:
+            if (((index - start) + 1) % UPLOAD_BATCHSIZE == 0) | (index == stop):
+                print('uploading classifications...')
+                json_classes = {'classifications': dict_list}
+                api("POST", "/api/classification", token, json_classes)
+                dict_list = []
 
 
 if __name__ == "__main__":
@@ -324,6 +273,8 @@ if __name__ == "__main__":
         help="Skip photometry upload, only post groups and classifications.",
     )
 
+    parser.add_argument("-origin", type=str, help="Origin of uploaded data")
+
     args = parser.parse_args()
 
     # upload classification objects
@@ -338,5 +289,6 @@ if __name__ == "__main__":
         args.comment,
         args.start,
         args.stop,
+        args.origin,
         args.skip_phot,
     )
