@@ -30,11 +30,21 @@ def manage_annotation(action, source, group_ids, token, origin, key, value):
             raise KeyError('CSV file must include column obj_id for ZTF source IDs.')
         obj_ids = file['obj_id']
         if (action == 'update') | (action == 'post'):
-            values = file[key]
+            file_values = file[key]
+            # Convert numpy dtype to python dtype
+            dtype = type(file_values[0].item())
+            values = list(map(dtype, file_values.values))
+
     else:
-        obj_ids = [source]  # modify single source input formats to prepare for loop
+        # modify single source input formats to prepare for loop
+        obj_ids = [source]
         if value is not None:
-            values = [float(value)]
+            if '.' in value:
+                values = [float(value)]
+            elif value.isdigit():
+                values = [int(value)]
+            else:
+                values = [value]
         else:
             values = [value]
 
@@ -163,7 +173,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("-origin", type=str, help="name of annotation origin")
     parser.add_argument("-key", help="annotation key")
-    parser.add_argument("-value", help="annotation value")
+    parser.add_argument("-value", type=str, help="annotation value")
 
     args = parser.parse_args()
 
