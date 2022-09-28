@@ -30,11 +30,21 @@ def manage_annotation(action, source, group_ids, token, origin, key, value):
             raise KeyError('CSV file must include column obj_id for ZTF source IDs.')
         obj_ids = file['obj_id']
         if (action == 'update') | (action == 'post'):
-            values = file[key]
+            file_values = file[key]
+            # Convert numpy dtype to python dtype
+            dtype = type(file_values[0].item())
+            values = list(map(dtype, file_values.values))
+
     else:
-        obj_ids = [source]  # modify single source input formats to prepare for loop
+        # modify single source input formats to prepare for loop
+        obj_ids = [source]
         if value is not None:
-            values = [float(value)]
+            if '.' in value:
+                values = [float(value)]
+            elif value.isdigit():
+                values = [int(value)]
+            else:
+                values = [value]
         else:
             values = [value]
 
@@ -55,62 +65,65 @@ def manage_annotation(action, source, group_ids, token, origin, key, value):
                 annot_origin = entry['origin']
                 annot_data = entry['data']
 
-                annot_name = [x for x in annot_data.keys()][0]
+                annot_name = [x for x in annot_data.keys()]
                 annot_value = [x for x in annot_data.values()][0]
 
-                # if match is found, perform action
-                if (key == annot_name) & (origin == annot_origin):
-                    matches += 1
-                    if action == 'update':
-                        value = values[i]
+                for n in annot_name:
+                    # if match is found, perform action
+                    if (key == n) & (origin == annot_origin):
+                        matches += 1
 
-                        # Check value if performing update or post actions
-                        if value is None:
-                            raise ValueError(
-                                'please specify annotation value to update or post.'
-                            )
+                        if action == 'update':
+                            value = values[i]
 
-                        # After passing check, revise annotation with PUT
-                        else:
-                            json = {
-                                "data": {key: value},
-                                "origin": origin,
-                                "obj_id": annot_id,
-                            }
+                            # Check value if performing update or post actions
+                            if value is None:
+                                raise ValueError(
+                                    'please specify annotation value to update or post.'
+                                )
+
+                            # After passing check, revise annotation with PUT
+                            else:
+                                json = {
+                                    "data": {key: value},
+                                    "origin": origin,
+                                    "obj_id": annot_id,
+                                }
+                                response = api(
+                                    "PUT",
+                                    '/api/sources/%s/annotations/%s'
+                                    % (obj_id, annot_id),
+                                    token,
+                                    json,
+                                )
+                                if response.status_code == 200:  # success
+                                    print(
+                                        'Updated annotation %s (%s = %s to %s) for %s'
+                                        % (
+                                            annot_origin,
+                                            n,
+                                            annot_value,
+                                            value,
+                                            obj_id,
+                                        )
+                                    )
+                                else:
+                                    print('Did not %s - check inputs.' % action)
+
+                        # Delete annotation with DELETE
+                        elif action == 'delete':
                             response = api(
-                                "PUT",
+                                "DELETE",
                                 '/api/sources/%s/annotations/%s' % (obj_id, annot_id),
                                 token,
-                                json,
                             )
                             if response.status_code == 200:  # success
                                 print(
-                                    'Updated annotation %s (%s = %s to %s) for %s'
-                                    % (
-                                        annot_origin,
-                                        annot_name,
-                                        annot_value,
-                                        value,
-                                        obj_id,
-                                    )
+                                    'Deleted annotation %s (%s = %s) for %s'
+                                    % (annot_origin, n, annot_value, obj_id)
                                 )
                             else:
                                 print('Did not %s - check inputs.' % action)
-
-                    # Delete annotation with DELETE
-                    elif action == 'delete':
-                        response = api(
-                            "DELETE",
-                            '/api/sources/%s/annotations/%s' % (obj_id, annot_id),
-                            token,
-                        )
-                        if response.status_code == 200:  # success
-                            print(
-                                'Deleted annotation %s (%s = %s) for %s'
-                                % (annot_origin, annot_name, annot_value, obj_id)
-                            )
-                        else:
-                            print('Did not %s - check inputs.' % action)
 
             # Alert user if no origin/key matches in each source's annotations
             if matches == 0:
@@ -163,7 +176,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("-origin", type=str, help="name of annotation origin")
     parser.add_argument("-key", help="annotation key")
-    parser.add_argument("-value", help="annotation value")
+    parser.add_argument("-value", type=str, help="annotation value")
 
     args = parser.parse_args()
 
