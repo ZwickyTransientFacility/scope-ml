@@ -96,7 +96,6 @@ def api(
 
     for attempt in range(max_attempts):
         try:
-            time.sleep(sleep_time)
             response = requests.request(**kwargs)
             break
         except (
@@ -107,6 +106,7 @@ def api(
             JSONDecodeError,
         ):
             print(f'Error - Retrying (attempt {attempt+1}).')
+            time.sleep(sleep_time)
             continue
 
     return response
