@@ -27,7 +27,7 @@ def upload_classification(
     comment: str,
     start: int,
     stop: int,
-    origin: str,
+    ztf_origin: str,
     skip_phot: bool = False,
 ):
     """
@@ -42,7 +42,7 @@ def upload_classification(
     :param comment: single comment to post (str)
     :param start: index in CSV file to start upload (int)
     :param stop: index in CSV file to stop upload (inclusive) (int)
-    :origin: origin of uploaded data, posted to id annotation (str)
+    :ztf_origin: origin of uploaded ZTF data; if set, posts ztf_id to annotation (str)
     :skip_phot: if True, only upload groups and classifications (no photometry) (bool)
     """
 
@@ -222,10 +222,10 @@ def upload_classification(
                 response = api("POST", f"/api/sources/{obj_id}/comments", token, json)
 
         # Post ZTF ID as annotation
-        if origin is not None:
+        if ztf_origin is not None:
             ztfid = str(row['ztf_id'])
             scope_manage_annotation.manage_annotation(
-                'POST', obj_id, group_ids, token, origin, 'ztf_id', ztfid
+                'POST', obj_id, group_ids, token, ztf_origin, 'ztf_id', ztfid
             )
 
         # batch upload classifications
@@ -287,7 +287,7 @@ if __name__ == "__main__":
         help="Skip photometry upload, only post groups and classifications.",
     )
 
-    parser.add_argument("-origin", type=str, help="Origin of uploaded data")
+    parser.add_argument("-ztf_origin", type=str, help="Origin of uploaded ZTF data")
 
     args = parser.parse_args()
 
@@ -303,6 +303,6 @@ if __name__ == "__main__":
         args.comment,
         args.start,
         args.stop,
-        args.origin,
+        args.ztf_origin,
         args.skip_phot,
     )
