@@ -9,6 +9,7 @@ import warnings
 import yaml
 import pathlib
 from tools import scope_manage_annotation
+from datetime import datetime
 
 MAX_ATTEMPTS = 10
 RADIUS_ARCSEC = 2
@@ -120,16 +121,29 @@ def upload_classification(
             f"/api/sources?&ra={ra}&dec={dec}&radius={RADIUS_ARCSEC/3600}",
             token,
         )
-        data = response.get('data')
+        data = response.json().get('data')
 
         existing_source = []
+        src_dict = {}
+        create_time_dict = {}
         obj_id = None
         if data["totalMatches"] > 0:
-            # get most recent source
+            # get most recent ZTFJ source
             for src in data['sources']:
                 src_id = src['id']
+                src_dict[src_id] = src
+
+                create_time = src['created_at']
+                dt_create_time = datetime.strptime(create_time, '%Y-%m-%dT%H:%M:%S.%f')
+                create_time_dict[dt_create_time] = src_id
+
+            create_time_list = [x for x in create_time_dict.keys()]
+            create_time_list.sort(reverse=True)
+
+            for t in create_time_list:
+                src_id = create_time_dict[t]
                 if src_id[:4] == 'ZTFJ':
-                    existing_source = src
+                    existing_source = src_dict[src_id]
                     obj_id = src_id
                     break
 
@@ -209,7 +223,7 @@ def upload_classification(
 
         # Post ZTF ID as annotation
         if origin is not None:
-            ztfid = row['ztf_id']
+            ztfid = str(row['ztf_id'])
             scope_manage_annotation.manage_annotation(
                 'POST', obj_id, group_ids, token, origin, 'ztf_id', ztfid
             )
