@@ -140,13 +140,7 @@ def get_field_features(
             "query_type": "find",
             "query": {
                 "catalog": features_catalog,
-                "filter": {
-                    "_id": {
-                        "$in": source_ids[
-                            id * limit : np.min([(id + 1) * limit, len(source_ids) - 1])
-                        ]
-                    }
-                },
+                "filter": {"_id": {"$in": source_ids[id * limit : (id + 1) * limit]}},
             },
         }
         response = kowalski.query(query=query)
