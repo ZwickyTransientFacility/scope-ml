@@ -107,6 +107,8 @@ def get_features(
         print(df)
         print("dmdt shape", dmdt.shape)
 
+    return df, dmdt
+
 
 # get features of all ids in a field
 def get_field_features(
@@ -134,14 +136,18 @@ def get_field_features(
     df_collection = []
     dmdt_collection = []
     while 1:
-        # skip = id * limit
         query = {
             "query_type": "find",
             "query": {
                 "catalog": features_catalog,
-                "filter": {"_id": {"$in": source_ids[id * limit : (id + 1) * limit]}},
+                "filter": {
+                    "_id": {
+                        "$in": source_ids[
+                            id * limit : np.min([(id + 1) * limit, len(source_ids) - 1])
+                        ]
+                    }
+                },
             },
-            # "kwargs": {"limit": limit, "skip": skip},
         }
         response = kowalski.query(query=query)
         source_data = response.get("data")
@@ -150,7 +156,6 @@ def get_field_features(
             print(response)
             raise ValueError(f"No data found for source ids {source_ids}")
 
-        # , index=np.arange(id*query_length,min((id+1)*query_length, len(source_data))))
         df_temp = pd.DataFrame.from_records(source_data)
         df_collection += [df_temp]
         try:
@@ -162,7 +167,8 @@ def get_field_features(
             print(df_temp)
         dmdt_collection += [dmdt_temp]
 
-        if ((id + 1) * limit) > len(source_ids):
+        if ((id + 1) * limit) >= len(source_ids):
+            print(f'{len(source_ids)} done')
             break
         id += 1
         if (id * limit) % 5000 == 0:
@@ -189,6 +195,8 @@ def get_field_features(
     if verbose:
         print(df)
         print("dmdt shape", dmdt.shape)
+
+    return df, dmdt
 
 
 def run(**kwargs):
