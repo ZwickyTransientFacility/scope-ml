@@ -56,7 +56,7 @@ def get_features(
     id = 0
     df_collection = []
     dmdt_collection = []
-    while 1:
+    while True:
         skip = id * limit
         query = {
             "query_type": "find",
@@ -135,7 +135,7 @@ def get_field_features(
     id = 0
     df_collection = []
     dmdt_collection = []
-    while 1:
+    while True:
         query = {
             "query_type": "find",
             "query": {
@@ -187,8 +187,8 @@ def get_field_features(
         df.to_csv(outfile + ".csv", index=False)
 
     if verbose:
-        print(df)
-        print("dmdt shape", dmdt.shape)
+        print("Features dataframe: ", df)
+        print("dmdt shape: ", dmdt.shape)
 
     return df, dmdt
 
