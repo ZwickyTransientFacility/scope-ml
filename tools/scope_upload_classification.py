@@ -22,7 +22,6 @@ def upload_classification(
     group_ids: list,
     taxonomy_id: int,
     classification: list,
-    token: str,
     taxonomy_map: str,
     comment: str,
     start: int,
@@ -37,7 +36,6 @@ def upload_classification(
     :param group_ids: list of group ids on Fritz for upload target location [int, int, ...]
     :param taxonomy_id: scope taxonomy id (int)
     :param classification: list of classifications [str, str, ...]
-    :param token: Fritz token (str)
     :param taxonomy_map: if classification is ['read'], path to JSON file containing taxonomy mapping (str)
     :param comment: single comment to post (str)
     :param start: index in CSV file to start upload (int)
@@ -117,9 +115,7 @@ def upload_classification(
 
         # get object id
         response = api(
-            "GET",
-            f"/api/sources?&ra={ra}&dec={dec}&radius={RADIUS_ARCSEC/3600}",
-            token,
+            "GET", f"/api/sources?&ra={ra}&dec={dec}&radius={RADIUS_ARCSEC/3600}"
         )
         data = response.json().get('data')
 
@@ -158,7 +154,6 @@ def upload_classification(
                 group_ids,
                 ra,
                 dec,
-                token,
                 period=period,
                 return_id=True,
                 radius=RADIUS_ARCSEC,
@@ -182,7 +177,7 @@ def upload_classification(
         if len(add_group_ids) > 0:
             # save to new group_ids
             json = {"objId": obj_id, "inviteGroupIds": add_group_ids}
-            response = api("POST", "/api/source_groups", token, json)
+            response = api("POST", "/api/source_groups", json)
 
         # check for existing classifications
         for entry in data_classes:
@@ -206,7 +201,7 @@ def upload_classification(
 
         if comment is not None:
             # get comment text
-            response_comments = api("GET", f"/api/sources/{obj_id}/comments", token)
+            response_comments = api("GET", f"/api/sources/{obj_id}/comments")
             data_comments = response_comments.json().get("data")
 
             # check for existing comments
@@ -219,13 +214,13 @@ def upload_classification(
                 json = {
                     "text": comment,
                 }
-                response = api("POST", f"/api/sources/{obj_id}/comments", token, json)
+                response = api("POST", f"/api/sources/{obj_id}/comments", json)
 
         # Post ZTF ID as annotation
         if ztf_origin is not None:
             ztfid = str(row['ztf_id'])
             scope_manage_annotation.manage_annotation(
-                'POST', obj_id, group_ids, token, ztf_origin, 'ztf_id', ztfid
+                'POST', obj_id, group_ids, ztf_origin, 'ztf_id', ztfid
             )
 
         # batch upload classifications
@@ -233,7 +228,7 @@ def upload_classification(
             if (((index - start) + 1) % UPLOAD_BATCHSIZE == 0) | (index == stop):
                 print('uploading classifications...')
                 json_classes = {'classifications': dict_list}
-                api("POST", "/api/classification", token, json_classes)
+                api("POST", "/api/classification", json_classes)
                 dict_list = []
 
 
@@ -244,7 +239,6 @@ if __name__ == "__main__":
         config = yaml.load(config_yaml, Loader=yaml.FullLoader)
     gloria = Kowalski(**config['kowalski'], verbose=False)
 
-    # pass Fritz token as command line argument
     parser = argparse.ArgumentParser()
     parser.add_argument("-file", help="dataset")
     parser.add_argument("-group_ids", type=int, nargs='+', help="list of group ids")
@@ -256,11 +250,6 @@ if __name__ == "__main__":
     # parser.add_argument("-classification", type=str, help="name of object class")
     parser.add_argument(
         "-classification", type=str, nargs='+', help="list of object classes"
-    )
-    parser.add_argument(
-        "-token",
-        type=str,
-        help="put your Fritz token here. You can get it from your Fritz profile page",
     )
     parser.add_argument(
         "-taxonomy_map",
@@ -298,7 +287,6 @@ if __name__ == "__main__":
         args.group_ids,
         args.taxonomy_id,
         args.classification,
-        args.token,
         args.taxonomy_map,
         args.comment,
         args.start,
