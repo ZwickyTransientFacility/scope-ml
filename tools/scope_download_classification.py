@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 import argparse
-import json as JSON
 import pandas as pd
-from penquins import Kowalski
 from scope.fritz import api
 import warnings
 import numpy as np
@@ -82,11 +80,10 @@ def organize_source_data(src: pd.DataFrame):
     return dct
 
 
-def download_classification(file: str, gloria, group_ids: list, token: str, start: int):
+def download_classification(file: str, group_ids: list, token: str, start: int):
     """
     Download labels from Fritz
     :param file: CSV file containing obj_id column or "parse" to query by group ids (str)
-    :param gloria: Gloria object
     :param group_ids: target group ids on Fritz for download (list)
     :param token: Fritz token (str)
     """
@@ -245,10 +242,6 @@ def download_classification(file: str, gloria, group_ids: list, token: str, star
 
 
 if __name__ == "__main__":
-    # setup connection to gloria to get the lightcurves
-    with open('secrets.json', 'r') as f:
-        secrets = JSON.load(f)
-    gloria = Kowalski(**secrets['gloria'], verbose=False)
 
     # pass Fritz token as command line argument
     parser = argparse.ArgumentParser()
@@ -265,4 +258,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # download object classifications in the file
-    download_classification(args.file, gloria, args.group_ids, args.token, args.start)
+    download_classification(args.file, args.group_ids, args.token, args.start)
