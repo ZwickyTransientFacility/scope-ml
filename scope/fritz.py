@@ -6,9 +6,8 @@ import time
 from typing import Optional, Mapping
 import numpy as np
 import pandas as pd
-from requests.exceptions import InvalidJSONError
+from requests.exceptions import InvalidJSONError, JSONDecodeError
 from urllib3.exceptions import ProtocolError
-from json.decoder import JSONDecodeError
 
 MAX_ATTEMPTS = 10
 
