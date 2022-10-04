@@ -4,7 +4,7 @@ import pandas as pd
 from scope.fritz import api
 
 
-def manage_annotation(action, source, group_ids, token, origin, key, value):
+def manage_annotation(action, source, group_ids, origin, key, value):
 
     # Forgiving definitions of actions
     if action in ['update', 'Update', 'UPDATE']:
@@ -56,7 +56,7 @@ def manage_annotation(action, source, group_ids, token, origin, key, value):
         if (action == 'update') | (action == 'delete'):
             matches = 0
             # get all annotations for object
-            response = api("GET", '/api/sources/%s/annotations' % obj_id, token).json()
+            response = api("GET", '/api/sources/%s/annotations' % obj_id).json()
             data = response.get('data')
 
             # loop through annotations, checking for match with input key and origin
@@ -93,7 +93,6 @@ def manage_annotation(action, source, group_ids, token, origin, key, value):
                                     "PUT",
                                     '/api/sources/%s/annotations/%s'
                                     % (obj_id, annot_id),
-                                    token,
                                     json,
                                 )
                                 if response.status_code == 200:  # success
@@ -115,7 +114,6 @@ def manage_annotation(action, source, group_ids, token, origin, key, value):
                             response = api(
                                 "DELETE",
                                 '/api/sources/%s/annotations/%s' % (obj_id, annot_id),
-                                token,
                             )
                             if response.status_code == 200:  # success
                                 print(
@@ -143,9 +141,7 @@ def manage_annotation(action, source, group_ids, token, origin, key, value):
             # After passing check, post annotation with POST
             else:
                 json = {"origin": origin, "data": {key: value}, "group_ids": group_ids}
-                response = api(
-                    "POST", '/api/sources/%s/annotations' % obj_id, token, json
-                )
+                response = api("POST", '/api/sources/%s/annotations' % obj_id, json)
                 if response.status_code == 200:  # success
                     print(
                         'Posted annotation %s (%s = %s) for %s'
@@ -169,11 +165,6 @@ if __name__ == "__main__":
     parser.add_argument("-action", help="post, update, or delete annotation")
     parser.add_argument("-source", help="Fritz object id or csv file of sources")
     parser.add_argument("-group_ids", type=int, nargs='+', help="list of group ids")
-    parser.add_argument(
-        "-token",
-        type=str,
-        help="put your Fritz token here. You can get it from your Fritz profile page",
-    )
     parser.add_argument("-origin", type=str, help="name of annotation origin")
     parser.add_argument("-key", help="annotation key")
     parser.add_argument("-value", type=str, help="annotation value")
@@ -184,7 +175,6 @@ if __name__ == "__main__":
         args.action,
         args.source,
         args.group_ids,
-        args.token,
         args.origin,
         args.key,
         args.value,

@@ -79,8 +79,7 @@ inputs:
 1. CSV file containing obj_id and/or ra dec coordinates. Set to "parse" to download sources by group id.
 2. gloria object
 3. target group id(s) on Fritz for download (if CSV file not provided)
-4. Fritz token
-5. Index or page number (if in "parse" mode) to begin downloading (optional)
+4. Index or page number (if in "parse" mode) to begin downloading (optional)
 
 process:
 1. if CSV file provided, query by object ids or ra, dec
@@ -91,7 +90,7 @@ process:
 output: data with new columns appended.
 
 ```sh
-./scope_download_classification.py -file sample.csv -group_ids 360 361 -token sample_token -start 10
+./scope_download_classification.py -file sample.csv -group_ids 360 361 -start 10
 ```
 
 ## Scope Upload Classification
@@ -101,13 +100,12 @@ inputs:
 2. target group id(s) on Fritz for upload
 3. Scope taxonomy id
 4. Class name of objects. Set this to "read" and include taxonomy map to automatically upload multiple classes at once.
-5. Fritz token
-6. Taxonomy map ("label in file":"Fritz taxonomy name", JSON format).
-7. Comment to post (if specified)
-8. Index to start uploading (zero-based)
-9. Index to stop uploading (inclusive)
-10. Skip photometry upload (existing sources only)
-11. Origin of ZTF data. If set, values in ztf_id CSV column will post as annotations.
+5. Taxonomy map ("label in file":"Fritz taxonomy name", JSON format).
+6. Comment to post (if specified)
+7. Index to start uploading (zero-based)
+8. Index to stop uploading (inclusive)
+9. Skip photometry upload (existing sources only)
+10. Origin of ZTF data. If set, values in ztf_id CSV column will post as annotations.
 
 process:
 1. get object ids of all the data from Fritz using the ra, dec, and period
@@ -117,7 +115,7 @@ process:
 5. (post comment to each uploaded source)
 
 ```sh
-./scope_upload_classification.py -file sample.csv -group_ids 500 250 750 -taxonomy_id 7 -classification variable flaring -token sample_token -taxonomy_map map.json -comment vetted -start 35 -stop 50 -skip_phot False -ztf_origin ZTF_DR5
+./scope_upload_classification.py -file sample.csv -group_ids 500 250 750 -taxonomy_id 7 -classification variable flaring -taxonomy_map map.json -comment vetted -start 35 -stop 50 -skip_phot False -ztf_origin ZTF_DR5
 ```
 
 ## Scope Upload Disagreements
@@ -143,10 +141,9 @@ inputs:
 1. action (one of "post", "update", or "delete")
 2. source (ZTF ID or path to .csv file with multiple objects (ID column "obj_id"))
 3. target group id(s) on Fritz
-4. Fritz token
-5. origin name of annotation
-6. key name of annotation
-7. value of annotation (required for "post" and "update" - if source is a .csv file, value will auto-populate from source[key])
+4. origin name of annotation
+5. key name of annotation
+6. value of annotation (required for "post" and "update" - if source is a .csv file, value will auto-populate from source[key])
 
 process:
 1. for each source, find existing annotations (for "update" and "delete" actions)
@@ -154,5 +151,5 @@ process:
 3. confirm changes with printed messages
 
 ```sh
-./scope_manage_annotation.py -action post -source sample.csv -group_ids 200 300 400 -token sample_token -origin revisedperiod -key period
+./scope_manage_annotation.py -action post -source sample.csv -group_ids 200 300 400 -origin revisedperiod -key period
 ```

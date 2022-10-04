@@ -6,9 +6,8 @@ import time
 from typing import Optional, Mapping
 import numpy as np
 import pandas as pd
-from requests.exceptions import InvalidJSONError
+from requests.exceptions import InvalidJSONError, JSONDecodeError
 from urllib3.exceptions import ProtocolError
-from json.decoder import JSONDecodeError
 
 MAX_ATTEMPTS = 10
 
@@ -66,18 +65,19 @@ def get_stats(G, ids):
     return pd.DataFrame([s['data'][0] for s in rs])
 
 
-# define the baseurl and set the token to connect
+# define the baseurl and set the fritz token to connect
 config_path = pathlib.Path(__file__).parent.parent.absolute() / "config.yaml"
 with open(config_path) as config_yaml:
     config = yaml.load(config_yaml, Loader=yaml.FullLoader)
 BASE_URL = "https://fritz.science/"
+fritz_token = config['fritz']['token']
 
 
 def api(
     method: str,
     endpoint: str,
-    token: str,
     data: Optional[Mapping] = None,
+    token: str = fritz_token,
     base_url: str = BASE_URL,
     max_attempts: int = 1,
     sleep_time: int = 5,
@@ -259,7 +259,6 @@ def save_newsource(
     group_ids,
     ra,
     dec,
-    token,
     radius=2.0,
     obj_id=None,
     dryrun=False,
@@ -309,7 +308,6 @@ def save_newsource(
             response = api(
                 "POST",
                 "/api/sources",
-                token,
                 post_source_data,
                 max_attempts=MAX_ATTEMPTS,
             )
@@ -326,9 +324,7 @@ def save_newsource(
     # Get up-to-date ZTF instrument id
     name = 'ZTF'
 
-    response_instruments = api(
-        'GET', 'api/instrument', token, max_attempts=MAX_ATTEMPTS
-    )
+    response_instruments = api('GET', 'api/instrument', max_attempts=MAX_ATTEMPTS)
 
     instrument_data = response_instruments.json().get('data')
 
@@ -352,9 +348,7 @@ def save_newsource(
 
     if (len(photometry.get("mag", ())) > 0) & (not dryrun):
         print("Uploading photometry for %s" % obj_id)
-        response = api(
-            "PUT", "/api/photometry", token, photometry, max_attempts=MAX_ATTEMPTS
-        )
+        response = api("PUT", "/api/photometry", photometry, max_attempts=MAX_ATTEMPTS)
         if response.json()["status"] == "error":
             print('Failed to post photometry to Fritz')
             print(response.json())
@@ -370,7 +364,6 @@ def save_newsource(
         response = api(
             "POST",
             "api/sources/%s/annotations" % obj_id,
-            token,
             data=data,
             max_attempts=MAX_ATTEMPTS,
         )

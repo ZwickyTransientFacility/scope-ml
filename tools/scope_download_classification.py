@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 import argparse
-import json as JSON
 import pandas as pd
-from penquins import Kowalski
 from scope.fritz import api
 import warnings
 import numpy as np
@@ -82,13 +80,12 @@ def organize_source_data(src: pd.DataFrame):
     return dct
 
 
-def download_classification(file: str, gloria, group_ids: list, token: str, start: int):
+def download_classification(file: str, group_ids: list, start: int):
     """
     Download labels from Fritz
     :param file: CSV file containing obj_id column or "parse" to query by group ids (str)
-    :param gloria: Gloria object
     :param group_ids: target group ids on Fritz for download (list)
-    :param token: Fritz token (str)
+    :param start: page number to start downloading data from
     """
 
     dict_list = []
@@ -101,7 +98,6 @@ def download_classification(file: str, gloria, group_ids: list, token: str, star
         response = api(
             "GET",
             "/api/sources",
-            token,
             {"group_ids": group_ids, "numPerPage": NUM_PER_PAGE},
         )
         source_data = response.json().get("data")
@@ -125,7 +121,6 @@ def download_classification(file: str, gloria, group_ids: list, token: str, star
             page_response = api(
                 "GET",
                 '/api/sources',
-                token,
                 {
                     "group_ids": group_ids,
                     'numPerPage': NUM_PER_PAGE,
@@ -176,7 +171,7 @@ def download_classification(file: str, gloria, group_ids: list, token: str, star
             data = []
             if search_by_obj_id:
                 obj_id = row.obj_id
-                response = api("GET", '/api/sources/%s' % obj_id, token)
+                response = api("GET", '/api/sources/%s' % obj_id)
                 # sleep(0.9)
                 data = response.json().get("data")
                 if len(data) == 0:
@@ -190,7 +185,7 @@ def download_classification(file: str, gloria, group_ids: list, token: str, star
                     # query by ra/dec to get object id
                     ra, dec = row.ra, row.dec
                     response = api(
-                        "GET", f"/api/sources?&ra={ra}&dec={dec}&radius={2/3600}", token
+                        "GET", f"/api/sources?&ra={ra}&dec={dec}&radius={2/3600}"
                     )
                     # sleep(0.9)
                     data = response.json().get("data")
@@ -245,24 +240,14 @@ def download_classification(file: str, gloria, group_ids: list, token: str, star
 
 
 if __name__ == "__main__":
-    # setup connection to gloria to get the lightcurves
-    with open('secrets.json', 'r') as f:
-        secrets = JSON.load(f)
-    gloria = Kowalski(**secrets['gloria'], verbose=False)
 
-    # pass Fritz token as command line argument
     parser = argparse.ArgumentParser()
     parser.add_argument("-file", help="dataset")
     parser.add_argument("-group_ids", type=int, nargs='+', help="list of group ids")
-    parser.add_argument(
-        "-token",
-        type=str,
-        help="put your Fritz token here. You can get it from your Fritz profile page",
-    )
     parser.add_argument(
         "-start", type=int, default=0, help="start page/index for continued download"
     )
     args = parser.parse_args()
 
     # download object classifications in the file
-    download_classification(args.file, gloria, args.group_ids, args.token, args.start)
+    download_classification(args.file, args.group_ids, args.start)
