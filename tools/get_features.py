@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import fire
 import numpy as np
 import pandas as pd
@@ -18,6 +19,7 @@ config_path = pathlib.Path(__file__).parent.parent.absolute() / "config.yaml"
 with open(config_path) as config_yaml:
     config = yaml.load(config_yaml, Loader=yaml.FullLoader)
 
+# Use new penquins KowalskiInstances class here once approved
 kowalski = Kowalski(
     token=config["kowalski"]["token"],
     protocol=config["kowalski"]["protocol"],
@@ -32,109 +34,45 @@ def get_features(
     features_catalog: str = "ZTF_source_features_DR5",
     verbose: bool = False,
     restart: bool = True,
-    **kwargs,
-):
-
-    ccd = kwargs.get("ccd", 1)
-    quad = kwargs.get("quad", 1)
-    field = kwargs.get("field", 302)
-    outfile = (
-        os.path.dirname(__file__)
-        + "/../features/field_"
-        + str(field)
-        + "/ccd_"
-        + str(ccd).zfill(2)
-        + "_quad_"
-        + str(quad)
-    )
-
-    limit = kwargs.get("limit", 1000)
-
-    if not hasattr(source_ids, "__iter__"):
-        source_ids = (source_ids,)
-
-    id = 0
-    df_collection = []
-    dmdt_collection = []
-    while True:
-        skip = id * limit
-        query = {
-            "query_type": "find",
-            "query": {
-                "catalog": features_catalog,
-                "filter": {"_id": {"$in": source_ids}},
-            },
-            "kwargs": {"limit": limit, "skip": skip},
-        }
-        response = kowalski.query(query=query)
-        source_data = response.get("data")
-
-        if source_data is None:
-            print(response)
-            raise ValueError(f"No data found for source ids {source_ids}")
-
-        # , index=np.arange(id*query_length,min((id+1)*query_length, len(source_data))))
-        df_temp = pd.DataFrame.from_records(source_data)
-        df_collection += [df_temp]
-        dmdt_temp = np.expand_dims(
-            np.array([d for d in df_temp['dmdt'].values]), axis=-1
-        )
-        dmdt_collection += [dmdt_temp]
-
-        if ((id + 1) * limit) > len(source_ids):
-            break
-        id += 1
-
-    df = pd.concat(df_collection, axis=0)
-    dmdt = np.vstack(dmdt_collection)
-    os.makedirs(os.path.dirname(outfile), exist_ok=True)
-    if (
-        restart is False
-        and os.path.exists(outfile + ".pkl")
-        and os.path.exists(outfile + ".csv")
-    ):
-        df1 = pd.read_pickle(outfile + ".pkl")
-        df2 = pd.concat([df1, df], axis=0)
-        df2.to_pickle(outfile + ".pkl")
-        df1 = pd.read_csv(outfile + ".csv")
-        df2 = pd.concat([df1, df], axis=0)
-        df2.to_csv(outfile + ".csv", index=False)
-    else:
-        df.to_pickle(outfile + ".pkl")
-        df.to_csv(outfile + ".csv", index=False)
-
-    if verbose:
-        print(df)
-        print("dmdt shape", dmdt.shape)
-
-    return df, dmdt
-
-
-# get features of all ids in a field
-def get_field_features(
-    source_ids: List[int],
-    features_catalog: str = "ZTF_source_features_DR5",
-    verbose: bool = False,
-    restart: bool = True,
+    whole_field: bool = True,
     **kwargs,
 ):
     '''
     Get features of all ids present in the field in one file.
     '''
+
     field = kwargs.get("field", 302)
-    outfile = (
-        os.path.dirname(__file__)
-        + "/../features/field_"
-        + str(field)
-        + "/"
-        + "field_"
-        + str(field)
-    )
+    write_results = kwargs.get("write_results", True)
+
+    if not whole_field:
+        ccd = kwargs.get("ccd", 1)
+        quad = kwargs.get("quad", 1)
+
+        outfile = (
+            os.path.dirname(__file__)
+            + "/../features/field_"
+            + str(field)
+            + "/ccd_"
+            + str(ccd).zfill(2)
+            + "_quad_"
+            + str(quad)
+        )
+
+    else:
+        outfile = (
+            os.path.dirname(__file__)
+            + "/../features/field_"
+            + str(field)
+            + "/"
+            + "field_"
+            + str(field)
+        )
     limit = kwargs.get("limit", 1000)
 
     id = 0
     df_collection = []
     dmdt_collection = []
+
     while True:
         query = {
             "query_type": "find",
@@ -170,27 +108,30 @@ def get_field_features(
 
     df = pd.concat(df_collection, axis=0)
     dmdt = np.vstack(dmdt_collection)
-    os.makedirs(os.path.dirname(outfile), exist_ok=True)
-    if (
-        restart is False
-        and os.path.exists(outfile + ".pkl")
-        and os.path.exists(outfile + ".csv")
-    ):
-        df1 = pd.read_pickle(outfile + ".pkl")
-        df2 = pd.concat([df1, df], axis=0)
-        df2.to_pickle(outfile + ".pkl")
-        df1 = pd.read_csv(outfile + ".csv")
-        df2 = pd.concat([df1, df], axis=0)
-        df2.to_csv(outfile + ".csv", index=False)
+
+    if not write_results:
+        return df, dmdt
+
     else:
-        df.to_pickle(outfile + ".pkl")
-        df.to_csv(outfile + ".csv", index=False)
+        os.makedirs(os.path.dirname(outfile), exist_ok=True)
+        if (
+            restart is False
+            and os.path.exists(outfile + ".pkl")
+            and os.path.exists(outfile + ".csv")
+        ):
+            df1 = pd.read_pickle(outfile + ".pkl")
+            df2 = pd.concat([df1, df], axis=0)
+            df2.to_pickle(outfile + ".pkl")
+            df1 = pd.read_csv(outfile + ".csv")
+            df2 = pd.concat([df1, df], axis=0)
+            df2.to_csv(outfile + ".csv", index=False)
+        else:
+            df.to_pickle(outfile + ".pkl")
+            df.to_csv(outfile + ".csv", index=False)
 
-    if verbose:
-        print("Features dataframe: ", df)
-        print("dmdt shape: ", dmdt.shape)
-
-    return df, dmdt
+        if verbose:
+            print("Features dataframe: ", df)
+            print("dmdt shape: ", dmdt.shape)
 
 
 def run(**kwargs):
@@ -215,6 +156,8 @@ def run(**kwargs):
         End index of the sources to query. (to be used with whole_field)
     restart: bool
         if True, restart the querying of features even if file exists.
+    write_results: bool
+        if True, write results and make necessary directories.
     Returns
     =======
     Stores the features in a file at the following location:
@@ -236,6 +179,7 @@ def run(**kwargs):
     start = kwargs.get("start", None)
     end = kwargs.get("end", None)
     restart = kwargs.get("restart", True)
+    write_results = kwargs.get("write_results", True)
 
     if not whole_field:
         default_file = (
@@ -268,34 +212,24 @@ def run(**kwargs):
             + str(round(te - ts, 4))
             + " s"
         )
-        # print("are equal?",source_ids == source_ids1)
 
     verbose = kwargs.get("verbose", False)
     if verbose:
-        print(len(source_ids))
+        print(f"{len(source_ids)} total source ids")
 
     # get raw features
-
-    if not whole_field:
-        get_features(
-            source_ids=source_ids[start:end],
-            features_catalog=DEFAULT_CATALOG,
-            verbose=verbose,
-            field=field,
-            ccd=ccd,
-            quad=quad,
-            limit=limit,
-            restart=restart,
-        )
-    else:
-        get_field_features(
-            source_ids=source_ids[start:end],
-            features_catalog=DEFAULT_CATALOG,
-            verbose=verbose,
-            field=field,
-            limit=limit,
-            restart=restart,
-        )
+    get_features(
+        source_ids=source_ids[start:end],
+        features_catalog=DEFAULT_CATALOG,
+        verbose=verbose,
+        whole_field=whole_field,
+        field=field,
+        ccd=ccd,
+        quad=quad,
+        limit=limit,
+        restart=restart,
+        write_results=write_results,
+    )
 
 
 if __name__ == "__main__":
