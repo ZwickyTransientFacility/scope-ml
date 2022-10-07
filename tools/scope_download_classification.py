@@ -80,9 +80,16 @@ def organize_source_data(src: pd.DataFrame):
     return dct
 
 
-def merge_sources_features(sources, features_catalog, features_limit=1000):
+def merge_sources_features(
+    sources,
+    features_catalog,
+    features_limit=1000,
+    mapper_name='golden_dataset_mapper.json',
+    output_dir='fritzDownload',
+    output_filename='merged_classifications_features.csv',
+):
 
-    outpath = os.path.join(os.path.dirname(__file__), 'fritzDownload')
+    outpath = os.path.join(os.path.dirname(__file__), output_dir)
     os.makedirs(outpath, exist_ok=True)
 
     # Drop rows with no ZTF id
@@ -104,7 +111,7 @@ def merge_sources_features(sources, features_catalog, features_limit=1000):
 
     # Open golden dataset mapper
     mapper_dir = os.path.dirname(__file__)
-    mapper_path = os.path.join(mapper_dir, 'golden_dataset_mapper.json')
+    mapper_path = os.path.join(mapper_dir, mapper_name)
     gold_map = pd.read_json(mapper_path)
 
     # Drop columns with no equivalent in Fritz
@@ -194,7 +201,7 @@ def merge_sources_features(sources, features_catalog, features_limit=1000):
     ztf_id_col = merged_set.pop('ztf_id')
     merged_set['ztf_id'] = ztf_id_col
 
-    filepath = os.path.join(outpath, 'merged_classifications_features.csv')
+    filepath = os.path.join(outpath, output_filename)
     merged_set.to_csv(filepath, index=False)
     return merged_set
 
@@ -206,6 +213,9 @@ def download_classification(
     merge_features: bool,
     features_catalog: str,
     features_limit: int,
+    mapper_name: str = 'golden_dataset_mapper.json',
+    output_dir: str = 'fritzDownload',
+    output_filename: str = 'merged_classifications_features.csv',
 ):
     """
     Download labels from Fritz
@@ -219,7 +229,7 @@ def download_classification(
 
     dict_list = []
 
-    outpath = os.path.join(os.path.dirname(__file__), 'fritzDownload')
+    outpath = os.path.join(os.path.dirname(__file__), output_dir)
     os.makedirs(outpath, exist_ok=True)
 
     filename = (
@@ -279,7 +289,12 @@ def download_classification(
             return sources
         else:
             merged_sources = merge_sources_features(
-                sources, features_catalog, features_limit
+                sources,
+                features_catalog,
+                features_limit,
+                mapper_name,
+                output_dir,
+                output_filename,
             )
             return merged_sources
 
@@ -387,7 +402,12 @@ def download_classification(
             return sources
         else:
             merged_sources = merge_sources_features(
-                sources, features_catalog, features_limit
+                sources,
+                features_catalog,
+                features_limit,
+                mapper_name,
+                output_dir,
+                output_filename,
             )
             return merged_sources
 
@@ -422,6 +442,27 @@ if __name__ == "__main__":
         help="Maximum number of sources queried for features per loop",
     )
 
+    parser.add_argument(
+        "-mapper_name",
+        type=str,
+        default='golden_dataset_mapper.json',
+        help="Filename of classification mapper",
+    )
+
+    parser.add_argument(
+        "-output_dir",
+        type=str,
+        default='fritzDownload',
+        help="Name of directory to save downloaded files",
+    )
+
+    parser.add_argument(
+        "-output_filename",
+        type=str,
+        default='merged_classifications_features.csv',
+        help="Name of file containing merged classifications and features",
+    )
+
     args = parser.parse_args()
 
     # download object classifications in the file
@@ -432,4 +473,7 @@ if __name__ == "__main__":
         args.merge_features,
         args.features_catalog,
         args.features_limit,
+        args.mapper_name,
+        args.output_dir,
+        args.output_filename,
     )
