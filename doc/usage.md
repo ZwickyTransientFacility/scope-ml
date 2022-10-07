@@ -36,7 +36,7 @@ but could also be overridden with optional `scope.py train` arguments, e.g.
 ./scope.py fetch-models
 ```
 
-  This requires permissions to access the `gs://ztf-scope` bucket.
+  This requires permissions to access the `gs://ztf-scope` bucket. Alternatively, you can request access to a Google Drive folder containing the latest trained models [here](https://drive.google.com/drive/folders/1_oLBxveioKtw7LyMJfism745USe9tEGZ?usp=sharing).
 
 - Feature name sets are specified in `config.yaml` under `features`.
   These are referenced in `config.yaml` under `training.classes.<class>.features`.
