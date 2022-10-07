@@ -77,20 +77,27 @@ done;
 ## Scope Download Classification
 inputs:
 1. CSV file containing obj_id and/or ra dec coordinates. Set to "parse" to download sources by group id.
-2. gloria object
-3. target group id(s) on Fritz for download (if CSV file not provided)
-4. Index or page number (if in "parse" mode) to begin downloading (optional)
+2. target group id(s) on Fritz for download (if CSV file not provided)
+3. Index or page number (if in "parse" mode) to begin downloading (optional)
+4. Flag to merge features from Kowalski with downloaded sources
+5. Name of features catalog to query
+6. Limit on number of sources to query at once
+7. Filename of classification mapper
+8. Name of directory to save downloaded files
+9. Name of file containing merged classifications and features
 
 process:
 1. if CSV file provided, query by object ids or ra, dec
 2. if CSV file not provided, bulk query based on group id(s)
 3. get the classification/probabilities/periods of the objects in the dataset from Fritz
 4. append these values as new columns on the dataset, save to new file
+5. if merge_features, query Kowalski and merge sources with features, saving new CSV file
+6. To skip the source download part of the code, provide an input CSV file containing columns named 'obj_id', 'classification', 'probability', 'period_origin', 'period', 'ztf_id_origin', and 'ztf_id'.
 
 output: data with new columns appended.
 
 ```sh
-./scope_download_classification.py -file sample.csv -group_ids 360 361 -start 10
+./scope_download_classification.py -file sample.csv -group_ids 360 361 -start 10 -merge_features True -features_catalog ZTF_source_features_DR5 -features_limit 5000 -mapper_name golden_dataset_mapper.json -output_dir fritzDownload -output_filename merged_classifications_features.csv
 ```
 
 ## Scope Upload Classification
