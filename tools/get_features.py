@@ -67,6 +67,7 @@ def get_features(
             + "field_"
             + str(field)
         )
+
     limit = kwargs.get("limit", 1000)
 
     id = 0
@@ -103,7 +104,7 @@ def get_features(
             print(f'{len(source_ids)} done')
             break
         id += 1
-        if (id * limit) % 5000 == 0:
+        if (id * limit) % limit == 0:
             print(id * limit, "done")
 
     df = pd.concat(df_collection, axis=0)
