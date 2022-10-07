@@ -222,7 +222,9 @@ def download_classification(
     outpath = os.path.join(os.path.dirname(__file__), 'fritzDownload')
     os.makedirs(outpath, exist_ok=True)
 
-    filename = file.removesuffix('.csv') + '_fritzDownload' + '.csv'  # rename file
+    filename = (
+        os.path.basename(file).removesuffix('.csv') + '_fritzDownload' + '.csv'
+    )  # rename file
     filepath = os.path.join(outpath, filename)
 
     if file in ["parse", 'Parse', 'PARSE']:
@@ -249,6 +251,7 @@ def download_classification(
         else:
             start = 1
             print(f'Downloading {allMatches} sources...')
+
         # iterate over all pages in results
         for pageNum in range(start, pages + 1):
             print(f'Page {pageNum} of {pages}...')
@@ -305,27 +308,35 @@ def download_classification(
             if colname not in columns:
                 missing_col_count += 1
         if missing_col_count > 0:
-            # create new empty columns
-            sources["classification"] = None
-            sources["probability"] = None
-            sources["period_origin"] = None
-            sources["period"] = None
-            sources["ztf_id_origin"] = None
-            sources["ztf_id"] = None
+
             # add obj_id column if not passed in
-            if 'obj_id' not in columns:
+            if 'obj_id' in columns:
+                search_by_obj_id = True
+                no_obj_id = 0
+            else:
                 sources["obj_id"] = None
                 search_by_obj_id = False
-            else:
-                search_by_obj_id = True
+                no_obj_id = 1
 
+            if ('ra' in columns) & ('dec' in columns):
+                racol = sources['ra']
+                decol = sources['dec']
+                sources.drop(['ra', 'dec'], axis=1, inplace=True)
+                no_ra_dec = 0
+
+            if no_obj_id:
+                if no_ra_dec:
+                    raise KeyError(
+                        'Please provide either obj_id or ra and dec columns.'
+                    )
+
+            dct_list = []
             for index, row in sources.iterrows():
                 # query objects, starting with obj_id
                 data = []
                 if search_by_obj_id:
                     obj_id = row.obj_id
                     response = api("GET", '/api/sources/%s' % obj_id)
-                    # sleep(0.9)
                     data = response.json().get("data")
                     if len(data) == 0:
                         warnings.warn(
@@ -336,61 +347,41 @@ def download_classification(
 
                 # continue with coordinate search if obj_id unsuccsessful
                 if len(data) == 0:
-                    if ('ra' in columns) & ('dec' in columns):
-                        # query by ra/dec to get object id
-                        ra, dec = row.ra, row.dec
-                        response = api(
-                            "GET",
-                            f"/api/sources?&ra={ra}&dec={dec}&radius={2/3600}",
-                        )
-                        # sleep(0.9)
-                        data = response.json().get("data")
-                        obj_id = None
-                        if data["totalMatches"] > 0:
-                            src = data["sources"][0]
-                            obj_id = src["id"]
-                            sources.at[index, 'obj_id'] = obj_id
-                    else:
-                        raise KeyError(
-                            'Attemped to search by coordinates, but unable to find ra and dec columns.'
-                        )
+                    # query by ra/dec to get object id
+                    ra, dec = racol.loc[index], decol.loc[index]
+                    response = api(
+                        "GET",
+                        f"/api/sources?&ra={ra}&dec={dec}&radius={2/3600}",
+                    )
+                    data = response.json().get("data")
+                    obj_id = None
+                    if data["totalMatches"] > 0:
+                        src = data["sources"][0]
+                        obj_id = src["id"]
+                        sources.at[index, 'obj_id'] = obj_id
 
                 print(f"object {index} id:", obj_id)
 
                 # if successful search, get and save labels/probabilities/period annotations to sources dataframe
                 if obj_id is not None:
-                    (
-                        id,
-                        ra,
-                        dec,
-                        cls_list,
-                        prb_list,
-                        origin_list,
-                        period_list,
-                        id_origin_list,
-                        id_list,
-                    ) = organize_source_data(src)
-
-                    # store to new columns
-                    sources.at[index, 'ra'] = ra
-                    sources.at[index, 'dec'] = dec
-                    sources.at[index, 'classification'] = cls_list
-                    sources.at[index, 'probability'] = prb_list
-                    sources.at[index, 'period_origin'] = origin_list
-                    sources.at[index, 'period'] = period_list
-                    sources.at[index, 'ztf_id_origin'] = origin_list
-                    sources.at[index, 'ztf_id'] = period_list
+                    dct = organize_source_data(src)
+                    dct_list += [dct]
 
                     # occasional checkpoint at specified number of sources
                     if (index + 1) % CHECKPOINT_NUM == 0:
-                        sources.to_csv(filepath, index=False)
+                        sources_chkpt = pd.merge(
+                            sources, pd.json_normalize(dct_list), on='obj_id'
+                        )
+                        sources_chkpt.to_csv(filepath, index=False)
                         print(f'Saved checkpoint at index {index}.')
 
                 else:
                     warnings.warn(f'Unable to find source {index} on Fritz.')
 
-                # final save
-                sources.to_csv(filepath, index=False)
+            # final save
+            sources = pd.merge(sources, pd.json_normalize(dct_list), on='obj_id')
+            print('Saving all sources.')
+            sources.to_csv(filepath, index=False)
 
         if not merge_features:
             return sources
