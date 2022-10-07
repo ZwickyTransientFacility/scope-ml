@@ -89,6 +89,7 @@ process:
 3. get the classification/probabilities/periods of the objects in the dataset from Fritz
 4. append these values as new columns on the dataset, save to new file
 5. if merge_features, query Kowalski and merge sources with features, saving new CSV file
+6. To skip the source download part of the code, provide an input CSV file containing columns named 'obj_id', 'classification', 'probability', 'period_origin', 'period', 'ztf_id_origin', and 'ztf_id'.
 
 output: data with new columns appended.
 
