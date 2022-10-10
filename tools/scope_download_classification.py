@@ -152,10 +152,14 @@ def merge_sources_features(
         for i in range(len(classifications)):
             cls = classifications[i]
             if cls not in completed_classifications:
-                trainingset_label = gold_dict_specific[cls]['trainingset_label']
-                gold_dict_specific.pop(cls)
+                try:
+                    trainingset_label = gold_dict_specific[cls]['trainingset_label']
+                    gold_dict_specific.pop(cls)
+                    source_dict[trainingset_label] = probabilities[i]
+                except KeyError:
+                    print(f'Key {cls} not in dataset mapper.')
+                    continue
                 completed_classifications += [cls]
-                source_dict[trainingset_label] = probabilities[i]
 
         # Assign zero probability for remaining labels
         for remaining_entry in gold_dict_specific:
