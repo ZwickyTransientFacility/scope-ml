@@ -18,7 +18,7 @@ with open(config_path) as config_yaml:
 gloria = Kowalski(**config['kowalski'], verbose=False)
 
 
-def get_ids(
+def get_ids_loop(
     func,
     catalog,
     field=301,
@@ -59,7 +59,7 @@ def get_ids(
         Single or separate hdf5 files (field_<field_number>.h5 or data_<ccd_number>_quad_<quad_number>.h5)
         for all the quads in the specified range.
 
-        USAGE: get_ids(get_field_ids, 'ZTF_sources_20210401',field=301,ccd_range=[1,2],quad_range=[2,4],\
+        USAGE: get_ids_loop(get_field_ids, 'ZTF_sources_20210401',field=301,ccd_range=[1,2],quad_range=[2,4],\
             minobs=5,limit=2000, whole_field=False)
         '''
     if output_dir is None:
@@ -306,7 +306,7 @@ if __name__ == "__main__":
             print('Saving single file for entire field across ccd/quadrant range.')
         else:
             print('Saving multiple files for each ccd/quadrant pair.')
-        get_ids(
+        get_ids_loop(
             get_field_ids,
             catalog=args.catalog,
             field=args.field,
