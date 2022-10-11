@@ -1,14 +1,30 @@
 # Usage
 
-## Download ids for a ZTF quad
+## Download ids for ZTF fields/CCDs/quadrants
 
-```python
-get_field_ids.py
-ZTF_sources_20210401 -field 301 -ccd 2 -quad 3 -minobs 5 -skip 0 -limit 20 -token sample_token
+- Create CSV file for single CCD/quad pair in a field:
+
+```sh
+./get_quad_ids.py --catalog ZTF_source_features_DR5 --field 301 --ccd 2 --quad 3 --minobs 20 --skip 0 --limit 10000
 ```
 
-It can then be put in a loop to, say, get 100 ids at a time from a quad,
-and/or loop over quads and CCDs to get all ids for a field.
+- Create multiple HDF5 files for some CCD/quad pairs in a field:
+
+```sh
+./get_quad_ids.py --catalog ZTF_source_features_DR5 --field 301 --multi-quads --ccd-range 1 8 --quad-range 2 4 --minobs 20 --limit 10000
+```
+
+- Create multiple HDF5 files for all CCD/quad pairs in a field:
+
+```sh
+./get_quad_ids.py --catalog ZTF_source_features_DR5 --field 301 --multi-quads --minobs 20 --limit 10000
+```
+
+- Create single HDF5 file for all sources in a field:
+
+```sh
+./get_quad_ids.py --catalog ZTF_source_features_DR5 --field 301 --whole-field
+```
 
 ## Training deep learning models
 
@@ -67,8 +83,8 @@ done;
 * Requires `models/` folder in the root directory containing the pre-trained models for `dnn` and `xgboost`.
 * The commands for inference of the field `<field_number>` (in order)
   ```
-  python tools/get_quad_ids.py --field=<field_number>
-  python tools/get_features.py --field=<field_number>
+  ./tools/get_quad_ids.py --field=<field_number> --whole-field
+  ./tools/get_features.py --field=<field_number>
   ./get_all_preds.sh <field_number>
   ```
 * Creates a single `.csv` file containing all ids of the field in the rows and inference scores for different classes across the columns.
@@ -125,24 +141,6 @@ process:
 ./scope_upload_classification.py -file sample.csv -group_ids 500 250 750 -taxonomy_id 7 -classification variable flaring -taxonomy_map map.json -comment vetted -start 35 -stop 50 -skip_phot False -ztf_origin ZTF_DR5
 ```
 
-## Scope Upload Disagreements
-inputs:
-1. dataset
-2. group id on Fritz
-3. gloria object
-
-process:
-1. read in the csv dataset to pandas dataframe
-2. get high scoring objects on DNN or on XGBoost from Fritz
-3. get objects that have high confidence on DNN but low confidence on XGBoost and vice versa
-4. get different statistics of those disagreeing objects and combine to a dataframe
-5. filter those disagreeing objects that are contained in the training set and remove them
-6. upload the remaining disagreeing objects to target group on Fritz
-
-```sh
-./scope_upload_disagreements.py -file dataset.d15.csv -id 360 -token sample_token
-```
-
 ## Scope Manage Annotation
 inputs:
 1. action (one of "post", "update", or "delete")
@@ -159,4 +157,22 @@ process:
 
 ```sh
 ./scope_manage_annotation.py -action post -source sample.csv -group_ids 200 300 400 -origin revisedperiod -key period
+```
+
+## Scope Upload Disagreements
+inputs:
+1. dataset
+2. group id on Fritz
+3. gloria object
+
+process:
+1. read in the csv dataset to pandas dataframe
+2. get high scoring objects on DNN or on XGBoost from Fritz
+3. get objects that have high confidence on DNN but low confidence on XGBoost and vice versa
+4. get different statistics of those disagreeing objects and combine to a dataframe
+5. filter those disagreeing objects that are contained in the training set and remove them
+6. upload the remaining disagreeing objects to target group on Fritz
+
+```sh
+./scope_upload_disagreements.py -file dataset.d15.csv -id 360 -token sample_token
 ```
