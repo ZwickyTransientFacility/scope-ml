@@ -176,7 +176,7 @@ def run(**kwargs):
     ccd = kwargs.get("ccd", DEFAULT_CCD)
     quad = kwargs.get("quad", DEFAULT_QUAD)
     limit = kwargs.get("limit", DEFAULT_LIMIT)
-    whole_field = kwargs.get("whole_field", True)
+    whole_field = kwargs.get("whole_field", False)
     start = kwargs.get("start", None)
     end = kwargs.get("end", None)
     restart = kwargs.get("restart", True)
