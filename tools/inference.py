@@ -88,7 +88,8 @@ def clean_data(
     # file to store flagged ids and features with missing values
     if not whole_field:
         filename = (
-            "../preds/field_"
+            BASE_DIR
+            + "/../preds/field_"
             + str(field)
             + "/ccd_"
             + str(ccd).zfill(2)
@@ -97,7 +98,9 @@ def clean_data(
             + "_flagged.json"
         )
     else:
-        filename = "../preds/field_" + str(field) + "/flagged.json"
+        filename = (
+            BASE_DIR + "/../preds/field_" + str(field) + f"/field_{field}_flagged.json"
+        )
     for feature in (
         features_df[feature_names]
         .columns[features_df[feature_names].isna().any()]
@@ -240,14 +243,15 @@ def run(
     # default file location for source ids
     if whole_field:
         default_source_file = (
-            "../ids/field_" + str(field) + "/field_" + str(field) + ".h5"
+            BASE_DIR + "/../ids/field_" + str(field) + "/field_" + str(field) + ".h5"
         )
         default_features_file = (
-            "../features/field_" + str(field) + "/field_" + str(field)
+            BASE_DIR + "/../features/field_" + str(field) + "/field_" + str(field)
         )
     else:
         default_source_file = (
-            "../ids/field_"
+            BASE_DIR
+            + "/../ids/field_"
             + str(field)
             + "/data_ccd_"
             + str(ccd).zfill(2)
@@ -256,7 +260,8 @@ def run(
             + ".h5"
         )
         default_features_file = (
-            "../features/field_"
+            BASE_DIR
+            + "/../features/field_"
             + str(field)
             + "/ccd_"
             + str(ccd).zfill(2)
@@ -409,7 +414,7 @@ def run(
         preds_df = features[["_id", model_class + '_xgb' + train_config]].round(2)
         preds_df.reset_index(inplace=True, drop=True)
 
-    out_dir = os.path.join(os.path.dirname(__file__), "../preds/")
+    out_dir = os.path.join(os.path.dirname(__file__), f"{BASE_DIR}/../preds/")
 
     if not whole_field:
         default_outfile = (
