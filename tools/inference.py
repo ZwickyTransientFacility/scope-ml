@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import tensorflow as tf
 import fire
 import numpy as np
@@ -12,6 +13,7 @@ import json
 import os
 import time
 import h5py
+from scope import nn
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 warnings.filterwarnings('ignore')
@@ -24,6 +26,7 @@ config_path = pathlib.Path(__file__).parent.parent.absolute() / "config.yaml"
 with open(config_path) as config_yaml:
     config = yaml.load(config_yaml, Loader=yaml.FullLoader)
 
+# Use KowalskiInstances class here when approved
 kowalski = Kowalski(
     token=config["kowalski"]["token"],
     protocol=config["kowalski"]["protocol"],
@@ -85,10 +88,16 @@ def clean_data(
     # file to store flagged ids and features with missing values
     if not whole_field:
         filename = (
-            "preds/ccd_" + str(ccd).zfill(2) + "_quad_" + str(quad) + "/flagged.json"
+            "../preds/field_"
+            + str(field)
+            + "/ccd_"
+            + str(ccd).zfill(2)
+            + "_quad_"
+            + str(quad)
+            + "_flagged.json"
         )
     else:
-        filename = "preds/field_" + str(field) + "/flagged.json"
+        filename = "../preds/field_" + str(field) + "/flagged.json"
     for feature in (
         features_df[feature_names]
         .columns[features_df[feature_names].isna().any()]
@@ -115,57 +124,58 @@ def clean_data(
     return features_df
 
 
-def make_model(**kwargs):
-    features_input = tf.keras.Input(
-        shape=kwargs.get("features_input_shape", (40,)), name="features"
-    )
-    dmdt_input = tf.keras.Input(
-        shape=kwargs.get("dmdt_input_shape", (26, 26, 1)), name="dmdt"
-    )
-
-    # dense branch to digest features
-    x_dense = tf.keras.layers.Dropout(0.2)(features_input)
-    x_dense = tf.keras.layers.Dense(256, activation='relu', name='dense_fc_1')(x_dense)
-    x_dense = tf.keras.layers.Dropout(0.25)(x_dense)
-    x_dense = tf.keras.layers.Dense(32, activation='relu', name='dense_fc_2')(x_dense)
-
-    # CNN branch to digest dmdt
-    x_conv = tf.keras.layers.Dropout(0.2)(dmdt_input)
-    x_conv = tf.keras.layers.SeparableConv2D(
-        16, (3, 3), activation='relu', name='conv_conv_1'
-    )(x_conv)
-    # x_conv = tf.keras.layers.Dropout(0.25)(x_conv)
-    x_conv = tf.keras.layers.SeparableConv2D(
-        16, (3, 3), activation='relu', name='conv_conv_2'
-    )(x_conv)
-    x_conv = tf.keras.layers.Dropout(0.25)(x_conv)
-    x_conv = tf.keras.layers.MaxPooling2D(pool_size=(2, 2))(x_conv)
-
-    x_conv = tf.keras.layers.SeparableConv2D(
-        32, (3, 3), activation='relu', name='conv_conv_3'
-    )(x_conv)
-    # x_conv = tf.keras.layers.Dropout(0.25)(x_conv)
-    x_conv = tf.keras.layers.SeparableConv2D(
-        32, (3, 3), activation='relu', name='conv_conv_4'
-    )(x_conv)
-    x_conv = tf.keras.layers.Dropout(0.25)(x_conv)
-    # x_conv = tf.keras.layers.MaxPooling2D(pool_size=(2, 2))(x_conv)
-
-    x_conv = tf.keras.layers.GlobalAveragePooling2D()(x_conv)
-
-    # concatenate
-    x = tf.keras.layers.concatenate([x_dense, x_conv])
-    x = tf.keras.layers.Dropout(0.4)(x)
-
-    # one more dense layer?
-    x = tf.keras.layers.Dense(16, activation='relu', name='fc_1')(x)
-
-    # Logistic regression to output the final score
-    x = tf.keras.layers.Dense(1, activation='sigmoid', name='score')(x)
-
-    m = tf.keras.Model(inputs=[features_input, dmdt_input], outputs=x)
-
-    return m
+# Previous model - delete when DNN is re-trained
+# def make_model(**kwargs):
+#     features_input = tf.keras.Input(
+#         shape=kwargs.get("features_input_shape", (40,)), name="features"
+#     )
+#     dmdt_input = tf.keras.Input(
+#         shape=kwargs.get("dmdt_input_shape", (26, 26, 1)), name="dmdt"
+#     )
+#
+#     # dense branch to digest features
+#     x_dense = tf.keras.layers.Dropout(0.2)(features_input)
+#     x_dense = tf.keras.layers.Dense(256, activation='relu', name='dense_fc_1')(x_dense)
+#     x_dense = tf.keras.layers.Dropout(0.25)(x_dense)
+#     x_dense = tf.keras.layers.Dense(32, activation='relu', name='dense_fc_2')(x_dense)
+#
+#     # CNN branch to digest dmdt
+#     x_conv = tf.keras.layers.Dropout(0.2)(dmdt_input)
+#     x_conv = tf.keras.layers.SeparableConv2D(
+#         16, (3, 3), activation='relu', name='conv_conv_1'
+#     )(x_conv)
+#     # x_conv = tf.keras.layers.Dropout(0.25)(x_conv)
+#     x_conv = tf.keras.layers.SeparableConv2D(
+#         16, (3, 3), activation='relu', name='conv_conv_2'
+#     )(x_conv)
+#     x_conv = tf.keras.layers.Dropout(0.25)(x_conv)
+#     x_conv = tf.keras.layers.MaxPooling2D(pool_size=(2, 2))(x_conv)
+#
+#     x_conv = tf.keras.layers.SeparableConv2D(
+#         32, (3, 3), activation='relu', name='conv_conv_3'
+#     )(x_conv)
+#     # x_conv = tf.keras.layers.Dropout(0.25)(x_conv)
+#     x_conv = tf.keras.layers.SeparableConv2D(
+#         32, (3, 3), activation='relu', name='conv_conv_4'
+#     )(x_conv)
+#     x_conv = tf.keras.layers.Dropout(0.25)(x_conv)
+#     # x_conv = tf.keras.layers.MaxPooling2D(pool_size=(2, 2))(x_conv)
+#
+#     x_conv = tf.keras.layers.GlobalAveragePooling2D()(x_conv)
+#
+#     # concatenate
+#     x = tf.keras.layers.concatenate([x_dense, x_conv])
+#     x = tf.keras.layers.Dropout(0.4)(x)
+#
+#     # one more dense layer?
+#     x = tf.keras.layers.Dense(16, activation='relu', name='fc_1')(x)
+#
+#     # Logistic regression to output the final score
+#     x = tf.keras.layers.Dense(1, activation='sigmoid', name='score')(x)
+#
+#     m = tf.keras.Model(inputs=[features_input, dmdt_input], outputs=x)
+#
+#     return m
 
 
 def run(
@@ -192,11 +202,11 @@ def run(
         quad number (with whole_field=False)
     flag_ids : bool
         whether to flag ids having features with missing values
-    xgbst : bool
+    xgb_model : bool
         evaluate using xgboost models
     verbose : bool
         whether to print progress
-    tm: bool
+    time: bool
         print time taken by each step
     Returns
     =======
@@ -225,7 +235,7 @@ def run(
     xgbst = kwargs.get("xgb_model", DEFAULT_XGBST)
     tm = kwargs.get("time", False)
     verbose = kwargs.get("verbose", False)
-    whole_field = kwargs.get("whole_field", True)
+    whole_field = kwargs.get("whole_field", False)
 
     # default file location for source ids
     if whole_field:
@@ -328,7 +338,8 @@ def run(
         if str(path_model).endswith(".h5"):
             model = tf.keras.models.load_model(path_model)
         else:
-            model = make_model(features_input_shape=(len(feature_names),))
+            # model = make_model(features_input_shape=(len(feature_names),)) # Use this line if performing inference with old model
+            model = nn.DNN.build_model(features_input_shape=(len(feature_names),))
             if verbose:
                 print(model.summary())
             model.load_weights(path_model).expect_partial()
