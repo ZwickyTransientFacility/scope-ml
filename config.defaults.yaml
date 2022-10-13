@@ -988,11 +988,77 @@ training:
       threshold: 0.9
       balance: 1
       weight_per_class: false
+    sin:
+      label: sinusoidal
+      features: phenomenological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
+    el:
+      label: ellipsoidal
+      features: phenomenological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
+    saw:
+      label: sawtooth
+      features: phenomenological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
+    mp:
+      label: multi periodic
+      features: phenomenological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
     longt:
       label: long timescale
       features: phenomenological
       threshold: 0.9
       balance: 2.5
+      weight_per_class: false
+    e:
+      label: eclipsing
+      features: phenomenological
+      threshold: 0.7
+      balance:
+      weight_per_class: false
+    ea:
+      label: EA
+      features: phenomenological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
+    eb:
+      label: EB
+      features: phenomenological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
+    ew:
+      label: EW
+      features: phenomenological
+      threshold: 0.7
+      balance:
+      weight_per_class: false
+    wp:
+      label: wrong period
+      features: phenomenological
+      threshold: 0.7
+      balance:
+      weight_per_class: false
+    hp:
+      label: half period
+      features: phenomenological
+      threshold: 0.7
+      balance:
+      weight_per_class: false
+    dp:
+      label: double period
+      features: phenomenological
+      threshold: 0.7
+      balance:
       weight_per_class: false
     i:
       label: irregular
@@ -1006,29 +1072,41 @@ training:
       threshold: 0.7
       balance: 2.5
       weight_per_class: false
-    ew:
-      label: EW
-      features: phenomenological
-      threshold: 0.7
-      balance:
-      weight_per_class: false
-    eb:
-      label: EB
+    dip:
+      label: dipping
       features: phenomenological
       threshold: 0.7
       balance: 2.5
       weight_per_class: false
-    ea:
-      label: EA
+    bogus:
+      label: bogus
       features: phenomenological
       threshold: 0.7
       balance: 2.5
       weight_per_class: false
-    e:
-      label: eclipsing
+    gal:
+      label: galaxy
       features: phenomenological
       threshold: 0.7
-      balance:
+      balance: 2.5
+      weight_per_class: false
+    blend:
+      label: blend
+      features: phenomenological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
+    bright:
+      label: bright star
+      features: phenomenological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
+    artfct:
+      label: ccd artifact
+      features: phenomenological
+      threshold: 0.7
+      balance: 2.5
       weight_per_class: false
     # ontological classes
     agn:
@@ -1043,8 +1121,20 @@ training:
       threshold: 0.7
       balance:
       weight_per_class: false
+    blher:
+      label: BL Her
+      features: ontological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
     blyr:
       label: Beta Lyr
+      features: ontological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
+    cbin:
+      label: compact binary
       features: ontological
       threshold: 0.7
       balance: 2.5
@@ -1055,8 +1145,38 @@ training:
       threshold: 0.7
       balance: 2.5
       weight_per_class: false
+    ceph2:
+      label: Cepheid type-II
+      features: ontological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
+    cv:
+      label: CV
+      features: ontological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
     dscu:
       label: Delta Scu
+      features: ontological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
+    emsms:
+      label: detached eclipsing MS-MS
+      features: ontological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
+    f:
+      label: F
+      features: ontological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
+    hwvir:
+      label: eclipsing sdB+dM (HW Vir)
       features: ontological
       threshold: 0.7
       balance: 2.5
@@ -1073,8 +1193,32 @@ training:
       threshold: 0.7
       balance: 2.5
       weight_per_class: false
+    nnser:
+      label: eclipsing WD+dM (NN Ser)
+      features: ontological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
+    o:
+      label: O
+      features: ontological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
+    osarg:
+      label: OSARG
+      features: ontological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
     puls:
       label: pulsator
+      features: ontological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
+    rdbkp:
+      label: Redback pulsar
       features: ontological
       threshold: 0.7
       balance: 2.5
@@ -1085,8 +1229,38 @@ training:
       threshold: 0.7
       balance: 2.5
       weight_per_class: false
+    rrab:
+      label: RR Lyrae ab
+      features: ontological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
+    rrc:
+      label: RR Lyrae c
+      features: ontological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
+    rrd:
+      label: RR Lyrae d
+      features: ontological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
+    rrblz:
+      label: RR Lyrae Blazhko
+      features: ontological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
     rscvn:
       label: RS CVn
+      features: ontological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
+    rvtau:
+      label: RV Tau
       features: ontological
       threshold: 0.7
       balance: 2.5
@@ -1099,6 +1273,12 @@ training:
       weight_per_class: false
     wuma:
       label: W Uma
+      features: ontological
+      threshold: 0.7
+      balance: 2.5
+      weight_per_class: false
+    wvir:
+      label: W Virginis
       features: ontological
       threshold: 0.7
       balance: 2.5
