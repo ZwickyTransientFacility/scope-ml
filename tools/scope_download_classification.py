@@ -1,14 +1,16 @@
 #!/usr/bin/env python
 import argparse
 import pandas as pd
-from scope.fritz import api
+import scope
 import warnings
 import numpy as np
 from tools.get_features import get_features
 import os
+from datetime import datetime
 
 NUM_PER_PAGE = 500
 CHECKPOINT_NUM = 500
+api = scope.fritz.api
 
 
 def organize_source_data(src: pd.DataFrame):
@@ -219,7 +221,8 @@ def download_classification(
     features_limit: int,
     mapper_name: str = 'golden_dataset_mapper.json',
     output_dir: str = 'fritzDownload',
-    output_filename: str = 'merged_classifications_features.csv',
+    output_filename: str = 'merged_classifications_features',
+    output_format: str = '.h5',
 ):
     """
     Download labels from Fritz
@@ -229,15 +232,30 @@ def download_classification(
     :param merge_features: if True,  query Kowalski for features to merge (bool)
     :param features_catalog: catalog name to query for features (str)
     :param features_limit: maximum number of sources to query for features per loop (int)
+    :param output_dir: directory to write output merged features file
+    :param output_filename: name of output merged features file
+    :param output_format: format of output merged features file
     """
 
     dict_list = []
+
+    # Check for appropriate output format
+    if output_format in ['.h5', 'h5', '.H5', 'H5']:
+        output_format = '.h5'
+    elif output_format in ['.csv', 'csv', '.CSV', 'CSV']:
+        output_format = '.csv'
+    else:
+        raise ValueError('Output format must be h5 or csv.')
+
+    # If user puts extension in filename, remove it for consistency
+    if (output_filename.endswith('.csv')) | output_filename.endswith('.h5'):
+        output_filename = os.path.splitext(output_filename)[0]
 
     outpath = os.path.join(os.path.dirname(__file__), output_dir)
     os.makedirs(outpath, exist_ok=True)
 
     filename = (
-        os.path.basename(file).removesuffix('.csv') + '_fritzDownload' + '.csv'
+        os.path.splitext(os.path.basename(file))[0] + '_fritzDownload' + output_format
     )  # rename file
     filepath = os.path.join(outpath, filename)
 
@@ -256,9 +274,16 @@ def download_classification(
         nPerPage = source_data['numPerPage']
         pages = int(np.ceil(allMatches / nPerPage))
 
+        # Get code version and current date/time for metadata
+        code_version = scope.__version__
+        utcnow = datetime.utcnow()
+        start_dt = utcnow.strftime("%d/%m/%Y %H:%M:%S")
+
         if start != 0:
             filename = (
-                filename.removesuffix('.csv') + f'_continued_page_{start}' + '.csv'
+                os.path.splitext(filename)[0]
+                + f'_continued_page_{start}'
+                + output_format
             )
             filepath = os.path.join(outpath, filename)
             print('Downloading sources...')
@@ -286,7 +311,15 @@ def download_classification(
 
             # create dataframe from query results
             sources = pd.json_normalize(dict_list)
-            sources.to_csv(filepath, index=False)
+            sources.attrs['scope_code_version'] = code_version
+            sources.attrs['download_datetime'] = start_dt
+
+            if output_format == '.csv':
+                sources.to_csv(filepath, index=False)
+            else:
+                with pd.HDFStore(filepath, mode='w') as store:
+                    store.put('df', sources)
+                    store.get_storer('df').attrs.metadata = sources.attrs
             print(f'Saved page {pageNum}.')
 
         if not merge_features:
@@ -303,13 +336,27 @@ def download_classification(
             return merged_sources
 
     else:
-        # read in CSV file
-        sources = pd.read_csv(file)
+        # read in CSV or HDF5 file
+        if file.endswith('.csv'):
+            sources = pd.read_csv(file)
+        elif file.endswith('.h5'):
+            with pd.HDFStore(file, mode='r') as store:
+                # Read first key of file
+                sources = store[store.keys()[0]]
+                try:
+                    sources.attrs = store.get_storer(store.keys()[0]).attrs.metadata
+                except AttributeError:
+                    warnings.warn('Did not read metadata from HDF5 file.')
+        else:
+            raise TypeError('Input file must be h5 or csv format.')
+
         if start != 0:
             # continue from checkpoint
             sources = sources[start:]
             filename = (
-                filename.removesuffix('.csv') + f'_continued_index_{start}' + '.csv'
+                os.path.splitext(filename)[0]
+                + f'_continued_index_{start}'
+                + output_format
             )
             filepath = os.path.join(outpath, filename)
 
@@ -391,7 +438,17 @@ def download_classification(
                         sources_chkpt = pd.merge(
                             sources, pd.json_normalize(dct_list), on='obj_id'
                         )
-                        sources_chkpt.to_csv(filepath, index=False)
+                        sources_chkpt.attrs['scope_code_version'] = code_version
+                        sources_chkpt.attrs['download_datetime'] = start_dt
+
+                        if output_format == '.csv':
+                            sources_chkpt.to_csv(filepath, index=False)
+                        else:
+                            with pd.HDFStore(filepath, mode='w') as store:
+                                store.put('df', sources_chkpt)
+                                store.get_storer(
+                                    'df'
+                                ).attrs.metadata = sources_chkpt.attrs
                         print(f'Saved checkpoint at index {index}.')
 
                 else:
@@ -399,8 +456,16 @@ def download_classification(
 
             # final save
             sources = pd.merge(sources, pd.json_normalize(dct_list), on='obj_id')
+            sources.attrs['scope_code_version'] = code_version
+            sources.attrs['download_datetime'] = start_dt
+
             print('Saving all sources.')
-            sources.to_csv(filepath, index=False)
+            if output_format == '.csv':
+                sources.to_csv(filepath, index=False)
+            else:
+                with pd.HDFStore(filepath, mode='w') as store:
+                    store.put('df', sources)
+                    store.get_storer('df').attrs.metadata = sources.attrs
 
         if not merge_features:
             return sources
@@ -457,14 +522,21 @@ if __name__ == "__main__":
         "-output_dir",
         type=str,
         default='fritzDownload',
-        help="Name of directory to save downloaded files",
+        help="Name of directory to save downloaded file",
     )
 
     parser.add_argument(
         "-output_filename",
         type=str,
-        default='merged_classifications_features.csv',
-        help="Name of file containing merged classifications and features",
+        default='merged_classifications_features',
+        help="Name of output file containing merged classifications and features",
+    )
+
+    parser.add_argument(
+        "-output_format",
+        type=str,
+        default='.h5',
+        help="Format of output file, either .h5 or .csv",
     )
 
     args = parser.parse_args()
@@ -480,4 +552,5 @@ if __name__ == "__main__":
         args.mapper_name,
         args.output_dir,
         args.output_filename,
+        args.output_format,
     )
