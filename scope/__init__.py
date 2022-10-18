@@ -2,6 +2,7 @@ from .nn import *
 from .utils import *
 
 # Below code adapted from https://github.com/skyportal/skyportal/blob/main/skyportal/__init__.py
+# 10-18-2022
 __version__ = '0.2.dev0'
 
 if 'dev' in __version__:
