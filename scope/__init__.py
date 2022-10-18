@@ -1,5 +1,7 @@
 from .nn import *
 from .utils import *
+from .models import *
+from .fritz import *
 
 # Below code adapted from https://github.com/skyportal/skyportal/blob/main/skyportal/__init__.py
 # 10-18-2022
