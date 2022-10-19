@@ -240,10 +240,21 @@ def download_classification(
     dict_list = []
 
     # Check for appropriate output format
-    if output_format in ['.h5', 'h5', '.H5', 'H5']:
+    output_file_extension = os.path.splitext(output_filename)[-1]
+
+    # If h5 or csv extension specified in output_filename, use that format for saving
+    output_format = (
+        output_format
+        if output_file_extension not in ['.h5', '.csv']
+        else output_file_extension
+    )
+
+    if output_format in ['.h5', 'h5', '.hdf5', 'hdf5', '.H5', 'H5', '.HDF5', 'HDF5']:
         output_format = '.h5'
+        print('Using .h5 extension for saved files.')
     elif output_format in ['.csv', 'csv', '.CSV', 'CSV']:
         output_format = '.csv'
+        print('Using .csv extension for saved files.')
     else:
         raise ValueError('Output format must be h5 or csv.')
 
@@ -259,6 +270,11 @@ def download_classification(
     )  # rename file
     filepath = os.path.join(outpath, filename)
 
+    # Get code version and current date/time for metadata
+    code_version = scope.__version__
+    utcnow = datetime.utcnow()
+    start_dt = utcnow.strftime("%d-%m-%Y %H:%M:%S")
+
     if file in ["parse", 'Parse', 'PARSE']:
         if group_ids is None:
             raise ValueError('Specify group_ids to query Fritz.')
@@ -273,11 +289,6 @@ def download_classification(
         allMatches = source_data['totalMatches']
         nPerPage = source_data['numPerPage']
         pages = int(np.ceil(allMatches / nPerPage))
-
-        # Get code version and current date/time for metadata
-        code_version = scope.__version__
-        utcnow = datetime.utcnow()
-        start_dt = utcnow.strftime("%d/%m/%Y %H:%M:%S")
 
         if start != 0:
             filename = (
@@ -312,7 +323,7 @@ def download_classification(
             # create dataframe from query results
             sources = pd.json_normalize(dict_list)
             sources.attrs['scope_code_version'] = code_version
-            sources.attrs['download_datetime'] = start_dt
+            sources.attrs['download_datetime_utc'] = start_dt
 
             if output_format == '.csv':
                 sources.to_csv(filepath, index=False)
@@ -439,7 +450,7 @@ def download_classification(
                             sources, pd.json_normalize(dct_list), on='obj_id'
                         )
                         sources_chkpt.attrs['scope_code_version'] = code_version
-                        sources_chkpt.attrs['download_datetime'] = start_dt
+                        sources_chkpt.attrs['download_datetime_utc'] = start_dt
 
                         if output_format == '.csv':
                             sources_chkpt.to_csv(filepath, index=False)
@@ -457,7 +468,7 @@ def download_classification(
             # final save
             sources = pd.merge(sources, pd.json_normalize(dct_list), on='obj_id')
             sources.attrs['scope_code_version'] = code_version
-            sources.attrs['download_datetime'] = start_dt
+            sources.attrs['download_datetime_utc'] = start_dt
 
             print('Saving all sources.')
             if output_format == '.csv':
