@@ -234,7 +234,7 @@ def merge_sources_features(
             store.get_storer('df').attrs.metadata = merged_set.attrs
     else:
         # parquet code adapted from https://towardsdatascience.com/saving-metadata-with-dataframes-71f51f558d8e
-        # [2022-10-19]
+        # 2022-10-19
         # Create tables
         table = pa.Table.from_pandas(merged_set)
         # Serialize metadata from DataFrame.attrs
@@ -284,7 +284,7 @@ def download_classification(
     # Check for appropriate output format
     output_file_extension = os.path.splitext(output_filename)[-1]
 
-    # If h5 or csv extension specified in output_filename, use that format for saving
+    # If parquet, h5 or csv extension specified in output_filename, use that format for saving
     output_format = (
         output_format
         if output_file_extension not in ['.parquet', '.h5', '.csv']
@@ -417,7 +417,7 @@ def download_classification(
             return merged_sources
 
     else:
-        # read in CSV or HDF5 file
+        # read in CSV, HDF5 or parquet file
         if file.endswith('.csv'):
             sources = pd.read_csv(file)
         elif file.endswith('.h5'):
@@ -438,7 +438,7 @@ def download_classification(
             except KeyError:
                 warnings.warn('Did not read metadata from parquet file.')
         else:
-            raise TypeError('Input file must be h5 or csv format.')
+            raise TypeError('Input file must be h5, csv or parquet format.')
 
         if start != 0:
             # continue from checkpoint
