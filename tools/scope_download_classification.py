@@ -245,7 +245,7 @@ def download_classification(
     mapper_name: str = 'golden_dataset_mapper.json',
     output_dir: str = 'fritzDownload',
     output_filename: str = 'merged_classifications_features',
-    output_format: str = '.parquet',
+    output_format: str = 'parquet',
 ):
     """
     Download labels from Fritz
