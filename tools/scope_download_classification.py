@@ -90,7 +90,7 @@ def merge_sources_features(
     mapper_name='golden_dataset_mapper.json',
     output_dir='fritzDownload',
     output_filename='merged_classifications_features',
-    output_format='.parquet',
+    output_format='parquet',
 ):
 
     outpath = os.path.join(os.path.dirname(__file__), output_dir)
@@ -275,6 +275,8 @@ def download_classification(
     if output_format in [
         '.parquet',
         'parquet',
+        '.Parquet',
+        'Parquet',
         '.parq',
         'parq',
         '.PARQUET',
@@ -588,7 +590,7 @@ if __name__ == "__main__":
         "-output_format",
         type=str,
         default='.parquet',
-        help="Format of output file: .parquet, .h5 or .csv",
+        help="Format of output file: parquet, h5 or csv",
     )
 
     args = parser.parse_args()
