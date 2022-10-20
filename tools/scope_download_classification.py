@@ -3,18 +3,15 @@ import argparse
 import pandas as pd
 import scope
 from scope.fritz import api
+from scope.utils import read_hdf, write_hdf, read_parquet, write_parquet
 import warnings
 import numpy as np
 from tools.get_features import get_features
 import os
 from datetime import datetime
-import pyarrow as pa
-import pyarrow.parquet as pq
-import json as JSON
 
 NUM_PER_PAGE = 500
 CHECKPOINT_NUM = 500
-CUSTOM_META_KEY = 'scope'
 
 
 def organize_source_data(src: pd.DataFrame):
@@ -233,23 +230,7 @@ def merge_sources_features(
             store.put('dmdt', dmdt)
             store.get_storer('df').attrs.metadata = merged_set.attrs
     else:
-        # parquet code adapted from https://towardsdatascience.com/saving-metadata-with-dataframes-71f51f558d8e
-        # 2022-10-19
-        # Create tables
-        table = pa.Table.from_pandas(merged_set)
-        # Serialize metadata from DataFrame.attrs
-        custom_meta_json = JSON.dumps(merged_set.attrs)
-        # Get existing metadata
-        existing_meta = table.schema.metadata
-        # Combine existing and new metadata.
-        combined_meta = {
-            CUSTOM_META_KEY.encode(): custom_meta_json.encode(),
-            **existing_meta,
-        }
-        # Make new table with combined metadata
-        table = table.replace_schema_metadata(combined_meta)
-        # Write to parquet file
-        pq.write_table(table, filepath)
+        write_parquet(merged_set, filepath)
 
     return merged_set
 
@@ -386,19 +367,9 @@ def download_classification(
             if output_format == '.csv':
                 sources.to_csv(filepath, index=False)
             elif output_format == '.h5':
-                with pd.HDFStore(filepath, mode='w') as store:
-                    store.put('df', sources)
-                    store.get_storer('df').attrs.metadata = sources.attrs
+                write_hdf(sources, filepath)
             else:
-                table = pa.Table.from_pandas(sources)
-                custom_meta_json = JSON.dumps(sources.attrs)
-                existing_meta = table.schema.metadata
-                combined_meta = {
-                    CUSTOM_META_KEY.encode(): custom_meta_json.encode(),
-                    **existing_meta,
-                }
-                table = table.replace_schema_metadata(combined_meta)
-                pq.write_table(table, filepath)
+                write_parquet(sources, filepath)
 
             print(f'Saved page {pageNum}.')
 
@@ -421,22 +392,9 @@ def download_classification(
         if file.endswith('.csv'):
             sources = pd.read_csv(file)
         elif file.endswith('.h5'):
-            with pd.HDFStore(file, mode='r') as store:
-                # Read first key of file
-                sources = store[store.keys()[0]]
-                try:
-                    sources.attrs = store.get_storer(store.keys()[0]).attrs.metadata
-                except AttributeError:
-                    warnings.warn('Did not read metadata from HDF5 file.')
+            sources = read_hdf(file)
         elif file.endswith('.parquet'):
-            table = pq.read_table(file)
-            sources = table.to_pandas()
-            try:
-                meta_json = table.schema.metadata[CUSTOM_META_KEY.encode()]
-                restored_meta = JSON.loads(meta_json)
-                sources.attrs = restored_meta
-            except KeyError:
-                warnings.warn('Did not read metadata from parquet file.')
+            sources = read_parquet(file)
         else:
             raise TypeError('Input file must be h5, csv or parquet format.')
 
@@ -536,21 +494,9 @@ def download_classification(
                         if output_format == '.csv':
                             sources_chkpt.to_csv(filepath, index=False)
                         elif output_format == '.h5':
-                            with pd.HDFStore(filepath, mode='w') as store:
-                                store.put('df', sources_chkpt)
-                                store.get_storer(
-                                    'df'
-                                ).attrs.metadata = sources_chkpt.attrs
+                            write_hdf(sources_chkpt, filepath)
                         else:
-                            table = pa.Table.from_pandas(sources_chkpt)
-                            custom_meta_json = JSON.dumps(sources_chkpt.attrs)
-                            existing_meta = table.schema.metadata
-                            combined_meta = {
-                                CUSTOM_META_KEY.encode(): custom_meta_json.encode(),
-                                **existing_meta,
-                            }
-                            table = table.replace_schema_metadata(combined_meta)
-                            pq.write_table(table, filepath)
+                            write_parquet(sources_chkpt, filepath)
 
                         print(f'Saved checkpoint at index {index}.')
 
@@ -568,19 +514,9 @@ def download_classification(
             if output_format == '.csv':
                 sources.to_csv(filepath, index=False)
             elif output_format == '.h5':
-                with pd.HDFStore(filepath, mode='w') as store:
-                    store.put('df', sources)
-                    store.get_storer('df').attrs.metadata = sources.attrs
+                write_hdf(sources, filepath)
             else:
-                table = pa.Table.from_pandas(sources)
-                custom_meta_json = JSON.dumps(sources.attrs)
-                existing_meta = table.schema.metadata
-                combined_meta = {
-                    CUSTOM_META_KEY.encode(): custom_meta_json.encode(),
-                    **existing_meta,
-                }
-                table = table.replace_schema_metadata(combined_meta)
-                pq.write_table(table, filepath)
+                write_parquet(sources, filepath)
 
         if not merge_features:
             return sources
