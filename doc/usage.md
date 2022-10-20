@@ -89,6 +89,21 @@ done;
   ```
 * Creates a single `.csv` file containing all ids of the field in the rows and inference scores for different classes across the columns.
 
+## Handling different file formats
+When our manipulations of `pandas` dataframes is complete, we want to save them in an appropriate file format with the desired metadata. Our code works with multiple formats, each of which have advantages and drawbacks:
+
+- <b>Comma Separated Values (CSV, .csv):</b> in this format, data are plain text and columns are separated by commas. While this format offers a high level of human readability, it also takes more space to store and a longer time to write and read than other formats.
+
+  `pandas` offers the `read_csv()` function and `to_csv()` method to perform I/O operations with this format. Metadata must be included as plain text in the file.
+
+- <b>Hierarchical Data Format (HDF5, .h5):</b> this format stores data in binary form, so it is not human-readable. It takes up less space on disk than CSV files, and it writes/reads faster for numerical data. HDF5 does not serialize data columns containing structures like a `numpy` array, so file size improvements over CSV can be diminished if these structures exist in the data.
+
+  `pandas` includes `read_hdf()` and `to_hdf()` to handle this format, and they require a package like [`PyTables`](https://www.pytables.org/) to work. `pandas` does not currently support the reading and writing of metadata using the above function and method. See `scope/utils.py` for code that handles metadata in HDF5 files.
+
+- <b>Apache Parquet (.parquet):</b> this format stores data in binary form like HDF5, so it is not human-readable. Like HDF5, Parquet also offers significant disk space savings over CSV. Unlike HDF5, Parquet supports structures like `numpy` arrays in data columns.
+
+  While `pandas` offers `read_parquet()` and `to_parquet()` to support this format (requiring e.g. [`PyArrow`](https://arrow.apache.org/docs/python/) to work), these again do not support the reading and writing of metadata associated with the dataframe.  See `scope/utils.py` for code that reads and writes metadata in Parquet files.
+
 
 ## Scope Download Classification
 inputs:
@@ -101,6 +116,7 @@ inputs:
 7. Filename of classification mapper
 8. Name of directory to save downloaded files
 9. Name of file containing merged classifications and features
+10. Output format of saved files, if not specified in (9). Must be one of parquet, h5, or csv.
 
 process:
 1. if CSV file provided, query by object ids or ra, dec
@@ -113,7 +129,7 @@ process:
 output: data with new columns appended.
 
 ```sh
-./scope_download_classification.py -file sample.csv -group_ids 360 361 -start 10 -merge_features True -features_catalog ZTF_source_features_DR5 -features_limit 5000 -mapper_name golden_dataset_mapper.json -output_dir fritzDownload -output_filename merged_classifications_features.csv
+./scope_download_classification.py -file sample.csv -group_ids 360 361 -start 10 -merge_features True -features_catalog ZTF_source_features_DR5 -features_limit 5000 -mapper_name golden_dataset_mapper.json -output_dir fritzDownload -output_filename merged_classifications_features -output_format parquet
 ```
 
 ## Scope Upload Classification

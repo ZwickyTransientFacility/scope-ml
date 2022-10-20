@@ -8,6 +8,10 @@ __all__ = [
     "plot_gaia_hr",
     "plot_light_curve_data",
     "plot_periods",
+    "read_hdf",
+    "write_hdf",
+    "read_parquet",
+    "write_parquet",
 ]
 
 from astropy.io import fits
@@ -23,6 +27,10 @@ import tensorflow as tf
 from tqdm.auto import tqdm
 from typing import Mapping, Optional, Union
 import yaml
+import warnings
+import pyarrow as pa
+import pyarrow.parquet as pq
+import json as JSON
 
 
 def load_config(config_path: Union[str, pathlib.Path]):
@@ -69,6 +77,95 @@ def make_tdtax_taxonomy(taxonomy: Mapping):
             tdtax_taxonomy["children"].append(make_tdtax_taxonomy(cls))
 
     return tdtax_taxonomy
+
+
+def write_hdf(
+    dataframe: pd.DataFrame, filepath: str, key: str = 'df', overwrite: bool = True
+):
+    """
+    Write HDF5 file and attach metadata
+
+    :param dataframe: pandas.DataFrame (metadata must be dict in DataFrame.attrs)
+    :param filepath: file path to save HDF5 file (str)
+    :param key: key associated with DataFrame (str)
+    :param overwrite: if True, overwrite file, else append. (bool)
+    """
+    mode = 'w' if overwrite else 'a'
+
+    with pd.HDFStore(filepath, mode=mode) as store:
+        store.put(key, dataframe)
+        store.get_storer(key).attrs.metadata = dataframe.attrs
+
+
+def read_hdf(filepath: str, key: str = 'df'):
+    """
+    Read HDF5 file and metadata (if available). Currently supports accessing one key of the file at a time.
+
+    :param filepath: path to read HDF5 file (str)
+    :param key: key to access in HDF5 file (str)
+
+    :return: pandas.DataFrame
+    """
+    with pd.HDFStore(filepath, mode='r') as store:
+        dataframe = store[key]
+        try:
+            dataframe.attrs = store.get_storer(key).attrs.metadata
+        except AttributeError:
+            warnings.warn('Did not read metadata from HDF5 file.')
+
+    return dataframe
+
+
+def write_parquet(dataframe: pd.DataFrame, filepath: str, meta_key: str = 'scope'):
+    """
+    Write Apache Parquet file and attach Metadata
+
+    :param dataframe: pandas.DataFrame (metadata must be dict in DataFrame.attrs)
+    :param filepath: file path to save parquet file (str)
+    :param meta_key: key associated with metadata to save (str)
+    """
+    # code adapted from https://towardsdatascience.com/saving-metadata-with-dataframes-71f51f558d8e
+    # 2022-10-19
+
+    # Create tables
+    table = pa.Table.from_pandas(dataframe)
+    # Serialize metadata from DataFrame.attrs
+    custom_meta_json = JSON.dumps(dataframe.attrs)
+    # Get existing metadata
+    existing_meta = table.schema.metadata
+    # Combine existing and new metadata.
+    combined_meta = {
+        meta_key.encode(): custom_meta_json.encode(),
+        **existing_meta,
+    }
+    # Make new table with combined metadata
+    table = table.replace_schema_metadata(combined_meta)
+    # Write to parquet file
+    pq.write_table(table, filepath)
+
+
+def read_parquet(filepath: str, meta_key: str = 'scope'):
+    """
+    Read Apache Parquet file and metadata (if available)
+
+    :param filepath: path of parquet file (str)
+    :param meta_key: key associated with saved metadata (str)
+
+    :return: pandas.DataFrame
+    """
+    # code adapted from https://towardsdatascience.com/saving-metadata-with-dataframes-71f51f558d8e
+    # 2022-10-19
+    table = pq.read_table(filepath)
+    dataframe = table.to_pandas()
+
+    try:
+        meta_json = table.schema.metadata[meta_key.encode()]
+        restored_meta = JSON.loads(meta_json)
+        dataframe.attrs = restored_meta
+    except KeyError:
+        warnings.warn('Did not read metadata from parquet file.')
+
+    return dataframe
 
 
 def plot_light_curve_data(

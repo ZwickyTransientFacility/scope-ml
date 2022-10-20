@@ -1,11 +1,14 @@
 #!/usr/bin/env python
 import argparse
 import pandas as pd
+import scope
 from scope.fritz import api
+from scope.utils import read_hdf, write_hdf, read_parquet, write_parquet
 import warnings
 import numpy as np
 from tools.get_features import get_features
 import os
+from datetime import datetime
 
 NUM_PER_PAGE = 500
 CHECKPOINT_NUM = 500
@@ -86,7 +89,8 @@ def merge_sources_features(
     features_limit=1000,
     mapper_name='golden_dataset_mapper.json',
     output_dir='fritzDownload',
-    output_filename='merged_classifications_features.csv',
+    output_filename='merged_classifications_features',
+    output_format='parquet',
 ):
 
     outpath = os.path.join(os.path.dirname(__file__), output_dir)
@@ -117,7 +121,6 @@ def merge_sources_features(
     # Drop columns with no equivalent in Fritz
     none_cols = gold_map.loc['fritz_label'] == 'None'
     gold_map = gold_map.drop(columns=none_cols.index[none_cols.values])
-    classes = gold_map.columns
 
     # Manipulate golden_dataset_mapper to flip keys and values
     gold_map = gold_map.transpose()
@@ -125,10 +128,6 @@ def merge_sources_features(
     gold_map = gold_map.reset_index(drop=False).set_index('fritz_label')
     gold_dict = gold_map.transpose().to_dict()
 
-    # Create empty dataframe for source classifications
-    expanded_sources = pd.DataFrame(
-        columns=np.concatenate([['obj_id'], classes, ['ztf_id']])
-    )
     source_dict_list = []
 
     for index, row in sources.iterrows():
@@ -155,7 +154,7 @@ def merge_sources_features(
                 try:
                     trainingset_label = gold_dict_specific[cls]['trainingset_label']
                     gold_dict_specific.pop(cls)
-                    source_dict[trainingset_label] = probabilities[i]
+                    source_dict[trainingset_label] = float(probabilities[i])
                 except KeyError:
                     print(f'Key {cls} not in dataset mapper.')
                     continue
@@ -185,7 +184,7 @@ def merge_sources_features(
         source_dict_list += [source_dict]
 
     # Create dataframe
-    expanded_sources = pd.concat([expanded_sources, pd.DataFrame(source_dict_list)])
+    expanded_sources = pd.DataFrame(source_dict_list)
 
     # Query Kowalski
     print('Getting features...')
@@ -196,17 +195,43 @@ def merge_sources_features(
         write_results=False,
     )
     df['ztf_id'] = df['_id']
-    df = df.drop('_id', axis=1)
+    df = df.drop(['_id'], axis=1)
 
     # Merge on ZTF id
     merged_set = pd.merge(expanded_sources, df, on='ztf_id')
+    merged_set.attrs = sources.attrs
 
     # Make ztf_id last column in dataframe
     ztf_id_col = merged_set.pop('ztf_id')
     merged_set['ztf_id'] = ztf_id_col
 
-    filepath = os.path.join(outpath, output_filename)
-    merged_set.to_csv(filepath, index=False)
+    # Add more metadata
+    utcnow = datetime.utcnow()
+    start_dt = utcnow.strftime("%Y-%m-%d %H:%M:%S")
+    merged_set.attrs['features_download_dateTime_utc'] = start_dt
+    merged_set.attrs['features_ztf_dataRelease'] = features_ztf_dr
+
+    filepath = os.path.join(outpath, output_filename + output_format)
+    if output_format == '.csv':
+        merged_set.to_csv(filepath, index=False)
+    elif output_format == '.h5':
+        warnings.warn(
+            'Coordinates and dmdt features get pickled and put in separate datasets, not supported by hdf5 format.'
+        )
+        coordinates = merged_set['coordinates']
+        dmdt = merged_set['dmdt']
+        merged_set = merged_set.drop(['coordinates', 'dmdt'], axis=1)
+        # Write hdf5 file
+        # Caution: coordinates and dmdt features get pickled and put in separate datasets, not supported by hdf5 format.
+        # File will be comparable in size to csv
+        with pd.HDFStore(filepath, mode='w') as store:
+            store.put('df', merged_set, format='table')
+            store.put('coordinates', coordinates)
+            store.put('dmdt', dmdt)
+            store.get_storer('df').attrs.metadata = merged_set.attrs
+    else:
+        write_parquet(merged_set, filepath)
+
     return merged_set
 
 
@@ -219,27 +244,77 @@ def download_classification(
     features_limit: int,
     mapper_name: str = 'golden_dataset_mapper.json',
     output_dir: str = 'fritzDownload',
-    output_filename: str = 'merged_classifications_features.csv',
+    output_filename: str = 'merged_classifications_features',
+    output_format: str = 'parquet',
 ):
     """
     Download labels from Fritz
-    :param file: CSV file containing obj_id column or "parse" to query by group ids (str)
+    :param file: CSV, hdf5 or parquet file containing obj_id column or "parse" to query by group ids (str)
     :param group_ids: target group ids on Fritz for download (list)
     :param start: page number to start downloading data from (int)
     :param merge_features: if True,  query Kowalski for features to merge (bool)
     :param features_catalog: catalog name to query for features (str)
     :param features_limit: maximum number of sources to query for features per loop (int)
+    :param output_dir: directory to write output merged features file (str)
+    :param output_filename: name of output merged features file (str)
+    :param output_format: format of output merged features file (str)
     """
 
     dict_list = []
+
+    # Check for appropriate output format
+    output_file_extension = os.path.splitext(output_filename)[-1]
+
+    # If parquet, h5 or csv extension specified in output_filename, use that format for saving
+    output_format = (
+        output_format
+        if output_file_extension not in ['.parquet', '.h5', '.csv']
+        else output_file_extension
+    )
+
+    if output_format in [
+        '.parquet',
+        'parquet',
+        '.Parquet',
+        'Parquet',
+        '.parq',
+        'parq',
+        '.PARQUET',
+        'PARQUET',
+        '.PARQ',
+        'PARQ',
+    ]:
+        output_format = '.parquet'
+        print('Using .parquet extension for saved files.')
+    elif output_format in ['.h5', 'h5', '.H5', 'H5', '.hdf5', 'hdf5', '.HDF5', 'HDF5']:
+        output_format = '.h5'
+        print('Using .h5 extension for saved files.')
+    elif output_format in ['.csv', 'csv', '.CSV', 'CSV']:
+        output_format = '.csv'
+        print('Using .csv extension for saved files.')
+    else:
+        raise ValueError('Output format must be parquet, hdf5 or csv.')
+
+    # If user puts extension in filename, remove it for consistency
+    if (
+        (output_filename.endswith('.csv'))
+        | (output_filename.endswith('.h5'))
+        | (output_filename.endswith('.parquet'))
+    ):
+        output_filename = os.path.splitext(output_filename)[0]
 
     outpath = os.path.join(os.path.dirname(__file__), output_dir)
     os.makedirs(outpath, exist_ok=True)
 
     filename = (
-        os.path.basename(file).removesuffix('.csv') + '_fritzDownload' + '.csv'
+        os.path.splitext(os.path.basename(file))[0] + '_fritzDownload' + output_format
     )  # rename file
     filepath = os.path.join(outpath, filename)
+
+    # Get code version and current date/time for metadata
+    code_version = scope.__version__
+    utcnow = datetime.utcnow()
+    start_dt = utcnow.strftime("%Y-%m-%d %H:%M:%S")
 
     if file in ["parse", 'Parse', 'PARSE']:
         if group_ids is None:
@@ -258,7 +333,9 @@ def download_classification(
 
         if start != 0:
             filename = (
-                filename.removesuffix('.csv') + f'_continued_page_{start}' + '.csv'
+                os.path.splitext(filename)[0]
+                + f'_continued_page_{start}'
+                + output_format
             )
             filepath = os.path.join(outpath, filename)
             print('Downloading sources...')
@@ -286,7 +363,16 @@ def download_classification(
 
             # create dataframe from query results
             sources = pd.json_normalize(dict_list)
-            sources.to_csv(filepath, index=False)
+            sources.attrs['scope_code_version'] = code_version
+            sources.attrs['fritz_download_dateTime_utc'] = start_dt
+
+            if output_format == '.csv':
+                sources.to_csv(filepath, index=False)
+            elif output_format == '.h5':
+                write_hdf(sources, filepath)
+            else:
+                write_parquet(sources, filepath)
+
             print(f'Saved page {pageNum}.')
 
         if not merge_features:
@@ -299,17 +385,28 @@ def download_classification(
                 mapper_name,
                 output_dir,
                 output_filename,
+                output_format,
             )
             return merged_sources
 
     else:
-        # read in CSV file
-        sources = pd.read_csv(file)
+        # read in CSV, HDF5 or parquet file
+        if file.endswith('.csv'):
+            sources = pd.read_csv(file)
+        elif file.endswith('.h5'):
+            sources = read_hdf(file)
+        elif file.endswith('.parquet'):
+            sources = read_parquet(file)
+        else:
+            raise TypeError('Input file must be h5, csv or parquet format.')
+
         if start != 0:
             # continue from checkpoint
             sources = sources[start:]
             filename = (
-                filename.removesuffix('.csv') + f'_continued_index_{start}' + '.csv'
+                os.path.splitext(filename)[0]
+                + f'_continued_index_{start}'
+                + output_format
             )
             filepath = os.path.join(outpath, filename)
 
@@ -388,19 +485,40 @@ def download_classification(
 
                     # occasional checkpoint at specified number of sources
                     if (index + 1) % CHECKPOINT_NUM == 0:
+                        existing_attrs = sources.attrs
                         sources_chkpt = pd.merge(
                             sources, pd.json_normalize(dct_list), on='obj_id'
                         )
-                        sources_chkpt.to_csv(filepath, index=False)
+                        sources_chkpt.attrs['scope_code_version'] = code_version
+                        sources_chkpt.attrs['fritz_download_dateTime_utc'] = start_dt
+                        sources.attrs = {**sources.attrs, **existing_attrs}
+
+                        if output_format == '.csv':
+                            sources_chkpt.to_csv(filepath, index=False)
+                        elif output_format == '.h5':
+                            write_hdf(sources_chkpt, filepath)
+                        else:
+                            write_parquet(sources_chkpt, filepath)
+
                         print(f'Saved checkpoint at index {index}.')
 
                 else:
                     warnings.warn(f'Unable to find source {index} on Fritz.')
 
             # final save
+            existing_attrs = sources.attrs
             sources = pd.merge(sources, pd.json_normalize(dct_list), on='obj_id')
+            sources.attrs['scope_code_version'] = code_version
+            sources.attrs['fritz_download_dateTime_utc'] = start_dt
+            sources.attrs = {**sources.attrs, **existing_attrs}
+
             print('Saving all sources.')
-            sources.to_csv(filepath, index=False)
+            if output_format == '.csv':
+                sources.to_csv(filepath, index=False)
+            elif output_format == '.h5':
+                write_hdf(sources, filepath)
+            else:
+                write_parquet(sources, filepath)
 
         if not merge_features:
             return sources
@@ -412,6 +530,7 @@ def download_classification(
                 mapper_name,
                 output_dir,
                 output_filename,
+                output_format,
             )
             return merged_sources
 
@@ -457,14 +576,21 @@ if __name__ == "__main__":
         "-output_dir",
         type=str,
         default='fritzDownload',
-        help="Name of directory to save downloaded files",
+        help="Name of directory to save downloaded file",
     )
 
     parser.add_argument(
         "-output_filename",
         type=str,
-        default='merged_classifications_features.csv',
-        help="Name of file containing merged classifications and features",
+        default='merged_classifications_features',
+        help="Name of output file containing merged classifications and features",
+    )
+
+    parser.add_argument(
+        "-output_format",
+        type=str,
+        default='parquet',
+        help="Format of output file: parquet, h5 or csv",
     )
 
     args = parser.parse_args()
@@ -480,4 +606,5 @@ if __name__ == "__main__":
         args.mapper_name,
         args.output_dir,
         args.output_filename,
+        args.output_format,
     )
