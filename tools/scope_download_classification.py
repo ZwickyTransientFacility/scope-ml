@@ -589,7 +589,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "-output_format",
         type=str,
-        default='.parquet',
+        default='parquet',
         help="Format of output file: parquet, h5 or csv",
     )
 
