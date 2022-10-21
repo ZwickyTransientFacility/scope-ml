@@ -199,17 +199,13 @@ def merge_sources_features(
 
     # Merge on ZTF id
     merged_set = pd.merge(expanded_sources, df, on='ztf_id')
-    merged_set.attrs = sources.attrs
+    source_metadata = sources.attrs
+    source_metadata.update(df.attrs)
+    merged_set.attrs = source_metadata
 
     # Make ztf_id last column in dataframe
     ztf_id_col = merged_set.pop('ztf_id')
     merged_set['ztf_id'] = ztf_id_col
-
-    # Add more metadata
-    utcnow = datetime.utcnow()
-    start_dt = utcnow.strftime("%Y-%m-%d %H:%M:%S")
-    merged_set.attrs['features_download_dateTime_utc'] = start_dt
-    merged_set.attrs['features_ztf_dataRelease'] = features_ztf_dr
 
     filepath = os.path.join(outpath, output_filename + output_format)
     if output_format == '.csv':
