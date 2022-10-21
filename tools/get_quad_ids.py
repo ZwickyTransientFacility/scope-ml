@@ -296,7 +296,9 @@ if __name__ == "__main__":
 
     # Set default output directory
     if args.output_dir is None:
-        output_dir = "../ids/field_" + str(args.field) + "/"
+        output_dir = os.path.join(
+            os.path.dirname(__file__), "../ids/field_" + str(args.field) + "/"
+        )
     else:
         output_dir = args.output_dir + "/ids/field_" + str(args.field) + "/"
     os.makedirs(output_dir, exist_ok=True)

@@ -14,6 +14,7 @@ import os
 import time
 import h5py
 from scope import nn
+from scope.utils import read_parquet
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 warnings.filterwarnings('ignore')
@@ -294,8 +295,7 @@ def run(
 
     # get raw features
     ts = time.time()
-    # features = pd.read_csv(features_filename+".csv")
-    features = pd.read_pickle(features_filename + ".pkl")
+    features = read_parquet(features_filename + '.parquet')
     feature_stats = config.get("feature_stats", None)
     te = time.time()
     if tm:

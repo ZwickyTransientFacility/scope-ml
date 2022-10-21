@@ -9,6 +9,8 @@ import yaml
 import os
 import time
 import h5py
+from scope.utils import read_parquet, write_parquet
+from datetime import datetime
 
 BASE_DIR = os.path.dirname(__file__)
 JUST = 50
@@ -108,7 +110,15 @@ def get_features(
             print(id * limit, "done")
 
     df = pd.concat(df_collection, axis=0)
+    df.reset_index(drop=True, inplace=True)
     dmdt = np.vstack(dmdt_collection)
+
+    # Add metadata
+    utcnow = datetime.utcnow()
+    start_dt = utcnow.strftime("%Y-%m-%d %H:%M:%S")
+    features_ztf_dr = features_catalog.split('_')[-1]
+    df.attrs['features_download_dateTime_utc'] = start_dt
+    df.attrs['features_ztf_dataRelease'] = features_ztf_dr
 
     if not write_results:
         return df, dmdt
@@ -117,22 +127,34 @@ def get_features(
         os.makedirs(os.path.dirname(outfile), exist_ok=True)
         if (
             restart is False
-            and os.path.exists(outfile + ".pkl")
+            and os.path.exists(outfile + ".parquet")
             and os.path.exists(outfile + ".csv")
         ):
-            df1 = pd.read_pickle(outfile + ".pkl")
+            df1 = read_parquet(outfile + ".parquet")
             df2 = pd.concat([df1, df], axis=0)
-            df2.to_pickle(outfile + ".pkl")
+            df2.reset_index(drop=True, inplace=True)
+            df2.attrs = df1.attrs
+
+            # Append metadata for resumed download
+            keys = [x for x in df.attrs.keys()]
+            for key in keys:
+                df.attrs[f'{key}_resumed'] = df.attrs.pop(key)
+            df2.attrs.update(df.attrs)
+
+            write_parquet(df2, outfile + ".parquet")
+
             df1 = pd.read_csv(outfile + ".csv")
             df2 = pd.concat([df1, df], axis=0)
             df2.to_csv(outfile + ".csv", index=False)
         else:
-            df.to_pickle(outfile + ".pkl")
+            write_parquet(df, outfile + ".parquet")
             df.to_csv(outfile + ".csv", index=False)
 
         if verbose:
             print("Features dataframe: ", df)
             print("dmdt shape: ", dmdt.shape)
+
+    return df, dmdt
 
 
 def run(**kwargs):
@@ -163,7 +185,7 @@ def run(**kwargs):
     =======
     Stores the features in a file at the following location:
         features/field_<field>/field_<field>.csv
-    and features/field_<field>/field_<field>.pkl
+    and features/field_<field>/field_<field>.parquet
     """
 
     DEFAULT_FIELD = 291
