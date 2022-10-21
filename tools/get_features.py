@@ -110,6 +110,7 @@ def get_features(
             print(id * limit, "done")
 
     df = pd.concat(df_collection, axis=0)
+    df.reset_index(drop=True, inplace=True)
     dmdt = np.vstack(dmdt_collection)
 
     # Add metadata
@@ -132,8 +133,18 @@ def get_features(
             # df1 = pd.read_pickle(outfile + ".pkl")
             df1 = read_parquet(outfile + ".parquet")
             df2 = pd.concat([df1, df], axis=0)
+            df2.reset_index(drop=True, inplace=True)
+            df2.attrs = df1.attrs
+
+            # Append metadata for resumed download
+            keys = [x for x in df.attrs.keys()]
+            for key in keys:
+                df.attrs[f'{key}_resumed'] = df.attrs.pop(key)
+            df2.attrs.update(df.attrs)
+
             # df2.to_pickle(outfile + ".pkl")
             write_parquet(df2, outfile + ".parquet")
+
             df1 = pd.read_csv(outfile + ".csv")
             df2 = pd.concat([df1, df], axis=0)
             df2.to_csv(outfile + ".csv", index=False)
