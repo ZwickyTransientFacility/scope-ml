@@ -84,7 +84,7 @@ done;
 * The commands for inference of the field `<field_number>` (in order)
   ```
   ./tools/get_quad_ids.py --field=<field_number> --whole-field
-  ./tools/get_features.py --field=<field_number>
+  ./tools/get_features.py --field=<field_number> --whole-field
   ./get_all_preds.sh <field_number>
   ```
 * Creates a single `.csv` file containing all ids of the field in the rows and inference scores for different classes across the columns.
