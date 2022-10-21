@@ -44,7 +44,7 @@ def get_features(
     '''
 
     field = kwargs.get("field", 302)
-    write_results = kwargs.get("write_results", False)
+    write_results = kwargs.get("write_results", True)
 
     if not whole_field:
         ccd = kwargs.get("ccd", 1)
