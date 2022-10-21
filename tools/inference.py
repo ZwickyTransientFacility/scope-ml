@@ -295,8 +295,6 @@ def run(
 
     # get raw features
     ts = time.time()
-    # features = pd.read_csv(features_filename+".csv")
-    # features = pd.read_pickle(features_filename + ".pkl")
     features = read_parquet(features_filename + '.parquet')
     feature_stats = config.get("feature_stats", None)
     te = time.time()

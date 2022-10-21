@@ -130,7 +130,6 @@ def get_features(
             and os.path.exists(outfile + ".parquet")
             and os.path.exists(outfile + ".csv")
         ):
-            # df1 = pd.read_pickle(outfile + ".pkl")
             df1 = read_parquet(outfile + ".parquet")
             df2 = pd.concat([df1, df], axis=0)
             df2.reset_index(drop=True, inplace=True)
@@ -142,14 +141,12 @@ def get_features(
                 df.attrs[f'{key}_resumed'] = df.attrs.pop(key)
             df2.attrs.update(df.attrs)
 
-            # df2.to_pickle(outfile + ".pkl")
             write_parquet(df2, outfile + ".parquet")
 
             df1 = pd.read_csv(outfile + ".csv")
             df2 = pd.concat([df1, df], axis=0)
             df2.to_csv(outfile + ".csv", index=False)
         else:
-            # df.to_pickle(outfile + ".pkl")
             write_parquet(df, outfile + ".parquet")
             df.to_csv(outfile + ".csv", index=False)
 
