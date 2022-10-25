@@ -510,8 +510,8 @@ class Dataset(object):
         verbose: bool = False,
         **kwargs,
     ):
-        """Load csv file with the dataset containing both data and labels
-        As of 20210317, it is produced by labels*.ipynb - this will likely change in a future PR
+        """Load parquet, hdf5 or csv file with the dataset containing both data and labels
+        As of 20221025, it is produced by scope_download_classification.py
 
         :param tag:
         :param path_dataset:
@@ -528,7 +528,19 @@ class Dataset(object):
         if self.verbose:
             log(f"Loading {path_dataset}...")
         nrows = kwargs.get("nrows", None)
-        self.df_ds = pd.read_csv(path_dataset, nrows=nrows)
+        if path_dataset.endswith('.csv'):
+            self.df_ds = pd.read_csv(path_dataset, nrows=nrows)
+        elif path_dataset.endswith('.h5'):
+            self.df_ds = read_hdf(path_dataset)
+            for key in ['coordinates', 'dmdt']:
+                df_temp = read_hdf(path_dataset, key=key)
+                self.df_ds[key] = df_temp
+            del df_temp
+        elif path_dataset.endswith('.parquet'):
+            self.df_ds = read_parquet(path_dataset)
+        else:
+            raise ValueError('Dataset must have .parquet, .h5 or .csv extension.')
+
         if self.verbose:
             log(self.df_ds[list(features)].describe())
 
