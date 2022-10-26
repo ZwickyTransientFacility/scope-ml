@@ -505,7 +505,7 @@ class Dataset(object):
     def __init__(
         self,
         tag: str,
-        path_dataset: str,
+        path_dataset: Union[str, pathlib.Path],
         features: tuple,
         verbose: bool = False,
         **kwargs,
@@ -528,7 +528,11 @@ class Dataset(object):
         if self.verbose:
             log(f"Loading {path_dataset}...")
         nrows = kwargs.get("nrows", None)
+
+        path_dataset = str(path_dataset)
+        csv = False
         if path_dataset.endswith('.csv'):
+            csv = True
             self.df_ds = pd.read_csv(path_dataset, nrows=nrows)
         elif path_dataset.endswith('.h5'):
             self.df_ds = read_hdf(path_dataset)
@@ -536,8 +540,10 @@ class Dataset(object):
                 df_temp = read_hdf(path_dataset, key=key)
                 self.df_ds[key] = df_temp
             del df_temp
+            self.dmdt = self.df_ds['dmdt']
         elif path_dataset.endswith('.parquet'):
             self.df_ds = read_parquet(path_dataset)
+            self.dmdt = self.df_ds['dmdt']
         else:
             raise ValueError('Dataset must have .parquet, .h5 or .csv extension.')
 
@@ -553,7 +559,11 @@ class Dataset(object):
         else:
             iterator = self.df_ds.itertuples()
         for i in iterator:
-            data = np.array(json.loads(self.df_ds["dmdt"][i.Index]))
+            data = (
+                np.array(json.loads(self.df_ds["dmdt"][i.Index]))
+                if csv
+                else np.stack(self.df_ds["dmdt"][i.Index])
+            )
             if len(data.shape) == 0:
                 dmdt.append(np.zeros((26, 26)))
             else:
