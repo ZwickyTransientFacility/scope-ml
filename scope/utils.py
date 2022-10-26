@@ -511,7 +511,6 @@ class Dataset(object):
         **kwargs,
     ):
         """Load parquet, hdf5 or csv file with the dataset containing both data and labels
-        As of 20221025, it is produced by scope_download_classification.py
 
         :param tag:
         :param path_dataset:
