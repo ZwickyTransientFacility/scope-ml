@@ -505,30 +505,45 @@ class Dataset(object):
     def __init__(
         self,
         tag: str,
-        path_dataset: str,
+        path_dataset: Union[str, pathlib.Path],
         features: tuple,
         verbose: bool = False,
         **kwargs,
     ):
-        """Load csv file with the dataset containing both data and labels
-        As of 20210317, it is produced by labels*.ipynb - this will likely change in a future PR
+        """Load parquet, hdf5 or csv file with the dataset containing both data and labels
 
         :param tag:
         :param path_dataset:
         :param features:
         :param verbose:
         """
-        self.verbose = verbose
-
         self.tag = tag
+        self.path_dataset = str(path_dataset)
         self.features = features
-
+        self.verbose = verbose
         self.target = None
 
         if self.verbose:
-            log(f"Loading {path_dataset}...")
+            log(f"Loading {self.path_dataset}...")
         nrows = kwargs.get("nrows", None)
-        self.df_ds = pd.read_csv(path_dataset, nrows=nrows)
+
+        csv = False
+        if self.path_dataset.endswith('.csv'):
+            csv = True
+            self.df_ds = pd.read_csv(self.path_dataset, nrows=nrows)
+        elif self.path_dataset.endswith('.h5'):
+            self.df_ds = read_hdf(self.path_dataset)
+            for key in ['coordinates', 'dmdt']:
+                df_temp = read_hdf(self.path_dataset, key=key)
+                self.df_ds[key] = df_temp
+            del df_temp
+            self.dmdt = self.df_ds['dmdt']
+        elif self.path_dataset.endswith('.parquet'):
+            self.df_ds = read_parquet(self.path_dataset)
+            self.dmdt = self.df_ds['dmdt']
+        else:
+            raise ValueError('Dataset must have .parquet, .h5 or .csv extension.')
+
         if self.verbose:
             log(self.df_ds[list(features)].describe())
 
@@ -541,7 +556,11 @@ class Dataset(object):
         else:
             iterator = self.df_ds.itertuples()
         for i in iterator:
-            data = np.array(json.loads(self.df_ds["dmdt"][i.Index]))
+            data = (
+                np.array(json.loads(self.df_ds["dmdt"][i.Index]))
+                if csv
+                else np.stack(self.df_ds["dmdt"][i.Index])
+            )
             if len(data.shape) == 0:
                 dmdt.append(np.zeros((26, 26)))
             else:
