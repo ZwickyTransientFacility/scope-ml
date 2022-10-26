@@ -518,31 +518,29 @@ class Dataset(object):
         :param features:
         :param verbose:
         """
-        self.verbose = verbose
-
         self.tag = tag
+        self.path_dataset = str(path_dataset)
         self.features = features
-
+        self.verbose = verbose
         self.target = None
 
         if self.verbose:
-            log(f"Loading {path_dataset}...")
+            log(f"Loading {self.path_dataset}...")
         nrows = kwargs.get("nrows", None)
 
-        path_dataset = str(path_dataset)
         csv = False
-        if path_dataset.endswith('.csv'):
+        if self.path_dataset.endswith('.csv'):
             csv = True
-            self.df_ds = pd.read_csv(path_dataset, nrows=nrows)
-        elif path_dataset.endswith('.h5'):
-            self.df_ds = read_hdf(path_dataset)
+            self.df_ds = pd.read_csv(self.path_dataset, nrows=nrows)
+        elif self.path_dataset.endswith('.h5'):
+            self.df_ds = read_hdf(self.path_dataset)
             for key in ['coordinates', 'dmdt']:
-                df_temp = read_hdf(path_dataset, key=key)
+                df_temp = read_hdf(self.path_dataset, key=key)
                 self.df_ds[key] = df_temp
             del df_temp
             self.dmdt = self.df_ds['dmdt']
-        elif path_dataset.endswith('.parquet'):
-            self.df_ds = read_parquet(path_dataset)
+        elif self.path_dataset.endswith('.parquet'):
+            self.df_ds = read_parquet(self.path_dataset)
             self.dmdt = self.df_ds['dmdt']
         else:
             raise ValueError('Dataset must have .parquet, .h5 or .csv extension.')
