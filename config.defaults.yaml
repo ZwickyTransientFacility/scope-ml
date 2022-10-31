@@ -410,7 +410,7 @@ features:
     - f1_relphi2
     - f1_relphi3
     - f1_relphi4
-    - field
+#    - field
     - i60r
     - i70r
     - i80r
@@ -440,9 +440,9 @@ features:
     - wstd
   ontological:
     - ad
-    - ccd
+#    - ccd
     - chi2red
-    - dec
+#    - dec
     - f1_BIC
     - f1_a
     - f1_amp
@@ -457,7 +457,7 @@ features:
     - f1_relphi2
     - f1_relphi3
     - f1_relphi4
-    - field
+#    - field
     - i60r
     - i70r
     - i80r
@@ -473,8 +473,8 @@ features:
     - norm_peak_to_peak_amp
 #    - pdot
     - period
-    - quad
-    - ra
+#    - quad
+#    - ra
     - roms
     - significance
     - skew
