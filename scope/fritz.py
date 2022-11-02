@@ -344,6 +344,7 @@ def save_newsource(
         "filter": df_photometry["ztf_filter"].tolist(),
         "ra": df_photometry["ra"].tolist(),
         "dec": df_photometry["dec"].tolist(),
+        "group_ids": group_ids,
     }
 
     if (len(photometry.get("mag", ())) > 0) & (not dryrun):

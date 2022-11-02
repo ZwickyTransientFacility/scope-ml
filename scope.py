@@ -17,7 +17,7 @@ from tdtax import taxonomy  # noqa: F401
 from typing import Optional, Sequence, Union
 import yaml
 
-from scope.utils import forgiving_true, load_config
+from scope.utils import forgiving_true, load_config, read_hdf, read_parquet
 
 
 @contextmanager
@@ -690,6 +690,82 @@ class Scope:
             )
 
             return time_tag
+
+    def create_training_script(
+        self,
+        filename: str = 'train_dnn.sh',
+        min_count: int = 100,
+        path_dataset: str = None,
+        add_keywords: str = '',
+    ):
+        """
+        Create training shell script from classes in config file meeting minimum count requirement
+
+        :param filename: filename of shell script (must not currently exist) (str)
+        :param min_count: minimum number of positive examples to include in script (int)
+        :param path_dataset: local path to .parquet, .h5 or .csv file with the dataset, if not provided in config.yaml (str)
+        :param add_keywords: str containing additional training keywords to append to each line in the script
+
+        :return:
+
+        :examples:  ./scope.py create_training_script --filename='train_dnn.sh' --min_count=1000 \
+                    --path_dataset='tools/fritzDownload/merged_classifications_features.parquet' --add_keywords='--save'
+
+                    ./scope.py create_training_script --filename='train_dnn.sh' --min_count=100 \
+                    --add_keywords='--save --batch_size=32'
+        """
+        path = str(pathlib.Path(__file__).parent.absolute() / filename)
+        phenom_keys = []
+        ontol_keys = []
+
+        if path_dataset is None:
+            dataset_name = self.config['training']['dataset']
+            path_dataset = str(pathlib.Path(__file__).parent.absolute() / dataset_name)
+
+        if path_dataset.endswith('.parquet'):
+            dataset = read_parquet(path_dataset)
+        elif path_dataset.endswith('.h5'):
+            dataset = read_hdf(path_dataset)
+        elif path_dataset.endswith('.csv'):
+            dataset = pd.read_csv(path_dataset)
+        else:
+            raise ValueError(
+                'Dataset in config file must end with .parquet, .h5 or .csv'
+            )
+
+        with open(path, 'x') as script:
+
+            script.write('#!/bin/bash\n')
+
+            for key in self.config['training']['classes'].keys():
+                label = self.config['training']['classes'][key]['label']
+                threshold = self.config['training']['classes'][key]['threshold']
+                branch = self.config['training']['classes'][key]['features']
+                num_pos = np.sum(dataset[label] > threshold)
+
+                if num_pos > min_count:
+                    print(
+                        f'Label {label}: {num_pos} positive examples with P > {threshold}'
+                    )
+                    if branch == 'phenomenological':
+                        phenom_keys += [key]
+                    else:
+                        ontol_keys += [key]
+
+            script.write('# Phenomenological\n')
+            script.writelines(
+                [
+                    f'./scope.py train --tag {key} --path_dataset {path_dataset} --verbose {add_keywords} \n'
+                    for key in phenom_keys
+                ]
+            )
+            script.write('# Ontological\n')
+            script.writelines(
+                [
+                    f'./scope.py train --tag {key} --path_dataset {path_dataset} --verbose {add_keywords} \n'
+                    for key in ontol_keys
+                ]
+            )
 
     def test(self):
         """Test different workflows

@@ -125,7 +125,7 @@ taxonomy:
             Any object that is a binary star.
           subclasses:
             - class: wuma
-              name: W Uma
+              name: W UMa
               description: |
                 Eclipsing close binary stars of spectral types F, G, or K that share a common envelope
                 of material and are thus in contact with one another.
@@ -174,7 +174,7 @@ docs:
     w_uma:
       coordinates: [270.4229, 7.1722]
       period: 0.26901030387060865
-      title: W Uma
+      title: W UMa
     beta_lyr:
       coordinates: [116.79866129999999, 51.4231961]
       period: 1.836431252123213
@@ -1272,7 +1272,7 @@ training:
       balance: 2.5
       weight_per_class: false
     wuma:
-      label: W Uma
+      label: W UMa
       features: ontological
       threshold: 0.7
       balance: 2.5
