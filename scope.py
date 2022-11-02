@@ -704,7 +704,7 @@ class Scope:
         :param filename: filename of shell script (must not currently exist) (str)
         :param min_count: minimum number of positive examples to include in script (int)
         :param path_dataset: local path to .parquet, .h5 or .csv file with the dataset, if not provided in config.yaml (str)
-        :param more_keywords: str containing additional training keywords to append to each line in the script
+        :param add_keywords: str containing additional training keywords to append to each line in the script
 
         :return:
         """
