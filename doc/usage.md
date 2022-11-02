@@ -77,6 +77,14 @@ for class in pnp longt i fla ew eb ea e agn bis blyr ceph dscu lpv mir puls rrly
   done; \
 done;
 ```
+
+A training script can also be generated using `./scope.py create_training_script`, for example:
+```bash
+./scope.py create_training_script --filename='train_dnn.sh' --min_count=100 --add_keywords='--save --batch_size=32'
+```
+A path to the training set may be provided as input to this method or taken from `config.yaml` (`training: dataset:`).
+
+
 ## Running inference
 
 * Inference requires the following steps: download ids of a field, download features for all downloaded ids, run inference for all available pre-trained models.

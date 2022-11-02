@@ -696,6 +696,7 @@ class Scope:
         filename: str = 'train_dnn.sh',
         min_count: int = 100,
         path_dataset: str = None,
+        add_keywords: str = '',
     ):
         """
         Create training shell script from classes in config file meeting minimum count requirement
@@ -703,7 +704,15 @@ class Scope:
         :param filename: filename of shell script (must not currently exist) (str)
         :param min_count: minimum number of positive examples to include in script (int)
         :param path_dataset: local path to .parquet, .h5 or .csv file with the dataset, if not provided in config.yaml (str)
+        :param add_keywords: str containing additional training keywords to append to each line in the script
+
         :return:
+
+        :examples:  ./scope.py create_training_script --filename='train_dnn.sh' --min_count=1000 \
+                    --path_dataset='tools/fritzDownload/merged_classifications_features.parquet' --add_keywords='--save'
+
+                    ./scope.py create_training_script --filename='train_dnn.sh' --min_count=100 \
+                    --add_keywords='--save --batch_size=32'
         """
         path = str(pathlib.Path(__file__).parent.absolute() / filename)
         phenom_keys = []
@@ -733,11 +742,11 @@ class Scope:
                 threshold = self.config['training']['classes'][key]['threshold']
                 branch = self.config['training']['classes'][key]['features']
                 num_pos = np.sum(dataset[label] > threshold)
-                print(
-                    f'Label {label}: {num_pos} positive examples with P > {threshold}'
-                )
 
                 if num_pos > min_count:
+                    print(
+                        f'Label {label}: {num_pos} positive examples with P > {threshold}'
+                    )
                     if branch == 'phenomenological':
                         phenom_keys += [key]
                     else:
@@ -746,14 +755,14 @@ class Scope:
             script.write('# Phenomenological\n')
             script.writelines(
                 [
-                    f'./scope.py train --tag {key} --path_dataset {path_dataset} --verbose \n'
+                    f'./scope.py train --tag {key} --path_dataset {path_dataset} --verbose {add_keywords} \n'
                     for key in phenom_keys
                 ]
             )
             script.write('# Ontological\n')
             script.writelines(
                 [
-                    f'./scope.py train --tag {key} --path_dataset {path_dataset} --verbose \n'
+                    f'./scope.py train --tag {key} --path_dataset {path_dataset} --verbose {add_keywords} \n'
                     for key in ontol_keys
                 ]
             )
