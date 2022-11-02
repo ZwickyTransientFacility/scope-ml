@@ -707,6 +707,12 @@ class Scope:
         :param add_keywords: str containing additional training keywords to append to each line in the script
 
         :return:
+
+        :examples:  ./scope.py create_training_script --filename='train_dnn.sh' --min_count=1000 \
+                    --path_dataset='tools/fritzDownload/merged_classifications_features.parquet' --add_keywords='--save'
+
+                    ./scope.py create_training_script --filename='train_dnn.sh' --min_count=100 \
+                    --add_keywords='--save --batch_size=32'
         """
         path = str(pathlib.Path(__file__).parent.absolute() / filename)
         phenom_keys = []
