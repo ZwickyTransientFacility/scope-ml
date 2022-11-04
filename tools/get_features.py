@@ -45,6 +45,7 @@ def get_features(
 
     field = kwargs.get("field", 302)
     write_results = kwargs.get("write_results", True)
+    write_csv = kwargs.get("write_csv", False)
 
     if not whole_field:
         ccd = kwargs.get("ccd", 1)
@@ -125,11 +126,7 @@ def get_features(
 
     else:
         os.makedirs(os.path.dirname(outfile), exist_ok=True)
-        if (
-            restart is False
-            and os.path.exists(outfile + ".parquet")
-            and os.path.exists(outfile + ".csv")
-        ):
+        if restart is False and os.path.exists(outfile + ".parquet"):
             df1 = read_parquet(outfile + ".parquet")
             df2 = pd.concat([df1, df], axis=0)
             df2.reset_index(drop=True, inplace=True)
@@ -143,12 +140,15 @@ def get_features(
 
             write_parquet(df2, outfile + ".parquet")
 
+        if (restart is False) & (os.path.exists(outfile + ".csv")) & (write_csv):
             df1 = pd.read_csv(outfile + ".csv")
             df2 = pd.concat([df1, df], axis=0)
+
             df2.to_csv(outfile + ".csv", index=False)
         else:
             write_parquet(df, outfile + ".parquet")
-            df.to_csv(outfile + ".csv", index=False)
+            if write_csv:
+                df.to_csv(outfile + ".csv", index=False)
 
         if verbose:
             print("Features dataframe: ", df)
@@ -184,8 +184,8 @@ def run(**kwargs):
     Returns
     =======
     Stores the features in a file at the following location:
-        features/field_<field>/field_<field>.csv
-    and features/field_<field>/field_<field>.parquet
+        features/field_<field>/field_<field>.parquet
+    or  features/field_<field>/field_<field>.csv
     """
 
     DEFAULT_FIELD = 291
