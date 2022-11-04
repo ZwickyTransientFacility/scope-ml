@@ -417,19 +417,19 @@ features:
     - i90r
     - inv_vonneumannratio
     - iqr
-    - mean_ztf_alert_braai
+#    - mean_ztf_alert_braai
     - median
     - median_abs_dev
 #    - n
-    - n_ztf_alerts
+#    - n_ztf_alerts
     - norm_excess_var
     - norm_peak_to_peak_amp
 #    - pdot
-    - period
+#    - period
 #    - quad
 #    - ra
     - roms
-    - significance
+#    - significance
     - skew
     - smallkurt
     - stetson_j
@@ -496,23 +496,23 @@ features:
     - AllWISE__w4mpro
     - AllWISE__w4sigmpro
 #    - Gaia_EDR3___id
-    - Gaia_EDR3__astrometric_excess_noise
+#    - Gaia_EDR3__astrometric_excess_noise
     - Gaia_EDR3__parallax
-    - Gaia_EDR3__parallax_error
+#    - Gaia_EDR3__parallax_error
     - Gaia_EDR3__phot_bp_mean_mag
     - Gaia_EDR3__phot_bp_rp_excess_factor
     - Gaia_EDR3__phot_g_mean_mag
     - Gaia_EDR3__phot_rp_mean_mag
-    - Gaia_EDR3__pmdec
-    - Gaia_EDR3__pmdec_error
-    - Gaia_EDR3__pmra
-    - Gaia_EDR3__pmra_error
+#    - Gaia_EDR3__pmdec
+#    - Gaia_EDR3__pmdec_error
+#    - Gaia_EDR3__pmra
+#    - Gaia_EDR3__pmra_error
 #    - PS1_DR1___id
     - PS1_DR1__gMeanPSFMag
     - PS1_DR1__gMeanPSFMagErr
     - PS1_DR1__iMeanPSFMag
     - PS1_DR1__iMeanPSFMagErr
-    - PS1_DR1__qualityFlag
+#    - PS1_DR1__qualityFlag
     - PS1_DR1__rMeanPSFMag
     - PS1_DR1__rMeanPSFMagErr
     - PS1_DR1__yMeanPSFMag
