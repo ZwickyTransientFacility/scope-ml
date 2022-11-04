@@ -398,16 +398,17 @@ class DNN(AbstractClassifier):
         self,
         tag: str,
         output_path: str = "./",
-        output_format: str = "tf",
+        output_format: str = "h5",
     ):
 
-        if output_format not in ("tf",):
+        if output_format not in ("h5",):
             raise ValueError("unknown output format")
-
-        output_name = self.name if not tag else f"{self.name}.{tag}"
 
         path = pathlib.Path(output_path)
         if not path.exists():
             path.mkdir(parents=True, exist_ok=True)
 
-        self.model.save_weights(path / tag / output_name, save_format="tf")
+        output_name = self.name if not tag else f"{self.name}.{tag}"
+        if not output_name.endswith('.h5'):
+            output_name += '.h5'
+        self.model.save(path / output_name, save_format=output_format)

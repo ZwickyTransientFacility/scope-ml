@@ -84,6 +84,7 @@ A training script can also be generated using `./scope.py create_training_script
 ```
 A path to the training set may be provided as input to this method or taken from `config.yaml` (`training: dataset:`).
 
+If `--save` is specified during training, an HDF5 file of the model's layers and weights will be saved. This file can be directly used for inferencing.
 
 ## Running inference
 

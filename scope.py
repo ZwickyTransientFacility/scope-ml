@@ -16,7 +16,6 @@ import tdtax
 from tdtax import taxonomy  # noqa: F401
 from typing import Optional, Sequence, Union
 import yaml
-
 from scope.utils import forgiving_true, load_config, read_hdf, read_parquet
 
 
@@ -685,7 +684,7 @@ class Scope:
                 print(f"Saving model to {output_path}")
             classifier.save(
                 output_path=output_path,
-                output_format="tf",
+                output_format="h5",
                 tag=time_tag,
             )
 
@@ -773,7 +772,6 @@ class Scope:
         :return:
         """
         import uuid
-        import shutil
 
         # create a mock dataset and check that the training pipeline works
         dataset = f"{uuid.uuid4().hex}.csv"
@@ -819,9 +817,12 @@ class Scope:
                 test=True,
             )
             path_model = (
-                pathlib.Path(__file__).parent.absolute() / "models" / tag / time_tag
+                pathlib.Path(__file__).parent.absolute()
+                / "models"
+                / tag
+                / f"{tag}.{time_tag}.h5"
             )
-            shutil.rmtree(path_model)
+            os.remove(path_model)
         finally:
             # clean up after thyself
             (path_mock / dataset).unlink()
