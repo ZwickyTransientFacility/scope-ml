@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import tensorflow as tf
 import fire
 import numpy as np
 import pandas as pd
@@ -12,7 +13,6 @@ import json
 import os
 import time
 import h5py
-from scope import nn
 from scope.utils import read_parquet
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
@@ -339,10 +339,7 @@ def run(
 
         # Load pre-trained model
         ts = time.time()
-        model = nn.DNN.build_model(features_input_shape=(len(feature_names),))
-        if verbose:
-            print(model.summary())
-        model.load_weights(path_model)
+        model = tf.keras.models.load_model(path_model)
         te = time.time()
         if tm:
             print(

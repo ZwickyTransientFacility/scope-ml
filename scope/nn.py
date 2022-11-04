@@ -411,4 +411,4 @@ class DNN(AbstractClassifier):
         output_name = self.name if not tag else f"{self.name}.{tag}"
         if not output_name.endswith('.h5'):
             output_name += '.h5'
-        self.model.save_weights(path / output_name, save_format=output_format)
+        self.model.save_model(path / output_name, save_format=output_format)
