@@ -16,7 +16,6 @@ import tdtax
 from tdtax import taxonomy  # noqa: F401
 from typing import Optional, Sequence, Union
 import yaml
-
 from scope.utils import forgiving_true, load_config, read_hdf, read_parquet
 
 
