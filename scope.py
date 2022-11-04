@@ -772,7 +772,6 @@ class Scope:
         :return:
         """
         import uuid
-        import shutil
 
         # create a mock dataset and check that the training pipeline works
         dataset = f"{uuid.uuid4().hex}.csv"
@@ -818,9 +817,12 @@ class Scope:
                 test=True,
             )
             path_model = (
-                pathlib.Path(__file__).parent.absolute() / "models" / tag / time_tag
+                pathlib.Path(__file__).parent.absolute()
+                / "models"
+                / tag
+                / f"{tag}.{time_tag}.h5"
             )
-            shutil.rmtree(path_model)
+            os.remove(path_model)
         finally:
             # clean up after thyself
             (path_mock / dataset).unlink()
