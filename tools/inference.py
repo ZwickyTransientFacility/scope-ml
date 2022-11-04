@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-import tensorflow as tf
 import fire
 import numpy as np
 import pandas as pd
@@ -340,14 +339,10 @@ def run(
 
         # Load pre-trained model
         ts = time.time()
-        if str(path_model).endswith(".h5"):
-            model = tf.keras.models.load_model(path_model)
-        else:
-            # model = make_model(features_input_shape=(len(feature_names),)) # Use this line if performing inference with old model
-            model = nn.DNN.build_model(features_input_shape=(len(feature_names),))
-            if verbose:
-                print(model.summary())
-            model.load_weights(path_model).expect_partial()
+        model = nn.DNN.build_model(features_input_shape=(len(feature_names),))
+        if verbose:
+            print(model.summary())
+        model.load_weights(path_model)
         te = time.time()
         if tm:
             print(

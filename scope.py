@@ -685,7 +685,7 @@ class Scope:
                 print(f"Saving model to {output_path}")
             classifier.save(
                 output_path=output_path,
-                output_format="tf",
+                output_format="h5",
                 tag=time_tag,
             )
 
