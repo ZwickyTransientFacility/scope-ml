@@ -78,6 +78,8 @@ def get_ids_loop(
         count = 0
 
     ser = pd.Series(np.array([]))
+    save_individual = not whole_field
+
     for ccd in range(ccd_range[0], ccd_range[1] + 1):
         dct["ccd"][ccd] = {}
         dct["ccd"][ccd]["quad"] = {}
@@ -93,6 +95,8 @@ def get_ids_loop(
                     minobs=minobs,
                     skip=(i * limit),
                     limit=limit,
+                    save=save_individual,
+                    output_dir=output_dir,
                 )
                 # concat data to series containing all data
                 if verbose > 1:
@@ -102,27 +106,6 @@ def get_ids_loop(
                         length = len(data) + (i * limit)
                         count += length
                         dct["ccd"][ccd]["quad"][quad] = length
-                    if not whole_field:
-                        if verbose > 1:
-                            hf = h5py.File(
-                                output_dir
-                                + 'data_ccd_'
-                                + str(ccd).zfill(2)
-                                + '_quad_'
-                                + str(quad)
-                                + '.h5',
-                                'w',
-                            )
-                        hf.create_dataset(
-                            "dataset_ccd_"
-                            + str(ccd)
-                            + "_quad_"
-                            + str(quad)
-                            + "_field_"
-                            + str(field),
-                            data=ser,
-                        )
-                        hf.close()
                     break
                 i += 1
     if (verbose > 1) & (whole_field):
@@ -146,7 +129,17 @@ def get_ids_loop(
     return ser
 
 
-def get_field_ids(catalog, field=301, ccd=4, quad=3, minobs=20, skip=0, limit=10000):
+def get_field_ids(
+    catalog,
+    field=301,
+    ccd=4,
+    quad=3,
+    minobs=20,
+    skip=0,
+    limit=10000,
+    save=False,
+    output_dir=None,
+):
     '''Get ids for a specific quad of a CCD for a particular ZTF field.
     Parameters
     ----------
@@ -196,7 +189,37 @@ def get_field_ids(catalog, field=301, ccd=4, quad=3, minobs=20, skip=0, limit=10
 
     r = gloria.query(q)
     data = r.get('data')
-    return [data[i]['_id'] for i in range(len(data))]
+    ids = [data[i]['_id'] for i in range(len(data))]
+
+    if save:
+        print(f"Found {len(ids)} results to save.")
+
+        pd.DataFrame(ids).to_csv(
+            os.path.join(
+                output_dir,
+                "data_ccd_"
+                + str(ccd)
+                + "_quad_"
+                + str(quad)
+                + "_field_"
+                + str(field)
+                + ".csv",
+            ),
+            index=False,
+            header=False,
+        )
+
+        hf = h5py.File(
+            output_dir + 'data_ccd_' + str(ccd).zfill(2) + '_quad_' + str(quad) + '.h5',
+            'w',
+        )
+        hf.create_dataset(
+            "dataset_ccd_" + str(ccd) + "_quad_" + str(quad) + "_field_" + str(field),
+            data=ids,
+        )
+        hf.close()
+
+    return ids
 
 
 if __name__ == "__main__":
@@ -333,19 +356,6 @@ if __name__ == "__main__":
             minobs=args.minobs,
             skip=args.skip,
             limit=args.limit,
-        )
-        print(f"Found {len(data)} results to save.")
-        pd.DataFrame(data).to_csv(
-            os.path.join(
-                output_dir,
-                "data_ccd_"
-                + str(args.ccd)
-                + "_quad_"
-                + str(args.quad)
-                + "_field_"
-                + str(args.field)
-                + ".csv",
-            ),
-            index=False,
-            header=False,
+            save=True,
+            output_dir=os.path.join(os.path.dirname(__file__), output_dir),
         )
