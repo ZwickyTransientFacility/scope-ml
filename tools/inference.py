@@ -306,7 +306,9 @@ def run(
         )
 
     if not xgbst:
-        dmdt = np.expand_dims(np.array([d for d in features['dmdt'].values]), axis=-1)
+        dmdt = np.expand_dims(
+            np.array([d for d in features['dmdt'].apply(list).values]), axis=-1
+        )
 
         # scale features
         ts = time.time()
