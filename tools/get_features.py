@@ -181,6 +181,8 @@ def run(**kwargs):
         if True, restart the querying of features even if file exists.
     write_results: bool
         if True, write results and make necessary directories.
+    write_csv: bool
+        if True, writes results as csv file in addition to parquet.
     Returns
     =======
     Stores the features in a file at the following location:
@@ -203,6 +205,7 @@ def run(**kwargs):
     end = kwargs.get("end", None)
     restart = kwargs.get("restart", True)
     write_results = kwargs.get("write_results", True)
+    write_csv = kwargs.get("write_csv", False)
 
     if not whole_field:
         default_file = (
@@ -252,6 +255,7 @@ def run(**kwargs):
         limit=limit,
         restart=restart,
         write_results=write_results,
+        write_csv=write_csv,
     )
 
 
