@@ -41,7 +41,7 @@ def get_features_loop(
     ccd: int = 1,
     quad: int = 1,
     limit_per_query: int = 1000,
-    max_sources: int = 500000,
+    max_sources: int = 100000,
     restart: bool = True,
     write_csv: bool = False,
 ):
@@ -225,7 +225,7 @@ def run(**kwargs):
     DEFAULT_CCD = 1
     DEFAULT_QUAD = 1
     DEFAULT_LIMIT = 1000
-    DEFAULT_SAVE_BATCHSIZE = 500000
+    DEFAULT_SAVE_BATCHSIZE = 100000
     DEFAULT_CATALOG = "ZTF_source_features_DR5"
 
     field = kwargs.get("field", DEFAULT_FIELD)
