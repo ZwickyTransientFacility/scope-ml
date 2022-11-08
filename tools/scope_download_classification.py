@@ -191,8 +191,7 @@ def merge_sources_features(
     df, dmdt = get_features(
         source_ids=source_ids,
         features_catalog=features_catalog,
-        limit=features_limit,
-        write_results=False,
+        limit_per_query=features_limit,
     )
     df['ztf_id'] = df['_id']
     df = df.drop(['_id'], axis=1)
@@ -534,7 +533,7 @@ def download_classification(
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-file", help="dataset")
+    parser.add_argument("-file", type=str, default='parse', help="dataset")
     parser.add_argument("-group_ids", type=int, nargs='+', help="list of group ids")
     parser.add_argument(
         "-start", type=int, default=0, help="start page/index for continued download"

@@ -71,8 +71,17 @@ def get_features_loop(
         )
 
     os.makedirs(os.path.dirname(outfile), exist_ok=True)
+    file_exists = os.path.exists(outfile + ".parquet")
 
-    # set source_ids
+    # Set source_ids
+    if (not restart) & (file_exists):
+        df_init = read_parquet(outfile + ".parquet")
+        # Remove existing source_ids from list
+        source_ids = list(set(source_ids) - set(df_init['_id'].values))
+        if len(source_ids) == 0:
+            print('File is already complete.')
+            return
+
     n_sources = len(source_ids)
     n_iterations = n_sources // max_sources + 1
     for i in range(n_iterations):
@@ -88,14 +97,13 @@ def get_features_loop(
             limit_per_query=limit_per_query,
         )
 
-        if restart & (i == 0):
-            print('!')
+        if (restart | (not file_exists)) & (i == 0):
             write_parquet(df, outfile + ".parquet")
+            file_exists = True
             if write_csv:
                 df.to_csv(outfile + ".csv", index=False)
 
-        elif os.path.exists(outfile + ".parquet"):
-            print('!!')
+        elif file_exists:
             df1 = read_parquet(outfile + ".parquet")
             df2 = pd.concat([df1, df], axis=0)
             df2.reset_index(drop=True, inplace=True)
@@ -236,7 +244,7 @@ def run(**kwargs):
     whole_field = kwargs.get("whole_field", False)
     start = kwargs.get("start", None)
     end = kwargs.get("end", None)
-    restart = kwargs.get("restart", True)
+    restart = kwargs.get("restart", False)
     write_results = kwargs.get("write_results", True)
     write_csv = kwargs.get("write_csv", False)
 
