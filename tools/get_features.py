@@ -100,7 +100,7 @@ def get_features_loop(
         write_parquet(df, f'{outfile}_iter_{i}.parquet')
         file_exists = True
         if write_csv:
-            df.to_csv(outfile + ".csv", index=False)
+            df.to_csv(f'{outfile}_iter_{i}.csv', index=False)
 
 
 def get_features(
