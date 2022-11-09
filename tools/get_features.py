@@ -97,31 +97,10 @@ def get_features_loop(
             limit_per_query=limit_per_query,
         )
 
-        if (restart | (not file_exists)) & (i == 0):
-            write_parquet(df, outfile + ".parquet")
-            file_exists = True
-            if write_csv:
-                df.to_csv(outfile + ".csv", index=False)
-
-        elif file_exists:
-            df1 = read_parquet(outfile + ".parquet")
-            df2 = pd.concat([df1, df], axis=0)
-            df2.reset_index(drop=True, inplace=True)
-            df2.attrs = df1.attrs
-
-            # Append metadata for resumed download
-            keys = [x for x in df.attrs.keys()]
-            for key in keys:
-                df.attrs[f'{key}_resumed'] = df.attrs.pop(key)
-            df2.attrs.update(df.attrs)
-
-            write_parquet(df2, outfile + ".parquet")
-
-            if (os.path.exists(outfile + ".csv")) & (write_csv):
-                df1 = pd.read_csv(outfile + ".csv")
-                df2 = pd.concat([df1, df], axis=0)
-
-                df2.to_csv(outfile + ".csv", index=False)
+        write_parquet(df, f'{outfile}_iter_{i}.parquet')
+        file_exists = True
+        if write_csv:
+            df.to_csv(outfile + ".csv", index=False)
 
 
 def get_features(
