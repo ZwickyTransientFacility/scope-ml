@@ -245,9 +245,7 @@ def run(
         default_source_file = (
             BASE_DIR + "/../ids/field_" + str(field) + "/field_" + str(field) + ".h5"
         )
-        default_features_file = (
-            BASE_DIR + "/../features/field_" + str(field)  # + "/field_" + str(field)
-        )
+        default_features_file = BASE_DIR + "/../features/field_" + str(field)
     else:
         default_source_file = (
             BASE_DIR
