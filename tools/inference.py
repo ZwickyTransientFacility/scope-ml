@@ -13,7 +13,7 @@ import json
 import os
 import time
 import h5py
-from scope.utils import read_parquet
+import pyarrow.dataset as ds
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 warnings.filterwarnings('ignore')
@@ -246,7 +246,7 @@ def run(
             BASE_DIR + "/../ids/field_" + str(field) + "/field_" + str(field) + ".h5"
         )
         default_features_file = (
-            BASE_DIR + "/../features/field_" + str(field) + "/field_" + str(field)
+            BASE_DIR + "/../features/field_" + str(field)  # + "/field_" + str(field)
         )
     else:
         default_source_file = (
@@ -274,28 +274,44 @@ def run(
     source_ids_filename = os.path.join(BASE_DIR, source_ids_filename)
     features_filename = os.path.join(BASE_DIR, features_filename)
 
-    # read source ids from hdf5 file
+    if verbose:
+        # read source ids from hdf5 file
+        ts = time.time()
+        all_source_ids = np.array([])
+        with h5py.File(source_ids_filename, "r") as f:
+            ids = np.array(f[list(f.keys())[0]])
+            all_source_ids = np.concatenate((all_source_ids, ids), axis=0)
+        te = time.time()
+        if tm:
+            print(
+                "read source_ids from .h5".ljust(JUST)
+                + "\t --> \t"
+                + str(round(te - ts, 4))
+                + " s"
+            )
+
+        print("Number of ids:", len(all_source_ids))
+
+    # Load pre-trained model
     ts = time.time()
-    source_ids = np.array([])
-    with h5py.File(source_ids_filename, "r") as f:
-        ids = np.array(f[list(f.keys())[0]])
-        source_ids = np.concatenate((source_ids, ids), axis=0)
+    model = tf.keras.models.load_model(path_model)
     te = time.time()
     if tm:
         print(
-            "read source_ids from .h5".ljust(JUST)
+            "load pre-trained model".ljust(JUST)
             + "\t --> \t"
             + str(round(te - ts, 4))
             + " s"
         )
 
-    if verbose:
-        print("Number of ids:", len(source_ids))
-
     # get raw features
-    ts = time.time()
-    features = read_parquet(features_filename + '.parquet')
     feature_stats = config.get("feature_stats", None)
+    preds_collection = []
+    source_id_count = 0
+
+    ts = time.time()
+    DS = ds.dataset(features_filename, format='parquet')
+    generator = DS.to_batches()
     te = time.time()
     if tm:
         print(
@@ -305,109 +321,106 @@ def run(
             + " s"
         )
 
-    if not xgbst:
-        dmdt = np.expand_dims(
-            np.array([d for d in features['dmdt'].apply(list).values]), axis=-1
-        )
+    for batch in generator:
+        features = batch.to_pandas()
+        source_ids = features['_id'].values
+        source_id_count += len(source_ids)
 
-        # scale features
-        ts = time.time()
-        train_config = config["training"]["classes"][model_class]
-        feature_names = config["features"][train_config["features"]]
-        scale_features = "min_max"
-
-        for feature in feature_names:
-            stats = feature_stats.get(feature)
-            if (stats is not None) and (stats["std"] != 0):
-                if scale_features == "median_std":
-                    features[feature] = (features[feature] - stats["median"]) / stats[
-                        "std"
-                    ]
-                elif scale_features == "min_max":
-                    features[feature] = (features[feature] - stats["min"]) / (
-                        stats["max"] - stats["min"]
-                    )
-        te = time.time()
-        if tm:
-            print(
-                "min max scaling".ljust(JUST)
-                + "\t --> \t"
-                + str(round(te - ts, 4))
-                + " s"
+        if not xgbst:
+            dmdt = np.expand_dims(
+                np.array([d for d in features['dmdt'].apply(list).values]), axis=-1
             )
 
-        if verbose:
-            print(features)
+            # scale features
+            ts = time.time()
+            train_config = config["training"]["classes"][model_class]
+            feature_names = config["features"][train_config["features"]]
+            scale_features = "min_max"
 
-        # Load pre-trained model
-        ts = time.time()
-        model = tf.keras.models.load_model(path_model)
-        te = time.time()
-        if tm:
-            print(
-                "load pre-trained model".ljust(JUST)
-                + "\t --> \t"
-                + str(round(te - ts, 4))
-                + " s"
+            for feature in feature_names:
+                stats = feature_stats.get(feature)
+                if (stats is not None) and (stats["std"] != 0):
+                    if scale_features == "median_std":
+                        features[feature] = (
+                            features[feature] - stats["median"]
+                        ) / stats["std"]
+                    elif scale_features == "min_max":
+                        features[feature] = (features[feature] - stats["min"]) / (
+                            stats["max"] - stats["min"]
+                        )
+            te = time.time()
+            if tm:
+                print(
+                    "min max scaling".ljust(JUST)
+                    + "\t --> \t"
+                    + str(round(te - ts, 4))
+                    + " s"
+                )
+
+            if verbose:
+                print(features)
+
+            # Impute missing data and flag source ids containing missing values
+            make_missing_dict(source_ids)
+            features = clean_data(
+                features,
+                feature_names,
+                feature_stats,
+                field,
+                ccd,
+                quad,
+                flag_ids,
+                whole_field,
+            )  # 1
+
+            ts = time.time()
+            preds = model.predict([features[feature_names].values, dmdt])
+            features[model_class + '_dnn'] = preds
+            te = time.time()
+            if tm:
+                print(
+                    "dnn inference (model.predict())".ljust(JUST)
+                    + "\t --> \t"
+                    + str(round(te - ts, 4))
+                    + " s"
+                )
+            preds_df = features[["_id", model_class + '_dnn']].round(2)
+            preds_df.reset_index(inplace=True, drop=True)
+        else:
+            # xgboost inferencing
+            train_config = path_model[-7]
+            feature_names = config["inference"]["xgb"][train_config]
+            features = clean_data(
+                features,
+                feature_names,
+                feature_stats,
+                field,
+                ccd,
+                quad,
+                flag_ids,
+                whole_field,
             )
+            model = xgb.XGBRegressor()
+            model.load_model(path_model)
 
-        # Impute missing data and flag source ids containing missing values
-        make_missing_dict(source_ids)
-        features = clean_data(
-            features,
-            feature_names,
-            feature_stats,
-            field,
-            ccd,
-            quad,
-            flag_ids,
-            whole_field,
-        )  # 1
+            ts = time.time()
+            scores = model.predict(features[feature_names])
+            features[model_class + '_xgb' + train_config] = scores
+            te = time.time()
+            if tm:
+                print(
+                    "dnn inference (model.predict())".ljust(JUST)
+                    + "\t --> \t"
+                    + str(round(te - ts, 4))
+                    + " s"
+                )
+            preds_df = features[["_id", model_class + '_xgb' + train_config]].round(2)
+            preds_df.reset_index(inplace=True, drop=True)
 
-        ts = time.time()
-        preds = model.predict([features[feature_names].values, dmdt])
-        features[model_class + '_dnn'] = preds
-        te = time.time()
-        if tm:
-            print(
-                "dnn inference (model.predict())".ljust(JUST)
-                + "\t --> \t"
-                + str(round(te - ts, 4))
-                + " s"
-            )
-        preds_df = features[["_id", model_class + '_dnn']].round(2)
-        preds_df.reset_index(inplace=True, drop=True)
-    else:
-        # xgboost inferencing
-        train_config = path_model[-7]
-        feature_names = config["inference"]["xgb"][train_config]
-        features = clean_data(
-            features,
-            feature_names,
-            feature_stats,
-            field,
-            ccd,
-            quad,
-            flag_ids,
-            whole_field,
-        )
-        model = xgb.XGBRegressor()
-        model.load_model(path_model)
+        preds_collection += [preds_df]
 
-        ts = time.time()
-        scores = model.predict(features[feature_names])
-        features[model_class + '_xgb' + train_config] = scores
-        te = time.time()
-        if tm:
-            print(
-                "dnn inference (model.predict())".ljust(JUST)
-                + "\t --> \t"
-                + str(round(te - ts, 4))
-                + " s"
-            )
-        preds_df = features[["_id", model_class + '_xgb' + train_config]].round(2)
-        preds_df.reset_index(inplace=True, drop=True)
-
+    preds_df = pd.concat(preds_collection, axis=0)
+    preds_df.reset_index(drop=True, inplace=True)
     out_dir = os.path.join(os.path.dirname(__file__), f"{BASE_DIR}/../preds/")
 
     if not whole_field:
@@ -446,7 +459,7 @@ def run(
             dct["xgb_models"] = [path_model]
         else:
             dct["dnn_models"] = [path_model]
-        dct["total"] = len(source_ids)
+        dct["total"] = source_id_count
     else:
         with open(meta_filename, 'r') as f:
             dct = json.load(f)
