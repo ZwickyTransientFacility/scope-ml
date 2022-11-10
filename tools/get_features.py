@@ -9,8 +9,9 @@ import yaml
 import os
 import time
 import h5py
-from scope.utils import read_parquet, write_parquet
+from scope.utils import write_parquet
 from datetime import datetime
+import pyarrow.dataset as ds
 
 BASE_DIR = os.path.dirname(__file__)
 JUST = 50
@@ -71,20 +72,28 @@ def get_features_loop(
         )
 
     os.makedirs(os.path.dirname(outfile), exist_ok=True)
-    file_exists = os.path.exists(outfile + ".parquet")
+
+    DS = ds.dataset(os.path.dirname(outfile), format='parquet')
+    indiv_files = DS.files
+    files_exist = len(indiv_files) > 0
 
     # Set source_ids
-    if (not restart) & (file_exists):
-        df_init = read_parquet(outfile + ".parquet")
+    if (not restart) & (files_exist):
+        generator = DS.to_batches(columns=['_id'])
+        existing_ids = []
+        for batch in generator:
+            existing_ids += batch['_id'].to_pylist()
         # Remove existing source_ids from list
-        source_ids = list(set(source_ids) - set(df_init['_id'].values))
-        if len(source_ids) == 0:
+        todo_source_ids = list(set(source_ids) - set(existing_ids))
+        if len(todo_source_ids) == 0:
             print('File is already complete.')
             return
 
     n_sources = len(source_ids)
     n_iterations = n_sources // max_sources + 1
-    for i in range(n_iterations):
+    start_iteration = len(existing_ids) // max_sources
+
+    for i in range(start_iteration, n_iterations):
         print(f"Iteration {i+1} of {n_iterations}...")
         select_source_ids = source_ids[
             i * max_sources : min(n_sources, (i + 1) * max_sources)
@@ -98,7 +107,7 @@ def get_features_loop(
         )
 
         write_parquet(df, f'{outfile}_iter_{i}.parquet')
-        file_exists = True
+        files_exist = True
         if write_csv:
             df.to_csv(f'{outfile}_iter_{i}.csv', index=False)
 
