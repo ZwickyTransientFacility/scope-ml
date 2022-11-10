@@ -14,6 +14,9 @@ import os
 import time
 import h5py
 import pyarrow.dataset as ds
+import scope
+from scope.utils import write_hdf
+from datetime import datetime
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 warnings.filterwarnings('ignore')
@@ -239,6 +242,7 @@ def run(
     tm = kwargs.get("time", False)
     verbose = kwargs.get("verbose", False)
     whole_field = kwargs.get("whole_field", False)
+    write_csv = kwargs.get("write_csv", False)
 
     # default file location for source ids
     if whole_field:
@@ -323,6 +327,12 @@ def run(
         features = batch.to_pandas()
         source_ids = features['_id'].values
         source_id_count += len(source_ids)
+
+        try:
+            features_metadata = json.loads(batch.schema.metadata[b'scope'])
+        except KeyError:
+            warnings.warn('Could not find existing metadata')
+            features_metadata = {}
 
         if not xgbst:
             dmdt = np.expand_dims(
@@ -430,23 +440,27 @@ def run(
             + str(ccd).zfill(2)
             + "_quad_"
             + str(quad)
-            + ".csv"
         )
     else:
-        default_outfile = (
-            out_dir + "field_" + str(field) + "/field_" + str(field) + ".csv"
-        )
+        default_outfile = out_dir + "field_" + str(field) + "/field_" + str(field)
 
     filename = kwargs.get("output", default_outfile)
 
     if not os.path.exists(filename):
         os.makedirs(os.path.dirname(filename), exist_ok=True)
-        preds_df.to_csv(filename, index=False)
-    else:
-        preds_df.drop("_id", axis=1, inplace=True)
-        df_temp = pd.read_csv(filename)
-        df_temp = pd.concat([df_temp, preds_df], axis=1)
-        df_temp.to_csv(filename, index=False)
+
+    # Add metadata
+    code_version = scope.__version__
+    utcnow = datetime.utcnow()
+    start_dt = utcnow.strftime("%Y-%m-%d %H:%M:%S")
+
+    preds_df.attrs['inference_scope_code_version'] = code_version
+    preds_df.attrs['inference_dateTime_utc'] = start_dt
+    preds_df.attrs.update(features_metadata)
+
+    write_hdf(preds_df, f'{filename}.h5')
+    if write_csv:
+        preds_df.to_csv(f'{filename}.csv', index=False)
 
     meta_filename = os.path.dirname(filename) + "/meta.json"
     if not os.path.exists(meta_filename):
