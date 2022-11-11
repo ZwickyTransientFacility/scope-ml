@@ -483,6 +483,8 @@ class Scope:
         path_dataset: Union[str, pathlib.Path],
         gpu: Optional[int] = None,
         verbose: bool = False,
+        job_type: str = 'train',
+        group: str = 'experiment',
         **kwargs,
     ):
         """Train classifier
@@ -607,8 +609,10 @@ class Scope:
         if not kwargs.get("test", False):
             wandb.login(key=self.config["wandb"]["token"])
             wandb.init(
+                job_type=job_type,
                 project=self.config["wandb"]["project"],
                 tags=[tag],
+                group=group,
                 name=f"{tag}-{time_tag}",
                 config={
                     "tag": tag,
