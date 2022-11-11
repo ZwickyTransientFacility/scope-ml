@@ -14,6 +14,7 @@ import os
 import time
 import h5py
 import pyarrow.dataset as ds
+from scope.utils import forgiving_true
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 warnings.filterwarnings('ignore')
@@ -332,7 +333,12 @@ def run(
             # scale features
             ts = time.time()
             train_config = config["training"]["classes"][model_class]
-            feature_names = config["features"][train_config["features"]]
+            all_features = config["features"][train_config["features"]]
+            feature_names = [
+                key
+                for key in all_features
+                if forgiving_true(all_features[key]["include"])
+            ]
             scale_features = "min_max"
 
             for feature in feature_names:
