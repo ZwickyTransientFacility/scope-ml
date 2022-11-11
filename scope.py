@@ -786,9 +786,9 @@ class Scope:
 
             all_feature_names = self.config["features"]["ontological"]
             feature_names = [
-                x
-                for x in all_feature_names
-                if forgiving_true(all_feature_names[x]['include'])
+                key
+                for key in all_feature_names
+                if forgiving_true(all_feature_names[key]['include'])
             ]
             class_names = [
                 self.config["training"]["classes"][class_name]["label"]
