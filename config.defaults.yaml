@@ -397,7 +397,7 @@ features:
       dtype: float
     ccd:
       include: false
-      dtype: int
+      dtype: Int64
     chi2red:
       include: true
       dtype: float
@@ -448,7 +448,7 @@ features:
       dtype: float
     field:
       include: false
-      dtype: int
+      dtype: Int64
     i60r:
       include: true
       dtype: float
@@ -481,7 +481,7 @@ features:
       dtype: float
     n_ztf_alerts:
       include: false
-      dtype: int
+      dtype: Int64
     norm_excess_var:
       include: true
       dtype: float
@@ -496,7 +496,7 @@ features:
       dtype: float
     quad:
       include: false
-      dtype: int
+      dtype: Int64
     ra:
       include: false
       dtype: float
@@ -536,7 +536,7 @@ features:
       dtype: float
     ccd:
       include: false
-      dtype: int
+      dtype: Int64
     chi2red:
       include: true
       dtype: float
@@ -587,7 +587,7 @@ features:
       dtype: float
     field:
       include: false
-      dtype: int
+      dtype: Int64
     i60r:
       include: true
       dtype: float
@@ -620,7 +620,7 @@ features:
       dtype: float
     n_ztf_alerts:
       include: true
-      dtype: int
+      dtype: Int64
     norm_excess_var:
       include: true
       dtype: float
@@ -635,7 +635,7 @@ features:
       dtype: float
     quad:
       include: false
-      dtype: int
+      dtype: Int64
     ra:
       include: false
       dtype: float
@@ -671,7 +671,7 @@ features:
       dtype: float
     AllWISE___id:
       include: false
-      dtype: int
+      dtype: Int64
     AllWISE__ph_qual:
       include: false
       dtype: str
@@ -701,7 +701,7 @@ features:
       dtype: float
     Gaia_EDR3___id:
       include: false
-      dtype: int
+      dtype: Int64
     Gaia_EDR3__astrometric_excess_noise:
       include: false
       dtype: float
@@ -737,7 +737,7 @@ features:
       dtype: float
     PS1_DR1___id:
       include: false
-      dtype: int
+      dtype: Int64
     PS1_DR1__gMeanPSFMag:
       include: true
       dtype: float
@@ -752,7 +752,7 @@ features:
       dtype: float
     PS1_DR1__qualityFlag:
       include: false
-      dtype: int
+      dtype: Int64
     PS1_DR1__rMeanPSFMag:
       include: true
       dtype: float
@@ -773,7 +773,7 @@ features:
       dtype: float
     _id:
       include: false
-      dtype: int
+      dtype: Int64
     coordinates:
       include: false
       dtype: object
