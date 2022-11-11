@@ -21,6 +21,9 @@ TIMEOUT = 300
 config_path = pathlib.Path(__file__).parent.parent.absolute() / "config.yaml"
 with open(config_path) as config_yaml:
     config = yaml.load(config_yaml, Loader=yaml.FullLoader)
+# Access datatypes in config file
+feature_names = config['features']['ontological']
+dtype_dict = {x: feature_names[x]['dtype'] for x in feature_names}
 
 # Use new penquins KowalskiInstances class here once approved
 kowalski = Kowalski(
@@ -147,8 +150,8 @@ def get_features(
             print(response)
             raise ValueError(f"No data found for source ids {source_ids}")
 
-        df_temp = pd.DataFrame.from_records(source_data)
-        # Add code here to standardize dtypes from config file
+        df_temp = pd.DataFrame(source_data)
+        df_temp = df_temp.astype(dtype=dtype_dict)
         df_collection += [df_temp]
         try:
             dmdt_temp = np.expand_dims(
@@ -222,7 +225,7 @@ def run(**kwargs):
     DEFAULT_CCD = 1
     DEFAULT_QUAD = 1
     DEFAULT_LIMIT = 1000
-    DEFAULT_SAVE_BATCHSIZE = 1000
+    DEFAULT_SAVE_BATCHSIZE = 100000
     DEFAULT_CATALOG = "ZTF_source_features_DR5"
 
     field = kwargs.get("field", DEFAULT_FIELD)
