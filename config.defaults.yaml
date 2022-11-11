@@ -771,6 +771,16 @@ features:
     PS1_DR1__zMeanPSFMagErr:
       include: true
       dtype: float
+    _id:
+      include: false
+      dtype: int
+    coordinates:
+      include: false
+      dtype: object
+    # This feature is included separately by nn.py, but the dtype is specified here for get_features.py
+    dmdt:
+      include: false
+      dtype: object
 
 feature_stats:
   # d15-based
