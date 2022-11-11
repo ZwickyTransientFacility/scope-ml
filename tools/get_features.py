@@ -76,11 +76,11 @@ def get_features_loop(
     DS = ds.dataset(os.path.dirname(outfile), format='parquet')
     indiv_files = DS.files
     files_exist = len(indiv_files) > 0
+    existing_ids = []
 
     # Set source_ids
     if (not restart) & (files_exist):
         generator = DS.to_batches(columns=['_id'])
-        existing_ids = []
         for batch in generator:
             existing_ids += batch['_id'].to_pylist()
         # Remove existing source_ids from list
@@ -148,6 +148,7 @@ def get_features(
             raise ValueError(f"No data found for source ids {source_ids}")
 
         df_temp = pd.DataFrame.from_records(source_data)
+        # Add code here to standardize dtypes from config file
         df_collection += [df_temp]
         try:
             dmdt_temp = np.expand_dims(
@@ -221,7 +222,7 @@ def run(**kwargs):
     DEFAULT_CCD = 1
     DEFAULT_QUAD = 1
     DEFAULT_LIMIT = 1000
-    DEFAULT_SAVE_BATCHSIZE = 100000
+    DEFAULT_SAVE_BATCHSIZE = 1000
     DEFAULT_CATALOG = "ZTF_source_features_DR5"
 
     field = kwargs.get("field", DEFAULT_FIELD)
