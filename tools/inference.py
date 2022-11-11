@@ -332,7 +332,10 @@ def run(
             # scale features
             ts = time.time()
             train_config = config["training"]["classes"][model_class]
-            feature_names = config["features"][train_config["features"]]
+            all_features = config["features"][train_config["features"]]
+            feature_names = [
+                key for key in all_features if all_features[key]["include"]
+            ]
             scale_features = "min_max"
 
             for feature in feature_names:
