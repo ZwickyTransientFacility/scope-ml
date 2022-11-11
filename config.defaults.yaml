@@ -392,133 +392,385 @@ features:
     - PS1_DR1__yMeanPSFMag
     - PS1_DR1__yMeanPSFMagErr
   phenomenological:
-    - ad
-#    - ccd
-    - chi2red
-#    - dec
-    - f1_BIC
-    - f1_a
-    - f1_amp
-    - f1_b
-    - f1_phi0
-    - f1_power
-    - f1_relamp1
-    - f1_relamp2
-    - f1_relamp3
-    - f1_relamp4
-    - f1_relphi1
-    - f1_relphi2
-    - f1_relphi3
-    - f1_relphi4
-    - field
-    - i60r
-    - i70r
-    - i80r
-    - i90r
-    - inv_vonneumannratio
-    - iqr
-    - mean_ztf_alert_braai
-    - median
-    - median_abs_dev
-#    - n
-    - n_ztf_alerts
-    - norm_excess_var
-    - norm_peak_to_peak_amp
-#    - pdot
-    - period
-#    - quad
-#    - ra
-    - roms
-    - significance
-    - skew
-    - smallkurt
-    - stetson_j
-    - stetson_k
-    - sw
-    - welch_i
-    - wmean
-    - wstd
+    ad:
+      include: true
+      dtype: float
+    ccd:
+      include: false
+      dtype: int
+    chi2red:
+      include: true
+      dtype: float
+    dec:
+      include: false
+      dtype: float
+    f1_BIC:
+      include: true
+      dtype: float
+    f1_a:
+      include: true
+      dtype: float
+    f1_amp:
+      include: true
+      dtype: float
+    f1_b:
+      include: true
+      dtype: float
+    f1_phi0:
+      include: true
+      dtype: float
+    f1_power:
+      include: true
+      dtype: float
+    f1_relamp1:
+      include: true
+      dtype: float
+    f1_relamp2:
+      include: true
+      dtype: float
+    f1_relamp3:
+      include: true
+      dtype: float
+    f1_relamp4:
+      include: true
+      dtype: float
+    f1_relphi1:
+      include: true
+      dtype: float
+    f1_relphi2:
+      include: true
+      dtype: float
+    f1_relphi3:
+      include: true
+      dtype: float
+    f1_relphi4:
+      include: true
+      dtype: float
+    field:
+      include: false
+      dtype: int
+    i60r:
+      include: true
+      dtype: float
+    i70r:
+      include: true
+      dtype: float
+    i80r:
+      include: true
+      dtype: float
+    i90r:
+      include: true
+      dtype: float
+    inv_vonneumannratio:
+      include: true
+      dtype: float
+    iqr:
+      include: true
+      dtype: float
+    mean_ztf_alert_braai:
+      include: false
+      dtype: float
+    median:
+      include: true
+      dtype: float
+    median_abs_dev:
+      include: true
+      dtype: float
+    n:
+      include: false
+      dtype: float
+    n_ztf_alerts:
+      include: false
+      dtype: int
+    norm_excess_var:
+      include: true
+      dtype: float
+    norm_peak_to_peak_amp:
+      include: true
+      dtype: float
+    pdot:
+      include: false
+      dtype: float
+    period:
+      include: false
+      dtype: float
+    quad:
+      include: false
+      dtype: int
+    ra:
+      include: false
+      dtype: float
+    roms:
+      include: true
+      dtype: float
+    significance:
+      include: false
+      dtype: float
+    skew:
+      include: true
+      dtype: float
+    smallkurt:
+      include: true
+      dtype: float
+    stetson_j:
+      include: true
+      dtype: float
+    stetson_k:
+      include: true
+      dtype: float
+    sw:
+      include: true
+      dtype: float
+    welch_i:
+      include: true
+      dtype: float
+    wmean:
+      include: true
+      dtype: float
+    wstd:
+      include: true
+      dtype: float
   ontological:
-    - ad
-    - ccd
-    - chi2red
-    - dec
-    - f1_BIC
-    - f1_a
-    - f1_amp
-    - f1_b
-    - f1_phi0
-    - f1_power
-    - f1_relamp1
-    - f1_relamp2
-    - f1_relamp3
-    - f1_relamp4
-    - f1_relphi1
-    - f1_relphi2
-    - f1_relphi3
-    - f1_relphi4
-    - field
-    - i60r
-    - i70r
-    - i80r
-    - i90r
-    - inv_vonneumannratio
-    - iqr
-    - mean_ztf_alert_braai
-    - median
-    - median_abs_dev
-#    - n
-    - n_ztf_alerts
-    - norm_excess_var
-    - norm_peak_to_peak_amp
-#    - pdot
-    - period
-    - quad
-    - ra
-    - roms
-    - significance
-    - skew
-    - smallkurt
-    - stetson_j
-    - stetson_k
-    - sw
-    - welch_i
-    - wmean
-    - wstd
-#    - AllWISE___id
-#    - AllWISE__ph_qual
-    - AllWISE__w1mpro
-    - AllWISE__w1sigmpro
-    - AllWISE__w2mpro
-    - AllWISE__w2sigmpro
-    - AllWISE__w3mpro
-    - AllWISE__w3sigmpro
-    - AllWISE__w4mpro
-    - AllWISE__w4sigmpro
-#    - Gaia_EDR3___id
-    - Gaia_EDR3__astrometric_excess_noise
-    - Gaia_EDR3__parallax
-    - Gaia_EDR3__parallax_error
-    - Gaia_EDR3__phot_bp_mean_mag
-    - Gaia_EDR3__phot_bp_rp_excess_factor
-    - Gaia_EDR3__phot_g_mean_mag
-    - Gaia_EDR3__phot_rp_mean_mag
-    - Gaia_EDR3__pmdec
-    - Gaia_EDR3__pmdec_error
-    - Gaia_EDR3__pmra
-    - Gaia_EDR3__pmra_error
-#    - PS1_DR1___id
-    - PS1_DR1__gMeanPSFMag
-    - PS1_DR1__gMeanPSFMagErr
-    - PS1_DR1__iMeanPSFMag
-    - PS1_DR1__iMeanPSFMagErr
-    - PS1_DR1__qualityFlag
-    - PS1_DR1__rMeanPSFMag
-    - PS1_DR1__rMeanPSFMagErr
-    - PS1_DR1__yMeanPSFMag
-    - PS1_DR1__yMeanPSFMagErr
-    - PS1_DR1__zMeanPSFMag
-    - PS1_DR1__zMeanPSFMagErr
+    ad:
+      include: true
+      dtype: float
+    ccd:
+      include: false
+      dtype: int
+    chi2red:
+      include: true
+      dtype: float
+    dec:
+      include: false
+      dtype: float
+    f1_BIC:
+      include: true
+      dtype: float
+    f1_a:
+      include: true
+      dtype: float
+    f1_amp:
+      include: true
+      dtype: float
+    f1_b:
+      include: true
+      dtype: float
+    f1_phi0:
+      include: true
+      dtype: float
+    f1_power:
+      include: true
+      dtype: float
+    f1_relamp1:
+      include: true
+      dtype: float
+    f1_relamp2:
+      include: true
+      dtype: float
+    f1_relamp3:
+      include: true
+      dtype: float
+    f1_relamp4:
+      include: true
+      dtype: float
+    f1_relphi1:
+      include: true
+      dtype: float
+    f1_relphi2:
+      include: true
+      dtype: float
+    f1_relphi3:
+      include: true
+      dtype: float
+    f1_relphi4:
+      include: true
+      dtype: float
+    field:
+      include: false
+      dtype: int
+    i60r:
+      include: true
+      dtype: float
+    i70r:
+      include: true
+      dtype: float
+    i80r:
+      include: true
+      dtype: float
+    i90r:
+      include: true
+      dtype: float
+    inv_vonneumannratio:
+      include: true
+      dtype: float
+    iqr:
+      include: true
+      dtype: float
+    mean_ztf_alert_braai:
+      include: true
+      dtype: float
+    median:
+      include: true
+      dtype: float
+    median_abs_dev:
+      include: true
+      dtype: float
+    n:
+      include: false
+      dtype: float
+    n_ztf_alerts:
+      include: true
+      dtype: int
+    norm_excess_var:
+      include: true
+      dtype: float
+    norm_peak_to_peak_amp:
+      include: true
+      dtype: float
+    pdot:
+      include: false
+      dtype: float
+    period:
+      include: true
+      dtype: float
+    quad:
+      include: false
+      dtype: int
+    ra:
+      include: false
+      dtype: float
+    roms:
+      include: true
+      dtype: float
+    significance:
+      include: true
+      dtype: float
+    skew:
+      include: true
+      dtype: float
+    smallkurt:
+      include: true
+      dtype: float
+    stetson_j:
+      include: true
+      dtype: float
+    stetson_k:
+      include: true
+      dtype: float
+    sw:
+      include: true
+      dtype: float
+    welch_i:
+      include: true
+      dtype: float
+    wmean:
+      include: true
+      dtype: float
+    wstd:
+      include: true
+      dtype: float
+    AllWISE___id:
+      include: false
+      dtype: int
+    AllWISE__ph_qual:
+      include: false
+      dtype: str
+    AllWISE__w1mpro:
+      include: true
+      dtype: float
+    AllWISE__w1sigmpro:
+      include: true
+      dtype: float
+    AllWISE__w2mpro:
+      include: true
+      dtype: float
+    AllWISE__w2sigmpro:
+      include: true
+      dtype: float
+    AllWISE__w3mpro:
+      include: true
+      dtype: float
+    AllWISE__w3sigmpro:
+      include: true
+      dtype: float
+    AllWISE__w4mpro:
+      include: true
+      dtype: float
+    AllWISE__w4sigmpro:
+      include: true
+      dtype: float
+    Gaia_EDR3___id:
+      include: false
+      dtype: int
+    Gaia_EDR3__astrometric_excess_noise:
+      include: false
+      dtype: float
+    Gaia_EDR3__parallax:
+      include: true
+      dtype: float
+    Gaia_EDR3__parallax_error:
+      include: false
+      dtype: float
+    Gaia_EDR3__phot_bp_mean_mag:
+      include: true
+      dtype: float
+    Gaia_EDR3__phot_bp_rp_excess_factor:
+      include: true
+      dtype: float
+    Gaia_EDR3__phot_g_mean_mag:
+      include: true
+      dtype: float
+    Gaia_EDR3__phot_rp_mean_mag:
+      include: true
+      dtype: float
+    Gaia_EDR3__pmdec:
+      include: false
+      dtype: float
+    Gaia_EDR3__pmdec_error:
+      include: false
+      dtype: float
+    Gaia_EDR3__pmra:
+      include: false
+      dtype: float
+    Gaia_EDR3__pmra_error:
+      include: false
+      dtype: float
+    PS1_DR1___id:
+      include: false
+      dtype: int
+    PS1_DR1__gMeanPSFMag:
+      include: true
+      dtype: float
+    PS1_DR1__gMeanPSFMagErr:
+      include: true
+      dtype: float
+    PS1_DR1__iMeanPSFMag:
+      include: true
+      dtype: float
+    PS1_DR1__iMeanPSFMagErr:
+      include: true
+      dtype: float
+    PS1_DR1__qualityFlag:
+      include: false
+      dtype: int
+    PS1_DR1__rMeanPSFMag:
+      include: true
+      dtype: float
+    PS1_DR1__rMeanPSFMagErr:
+      include: true
+      dtype: float
+    PS1_DR1__yMeanPSFMag:
+      include: true
+      dtype: float
+    PS1_DR1__yMeanPSFMagErr:
+      include: true
+      dtype: float
+    PS1_DR1__zMeanPSFMag:
+      include: true
+      dtype: float
+    PS1_DR1__zMeanPSFMagErr:
+      include: true
+      dtype: float
 
 feature_stats:
   # d15-based

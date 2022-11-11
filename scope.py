@@ -513,7 +513,8 @@ class Scope:
 
         train_config = self.config["training"]["classes"][tag]
 
-        features = self.config["features"][train_config["features"]]
+        all_features = self.config["features"][train_config["features"]]
+        features = [key for key in all_features if all_features[key]["include"]]
 
         ds = Dataset(
             tag=tag,
@@ -781,7 +782,10 @@ class Scope:
             if not path_mock.exists():
                 path_mock.mkdir(parents=True, exist_ok=True)
 
-            feature_names = self.config["features"]["ontological"]
+            all_feature_names = self.config["features"]["ontological"]
+            feature_names = [
+                x for x in all_feature_names if all_feature_names[x]['include']
+            ]
             class_names = [
                 self.config["training"]["classes"][class_name]["label"]
                 for class_name in self.config["training"]["classes"]
