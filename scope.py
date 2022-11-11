@@ -514,7 +514,9 @@ class Scope:
         train_config = self.config["training"]["classes"][tag]
 
         all_features = self.config["features"][train_config["features"]]
-        features = [key for key in all_features if all_features[key]["include"]]
+        features = [
+            key for key in all_features if forgiving_true(all_features[key]["include"])
+        ]
 
         ds = Dataset(
             tag=tag,
@@ -784,7 +786,9 @@ class Scope:
 
             all_feature_names = self.config["features"]["ontological"]
             feature_names = [
-                x for x in all_feature_names if all_feature_names[x]['include']
+                x
+                for x in all_feature_names
+                if forgiving_true(all_feature_names[x]['include'])
             ]
             class_names = [
                 self.config["training"]["classes"][class_name]["label"]
