@@ -23,7 +23,7 @@ with open(config_path) as config_yaml:
     config = yaml.load(config_yaml, Loader=yaml.FullLoader)
 # Access datatypes in config file
 feature_names = config['features']['ontological']
-dtype_dict = {x: feature_names[x]['dtype'] for x in feature_names}
+dtype_dict = {key: feature_names[key]['dtype'] for key in feature_names}
 
 # Use new penquins KowalskiInstances class here once approved
 kowalski = Kowalski(
