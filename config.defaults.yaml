@@ -773,7 +773,7 @@ features:
       dtype: float
     _id:
       include: false
-      dtype: Int64
+      dtype: int
     coordinates:
       include: false
       dtype: object
