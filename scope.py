@@ -483,6 +483,8 @@ class Scope:
         path_dataset: Union[str, pathlib.Path],
         gpu: Optional[int] = None,
         verbose: bool = False,
+        job_type: str = 'train',
+        group: str = 'experiment',
         **kwargs,
     ):
         """Train classifier
@@ -513,7 +515,10 @@ class Scope:
 
         train_config = self.config["training"]["classes"][tag]
 
-        features = self.config["features"][train_config["features"]]
+        all_features = self.config["features"][train_config["features"]]
+        features = [
+            key for key in all_features if forgiving_true(all_features[key]["include"])
+        ]
 
         ds = Dataset(
             tag=tag,
@@ -607,8 +612,10 @@ class Scope:
         if not kwargs.get("test", False):
             wandb.login(key=self.config["wandb"]["token"])
             wandb.init(
+                job_type=job_type,
                 project=self.config["wandb"]["project"],
                 tags=[tag],
+                group=group,
                 name=f"{tag}-{time_tag}",
                 config={
                     "tag": tag,
@@ -781,7 +788,12 @@ class Scope:
             if not path_mock.exists():
                 path_mock.mkdir(parents=True, exist_ok=True)
 
-            feature_names = self.config["features"]["ontological"]
+            all_feature_names = self.config["features"]["ontological"]
+            feature_names = [
+                key
+                for key in all_feature_names
+                if forgiving_true(all_feature_names[key]['include'])
+            ]
             class_names = [
                 self.config["training"]["classes"][class_name]["label"]
                 for class_name in self.config["training"]["classes"]
