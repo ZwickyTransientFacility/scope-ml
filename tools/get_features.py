@@ -89,7 +89,7 @@ def get_features_loop(
         # Remove existing source_ids from list
         todo_source_ids = list(set(source_ids) - set(existing_ids))
         if len(todo_source_ids) == 0:
-            print('File is already complete.')
+            print('Dataset is already complete.')
             return
 
     n_sources = len(source_ids)
