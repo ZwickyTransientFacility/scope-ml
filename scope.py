@@ -843,6 +843,7 @@ class Scope:
         # create a mock dataset and check that the training pipeline works
         dataset = f"{uuid.uuid4().hex}.csv"
         path_mock = pathlib.Path(__file__).parent.absolute() / "data" / "training"
+        group_mock = 'experiment'
 
         try:
             if not path_mock.exists():
@@ -891,6 +892,7 @@ class Scope:
             path_model = (
                 pathlib.Path(__file__).parent.absolute()
                 / "models"
+                / group_mock
                 / tag
                 / f"{tag}.{time_tag}.h5"
             )
