@@ -803,7 +803,9 @@ class Scope:
 
         with open(path, 'x') as script:
             script.write('#!/bin/bash\n')
-            script.write('# Example usage: ./get_all_preds_dnn.sh --field=301\n')
+            script.write(
+                '# Call script followed by field number, e.g: ./get_all_preds_dnn.sh 301\n'
+            )
 
             if algorithm in ['dnn', 'DNN', 'nn', 'NN']:
                 script.write('echo "dnn inference"\n')
