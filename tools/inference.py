@@ -54,7 +54,7 @@ def make_missing_dict(source_ids):
     Make a dictionary for storing the missing features for all objects.
     '''
     for id in source_ids:
-        missing_dict[id] = []
+        missing_dict[id.astype(str)] = []
 
 
 def clean_data(
@@ -113,8 +113,8 @@ def clean_data(
         if flag_ids:
             for id in features_df[features_df[feature].isnull()]['_id'].values:
                 if id not in missing_dict.keys():
-                    missing_dict[id.astype(int)] = []
-                missing_dict[id.astype(int)] += [feature]  # add feature to dict
+                    missing_dict[id.astype(str)] = []
+                missing_dict[id.astype(str)] += [feature]  # add feature to dict
         # get stats of feature from config.yaml
         stats = feature_stats.get(feature)
 
@@ -388,6 +388,10 @@ def run(
             )  # 1
 
             ts = time.time()
+            # Convert float64 to float32 to satisfy tensorflow requirements
+            features[
+                features.select_dtypes(np.float64).columns
+            ] = features.select_dtypes(np.float64).astype(np.float32)
             preds = model.predict([features[feature_names].values, dmdt])
             features[model_class + '_dnn'] = preds
             te = time.time()
