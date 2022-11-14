@@ -5,7 +5,7 @@ from .fritz import *
 
 # Below code adapted from https://github.com/skyportal/skyportal/blob/main/skyportal/__init__.py
 # 2022-10-18
-__version__ = '0.2.dev0'
+__version__ = '0.3.dev0'
 
 if 'dev' in __version__:
     # Append last commit date and hash to dev version information, if available
