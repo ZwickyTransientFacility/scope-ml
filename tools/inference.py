@@ -15,7 +15,7 @@ import time
 import h5py
 import pyarrow.dataset as ds
 import scope
-from scope.utils import write_hdf
+from scope.utils import read_hdf, write_hdf
 from datetime import datetime
 from scope.utils import forgiving_true
 
@@ -318,7 +318,7 @@ def run(
     te = time.time()
     if tm:
         print(
-            "read features from locally stored file".ljust(JUST)
+            "read features from locally stored files".ljust(JUST)
             + "\t --> \t"
             + str(round(te - ts, 4))
             + " s"
@@ -456,9 +456,6 @@ def run(
 
     filename = kwargs.get("output", default_outfile)
 
-    if not os.path.exists(filename):
-        os.makedirs(os.path.dirname(filename), exist_ok=True)
-
     # Add metadata
     code_version = scope.__version__
     utcnow = datetime.utcnow()
@@ -467,6 +464,18 @@ def run(
     preds_df.attrs['inference_scope_code_version'] = code_version
     preds_df.attrs['inference_dateTime_utc'] = start_dt
     preds_df.attrs.update(features_metadata)
+
+    print(filename)
+    print(f"{filename}.h5")
+
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
+    if os.path.isfile(f'{filename}.h5'):
+        # Merge existing and new preds
+        existing_preds = read_hdf(f'{filename}.h5')
+        existing_attrs = existing_preds.attrs
+        existing_attrs.update(preds_df.attrs)
+        preds_df = pd.merge(existing_preds, preds_df, on='_id', how='outer')
+        preds_df.attrs = existing_attrs
 
     write_hdf(preds_df, f'{filename}.h5')
     if write_csv:
