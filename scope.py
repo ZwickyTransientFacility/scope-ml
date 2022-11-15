@@ -780,6 +780,7 @@ class Scope:
         filename: str = 'get_all_preds_dnn.sh',
         group_name: str = 'experiment',
         algorithm: str = 'dnn',
+        write_csv: bool = False,
     ):
         """
         Create inference shell script
@@ -787,6 +788,7 @@ class Scope:
         :param filename: filename of shell script (must not currently exist) (str)
         :param group_name: name of group containing trained models within models directory (str)
         :param algorithm: algorithm to use in script (str)
+        :param write_csv: if True, write CSV file in addition to HDF5 (bool)
 
         :return:
 
@@ -796,6 +798,10 @@ class Scope:
 
         path = str(pathlib.Path(__file__).parent.absolute() / filename)
         group_path = pathlib.Path(__file__).parent.absolute() / 'models' / group_name
+
+        addtl_args = ''
+        if write_csv:
+            addtl_args += '--write_csv'
 
         gen = os.walk(group_path)
         model_tags = [tag[1] for tag in gen]
@@ -816,7 +822,7 @@ class Scope:
                         [file for file in tag_file_gen], key=os.path.getctime
                     ).name
                     script.write(
-                        f'echo -n "{tag} ..." && python tools/inference.py --path-model=models/{group_name}/{tag}/{most_recent_file} --model-class={tag} --field=$1 --whole-field --flag_ids && echo "done"\n'
+                        f'echo -n "{tag} ..." && python tools/inference.py --path-model=models/{group_name}/{tag}/{most_recent_file} --model-class={tag} --field=$1 --whole-field --flag_ids {addtl_args} && echo "done"\n'
                     )
 
             elif algorithm in ['xgb', 'XGB', 'xgboost', 'XGBOOST', 'XGBoost']:
@@ -827,7 +833,7 @@ class Scope:
                         [file for file in tag_file_gen], key=os.path.getctime
                     ).name
                     script.write(
-                        f'echo -n "{tag} ..." && python tools/inference.py --path-model=models/{group_name}/{tag}/{most_recent_file} --model-class={tag} --xgb_model --field=$1 --whole-field --flag_ids && echo "done"\n'
+                        f'echo -n "{tag} ..." && python tools/inference.py --path-model=models/{group_name}/{tag}/{most_recent_file} --model-class={tag} --xgb_model --field=$1 --whole-field --flag_ids {addtl_args} && echo "done"\n'
                     )
 
             else:
