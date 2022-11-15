@@ -15,7 +15,7 @@ import time
 import h5py
 import pyarrow.dataset as ds
 import scope
-from scope.utils import write_hdf
+from scope.utils import read_hdf, write_hdf
 from datetime import datetime
 from scope.utils import forgiving_true
 
@@ -54,7 +54,7 @@ def make_missing_dict(source_ids):
     Make a dictionary for storing the missing features for all objects.
     '''
     for id in source_ids:
-        missing_dict[id] = []
+        missing_dict[id.astype(str)] = []
 
 
 def clean_data(
@@ -113,8 +113,8 @@ def clean_data(
         if flag_ids:
             for id in features_df[features_df[feature].isnull()]['_id'].values:
                 if id not in missing_dict.keys():
-                    missing_dict[id.astype(int)] = []
-                missing_dict[id.astype(int)] += [feature]  # add feature to dict
+                    missing_dict[id.astype(str)] = []
+                missing_dict[id.astype(str)] += [feature]  # add feature to dict
         # get stats of feature from config.yaml
         stats = feature_stats.get(feature)
 
@@ -215,6 +215,10 @@ def run(
         whether to print progress
     time: bool
         print time taken by each step
+    write_csv: bool
+        if True, write CSV file in addition to HDF5
+    float_convert_types: 2-tuple of ints (16, 32 or 64)
+        Existing and final float types for feature conversion
     Returns
     =======
     Stores the predictions at the following location:
@@ -244,6 +248,7 @@ def run(
     verbose = kwargs.get("verbose", False)
     whole_field = kwargs.get("whole_field", False)
     write_csv = kwargs.get("write_csv", False)
+    float_convert_types = kwargs.get("float_convert_types", (64, 32))
 
     # default file location for source ids
     if whole_field:
@@ -318,7 +323,7 @@ def run(
     te = time.time()
     if tm:
         print(
-            "read features from locally stored file".ljust(JUST)
+            "read features from locally stored files".ljust(JUST)
             + "\t --> \t"
             + str(round(te - ts, 4))
             + " s"
@@ -388,6 +393,15 @@ def run(
             )  # 1
 
             ts = time.time()
+            # Convert float64 to float32 to satisfy tensorflow requirements
+            float_type_dict = {16: np.float16, 32: np.float32, 64: np.float64}
+            float_init, float_final = float_convert_types[0], float_convert_types[1]
+
+            features[
+                features.select_dtypes(float_type_dict[float_init]).columns
+            ] = features.select_dtypes(float_type_dict[float_init]).astype(
+                float_type_dict[float_final]
+            )
             preds = model.predict([features[feature_names].values, dmdt])
             features[model_class + '_dnn'] = preds
             te = time.time()
@@ -452,9 +466,6 @@ def run(
 
     filename = kwargs.get("output", default_outfile)
 
-    if not os.path.exists(filename):
-        os.makedirs(os.path.dirname(filename), exist_ok=True)
-
     # Add metadata
     code_version = scope.__version__
     utcnow = datetime.utcnow()
@@ -463,6 +474,15 @@ def run(
     preds_df.attrs['inference_scope_code_version'] = code_version
     preds_df.attrs['inference_dateTime_utc'] = start_dt
     preds_df.attrs.update(features_metadata)
+
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
+    if os.path.isfile(f'{filename}.h5'):
+        # Merge existing and new preds
+        existing_preds = read_hdf(f'{filename}.h5')
+        existing_attrs = existing_preds.attrs
+        existing_attrs.update(preds_df.attrs)
+        preds_df = pd.merge(existing_preds, preds_df, on='_id', how='outer')
+        preds_df.attrs = existing_attrs
 
     write_hdf(preds_df, f'{filename}.h5')
     if write_csv:
