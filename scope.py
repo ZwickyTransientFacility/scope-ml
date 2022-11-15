@@ -686,7 +686,9 @@ class Scope:
                 wandb.run.summary["dropped_samples_f1"] = 2 * p * r / (p + r)
 
         if save:
-            output_path = str(pathlib.Path(__file__).parent.absolute() / "models" / tag)
+            output_path = str(
+                pathlib.Path(__file__).parent.absolute() / "models" / group / tag
+            )
             if verbose:
                 print(f"Saving model to {output_path}")
             classifier.save(
@@ -773,6 +775,70 @@ class Scope:
                 ]
             )
 
+    def create_inference_script(
+        self,
+        filename: str = 'get_all_preds_dnn.sh',
+        group_name: str = 'experiment',
+        algorithm: str = 'dnn',
+        write_csv: bool = False,
+    ):
+        """
+        Create inference shell script
+
+        :param filename: filename of shell script (must not currently exist) (str)
+        :param group_name: name of group containing trained models within models directory (str)
+        :param algorithm: algorithm to use in script (str)
+        :param write_csv: if True, write CSV file in addition to HDF5 (bool)
+
+        :return:
+
+        :example:  ./scope.py create_inference_script --filename='get_all_preds_dnn.sh' --group_name='experiment' \
+                    --algorithm='dnn'
+        """
+
+        path = str(pathlib.Path(__file__).parent.absolute() / filename)
+        group_path = pathlib.Path(__file__).parent.absolute() / 'models' / group_name
+
+        addtl_args = ''
+        if write_csv:
+            addtl_args += '--write_csv'
+
+        gen = os.walk(group_path)
+        model_tags = [tag[1] for tag in gen]
+        model_tags = model_tags[0]
+
+        with open(path, 'x') as script:
+            script.write('#!/bin/bash\n')
+            script.write(
+                '# Call script followed by field number, e.g: ./get_all_preds_dnn.sh 301\n'
+            )
+
+            if algorithm in ['dnn', 'DNN', 'nn', 'NN']:
+                script.write('echo "dnn inference"\n')
+                # Select most recent model for each tag
+                for tag in model_tags:
+                    tag_file_gen = (group_path / tag).glob('*.h5')
+                    most_recent_file = max(
+                        [file for file in tag_file_gen], key=os.path.getctime
+                    ).name
+                    script.write(
+                        f'echo -n "{tag} ..." && python tools/inference.py --path-model=models/{group_name}/{tag}/{most_recent_file} --model-class={tag} --field=$1 --whole-field --flag_ids {addtl_args} && echo "done"\n'
+                    )
+
+            elif algorithm in ['xgb', 'XGB', 'xgboost', 'XGBOOST', 'XGBoost']:
+                script.write('echo "xgb inference"\n')
+                for tag in model_tags:
+                    tag_file_gen = (group_path / tag).glob('*.h5')
+                    most_recent_file = max(
+                        [file for file in tag_file_gen], key=os.path.getctime
+                    ).name
+                    script.write(
+                        f'echo -n "{tag} ..." && python tools/inference.py --path-model=models/{group_name}/{tag}/{most_recent_file} --model-class={tag} --xgb_model --field=$1 --whole-field --flag_ids {addtl_args} && echo "done"\n'
+                    )
+
+            else:
+                raise ValueError('algorithm must be DNN or XGB')
+
     def test(self):
         """Test different workflows
 
@@ -783,6 +849,7 @@ class Scope:
         # create a mock dataset and check that the training pipeline works
         dataset = f"{uuid.uuid4().hex}.csv"
         path_mock = pathlib.Path(__file__).parent.absolute() / "data" / "training"
+        group_mock = 'experiment'
 
         try:
             if not path_mock.exists():
@@ -831,6 +898,7 @@ class Scope:
             path_model = (
                 pathlib.Path(__file__).parent.absolute()
                 / "models"
+                / group_mock
                 / tag
                 / f"{tag}.{time_tag}.h5"
             )
