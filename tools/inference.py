@@ -465,9 +465,6 @@ def run(
     preds_df.attrs['inference_dateTime_utc'] = start_dt
     preds_df.attrs.update(features_metadata)
 
-    print(filename)
-    print(f"{filename}.h5")
-
     os.makedirs(os.path.dirname(filename), exist_ok=True)
     if os.path.isfile(f'{filename}.h5'):
         # Merge existing and new preds
