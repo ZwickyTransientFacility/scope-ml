@@ -215,6 +215,10 @@ def run(
         whether to print progress
     time: bool
         print time taken by each step
+    write_csv: bool
+        if True, write CSV file in addition to HDF5
+    float_convert_types: 2-tuple of ints (16, 32 or 64)
+        Existing and final float types for feature conversion
     Returns
     =======
     Stores the predictions at the following location:
@@ -244,6 +248,7 @@ def run(
     verbose = kwargs.get("verbose", False)
     whole_field = kwargs.get("whole_field", False)
     write_csv = kwargs.get("write_csv", False)
+    float_convert_types = kwargs.get("float_convert_types", (64, 32))
 
     # default file location for source ids
     if whole_field:
@@ -389,9 +394,14 @@ def run(
 
             ts = time.time()
             # Convert float64 to float32 to satisfy tensorflow requirements
+            float_type_dict = {16: np.float16, 32: np.float32, 64: np.float64}
+            float_init, float_final = float_convert_types[0], float_convert_types[1]
+
             features[
-                features.select_dtypes(np.float64).columns
-            ] = features.select_dtypes(np.float64).astype(np.float32)
+                features.select_dtypes(float_type_dict[float_init]).columns
+            ] = features.select_dtypes(float_type_dict[float_init]).astype(
+                float_type_dict[float_final]
+            )
             preds = model.predict([features[feature_names].values, dmdt])
             features[model_class + '_dnn'] = preds
             te = time.time()
