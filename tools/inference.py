@@ -315,6 +315,9 @@ def run(
     # get raw features
     feature_stats = config.get("feature_stats", None)
     preds_collection = []
+    ra_collection = np.array([])
+    dec_collection = np.array([])
+    period_collection = np.array([])
     source_id_count = 0
 
     ts = time.time()
@@ -332,6 +335,11 @@ def run(
     for batch in generator:
         features = batch.to_pandas()
         source_ids = features['_id'].values
+        ra_collection = np.concatenate([ra_collection, features['ra'].values])
+        dec_collection = np.concatenate([dec_collection, features['dec'].values])
+        period_collection = np.concatenate(
+            [period_collection, features['period'].values]
+        )
         source_id_count += len(source_ids)
 
         try:
@@ -483,6 +491,16 @@ def run(
         existing_attrs.update(preds_df.attrs)
         preds_df = pd.merge(existing_preds, preds_df, on='_id', how='outer')
         preds_df.attrs = existing_attrs
+    else:
+        # If new file, add ra/dec/period columns
+        # Reorganize so inference columns are together, not interrupted by coords/period
+        class_name = preds_df.columns[-1]
+        inference_col = preds_df[class_name]
+        preds_df.drop(columns=class_name, inplace=True)
+        preds_df['ra'] = ra_collection
+        preds_df['dec'] = dec_collection
+        preds_df['period'] = period_collection
+        preds_df[class_name] = inference_col
 
     write_hdf(preds_df, f'{filename}.h5')
     if write_csv:
