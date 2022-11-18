@@ -154,6 +154,7 @@ inputs:
 8. Index to stop uploading (inclusive)
 9. Skip photometry upload (existing sources only)
 10. Origin of ZTF data. If set, values in ztf_id CSV column will post as annotations.
+11. Probability threshold for posted classification (values must be greater than this number to post)
 
 process:
 1. get object ids of all the data from Fritz using the ra, dec, and period
@@ -163,7 +164,7 @@ process:
 5. (post comment to each uploaded source)
 
 ```sh
-./scope_upload_classification.py -file sample.csv -group_ids 500 250 750 -taxonomy_id 7 -classification variable flaring -taxonomy_map map.json -comment vetted -start 35 -stop 50 -skip_phot False -ztf_origin ZTF_DR5
+./scope_upload_classification.py -file sample.csv -group_ids 500 250 750 -taxonomy_id 7 -classification variable flaring -taxonomy_map map.json -comment vetted -start 35 -stop 50 -skip_phot False -ztf_origin ZTF_DR5 -p_threshold 0.9
 ```
 
 ## Scope Manage Annotation
