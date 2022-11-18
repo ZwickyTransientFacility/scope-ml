@@ -84,9 +84,13 @@ def upload_classification(
 
         if read_classes:
             row_classes = row[classes]  # limit current row to specific columns
-            threshold_keys = row_classes.keys()[
-                row_classes >= p_threshold
-            ]  # determine which dataset classifications are nonzero
+            if p_threshold > 0.0:
+                threshold_keys = row_classes.keys()[
+                    row_classes >= p_threshold
+                ]  # determine which dataset classifications are nonzero
+            # Do not post classifications if p = 0
+            else:
+                threshold_keys = row_classes.keys()[row_classes > 0]
 
             for val in threshold_keys:
                 cls = tax_map[val]['fritz_label']
