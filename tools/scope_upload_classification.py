@@ -28,6 +28,7 @@ def upload_classification(
     stop: int,
     ztf_origin: str,
     skip_phot: bool = False,
+    p_threshold: float = 0.0,
 ):
     """
     Upload labels to Fritz
@@ -42,6 +43,7 @@ def upload_classification(
     :param stop: index in CSV file to stop upload (inclusive) (int)
     :ztf_origin: origin of uploaded ZTF data; if set, posts ztf_id to annotation (str)
     :skip_phot: if True, only upload groups and classifications (no photometry) (bool)
+    :p_threshold: classification probabilties must be > this number to post (float)
     """
 
     # read in file to csv
@@ -82,11 +84,11 @@ def upload_classification(
 
         if read_classes:
             row_classes = row[classes]  # limit current row to specific columns
-            nonzero_keys = row_classes.keys()[
-                row_classes > 0
+            threshold_keys = row_classes.keys()[
+                row_classes > p_threshold
             ]  # determine which dataset classifications are nonzero
 
-            for val in nonzero_keys:
+            for val in threshold_keys:
                 cls = tax_map[val]['fritz_label']
                 tax_id = tax_map[val]['taxonomy_id']
                 if cls != 'None':  # if Fritz taxonomy value exists, add to class list
@@ -278,6 +280,13 @@ if __name__ == "__main__":
 
     parser.add_argument("-ztf_origin", type=str, help="Origin of uploaded ZTF data")
 
+    parser.add_argument(
+        "-p_threshold",
+        type=float,
+        default=0.0,
+        help="Classification probability > this number to upload",
+    )
+
     args = parser.parse_args()
 
     # upload classification objects
@@ -293,4 +302,5 @@ if __name__ == "__main__":
         args.stop,
         args.ztf_origin,
         args.skip_phot,
+        args.p_threshold,
     )
