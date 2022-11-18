@@ -224,7 +224,7 @@ def upload_classification(
 
         # Post ZTF ID as annotation
         if ztf_origin is not None:
-            ztfid = str(row['ztf_id'])
+            ztfid = str(int(row['ztf_id']))
             scope_manage_annotation.manage_annotation(
                 'POST', obj_id, group_ids, ztf_origin, 'ztf_id', ztfid
             )
