@@ -43,7 +43,7 @@ def upload_classification(
     :param stop: index in CSV file to stop upload (inclusive) (int)
     :ztf_origin: origin of uploaded ZTF data; if set, posts ztf_id to annotation (str)
     :skip_phot: if True, only upload groups and classifications (no photometry) (bool)
-    :p_threshold: classification probabilties must be > this number to post (float)
+    :p_threshold: classification probabilties must be >= this number to post (float)
     """
 
     # read in file to csv
@@ -85,7 +85,7 @@ def upload_classification(
         if read_classes:
             row_classes = row[classes]  # limit current row to specific columns
             threshold_keys = row_classes.keys()[
-                row_classes > p_threshold
+                row_classes >= p_threshold
             ]  # determine which dataset classifications are nonzero
 
             for val in threshold_keys:
@@ -284,7 +284,7 @@ if __name__ == "__main__":
         "-p_threshold",
         type=float,
         default=0.0,
-        help="Classification probability > this number to upload",
+        help="Classification probability >= this number to upload",
     )
 
     args = parser.parse_args()

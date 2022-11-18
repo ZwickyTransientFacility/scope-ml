@@ -154,7 +154,7 @@ inputs:
 8. Index to stop uploading (inclusive)
 9. Skip photometry upload (existing sources only)
 10. Origin of ZTF data. If set, values in ztf_id CSV column will post as annotations.
-11. Probability threshold for posted classification (values must be greater than this number to post)
+11. Probability threshold for posted classification (values must be >= than this number to post)
 
 process:
 1. get object ids of all the data from Fritz using the ra, dec, and period
