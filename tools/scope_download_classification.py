@@ -111,7 +111,6 @@ def merge_sources_features(
         sources = sources.drop_duplicates('ztf_id').reset_index(drop=True)
 
     features_ztf_dr = features_catalog.split('_')[-1]
-    # source_ids = sources['ztf_id'].values.astype(int).tolist()
 
     # Open golden dataset mapper
     mapper_dir = os.path.dirname(__file__)
