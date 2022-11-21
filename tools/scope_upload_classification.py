@@ -29,6 +29,7 @@ def upload_classification(
     ztf_origin: str,
     skip_phot: bool = False,
     p_threshold: float = 0.0,
+    no_match_ids: bool = False,
 ):
     """
     Upload labels to Fritz
@@ -44,6 +45,7 @@ def upload_classification(
     :ztf_origin: origin of uploaded ZTF data; if set, posts ztf_id to annotation (str)
     :skip_phot: if True, only upload groups and classifications (no photometry) (bool)
     :p_threshold: classification probabilties must be >= this number to post (float)
+    :no_match_ids: if True, skip matching ZTF source ids when searching existing sources
     """
 
     # read in file to csv
@@ -129,25 +131,49 @@ def upload_classification(
         src_dict = {}
         create_time_dict = {}
         obj_id = None
+
+        if ztf_origin is not None:
+            ztfid = int(row['ztf_id'])
+        elif not no_match_ids:
+            raise ValueError('ZTF ID/origin must be provided for IDs to be matched.')
+
         if data["totalMatches"] > 0:
             # get most recent ZTFJ source
+            id_found = 0
             for src in data['sources']:
+                if id_found:
+                    break
                 src_id = src['id']
                 src_dict[src_id] = src
 
-                create_time = src['created_at']
-                dt_create_time = datetime.strptime(create_time, '%Y-%m-%dT%H:%M:%S.%f')
-                create_time_dict[dt_create_time] = src_id
+                if not no_match_ids:
+                    annotations = src['annotations']
+                    for annot in annotations:
+                        if annot['origin'] == ztf_origin:
+                            src_ztf_ids = [int(x) for x in annot['data'].values()]
+                            if ztfid in src_ztf_ids:
+                                id_found = 1
+                                break
+                else:
+                    create_time = src['created_at']
+                    dt_create_time = datetime.strptime(
+                        create_time, '%Y-%m-%dT%H:%M:%S.%f'
+                    )
+                    create_time_dict[dt_create_time] = src_id
 
-            create_time_list = [x for x in create_time_dict.keys()]
-            create_time_list.sort(reverse=True)
+            if id_found:
+                existing_source = src_dict[src_id]
+                obj_id = src_id
+            elif no_match_ids:
+                create_time_list = [x for x in create_time_dict.keys()]
+                create_time_list.sort(reverse=True)
 
-            for t in create_time_list:
-                src_id = create_time_dict[t]
-                if src_id[:4] == 'ZTFJ':
-                    existing_source = src_dict[src_id]
-                    obj_id = src_id
-                    break
+                for t in create_time_list:
+                    src_id = create_time_dict[t]
+                    if src_id[:4] == 'ZTFJ':
+                        existing_source = src_dict[src_id]
+                        obj_id = src_id
+                        break
 
         print(f"object {index} id:", obj_id)
 
@@ -188,7 +214,6 @@ def upload_classification(
         # check for existing classifications
         for entry in data_classes:
             existing_classes += [entry['classification']]
-
         # allow classification assignment to be skipped
         if classification is not None:
             for cls in cls_list:
@@ -224,10 +249,27 @@ def upload_classification(
 
         # Post ZTF ID as annotation
         if ztf_origin is not None:
-            ztfid = str(int(row['ztf_id']))
-            scope_manage_annotation.manage_annotation(
-                'POST', obj_id, group_ids, ztf_origin, 'ztf_id', ztfid
-            )
+            if obj_id not in [x for x in src_dict.keys()]:
+                scope_manage_annotation.manage_annotation(
+                    'POST', obj_id, group_ids, ztf_origin, 'ztf_id', str(ztfid)
+                )
+            else:
+                source_to_update = src_dict[obj_id]
+                existing_ztf_ids = [
+                    x['data']
+                    for x in source_to_update['annotations']
+                    if x['origin'] == ztf_origin
+                ][0]
+                n_existing_ztf_ids = len(existing_ztf_ids.keys())
+                if ztfid not in existing_ztf_ids.values():
+                    scope_manage_annotation.manage_annotation(
+                        'UPDATE',
+                        obj_id,
+                        group_ids,
+                        ztf_origin,
+                        f'ztf_id_{n_existing_ztf_ids+1}',
+                        str(ztfid),
+                    )
 
         # batch upload classifications
         if len(dict_list) != 0:
@@ -291,6 +333,13 @@ if __name__ == "__main__":
         help="Classification probability >= this number to upload",
     )
 
+    parser.add_argument(
+        "-no_match_ids",
+        action='store_true',
+        default=False,
+        help="If set, match input and existing sources without using ZTF source IDs.",
+    )
+
     args = parser.parse_args()
 
     # upload classification objects
@@ -307,4 +356,5 @@ if __name__ == "__main__":
         args.ztf_origin,
         args.skip_phot,
         args.p_threshold,
+        args.no_match_ids,
     )

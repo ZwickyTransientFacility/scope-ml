@@ -70,10 +70,9 @@ def manage_annotation(action, source, group_ids, origin, key, value):
 
                 for n in annot_name:
                     # if match is found, perform action
-                    if (key == n) & (origin == annot_origin):
-                        matches += 1
-
+                    if origin == annot_origin:
                         if action == 'update':
+                            matches += 1
                             value = values[i]
 
                             # Check value if performing update or post actions
@@ -84,8 +83,9 @@ def manage_annotation(action, source, group_ids, origin, key, value):
 
                             # After passing check, revise annotation with PUT
                             else:
+                                annot_data.update({key: value})
                                 json = {
-                                    "data": {key: value},
+                                    "data": annot_data,
                                     "origin": origin,
                                     "obj_id": annot_id,
                                 }
@@ -96,37 +96,53 @@ def manage_annotation(action, source, group_ids, origin, key, value):
                                     json,
                                 )
                                 if response.status_code == 200:  # success
-                                    print(
-                                        'Updated annotation %s (%s = %s to %s) for %s'
-                                        % (
-                                            annot_origin,
-                                            n,
-                                            annot_value,
-                                            value,
-                                            obj_id,
+                                    if key == n:
+                                        # Updated existing key
+                                        print(
+                                            'Updated annotation %s (%s = %s to %s) for %s'
+                                            % (
+                                                annot_origin,
+                                                n,
+                                                annot_value,
+                                                value,
+                                                obj_id,
+                                            )
                                         )
-                                    )
+                                    else:
+                                        print(
+                                            'Updated annotation %s (%s = %s for %s)'
+                                            % (
+                                                annot_origin,
+                                                key,
+                                                value,
+                                                obj_id,
+                                            )
+                                        )
+                                    break
                                 else:
                                     print('Did not %s - check inputs.' % action)
 
                         # Delete annotation with DELETE
                         elif action == 'delete':
-                            response = api(
-                                "DELETE",
-                                '/api/sources/%s/annotations/%s' % (obj_id, annot_id),
-                            )
-                            if response.status_code == 200:  # success
-                                print(
-                                    'Deleted annotation %s (%s = %s) for %s'
-                                    % (annot_origin, n, annot_value, obj_id)
+                            if key == n:
+                                matches += 1
+                                response = api(
+                                    "DELETE",
+                                    '/api/sources/%s/annotations/%s'
+                                    % (obj_id, annot_id),
                                 )
-                            else:
-                                print('Did not %s - check inputs.' % action)
+                                if response.status_code == 200:  # success
+                                    print(
+                                        'Deleted annotation %s (%s = %s) for %s'
+                                        % (annot_origin, n, annot_value, obj_id)
+                                    )
+                                else:
+                                    print('Did not %s - check inputs.' % action)
 
             # Alert user if no origin/key matches in each source's annotations
             if matches == 0:
                 print(
-                    'Origin/key pair %s/%s did not match any existing annotations for %s.'
+                    'Origin and/or key (%s, %s) did not match any existing annotations for %s.'
                     % (origin, key, obj_id)
                 )
 
