@@ -133,6 +133,7 @@ process:
 3. get the classification/probabilities/periods of the objects in the dataset from Fritz
 4. append these values as new columns on the dataset, save to new file
 5. if merge_features, query Kowalski and merge sources with features, saving new CSV file
+6. Fritz sources with multiple ztf_id annotations will generate multiple rows in the merged feature file
 6. To skip the source download part of the code, provide an input CSV file containing columns named 'obj_id', 'classification', 'probability', 'period_origin', 'period', 'ztf_id_origin', and 'ztf_id'.
 
 output: data with new columns appended.
@@ -155,12 +156,14 @@ inputs:
 9. Skip photometry upload (existing sources only)
 10. Origin of ZTF data. If set, values in ztf_id CSV column will post as annotations.
 11. Probability threshold for posted classification (values must be >= than this number to post)
+12. Set -no_match_ids to prevent the code from matching input and existing ZTF IDs during upload
 
 process:
-1. get object ids of all the data from Fritz using the ra, dec, and period
-2. save the objects to Fritz group
+1. check if each input source exists by comparing input and existing ZTF IDs
+2. save the objects to Fritz group if new
 3. in batches, upload the classifications of the objects in the dataset to target group on Fritz
 4. duplicate classifications will not be uploaded to Fritz. If n classifications are manually specified, probabilities will be sourced from the last n columns of the dataset.
+5. post ZTF ID annotations, subscritping for multiple close sources (e.g. ztf_id_2, ztf_id_3)
 5. (post comment to each uploaded source)
 
 ```sh
