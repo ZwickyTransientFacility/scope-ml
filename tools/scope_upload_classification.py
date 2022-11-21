@@ -29,7 +29,7 @@ def upload_classification(
     ztf_origin: str,
     skip_phot: bool = False,
     p_threshold: float = 0.0,
-    match_ids: bool = True,
+    no_match_ids: bool = False,
 ):
     """
     Upload labels to Fritz
@@ -45,7 +45,7 @@ def upload_classification(
     :ztf_origin: origin of uploaded ZTF data; if set, posts ztf_id to annotation (str)
     :skip_phot: if True, only upload groups and classifications (no photometry) (bool)
     :p_threshold: classification probabilties must be >= this number to post (float)
-    :match_ids: if True, match ZTF source ids when searching existing sources
+    :no_match_ids: if True, skip matching ZTF source ids when searching existing sources
     """
 
     # read in file to csv
@@ -134,7 +134,7 @@ def upload_classification(
 
         if ztf_origin is not None:
             ztfid = int(row['ztf_id'])
-        elif match_ids:
+        elif not no_match_ids:
             raise ValueError('ZTF ID/origin must be provided for IDs to be matched.')
 
         if data["totalMatches"] > 0:
@@ -146,7 +146,7 @@ def upload_classification(
                 src_id = src['id']
                 src_dict[src_id] = src
 
-                if match_ids:
+                if not no_match_ids:
                     annotations = src['annotations']
                     for annot in annotations:
                         if annot['origin'] == ztf_origin:
@@ -164,7 +164,7 @@ def upload_classification(
             if id_found:
                 existing_source = src_dict[src_id]
                 obj_id = src_id
-            elif not match_ids:
+            elif no_match_ids:
                 create_time_list = [x for x in create_time_dict.keys()]
                 create_time_list.sort(reverse=True)
 
@@ -336,6 +336,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "-no_match_ids",
         action='store_true',
+        default=False,
         help="If set, match input and existing sources without using ZTF source IDs.",
     )
 
@@ -355,5 +356,5 @@ if __name__ == "__main__":
         args.ztf_origin,
         args.skip_phot,
         args.p_threshold,
-        not args.no_match_ids,
+        args.no_match_ids,
     )

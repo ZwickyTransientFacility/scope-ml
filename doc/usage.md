@@ -134,7 +134,7 @@ process:
 4. append these values as new columns on the dataset, save to new file
 5. if merge_features, query Kowalski and merge sources with features, saving new CSV file
 6. Fritz sources with multiple ztf_id annotations will generate multiple rows in the merged feature file
-6. To skip the source download part of the code, provide an input CSV file containing columns named 'obj_id', 'classification', 'probability', 'period_origin', 'period', 'ztf_id_origin', and 'ztf_id'.
+7. To skip the source download part of the code, provide an input CSV file containing columns named 'obj_id', 'classification', 'probability', 'period_origin', 'period', 'ztf_id_origin', and 'ztf_id'.
 
 output: data with new columns appended.
 
@@ -167,7 +167,7 @@ process:
 5. (post comment to each uploaded source)
 
 ```sh
-./scope_upload_classification.py -file sample.csv -group_ids 500 250 750 -taxonomy_id 7 -classification variable flaring -taxonomy_map map.json -comment vetted -start 35 -stop 50 -skip_phot False -ztf_origin ZTF_DR5 -p_threshold 0.9
+./scope_upload_classification.py -file sample.csv -group_ids 500 250 750 -taxonomy_id 7 -classification variable flaring -taxonomy_map map.json -comment vetted -start 35 -stop 50 -skip_phot -ztf_origin ZTF_DR5 -p_threshold 0.9
 ```
 
 ## Scope Manage Annotation
