@@ -48,7 +48,7 @@ def organize_source_data(src: pd.DataFrame):
                 origin_list += annot_origin + ';'
                 period_list += str(annot_data[n]) + ';'
 
-            elif n == 'ztf_id':
+            elif 'ztf_id' in n:
                 id_origin_list += annot_origin + ';'
                 id_list += str(annot_data[n]) + ';'
 
@@ -111,7 +111,7 @@ def merge_sources_features(
         sources = sources.drop_duplicates('ztf_id').reset_index(drop=True)
 
     features_ztf_dr = features_catalog.split('_')[-1]
-    source_ids = sources['ztf_id'].values.astype(int).tolist()
+    # source_ids = sources['ztf_id'].values.astype(int).tolist()
 
     # Open golden dataset mapper
     mapper_dir = os.path.dirname(__file__)
@@ -173,23 +173,24 @@ def merge_sources_features(
             ztf_id_origin_dr = row['ztf_id_origin'].split('_')[-1]
 
         # Check if Fritz ZTF DR number is the same as features catalog
-        ztf_id = row['ztf_id']
-        if ztf_id_origin_dr == features_ztf_dr:
-            source_dict['ztf_id'] = int(ztf_id)
-        else:
-            raise ValueError(
-                'ZTF data release numbers do not match between Fritz and features catalog.'
-            )
+        ztf_ids = row['ztf_id'].split(';')
+        for ztf_id in ztf_ids:
+            source_dict_copy = source_dict.copy()
+            if ztf_id_origin_dr == features_ztf_dr:
+                source_dict_copy['ztf_id'] = int(ztf_id)
+            else:
+                raise ValueError(
+                    'ZTF data release numbers do not match between Fritz and features catalog.'
+                )
 
-        source_dict_list += [source_dict]
+            source_dict_list += [source_dict_copy]
 
     # Create dataframe
     expanded_sources = pd.DataFrame(source_dict_list)
-
     # Query Kowalski
     print('Getting features...')
     df, dmdt = get_features(
-        source_ids=source_ids,
+        source_ids=expanded_sources['ztf_id'].values.tolist(),
         features_catalog=features_catalog,
         limit_per_query=features_limit,
     )
