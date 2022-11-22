@@ -9,8 +9,6 @@ import pandas as pd
 from requests.exceptions import InvalidJSONError, JSONDecodeError
 from urllib3.exceptions import ProtocolError
 
-MAX_ATTEMPTS = 10
-
 
 def get_highscoring_objects(
     G,
@@ -69,7 +67,9 @@ def get_stats(G, ids):
 config_path = pathlib.Path(__file__).parent.parent.absolute() / "config.yaml"
 with open(config_path) as config_yaml:
     config = yaml.load(config_yaml, Loader=yaml.FullLoader)
-BASE_URL = "https://fritz.science/"
+BASE_URL = f"{config['fritz']['protocol']}://{config['fritz']['host']}/"
+MAX_ATTEMPTS = config['fritz']['max_attempts']
+SLEEP_TIME = config['fritz']['sleep_time']
 fritz_token = config['fritz']['token']
 
 
@@ -79,8 +79,8 @@ def api(
     data: Optional[Mapping] = None,
     token: str = fritz_token,
     base_url: str = BASE_URL,
-    max_attempts: int = 1,
-    sleep_time: int = 5,
+    max_attempts: int = MAX_ATTEMPTS,
+    sleep_time: int = SLEEP_TIME,
 ):
     method = method.upper()
     headers = {"Authorization": f"token {token}"}

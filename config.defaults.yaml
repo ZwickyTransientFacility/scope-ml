@@ -12,6 +12,8 @@ fritz:
   token:
   protocol: https
   host: fritz.science
+  max_attempts: 10
+  sleep_time: 5
 wandb:
   project: scope
   # Get your W&B token at https://wandb.ai/authorize
