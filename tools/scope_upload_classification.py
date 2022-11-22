@@ -259,17 +259,22 @@ def upload_classification(
                     x['data']
                     for x in source_to_update['annotations']
                     if x['origin'] == ztf_origin
-                ][0]
-                n_existing_ztf_ids = len(existing_ztf_ids.keys())
-                if ztfid not in existing_ztf_ids.values():
+                ]
+                if len(existing_ztf_ids) == 0:
                     scope_manage_annotation.manage_annotation(
-                        'UPDATE',
-                        obj_id,
-                        group_ids,
-                        ztf_origin,
-                        f'ztf_id_{n_existing_ztf_ids+1}',
-                        str(ztfid),
+                        'POST', obj_id, group_ids, ztf_origin, 'ztf_id', str(ztfid)
                     )
+                else:
+                    n_existing_ztf_ids = len(existing_ztf_ids[0].keys())
+                    if ztfid not in existing_ztf_ids[0].values():
+                        scope_manage_annotation.manage_annotation(
+                            'UPDATE',
+                            obj_id,
+                            group_ids,
+                            ztf_origin,
+                            f'ztf_id_{n_existing_ztf_ids+1}',
+                            str(ztfid),
+                        )
 
         # batch upload classifications
         if len(dict_list) != 0:
