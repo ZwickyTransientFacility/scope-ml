@@ -9,9 +9,6 @@ import pandas as pd
 from requests.exceptions import InvalidJSONError, JSONDecodeError
 from urllib3.exceptions import ProtocolError
 
-MAX_ATTEMPTS = 10
-SLEEP_TIME = 5
-
 
 def get_highscoring_objects(
     G,
@@ -70,7 +67,9 @@ def get_stats(G, ids):
 config_path = pathlib.Path(__file__).parent.parent.absolute() / "config.yaml"
 with open(config_path) as config_yaml:
     config = yaml.load(config_yaml, Loader=yaml.FullLoader)
-BASE_URL = "https://fritz.science/"
+BASE_URL = f"{config['fritz']['protocol']}://{config['fritz']['host']}/"
+MAX_ATTEMPTS = config['fritz']['max_attempts']
+SLEEP_TIME = config['fritz']['sleep_time']
 fritz_token = config['fritz']['token']
 
 
