@@ -11,7 +11,6 @@ import pathlib
 from tools import scope_manage_annotation
 from datetime import datetime
 
-MAX_ATTEMPTS = 10
 RADIUS_ARCSEC = 2
 UPLOAD_BATCHSIZE = 10
 

@@ -10,6 +10,7 @@ from requests.exceptions import InvalidJSONError, JSONDecodeError
 from urllib3.exceptions import ProtocolError
 
 MAX_ATTEMPTS = 10
+SLEEP_TIME = 5
 
 
 def get_highscoring_objects(
@@ -79,8 +80,8 @@ def api(
     data: Optional[Mapping] = None,
     token: str = fritz_token,
     base_url: str = BASE_URL,
-    max_attempts: int = 1,
-    sleep_time: int = 5,
+    max_attempts: int = MAX_ATTEMPTS,
+    sleep_time: int = SLEEP_TIME,
 ):
     method = method.upper()
     headers = {"Authorization": f"token {token}"}
