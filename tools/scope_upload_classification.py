@@ -10,6 +10,7 @@ import yaml
 import pathlib
 from tools import scope_manage_annotation
 from datetime import datetime
+import numpy as np
 
 RADIUS_ARCSEC = 2
 UPLOAD_BATCHSIZE = 10
@@ -29,6 +30,7 @@ def upload_classification(
     skip_phot: bool = False,
     p_threshold: float = 0.0,
     no_match_ids: bool = False,
+    use_existing_obj_id: bool = False,
 ):
     """
     Upload labels to Fritz
@@ -44,7 +46,8 @@ def upload_classification(
     :ztf_origin: origin of uploaded ZTF data; if set, posts ztf_id to annotation (str)
     :skip_phot: if True, only upload groups and classifications (no photometry) (bool)
     :p_threshold: classification probabilties must be >= this number to post (float)
-    :no_match_ids: if True, skip matching ZTF source ids when searching existing sources
+    :no_match_ids: if True, skip matching ZTF source ids when searching existing sources (bool)
+    :use_existing_obj_id: if True, source obj_id from input dataset (bool)
     """
 
     # read in file to csv
@@ -120,59 +123,67 @@ def upload_classification(
         else:
             warnings.warn('period column is missing - skipping period upload.')
 
-        # get object id
-        response = api(
-            "GET", f"/api/sources?&ra={ra}&dec={dec}&radius={RADIUS_ARCSEC/3600}"
-        )
-        data = response.json().get('data')
-
         existing_source = []
-        src_dict = {}
-        create_time_dict = {}
-        obj_id = None
+        if ('obj_id' in columns) & (use_existing_obj_id):
+            obj_id = row.obj_id
+            response = api("GET", f"/api/sources/{obj_id}")
+            data = response.json().get('data')
+            existing_source = data
+        else:
+            obj_id = None
+            # get object id
+            response = api(
+                "GET", f"/api/sources?&ra={ra}&dec={dec}&radius={RADIUS_ARCSEC/3600}"
+            )
+            data = response.json().get('data')
 
-        if ztf_origin is not None:
-            ztfid = int(row['ztf_id'])
-        elif not no_match_ids:
-            raise ValueError('ZTF ID/origin must be provided for IDs to be matched.')
+            src_dict = {}
+            create_time_dict = {}
 
-        if data["totalMatches"] > 0:
-            # get most recent ZTFJ source
-            id_found = 0
-            for src in data['sources']:
-                if id_found:
-                    break
-                src_id = src['id']
-                src_dict[src_id] = src
+            if ztf_origin is not None:
+                ztfid = int(row['ztf_id'])
+            elif not no_match_ids:
+                raise ValueError(
+                    'ZTF ID/origin must be provided for IDs to be matched.'
+                )
 
-                if not no_match_ids:
-                    annotations = src['annotations']
-                    for annot in annotations:
-                        if annot['origin'] == ztf_origin:
-                            src_ztf_ids = [int(x) for x in annot['data'].values()]
-                            if ztfid in src_ztf_ids:
-                                id_found = 1
-                                break
-                else:
-                    create_time = src['created_at']
-                    dt_create_time = datetime.strptime(
-                        create_time, '%Y-%m-%dT%H:%M:%S.%f'
-                    )
-                    create_time_dict[dt_create_time] = src_id
-
-            if id_found:
-                existing_source = src_dict[src_id]
-                obj_id = src_id
-            elif no_match_ids:
-                create_time_list = [x for x in create_time_dict.keys()]
-                create_time_list.sort(reverse=True)
-
-                for t in create_time_list:
-                    src_id = create_time_dict[t]
-                    if src_id[:4] == 'ZTFJ':
-                        existing_source = src_dict[src_id]
-                        obj_id = src_id
+            if data["totalMatches"] > 0:
+                # get most recent ZTFJ source
+                id_found = 0
+                for src in data['sources']:
+                    if id_found:
                         break
+                    src_id = src['id']
+                    src_dict[src_id] = src
+
+                    if not no_match_ids:
+                        annotations = src['annotations']
+                        for annot in annotations:
+                            if annot['origin'] == ztf_origin:
+                                src_ztf_ids = [int(x) for x in annot['data'].values()]
+                                if ztfid in src_ztf_ids:
+                                    id_found = 1
+                                    break
+                    else:
+                        create_time = src['created_at']
+                        dt_create_time = datetime.strptime(
+                            create_time, '%Y-%m-%dT%H:%M:%S.%f'
+                        )
+                        create_time_dict[dt_create_time] = src_id
+
+                if id_found:
+                    existing_source = src_dict[src_id]
+                    obj_id = src_id
+                elif no_match_ids:
+                    create_time_list = [x for x in create_time_dict.keys()]
+                    create_time_list.sort(reverse=True)
+
+                    for t in create_time_list:
+                        src_id = create_time_dict[t]
+                        if src_id[:4] == 'ZTFJ':
+                            existing_source = src_dict[src_id]
+                            obj_id = src_id
+                            break
 
         print(f"object {index} id:", obj_id)
 
@@ -185,6 +196,7 @@ def upload_classification(
                 group_ids,
                 ra,
                 dec,
+                obj_id=obj_id,
                 period=period,
                 return_id=True,
                 radius=RADIUS_ARCSEC,
@@ -210,15 +222,30 @@ def upload_classification(
             json = {"objId": obj_id, "inviteGroupIds": add_group_ids}
             response = api("POST", "/api/source_groups", json)
 
-        # check for existing classifications
+        # check for existing classifications and their groups
+        class_group_dict = {}
         for entry in data_classes:
-            existing_classes += [entry['classification']]
+            c_key = entry['classification']
+            c_values = [x['id'] for x in entry['groups']]
+
+            if c_key not in class_group_dict.keys():
+                class_group_dict[c_key] = c_values
+            else:
+                class_group_dict[entry['classification']].extend(c_values)
+
+        for key in class_group_dict.keys():
+            grp_ids = np.array(class_group_dict[key])
+            unique_grp_ids = np.unique(grp_ids)
+            class_group_dict[key] = unique_grp_ids.tolist()
+
+        existing_classes = [k for k in class_group_dict.keys()]
+
         # allow classification assignment to be skipped
         if classification is not None:
             for cls in cls_list:
+                tax = tax_dict[cls]
+                prob = probs[cls]
                 if cls not in existing_classes:
-                    tax = tax_dict[cls]
-                    prob = probs[cls]
                     # post all non-duplicate classifications
                     json = {
                         "obj_id": obj_id,
@@ -228,6 +255,21 @@ def upload_classification(
                         "group_ids": group_ids,
                     }
                     dict_list += [json]
+                else:
+                    # Classification may exist, but not for intended groups.
+                    groups_to_post = []
+                    for g in group_ids:
+                        if g not in class_group_dict[cls]:
+                            groups_to_post += [g]
+                    if len(groups_to_post) > 0:
+                        json = {
+                            "obj_id": obj_id,
+                            "classification": cls,
+                            "taxonomy_id": tax,
+                            "probability": prob,
+                            "group_ids": groups_to_post,
+                        }
+                        dict_list += [json]
 
         if comment is not None:
             # get comment text
@@ -344,6 +386,13 @@ if __name__ == "__main__":
         help="If set, match input and existing sources without using ZTF source IDs.",
     )
 
+    parser.add_argument(
+        "-use_existing_obj_id",
+        action='store_true',
+        default=False,
+        help="If set, source obj_id from input dataset.",
+    )
+
     args = parser.parse_args()
 
     # upload classification objects
@@ -361,4 +410,5 @@ if __name__ == "__main__":
         args.skip_phot,
         args.p_threshold,
         args.no_match_ids,
+        args.use_existing_obj_id,
     )
