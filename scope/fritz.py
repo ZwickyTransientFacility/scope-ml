@@ -177,6 +177,8 @@ def get_lightcurves(gloria, ra, dec, radius=2.0):
         if len(light_curve_ids) == 0:
             print("No lightcurves found")
             return None
+        else:
+            print("Found %d lightcurves" % len(light_curve_ids))
 
         query = {
             "query_type": "aggregate",
@@ -268,10 +270,6 @@ def save_newsource(
 
     # get the lightcurves
     light_curves = get_lightcurves(gloria, ra, dec, radius)
-    if len(light_curves) < 1:
-        print('No lightcurves found for this objects!')
-        return None
-    print("Found %d lightcurves" % len(light_curves))
 
     # generate position-based name if obj_id not set
     if obj_id is None:
@@ -314,6 +312,12 @@ def save_newsource(
             if response.json()["status"] == "error":
                 print(f"Failed to save {obj_id} as a Source")
                 return None
+
+    if light_curves is None:
+        if return_id is True:
+            return obj_id
+        else:
+            return None
 
     # get photometry; drop flagged/nan data
     df_photometry = make_photometry(light_curves, drop_flagged=True)
