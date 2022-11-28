@@ -1232,7 +1232,8 @@ feature_stats:
     std: 0.021816145036886694
 
 training:
-  dataset: md5 checksum? filename? from GCS? to use for training
+  # Below, enter path to training set
+  dataset: tools/fritzDownload/merged_classifications_features.parquet
   classes:
     # phenomenological classes
     vnv:
@@ -1245,311 +1246,330 @@ training:
       threshold: 0.9
       # balance ratio for the prevalent class. leave null to use all available data
       balance:
-      weight_per_class: true
+      weight_per_class: false
     pnp:
       label: periodic
       features: phenomenological
       threshold: 0.9
-      balance: 1
+      balance:
       weight_per_class: false
     sin:
       label: sinusoidal
       features: phenomenological
-      threshold: 0.7
-      balance: 2.5
+      threshold: 0.8
+      balance: 1
       weight_per_class: false
+      batch_size: 16
     el:
       label: ellipsoidal
       features: phenomenological
       threshold: 0.7
-      balance: 2.5
+      balance: 1
       weight_per_class: false
+      batch_size: 16
     saw:
       label: sawtooth
       features: phenomenological
       threshold: 0.7
-      balance: 2.5
+      balance: 1
       weight_per_class: false
+      batch_size: 16
     mp:
       label: multi periodic
       features: phenomenological
       threshold: 0.7
-      balance: 2.5
+      balance: 1
       weight_per_class: false
+      batch_size: 4
     longt:
       label: long timescale
       features: phenomenological
       threshold: 0.9
       balance: 2.5
-      weight_per_class: false
+      weight_per_class: true
     e:
       label: eclipsing
       features: phenomenological
-      threshold: 0.7
-      balance:
+      threshold: 0.9
+      balance: 1
       weight_per_class: false
     ea:
       label: EA
       features: phenomenological
-      threshold: 0.7
-      balance: 2.5
-      weight_per_class: false
+      threshold: 0.9
+      balance: 1.5
+      weight_per_class: true
     eb:
       label: EB
       features: phenomenological
-      threshold: 0.7
-      balance: 2.5
+      threshold: 0.9
+      balance: 1
       weight_per_class: false
     ew:
       label: EW
       features: phenomenological
       threshold: 0.7
-      balance:
+      balance: 1
       weight_per_class: false
     wp:
       label: wrong period
       features: phenomenological
       threshold: 0.7
-      balance:
+      balance: 1
       weight_per_class: false
+      batch_size: 8
     hp:
       label: half period
       features: phenomenological
       threshold: 0.7
-      balance:
-      weight_per_class: false
+      balance: 1
+      weight_per_class: true
+      batch_size: 4
     dp:
       label: double period
       features: phenomenological
       threshold: 0.7
       balance:
-      weight_per_class: false
+      weight_per_class: true
     i:
       label: irregular
       features: phenomenological
       threshold: 0.7
-      balance: 2.5
+      balance: 1
       weight_per_class: false
     fla:
       label: flaring
       features: phenomenological
       threshold: 0.7
-      balance: 2.5
+      balance: 1
       weight_per_class: false
+      batch_size: 32
     dip:
       label: dipping
       features: phenomenological
       threshold: 0.7
       balance: 2.5
-      weight_per_class: false
+      weight_per_class: true
     bogus:
       label: bogus
       features: phenomenological
       threshold: 0.7
-      balance: 2.5
+      balance: 1
       weight_per_class: false
+      batch_size: 8
     gal:
       label: galaxy
       features: phenomenological
       threshold: 0.7
       balance: 2.5
-      weight_per_class: false
+      weight_per_class: true
     blend:
       label: blend
       features: phenomenological
       threshold: 0.7
-      balance: 2.5
+      balance: 1
       weight_per_class: false
+      batch_size: 4
     bright:
       label: bright star
       features: phenomenological
       threshold: 0.7
-      balance: 2.5
-      weight_per_class: false
+      balance: 5
+      weight_per_class: true
+      batch_size: 4
     artfct:
       label: ccd artifact
       features: phenomenological
       threshold: 0.7
       balance: 2.5
-      weight_per_class: false
+      weight_per_class: true
     # ontological classes
     agn:
       label: AGN
       features: ontological
       threshold: 0.7
-      balance: 2.5
-      weight_per_class: true
+      balance: 50
+      weight_per_class: false
+      batch_size: 4
     bis:
       label: binary star
       features: ontological
       threshold: 0.7
-      balance:
+      balance: 1
       weight_per_class: false
     blher:
       label: BL Her
       features: ontological
       threshold: 0.7
       balance: 2.5
-      weight_per_class: false
+      weight_per_class: true
     blyr:
       label: Beta Lyr
       features: ontological
       threshold: 0.7
-      balance: 2.5
-      weight_per_class: false
+      balance: 1
+      weight_per_class: true
     cbin:
       label: compact binary
       features: ontological
       threshold: 0.7
       balance: 2.5
-      weight_per_class: false
+      weight_per_class: true
     ceph:
       label: Cepheid
       features: ontological
       threshold: 0.7
-      balance: 2.5
-      weight_per_class: false
+      balance: 1.5
+      weight_per_class: true
+      batch_size: 16
     ceph2:
       label: Cepheid type-II
       features: ontological
       threshold: 0.7
-      balance: 2.5
+      balance: 1
       weight_per_class: false
+      batch_size: 4
     cv:
       label: CV
       features: ontological
       threshold: 0.7
       balance: 2.5
-      weight_per_class: false
+      weight_per_class: true
     dscu:
       label: Delta Scu
       features: ontological
       threshold: 0.7
-      balance: 2.5
+      balance: 1
       weight_per_class: false
     emsms:
       label: detached eclipsing MS-MS
       features: ontological
       threshold: 0.7
-      balance: 2.5
+      balance: 1
       weight_per_class: false
     f:
       label: F
       features: ontological
       threshold: 0.7
       balance: 2.5
-      weight_per_class: false
+      weight_per_class: true
     hwvir:
       label: eclipsing sdB+dM (HW Vir)
       features: ontological
       threshold: 0.7
       balance: 2.5
-      weight_per_class: false
+      weight_per_class: true
     lpv:
       label: LPV
       features: ontological
       threshold: 0.7
-      balance: 2.5
+      balance: 1
       weight_per_class: false
     mir:
       label: Mira
       features: ontological
       threshold: 0.7
-      balance: 2.5
+      balance: 3
       weight_per_class: false
+      batch_size: 4
     nnser:
       label: eclipsing WD+dM (NN Ser)
       features: ontological
       threshold: 0.7
       balance: 2.5
-      weight_per_class: false
+      weight_per_class: true
     o:
       label: O
       features: ontological
       threshold: 0.7
       balance: 2.5
-      weight_per_class: false
+      weight_per_class: true
     osarg:
       label: OSARG
       features: ontological
       threshold: 0.7
-      balance: 2.5
+      balance: 1
       weight_per_class: false
+      batch_size: 32
     puls:
       label: pulsator
       features: ontological
       threshold: 0.7
-      balance: 2.5
+      balance: 1
       weight_per_class: false
     rdbkp:
       label: Redback pulsar
       features: ontological
       threshold: 0.7
       balance: 2.5
-      weight_per_class: false
+      weight_per_class: true
     rrlyr:
       label: RR Lyrae
       features: ontological
       threshold: 0.7
-      balance: 2.5
+      balance: 1
       weight_per_class: false
     rrab:
       label: RR Lyrae ab
       features: ontological
       threshold: 0.7
-      balance: 2.5
+      balance: 1
       weight_per_class: false
     rrc:
       label: RR Lyrae c
       features: ontological
       threshold: 0.7
-      balance: 2.5
+      balance: 1
       weight_per_class: false
     rrd:
       label: RR Lyrae d
       features: ontological
       threshold: 0.7
-      balance: 2.5
-      weight_per_class: false
+      balance: 2
+      weight_per_class: true
+      batch_size: 4
     rrblz:
       label: RR Lyrae Blazhko
       features: ontological
       threshold: 0.7
       balance: 2.5
-      weight_per_class: false
+      weight_per_class: true
     rscvn:
       label: RS CVn
       features: ontological
       threshold: 0.7
-      balance: 2.5
+      balance: 1
       weight_per_class: false
+      batch_size: 8
     rvtau:
       label: RV Tau
       features: ontological
       threshold: 0.7
       balance: 2.5
-      weight_per_class: false
+      weight_per_class: true
     srv:
       label: SRV
       features: ontological
       threshold: 0.7
-      balance: 2.5
+      balance: 1
       weight_per_class: false
+      batch_size: 8
     wuma:
       label: W UMa
       features: ontological
       threshold: 0.7
-      balance: 2.5
+      balance: 1
       weight_per_class: false
     wvir:
       label: W Virginis
       features: ontological
       threshold: 0.7
       balance: 2.5
-      weight_per_class: false
+      weight_per_class: true
     yso:
       label: YSO
       features: ontological
       threshold: 0.7
-      balance: 2.5
+      balance: 3
       weight_per_class: false
+      batch_size: 8
