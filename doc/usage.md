@@ -113,6 +113,37 @@ When our manipulations of `pandas` dataframes is complete, we want to save them 
 
   While `pandas` offers `read_parquet()` and `to_parquet()` to support this format (requiring e.g. [`PyArrow`](https://arrow.apache.org/docs/python/) to work), these again do not support the reading and writing of metadata associated with the dataframe.  See `scope/utils.py` for code that reads and writes metadata in Parquet files.
 
+## Mapping between column names and Fritz taxonomies
+The column names of training set files and Fritz taxonomy classifications are not the same by default. Training sets may also contain columns that are not meant to be uploaded to Fritz. To address both of these issues, we use a 'taxonomy mapper' file to connect local data and Fritz taxonomies.
+
+This file must currently be generated manually, entry by entry. Each entry's key corresponds to a column name in the local file. The set of all keys is used to establish the columns of interest for upload or download. For example, if the training set includes columns that are not classifications, like RA and Dec, these columns should not be included among the entries in the mapper file. The code will then ignore these columns for the purpose of classification.
+
+The fields associated with each key are `fritz_label` (containing the associated Fritz classification name) and `taxonomy_id` identifying the classification's taxonomy system. The mapper must have the following format, also demonstrated in `golden_dataset_mapper.json` and `DNN_AL_mapper.json`:
+
+```
+{
+"variable":
+    {"fritz_label": "variable",
+      "taxonomy_id": 1012
+    },
+
+"periodic":
+    {"fritz_label": "periodic",
+      "taxonomy_id": 1012
+    },
+
+    .
+    . [add more entries here]
+    .
+
+"CV":
+    {"fritz_label": "Cataclysmic",
+      "taxonomy_id": 1011
+    }
+}
+
+```
+
 
 ## Scope Download Classification
 inputs:
@@ -122,7 +153,7 @@ inputs:
 4. Flag to merge features from Kowalski with downloaded sources
 5. Name of features catalog to query
 6. Limit on number of sources to query at once
-7. Filename of classification mapper
+7. Filename of taxonomy mapper (JSON format)
 8. Name of directory to save downloaded files
 9. Name of file containing merged classifications and features
 10. Output format of saved files, if not specified in (9). Must be one of parquet, h5, or csv.
@@ -139,7 +170,7 @@ process:
 output: data with new columns appended.
 
 ```sh
-./scope_download_classification.py -file sample.csv -group_ids 360 361 -start 10 -merge_features True -features_catalog ZTF_source_features_DR5 -features_limit 5000 -mapper_name golden_dataset_mapper.json -output_dir fritzDownload -output_filename merged_classifications_features -output_format parquet
+./scope_download_classification.py -file sample.csv -group_ids 360 361 -start 10 -merge_features True -features_catalog ZTF_source_features_DR5 -features_limit 5000 -taxonomy_map golden_dataset_mapper.json -output_dir fritzDownload -output_filename merged_classifications_features -output_format parquet
 ```
 
 ## Scope Upload Classification
@@ -149,7 +180,7 @@ inputs:
 2. target group id(s) on Fritz for upload
 3. Scope taxonomy id
 4. Class name of objects. Set this to "read" and include taxonomy map to automatically upload multiple classes at once.
-5. Taxonomy map ("label in file":"Fritz taxonomy name", JSON format).
+5. Filename of taxonomy mapper (JSON format).
 6. Comment to post (if specified)
 7. Index to start uploading (zero-based)
 8. Index to stop uploading (inclusive)

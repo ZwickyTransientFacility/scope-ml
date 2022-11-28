@@ -87,7 +87,7 @@ def merge_sources_features(
     sources,
     features_catalog,
     features_limit=1000,
-    mapper_name='golden_dataset_mapper.json',
+    taxonomy_map='golden_dataset_mapper.json',
     output_dir='fritzDownload',
     output_filename='merged_classifications_features',
     output_format='parquet',
@@ -114,7 +114,7 @@ def merge_sources_features(
 
     # Open golden dataset mapper
     mapper_dir = os.path.dirname(__file__)
-    mapper_path = os.path.join(mapper_dir, mapper_name)
+    mapper_path = os.path.join(mapper_dir, taxonomy_map)
     gold_map = pd.read_json(mapper_path)
 
     # Drop columns with no equivalent in Fritz
@@ -237,7 +237,7 @@ def download_classification(
     merge_features: bool,
     features_catalog: str,
     features_limit: int,
-    mapper_name: str = 'golden_dataset_mapper.json',
+    taxonomy_map: str = 'golden_dataset_mapper.json',
     output_dir: str = 'fritzDownload',
     output_filename: str = 'merged_classifications_features',
     output_format: str = 'parquet',
@@ -377,7 +377,7 @@ def download_classification(
                 sources,
                 features_catalog,
                 features_limit,
-                mapper_name,
+                taxonomy_map,
                 output_dir,
                 output_filename,
                 output_format,
@@ -522,7 +522,7 @@ def download_classification(
                 sources,
                 features_catalog,
                 features_limit,
-                mapper_name,
+                taxonomy_map,
                 output_dir,
                 output_filename,
                 output_format,
@@ -561,10 +561,10 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "-mapper_name",
+        "-taxonomy_map",
         type=str,
         default='golden_dataset_mapper.json',
-        help="Filename of classification mapper",
+        help="JSON file mapping between origin labels and Fritz taxonomy",
     )
 
     parser.add_argument(
@@ -598,7 +598,7 @@ if __name__ == "__main__":
         args.merge_features,
         args.features_catalog,
         args.features_limit,
-        args.mapper_name,
+        args.taxonomy_map,
         args.output_dir,
         args.output_filename,
         args.output_format,
