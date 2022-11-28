@@ -1232,7 +1232,7 @@ feature_stats:
     std: 0.021816145036886694
 
 training:
-  dataset: tools/fritzDownload/merged_classifications_features_updated.parquet
+  dataset: #path to training set (within scope, e.g. tools/fritzDownload/merged_classifications_features.parquet)
   classes:
     # phenomenological classes
     vnv:
