@@ -1,0 +1,186 @@
+{
+    "vnv_dnn":
+        {"fritz_label": "variable",
+          "taxonomy_id": 1012
+        },
+
+    "pnp_dnn":
+        {"fritz_label": "periodic",
+          "taxonomy_id": 1012
+        },
+
+    "puls_dnn":
+        {"fritz_label": "Pulsating",
+          "taxonomy_id": 1011
+        },
+
+    "rrlyr_dnn":
+        {"fritz_label": "RR Lyrae",
+          "taxonomy_id": 1011
+        },
+
+    "ceph_dnn":
+        {"fritz_label": "Cepheid",
+          "taxonomy_id": 1011
+        },
+
+    "mp_dnn":
+        {"fritz_label": "multi periodic",
+          "taxonomy_id": 1012
+        },
+
+    "sin_dnn":
+        {"fritz_label": "sinusoidal",
+          "taxonomy_id": 1012
+        },
+
+    "nonvar_dnn":
+        {"fritz_label": "non-variable",
+          "taxonomy_id": 1012
+        },
+
+    "bogus_dnn":
+        {"fritz_label": "bogus",
+          "taxonomy_id": 1012
+        },
+
+    "bright_dnn":
+        {"fritz_label": "bright star",
+          "taxonomy_id": 1012
+        },
+
+    "longt_dnn":
+        {"fritz_label": "long timescale",
+          "taxonomy_id": 1012
+        },
+
+    "i_dnn":
+        {"fritz_label": "irregular",
+          "taxonomy_id": 1012
+        },
+
+    "e_dnn":
+        {"fritz_label": "eclipsing",
+          "taxonomy_id": 1012
+        },
+
+    "ew_dnn":
+        {"fritz_label": "EW",
+          "taxonomy_id": 1012
+        },
+
+    "fla_dnn":
+        {"fritz_label": "flaring",
+          "taxonomy_id": 1012
+        },
+
+    "bis_dnn":
+        {"fritz_label": "Eclipsing",
+          "taxonomy_id": 1011
+        },
+
+    "emsms_dnn":
+        {"fritz_label": "detached MS-MS",
+          "taxonomy_id": 1011
+        },
+
+    "wuma_dnn":
+        {"fritz_label": "W Ursae Maj",
+          "taxonomy_id": 1011
+        },
+
+    "rrab_dnn":
+        {"fritz_label": "RRab",
+          "taxonomy_id": 1011
+        },
+
+    "rrc_dnn":
+        {"fritz_label": "RRc",
+          "taxonomy_id": 1011
+        },
+
+    "dscu_dnn":
+        {"fritz_label": "Delta Scuti",
+          "taxonomy_id": 1011
+        },
+
+    "rrd_dnn":
+        {"fritz_label": "RRd",
+          "taxonomy_id": 1011
+        },
+
+    "ceph2_dnn":
+        {"fritz_label": "Population II Cepheid",
+          "taxonomy_id": 1011
+        },
+
+    "rscvn_dnn":
+        {"fritz_label": "RS CVn",
+        "taxonomy_id": 1011
+        },
+
+    "eb_dnn":
+        {"fritz_label": "EB",
+          "taxonomy_id": 1012
+        },
+
+    "blyr_dnn":
+        {"fritz_label": "Beta Lyrae",
+          "taxonomy_id": 1011
+        },
+
+    "saw_dnn":
+        {"fritz_label": "sawtooth",
+          "taxonomy_id": 1012
+        },
+
+    "ea_dnn":
+        {"fritz_label": "EA",
+          "taxonomy_id": 1012
+        },
+
+    "yso_dnn":
+        {"fritz_label": "YSO",
+          "taxonomy_id": 1011
+        },
+
+    "wp_dnn":
+        {"fritz_label": "wrong period",
+          "taxonomy_id": 1012
+        },
+
+    "agn_dnn":
+        {"fritz_label": "AGN",
+          "taxonomy_id": 1011
+        },
+
+    "lpv_dnn":
+        {"fritz_label": "LPV",
+          "taxonomy_id": 1011
+        },
+
+    "mir_dnn":
+        {"fritz_label": "Mira",
+          "taxonomy_id": 1011
+        },
+
+    "hp_dnn":
+        {"fritz_label": "half period",
+          "taxonomy_id": 1012
+        },
+
+    "srv_dnn":
+        {"fritz_label": "Semiregular",
+          "taxonomy_id": 1011
+        },
+
+    "osarg_dnn":
+        {"fritz_label": "OSARG",
+          "taxonomy_id": 1011
+        },
+
+    "el_dnn":
+        {"fritz_label": "ellipsoidal",
+          "taxonomy_id": 1012
+        }
+    }
