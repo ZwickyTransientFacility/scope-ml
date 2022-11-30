@@ -332,7 +332,10 @@ def run(
             + " s"
         )
 
+    batch_count = 0
     for batch in generator:
+        batch_count += 1
+        print(f'Batch {batch_count} of {len(DS.files)}...')
         features = batch.to_pandas()
         source_ids = features['_id'].values
         ra_collection = np.concatenate([ra_collection, features['ra'].values])
@@ -410,7 +413,9 @@ def run(
             ] = features.select_dtypes(float_type_dict[float_init]).astype(
                 float_type_dict[float_final]
             )
-            preds = model.predict([features[feature_names].values, dmdt])
+            # preds = model.predict([features[feature_names].values, dmdt])
+            preds = model([features[feature_names].values, dmdt], training=False)
+            preds = preds.numpy().flatten()
             features[model_class + '_dnn'] = preds
             te = time.time()
             if tm:
