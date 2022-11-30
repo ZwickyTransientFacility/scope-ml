@@ -414,6 +414,13 @@ def run(
                 float_type_dict[float_final]
             )
             # preds = model.predict([features[feature_names].values, dmdt])
+            # Above: calling model.predict(features) in a loop leads to significant
+            #        memory leak and eventual freezing
+            #        (e.g. https://github.com/keras-team/keras/issues/13118,
+            #        https://github.com/tensorflow/tensorflow/issues/44711)
+            #
+            # Replacing with model(features, training=False) produces the same output
+            # but keeps memory usage under control.
             preds = model([features[feature_names].values, dmdt], training=False)
             preds = preds.numpy().flatten()
             features[model_class + '_dnn'] = preds
