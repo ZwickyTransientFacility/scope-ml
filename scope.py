@@ -16,7 +16,8 @@ import tdtax
 from tdtax import taxonomy  # noqa: F401
 from typing import Optional, Sequence, Union
 import yaml
-from scope.utils import forgiving_true, load_config, read_hdf, read_parquet
+from scope.utils import forgiving_true, load_config, read_hdf, read_parquet, write_hdf
+import json
 
 
 @contextmanager
@@ -838,6 +839,173 @@ class Scope:
 
             else:
                 raise ValueError('algorithm must be DNN or XGB')
+
+    def select_AL_sample(
+        self,
+        fields: Union[list, str] = 'all',
+        group: str = 'experiment',
+        min_class_examples: int = 1000,
+        probability_threshold: float = 0.9,
+        AL_directory: str = 'AL_datasets',
+        filename: str = 'active_learning_set',
+        algorithm: str = 'dnn',
+        exclude_training_sources: bool = False,
+        write_csv: bool = True,
+        verbose: bool = False,
+    ):
+        """
+        Select subset of predictions to use for active learning.
+
+        :param fields: list of field predictions (integers) to include, or 'all' to use all available fields (list or str)
+        :param group: name of group containing trained models within models directory (str)
+        :param min_class_examples: minimum number of examples to include for each class. Some classes may contain fewer than this if the sample is limited (int)
+        :param probability_threshold: minimum probability to select examples for active learning (float)
+        :param AL_directory: name of directory to create/populate with active learning sample (str)
+        :param filename: name of file (no extension) to store active learning sample (str)
+        :param algorithm: algorithm [dnn or xgb] (str)
+        :param exclude_training_sources: if True, exclude sources in current training set from AL sample (bool)
+        :param write_csv: if True, write CSV file in addition to HDF5 (bool)
+        :param verbose: if True, print additional information (bool)
+
+        :return:
+
+        :example:  ./scope.py select_AL_sample --fields=[296, 297] --group='experiment' --min_class_examples=1000 --probability_threshold=0.9 --exclude_training_sources
+        """
+        base_path = pathlib.Path(__file__).parent.absolute()
+        preds_path = base_path / 'preds'
+
+        if algorithm in ['dnn', 'DNN']:
+            algorithm = 'dnn'
+        elif algorithm in ['xgb', 'XGB']:
+            algorithm = 'xgb'
+        else:
+            raise ValueError('Algorithm must be either dnn or xgb.')
+
+        df_coll = []
+        if fields in ['all', 'All', 'ALL']:
+            gen_fields = os.walk(preds_path)
+            fields = [x for x in gen_fields][0][1]
+        else:
+            fields = [f'field_{f}' for f in fields]
+
+        print(f'Generating active learning sample from {len(fields)} fields.')
+
+        column_nums = []
+        for field in fields:
+            h = read_hdf(str(preds_path / field / f'{field}.h5'))
+            column_nums += [len(h.columns)]
+            df_coll += [h]
+
+            if verbose:
+                print(field)
+                print(h)
+                print()
+
+        if len(np.unique(column_nums)) > 1:
+            raise ValueError('Not all predictions have the same number of columns.')
+
+        preds_df = pd.concat(df_coll, axis=0)
+        # Define non-variable class as 1 - variable
+        include_nonvar = False
+        if f'vnv_{algorithm}' in preds_df.columns:
+            include_nonvar = True
+            preds_df[f'nonvar_{algorithm}'] = 1 - preds_df[f'vnv_{algorithm}']
+
+        if exclude_training_sources:
+            # Get training set from config file
+            training_set_config = self.config['training']['dataset']
+            training_set_path = str(base_path / training_set_config)
+
+            if training_set_path.endswith('.parquet'):
+                training_set = read_parquet(training_set_path)
+            elif training_set_path.endswith('.h5'):
+                training_set = read_hdf(training_set_path)
+            elif training_set_path.endswith('.csv'):
+                training_set = pd.read_csv(training_set_path)
+            else:
+                raise ValueError(
+                    "Training set must be in .parquet, .h5 or .csv format."
+                )
+
+            intersec = set.intersection(
+                set(preds_df['_id'].values), set(training_set['ztf_id'].values)
+            )
+            print(f'Dropping {len(intersec)} sources already in training set.')
+            preds_df = preds_df.set_index('_id').drop(list(intersec)).reset_index()
+
+        # Use trained model names to establish classes to train
+        gen = os.walk(base_path / 'models' / group)
+        model_tags = [tag[1] for tag in gen]
+        model_tags = model_tags[0]
+        model_tags = np.array(model_tags)
+        if include_nonvar:
+            model_tags = np.concatenate([model_tags, ['nonvar']])
+
+        print(f'Selecting AL sample for {len(model_tags)} classes...')
+
+        toPost_df = pd.DataFrame(columns=preds_df.columns)
+        completed_dict = {}
+        preds_df.set_index('_id', inplace=True)
+        toPost_df.set_index('_id', inplace=True)
+
+        for tag in model_tags:
+            # Idenfity all sources above probability threshold
+            highprob_preds = preds_df[
+                preds_df[f'{tag}_{algorithm}'].values >= probability_threshold
+            ]
+            # Find existing sources in AL sample above probability threshold
+            existing_df = toPost_df[
+                toPost_df[f'{tag}_{algorithm}'].values >= probability_threshold
+            ]
+            existing_count = len(existing_df)
+
+            # Determine number of sources needed to reach at least min_class_examples
+            still_to_post_count = min_class_examples - existing_count
+
+            if still_to_post_count > 0:
+                if len(highprob_preds) >= still_to_post_count:
+                    # Randomly select from remaining examples without replacement
+                    highprob_toPost = np.random.choice(
+                        highprob_preds.drop(existing_df.index).index,
+                        still_to_post_count,
+                        replace=False,
+                    )
+                    concat_toPost_df = highprob_preds.loc[highprob_toPost]
+                else:
+                    # If sample is limited, use all remaining available examples
+                    concat_toPost_df = highprob_preds
+
+            toPost_df = pd.concat([toPost_df, concat_toPost_df], axis=0)
+            toPost_df.drop_duplicates(keep='first', inplace=True)
+
+        for tag in model_tags:
+            # Make metadata dictionary of example count per class
+            completed_dict[f'{tag}_{algorithm}'] = int(
+                np.sum(toPost_df[f'{tag}_{algorithm}'].values >= probability_threshold)
+            )
+
+        # Establish consistency with scope_upload_classification inputs
+        final_toPost = toPost_df.reset_index(drop=False).rename(
+            {'_id': 'ztf_id'}, axis=1
+        )
+
+        # Strip extension from filename if provided
+        filename = filename.split('.')[0]
+        AL_directory_path = str(base_path / f'{AL_directory}_{algorithm}' / filename)
+        os.makedirs(AL_directory_path, exist_ok=True)
+
+        # Write hdf5 and csv files
+        write_hdf(final_toPost, f'{AL_directory_path}/{filename}.h5')
+        if write_csv:
+            final_toPost.to_csv(f'{AL_directory_path}/{filename}.csv', index=False)
+
+        # Write metadata
+        meta_filepath = f'{AL_directory_path}/meta.json'
+        with open(meta_filepath, "w") as f:
+            try:
+                json.dump(completed_dict, f)  # dump dictionary to a json file
+            except Exception as e:
+                print("error dumping to json, message: ", e)
 
     def test(self):
         """Test different workflows
