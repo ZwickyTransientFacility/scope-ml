@@ -950,6 +950,9 @@ class Scope:
         preds_df.set_index('_id', inplace=True)
         toPost_df.set_index('_id', inplace=True)
 
+        # Fix random state to allow reproducible results
+        rng = np.random.RandomState(9)
+
         for tag in model_tags:
             # Idenfity all sources above probability threshold
             highprob_preds = preds_df[
@@ -967,7 +970,7 @@ class Scope:
             if still_to_post_count > 0:
                 if len(highprob_preds) >= still_to_post_count:
                     # Randomly select from remaining examples without replacement
-                    highprob_toPost = np.random.choice(
+                    highprob_toPost = rng.choice(
                         highprob_preds.drop(existing_df.index).index,
                         still_to_post_count,
                         replace=False,
