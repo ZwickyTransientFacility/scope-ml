@@ -846,7 +846,7 @@ class Scope:
         group: str = 'experiment',
         min_class_examples: int = 1000,
         probability_threshold: float = 0.9,
-        AL_directory: str = 'AL_datasets',
+        al_directory: str = 'AL_datasets',
         filename: str = 'active_learning_set',
         algorithm: str = 'dnn',
         exclude_training_sources: bool = False,
@@ -860,7 +860,7 @@ class Scope:
         :param group: name of group containing trained models within models directory (str)
         :param min_class_examples: minimum number of examples to include for each class. Some classes may contain fewer than this if the sample is limited (int)
         :param probability_threshold: minimum probability to select examples for active learning (float)
-        :param AL_directory: name of directory to create/populate with active learning sample (str)
+        :param al_directory: name of directory to create/populate with active learning sample (str)
         :param filename: name of file (no extension) to store active learning sample (str)
         :param algorithm: algorithm [dnn or xgb] (str)
         :param exclude_training_sources: if True, exclude sources in current training set from AL sample (bool)
@@ -991,7 +991,7 @@ class Scope:
 
         # Strip extension from filename if provided
         filename = filename.split('.')[0]
-        AL_directory_path = str(base_path / f'{AL_directory}_{algorithm}' / filename)
+        AL_directory_path = str(base_path / f'{al_directory}_{algorithm}' / filename)
         os.makedirs(AL_directory_path, exist_ok=True)
 
         # Write hdf5 and csv files
