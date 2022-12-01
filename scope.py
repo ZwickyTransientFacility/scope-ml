@@ -909,7 +909,9 @@ class Scope:
         include_nonvar = False
         if f'vnv_{algorithm}' in preds_df.columns:
             include_nonvar = True
-            preds_df[f'nonvar_{algorithm}'] = 1 - preds_df[f'vnv_{algorithm}']
+            preds_df[f'nonvar_{algorithm}'] = np.round(
+                1 - preds_df[f'vnv_{algorithm}'], 2
+            )
 
         if exclude_training_sources:
             # Get training set from config file
