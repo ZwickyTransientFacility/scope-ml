@@ -840,7 +840,7 @@ class Scope:
             else:
                 raise ValueError('algorithm must be DNN or XGB')
 
-    def select_AL_sample(
+    def select_al_sample(
         self,
         fields: Union[list, str] = 'all',
         group: str = 'experiment',
@@ -869,7 +869,7 @@ class Scope:
 
         :return:
 
-        :example:  ./scope.py select_AL_sample --fields=[296, 297] --group='experiment' --min_class_examples=1000 --probability_threshold=0.9 --exclude_training_sources
+        :example:  ./scope.py select_al_sample --fields=[296, 297] --group='experiment' --min_class_examples=1000 --probability_threshold=0.9 --exclude_training_sources
         """
         base_path = pathlib.Path(__file__).parent.absolute()
         preds_path = base_path / 'preds'
