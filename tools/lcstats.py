@@ -356,7 +356,7 @@ def calc_stats(t, mag, err, p):
             f1_relamp4,
             f1_relphi5,
         ) = fourier_decomposition(t, mag, err, p)
-    except:
+    except Exception:
         (
             f1_power,
             f1_BIC,
@@ -467,7 +467,7 @@ def calc_fourier_stats(t, mag, err, p):
             f1_relamp4,
             f1_relphi5,
         ) = fourier_decomposition(t, mag, err, p)
-    except:
+    except Exception:
         (
             f1_power,
             f1_BIC,
