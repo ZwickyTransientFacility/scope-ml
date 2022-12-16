@@ -35,9 +35,8 @@ def post(
       --version='1.2.0' \
       --provenance='https://github.com/bfhealy/scope-phenomenology.git'
 
-    $ ./taxonomy.py \
-      --taxonomy=scope_phenom \
-      --group_ids=339
+    Within python:
+    taxonomy.post(scope_phenom, group_ids=[1, 2])
 
     :param taxonomy: path to yaml file with taxonomy in tdtax format, or imported taxonomy module
     :param group_ids: ids of groups on Fritz to post taxonomy to.
