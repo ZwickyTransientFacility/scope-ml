@@ -550,7 +550,7 @@ if __name__ == "__main__":
         "-features_catalog",
         type=str,
         default='ZTF_source_features_DR5',
-        help="catalog of features on Kowalksi",
+        help="catalog of features on Kowalski",
     )
 
     parser.add_argument(
