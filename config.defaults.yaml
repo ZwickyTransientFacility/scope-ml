@@ -693,13 +693,13 @@ features:
       include: true
       dtype: float
     AllWISE__w3sigmpro:
-      include: true
+      include: false
       dtype: float
     AllWISE__w4mpro:
       include: true
       dtype: float
     AllWISE__w4sigmpro:
-      include: true
+      include: false
       dtype: float
     Gaia_EDR3___id:
       include: false
