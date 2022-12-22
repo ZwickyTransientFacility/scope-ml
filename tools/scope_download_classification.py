@@ -22,14 +22,32 @@ def organize_source_data(src: pd.DataFrame):
     data_classes = src['classifications']
     cls_list = ''
     prb_list = ''
+    vote_list = ''
     for entry in data_classes:
         cls = entry['classification']
         prb = entry['probability']
+
+        try:
+            votes = entry['votes']
+            sum_votes = int(np.sum([v['vote'] for v in votes]))
+        except TypeError:
+            sum_votes = 0
+
         cls_list += cls + ';'  # same format as download from Fritz frontend
         prb_list += str(prb) + ';'
+        vote_list += str(sum_votes) + ';'
 
     cls_list = cls_list[:-1]  # remove trailing semicolon
     prb_list = prb_list[:-1]
+    vote_list = vote_list[:-1]
+
+    data_labellers = src['labellers']
+    lbl_list = ''
+    for entry in data_labellers:
+        lbl = entry['id']
+        lbl_list += str(lbl) + ';'
+
+    lbl_list = lbl_list[:-1]
 
     # loop through annotations, checking for periods
     data_annot = src['annotations']
@@ -68,6 +86,8 @@ def organize_source_data(src: pd.DataFrame):
         dct['period'],
         dct['ztf_id_origin'],
         dct['ztf_id'],
+        dct['labellers'],
+        dct['sum_votes'],
     ) = (
         id,
         ra,
@@ -78,6 +98,8 @@ def organize_source_data(src: pd.DataFrame):
         period_list,
         id_origin_list,
         id_list,
+        lbl_list,
+        vote_list,
     )
 
     return dct
@@ -317,7 +339,11 @@ def download_classification(
         response = api(
             "GET",
             "/api/sources",
-            {"group_ids": group_ids, "numPerPage": NUM_PER_PAGE},
+            {
+                "group_ids": group_ids,
+                "numPerPage": NUM_PER_PAGE,
+                "includeLabellers": True,
+            },
         )
         source_data = response.json().get("data")
 
@@ -348,6 +374,7 @@ def download_classification(
                     "group_ids": group_ids,
                     'numPerPage': NUM_PER_PAGE,
                     'pageNumber': pageNum,
+                    'includeLabellers': True,
                 },  # page numbers start at 1
             )
             page_data = page_response.json().get('data')
@@ -447,7 +474,9 @@ def download_classification(
                 data = []
                 if search_by_obj_id:
                     obj_id = row.obj_id
-                    response = api("GET", '/api/sources/%s' % obj_id)
+                    response = api(
+                        "GET", '/api/sources/%s' % obj_id, {'includeLabellers': True}
+                    )
                     data = response.json().get("data")
                     if len(data) == 0:
                         warnings.warn(
