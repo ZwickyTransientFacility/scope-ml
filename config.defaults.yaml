@@ -536,253 +536,336 @@ features:
     ad:
       include: true
       dtype: float
+      impute_strategy: None
     ccd:
       include: false
       dtype: Int64
+      impute_strategy: None
     chi2red:
       include: true
       dtype: float
+      impute_strategy: None
     dec:
       include: false
       dtype: float
+      impute_strategy: None
     f1_BIC:
       include: true
       dtype: float
+      impute_strategy: None
     f1_a:
       include: true
       dtype: float
+      impute_strategy: None
     f1_amp:
       include: true
       dtype: float
+      impute_strategy: None
     f1_b:
       include: true
       dtype: float
+      impute_strategy: None
     f1_phi0:
       include: true
       dtype: float
+      impute_strategy: None
     f1_power:
       include: true
       dtype: float
+      impute_strategy: None
     f1_relamp1:
       include: true
       dtype: float
+      impute_strategy: None
     f1_relamp2:
       include: true
       dtype: float
+      impute_strategy: None
     f1_relamp3:
       include: true
       dtype: float
+      impute_strategy: None
     f1_relamp4:
       include: true
       dtype: float
+      impute_strategy: None
     f1_relphi1:
       include: true
       dtype: float
+      impute_strategy: None
     f1_relphi2:
       include: true
       dtype: float
+      impute_strategy: None
     f1_relphi3:
       include: true
       dtype: float
+      impute_strategy: None
     f1_relphi4:
       include: true
       dtype: float
+      impute_strategy: None
     field:
       include: false
       dtype: Int64
+      impute_strategy: None
     i60r:
       include: true
       dtype: float
+      impute_strategy: None
     i70r:
       include: true
       dtype: float
+      impute_strategy: None
     i80r:
       include: true
       dtype: float
+      impute_strategy: None
     i90r:
       include: true
       dtype: float
+      impute_strategy: None
     inv_vonneumannratio:
       include: true
       dtype: float
+      impute_strategy: None
     iqr:
       include: true
       dtype: float
+      impute_strategy: None
     mean_ztf_alert_braai:
       include: true
       dtype: float
+      impute_strategy: zero
     median:
       include: true
       dtype: float
+      impute_strategy: None
     median_abs_dev:
       include: true
       dtype: float
+      impute_strategy: None
     n:
       include: false
       dtype: float
+      impute_strategy: None
     n_ztf_alerts:
       include: true
       dtype: Int64
+      impute_strategy: zero
     norm_excess_var:
       include: true
       dtype: float
+      impute_strategy: None
     norm_peak_to_peak_amp:
       include: true
       dtype: float
+      impute_strategy: None
     pdot:
       include: false
       dtype: float
+      impute_strategy: None
     period:
       include: true
       dtype: float
+      impute_strategy: None
     quad:
       include: false
       dtype: Int64
+      impute_strategy: None
     ra:
       include: false
       dtype: float
+      impute_strategy: None
     roms:
       include: true
       dtype: float
+      impute_strategy: None
     significance:
       include: true
       dtype: float
+      impute_strategy: None
     skew:
       include: true
       dtype: float
+      impute_strategy: None
     smallkurt:
       include: true
       dtype: float
+      impute_strategy: None
     stetson_j:
       include: true
       dtype: float
+      impute_strategy: None
     stetson_k:
       include: true
       dtype: float
+      impute_strategy: None
     sw:
       include: true
       dtype: float
+      impute_strategy: None
     welch_i:
       include: true
       dtype: float
+      impute_strategy: None
     wmean:
       include: true
       dtype: float
+      impute_strategy: None
     wstd:
       include: true
       dtype: float
+      impute_strategy: None
     AllWISE___id:
       include: false
       dtype: Int64
+      impute_strategy: None
     AllWISE__ph_qual:
       include: false
       dtype: str
+      impute_strategy: None
     AllWISE__w1mpro:
       include: true
       dtype: float
+      impute_strategy: regress
     AllWISE__w1sigmpro:
       include: true
       dtype: float
+      impute_strategy: median
     AllWISE__w2mpro:
       include: true
       dtype: float
+      impute_strategy: regress
     AllWISE__w2sigmpro:
       include: true
       dtype: float
+      impute_strategy: median
     AllWISE__w3mpro:
       include: true
       dtype: float
+      impute_strategy: regress
     AllWISE__w3sigmpro:
       include: false
       dtype: float
+      impute_strategy: None
     AllWISE__w4mpro:
       include: true
       dtype: float
+      impute_strategy: regress
     AllWISE__w4sigmpro:
       include: false
       dtype: float
+      impute_strategy: None
     Gaia_EDR3___id:
       include: false
       dtype: Int64
+      impute_strategy: None
     Gaia_EDR3__astrometric_excess_noise:
       include: false
       dtype: float
+      impute_strategy: None
     Gaia_EDR3__parallax:
       include: true
       dtype: float
+      impute_strategy: regress
     Gaia_EDR3__parallax_error:
       include: false
       dtype: float
+      impute_strategy: None
     Gaia_EDR3__phot_bp_mean_mag:
       include: true
       dtype: float
+      impute_strategy: regress
     Gaia_EDR3__phot_bp_rp_excess_factor:
       include: true
       dtype: float
+      impute_strategy: median
     Gaia_EDR3__phot_g_mean_mag:
       include: true
       dtype: float
+      impute_strategy: regress
     Gaia_EDR3__phot_rp_mean_mag:
       include: true
       dtype: float
+      impute_strategy: regress
     Gaia_EDR3__pmdec:
       include: false
       dtype: float
+      impute_strategy: None
     Gaia_EDR3__pmdec_error:
       include: false
       dtype: float
+      impute_strategy: None
     Gaia_EDR3__pmra:
       include: false
       dtype: float
+      impute_strategy: None
     Gaia_EDR3__pmra_error:
       include: false
       dtype: float
+      impute_strategy: None
     PS1_DR1___id:
       include: false
       dtype: Int64
+      impute_strategy: None
     PS1_DR1__gMeanPSFMag:
       include: true
       dtype: float
+      impute_strategy: regress
     PS1_DR1__gMeanPSFMagErr:
       include: true
       dtype: float
+      impute_strategy: median
     PS1_DR1__iMeanPSFMag:
       include: true
       dtype: float
+      impute_strategy: regress
     PS1_DR1__iMeanPSFMagErr:
       include: true
       dtype: float
+      impute_strategy: median
     PS1_DR1__qualityFlag:
       include: false
       dtype: Int64
+      impute_strategy: None
     PS1_DR1__rMeanPSFMag:
       include: true
       dtype: float
+      impute_strategy: regress
     PS1_DR1__rMeanPSFMagErr:
       include: true
       dtype: float
+      impute_strategy: median
     PS1_DR1__yMeanPSFMag:
       include: true
       dtype: float
+      impute_strategy: regress
     PS1_DR1__yMeanPSFMagErr:
       include: true
       dtype: float
+      impute_strategy: median
     PS1_DR1__zMeanPSFMag:
       include: true
       dtype: float
+      impute_strategy: regress
     PS1_DR1__zMeanPSFMagErr:
       include: true
       dtype: float
+      impute_strategy: median
     _id:
       include: false
       dtype: int
+      impute_strategy: None
     coordinates:
       include: false
       dtype: object
+      impute_strategy: None
     # This feature is included separately by nn.py, but the dtype is specified here for get_features.py
     dmdt:
       include: false
       dtype: object
+      impute_strategy: None
 
 feature_stats:
   # d15-based
