@@ -36,33 +36,45 @@ def impute_features(
         for x in config['features']['ontological']
         if (
             config['features']['ontological'][x]['include']
-            and config['features']['ontological'][x]['impute_strategy'] == 'zero'
+            and config['features']['ontological'][x]['impute_strategy']
+            in ['zero', 'Zero', 'ZERO']
         )
     ]
+
+    print('Imputing zero for the following features: ', feature_list_impute_zero)
+    print()
     for feat in feature_list_impute_zero:
         features_df[feat] = features_df[feat].fillna(0.0)
 
-    # Impute median from training set where specified
+    # Impute median from reference set where specified
     feature_list_impute_median = [
         x
         for x in config['features']['ontological']
         if (
             config['features']['ontological'][x]['include']
-            and config['features']['ontological'][x]['impute_strategy'] == 'median'
+            and config['features']['ontological'][x]['impute_strategy']
+            in ['median', 'Median', 'MEDIAN']
         )
     ]
+
+    print('Imputing median for the following features: ', feature_list_impute_median)
+    print()
     for feat in feature_list_impute_median:
         features_df[feat] = features_df[feat].fillna(np.nanmedian(referenceSet[feat]))
 
-    # Impute mean from training set where specified
+    # Impute mean from reference set where specified
     feature_list_impute_mean = [
         x
         for x in config['features']['ontological']
         if (
             config['features']['ontological'][x]['include']
-            and config['features']['ontological'][x]['impute_strategy'] == 'median'
+            and config['features']['ontological'][x]['impute_strategy']
+            in ['mean', 'Mean', 'MEAN']
         )
     ]
+
+    print('Imputing mean for the following features: ', feature_list_impute_mean)
+    print()
     for feat in feature_list_impute_mean:
         features_df[feat] = features_df[feat].fillna(np.nanmean(referenceSet[feat]))
 
@@ -72,10 +84,13 @@ def impute_features(
         for x in config['features']['ontological']
         if (
             config['features']['ontological'][x]['include']
-            and config['features']['ontological'][x]['impute_strategy'] == 'regress'
+            and config['features']['ontological'][x]['impute_strategy']
+            in ['regress', 'Regress', 'REGRESS']
         )
     ]
-    print(feature_list_regression)
+
+    print('Imputing by regression on the following features: ', feature_list_regression)
+    print()
 
     # Fit KNNImputer to training set
     imp = KNNImputer(n_neighbors=n_neighbors)
