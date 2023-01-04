@@ -504,9 +504,10 @@ def impute_features(
     features_df: pd.DataFrame, n_neighbors: int = 5, self_impute: bool = False
 ):
     # Load config file
-    config = load_config(pathlib.Path(__file__).parent.absolute() / "config.yaml")
+    config = load_config(
+        pathlib.Path(__file__).parent.parent.absolute() / "config.yaml"
+    )
 
-    print(features_df.columns)
     if self_impute:
         referenceSet = features_df.copy()
     else:
@@ -597,7 +598,6 @@ def impute_features(
     for feat in feature_list_regression:
         features_df[feat] = imputed_feats[feat]
 
-    print(features_df.columns)
     return features_df
 
 
