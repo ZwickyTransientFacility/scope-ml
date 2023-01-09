@@ -391,8 +391,13 @@ class DNN(AbstractClassifier):
     def predict(self, x, **kwargs):
         return self.model.predict(x, **kwargs)
 
-    def load(self, path_model, **kwargs):
-        self.model.load_weights(path_model, **kwargs)
+    def load(self, path_model, weights_only: bool = False, **kwargs):
+        # Original functionality
+        if weights_only:
+            self.model.load_weights(path_model, **kwargs)
+        # New functionality to load whole model from HDF5 file
+        else:
+            self.model = tf.keras.models.load_model(path_model, **kwargs)
 
     def save(
         self,

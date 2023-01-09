@@ -578,6 +578,7 @@ class Scope:
         run_eagerly = kwargs.get("run_eagerly", False)
         pre_trained_model = kwargs.get("pre_trained_model")
         save = kwargs.get("save", False)
+        weights_only = kwargs.get("weights_only", False)
 
         # parse boolean args
         dense_branch = forgiving_true(dense_branch)
@@ -587,26 +588,40 @@ class Scope:
 
         classifier = DNN(name=tag)
 
-        classifier.setup(
-            dense_branch=dense_branch,
-            features_input_shape=(len(features),),
-            conv_branch=conv_branch,
-            dmdt_input_shape=(26, 26, 1),
-            loss=loss,
-            optimizer=optimizer,
-            learning_rate=lr,
-            momentum=momentum,
-            monitor=monitor,
-            patience=patience,
-            callbacks=callbacks,
-            run_eagerly=run_eagerly,
-        )
+        if pre_trained_model is not None:
+            classifier.load(pre_trained_model, weights_only=weights_only)
+            model_input = classifier.model.input
+            training_set_inputs = datasets['train'].element_spec[0]
+            # Compare input shapes with model inputs
+            print(
+                'Comparing shapes of input features with inputs for existing model...'
+            )
+            for inpt in model_input:
+                inpt_name = inpt.name
+                inpt_shape = inpt.shape
+                inpt_shape.assert_is_compatible_with(
+                    training_set_inputs[inpt_name].shape
+                )
+            print('Input shapes are consistent.')
+
+        else:
+            classifier.setup(
+                dense_branch=dense_branch,
+                features_input_shape=(len(features),),
+                conv_branch=conv_branch,
+                dmdt_input_shape=(26, 26, 1),
+                loss=loss,
+                optimizer=optimizer,
+                learning_rate=lr,
+                momentum=momentum,
+                monitor=monitor,
+                patience=patience,
+                callbacks=callbacks,
+                run_eagerly=run_eagerly,
+            )
 
         if verbose:
             print(classifier.model.summary())
-
-        if pre_trained_model is not None:
-            classifier.load(pre_trained_model)
 
         time_tag = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
 
@@ -705,7 +720,9 @@ class Scope:
         filename: str = 'train_dnn.sh',
         min_count: int = 100,
         path_dataset: str = None,
+        pre_trained_group_name: str = None,
         add_keywords: str = '',
+        train_all: bool = False,
     ):
         """
         Create training shell script from classes in config file meeting minimum count requirement
@@ -713,7 +730,9 @@ class Scope:
         :param filename: filename of shell script (must not currently exist) (str)
         :param min_count: minimum number of positive examples to include in script (int)
         :param path_dataset: local path to .parquet, .h5 or .csv file with the dataset, if not provided in config.yaml (str)
+        :param pre_trained_group_name: name of group containing pre-trained models within models directory (str)
         :param add_keywords: str containing additional training keywords to append to each line in the script
+        :param train_all: if group_name is specified, set this keyword to train all classes regardeless of whether a trained model exists (bool)
 
         :return:
 
@@ -724,8 +743,9 @@ class Scope:
                     --add_keywords='--save --batch_size=32'
         """
         path = str(pathlib.Path(__file__).parent.absolute() / filename)
-        phenom_keys = []
-        ontol_keys = []
+
+        phenom_tags = []
+        ontol_tags = []
 
         if path_dataset is None:
             dataset_name = self.config['training']['dataset']
@@ -746,10 +766,10 @@ class Scope:
 
             script.write('#!/bin/bash\n')
 
-            for key in self.config['training']['classes'].keys():
-                label = self.config['training']['classes'][key]['label']
-                threshold = self.config['training']['classes'][key]['threshold']
-                branch = self.config['training']['classes'][key]['features']
+            for tag in self.config['training']['classes'].keys():
+                label = self.config['training']['classes'][tag]['label']
+                threshold = self.config['training']['classes'][tag]['threshold']
+                branch = self.config['training']['classes'][tag]['features']
                 num_pos = np.sum(dataset[label] > threshold)
 
                 if num_pos > min_count:
@@ -757,24 +777,77 @@ class Scope:
                         f'Label {label}: {num_pos} positive examples with P > {threshold}'
                     )
                     if branch == 'phenomenological':
-                        phenom_keys += [key]
+                        phenom_tags += [tag]
                     else:
-                        ontol_keys += [key]
+                        ontol_tags += [tag]
 
-            script.write('# Phenomenological\n')
-            script.writelines(
-                [
-                    f'./scope.py train --tag {key} --path_dataset {path_dataset} --verbose {add_keywords} \n'
-                    for key in phenom_keys
-                ]
-            )
-            script.write('# Ontological\n')
-            script.writelines(
-                [
-                    f'./scope.py train --tag {key} --path_dataset {path_dataset} --verbose {add_keywords} \n'
-                    for key in ontol_keys
-                ]
-            )
+            if pre_trained_group_name is not None:
+                group_path = (
+                    pathlib.Path(__file__).parent.absolute()
+                    / 'models'
+                    / pre_trained_group_name
+                )
+                gen = os.walk(group_path)
+                model_tags = [tag[1] for tag in gen]
+                model_tags = model_tags[0]
+
+                # If a group name for trained models is provided, either train all classes in config or only those with existing trained model
+                phenom_hasmodel = list(
+                    set.intersection(set(phenom_tags), set(model_tags))
+                )
+                ontol_hasmodel = list(
+                    set.intersection(set(ontol_tags), set(model_tags))
+                )
+
+                script.write('# Phenomenological\n')
+                for tag in phenom_tags:
+                    if tag in phenom_hasmodel:
+                        tag_file_gen = (group_path / tag).glob('*.h5')
+                        most_recent_file = max(
+                            [file for file in tag_file_gen], key=os.path.getctime
+                        ).name
+
+                        script.writelines(
+                            f'./scope.py train --tag {tag} --path_dataset {path_dataset} --pre_trained_model models/{pre_trained_group_name}/{tag}/{most_recent_file} --verbose {add_keywords} \n'
+                        )
+
+                    elif train_all:
+                        script.writelines(
+                            f'./scope.py train --tag {tag} --path_dataset {path_dataset} --verbose {add_keywords} \n'
+                        )
+
+                script.write('# Ontological\n')
+                for tag in ontol_tags:
+                    if tag in ontol_hasmodel:
+                        tag_file_gen = (group_path / tag).glob('*.h5')
+                        most_recent_file = max(
+                            [file for file in tag_file_gen], key=os.path.getctime
+                        ).name
+
+                        script.writelines(
+                            f'./scope.py train --tag {tag} --path_dataset {path_dataset} --pre_trained_model models/{pre_trained_group_name}/{tag}/{most_recent_file} --verbose {add_keywords} \n'
+                        )
+
+                    elif train_all:
+                        script.writelines(
+                            f'./scope.py train --tag {tag} --path_dataset {path_dataset} --verbose {add_keywords} \n'
+                        )
+
+            else:
+                script.write('# Phenomenological\n')
+                script.writelines(
+                    [
+                        f'./scope.py train --tag {tag} --path_dataset {path_dataset} --verbose {add_keywords} \n'
+                        for tag in phenom_tags
+                    ]
+                )
+                script.write('# Ontological\n')
+                script.writelines(
+                    [
+                        f'./scope.py train --tag {tag} --path_dataset {path_dataset} --verbose {add_keywords} \n'
+                        for tag in ontol_tags
+                    ]
+                )
 
     def create_inference_script(
         self,
