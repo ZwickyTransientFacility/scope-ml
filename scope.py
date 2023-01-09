@@ -565,6 +565,8 @@ class Scope:
             epochs=epochs,
         )
 
+        print(datasets['train'])
+
         # set up and train model
         dense_branch = kwargs.get("dense_branch", True)
         conv_branch = kwargs.get("conv_branch", True)
@@ -589,9 +591,21 @@ class Scope:
         classifier = DNN(name=tag)
 
         if pre_trained_model is not None:
-            classifier.model = classifier.load(
-                pre_trained_model, weights_only=weights_only
+            classifier.load(pre_trained_model, weights_only=weights_only)
+            model_input = classifier.model.input
+            training_set_inputs = datasets['train'].element_spec[0]
+            # Compare input shapes with model inputs
+            print(
+                'Comparing shapes of input features with inputs for existing model...'
             )
+            for inpt in model_input:
+                inpt_name = inpt.name
+                input_shape = inpt.shape
+                input_shape.assert_is_compatible_with(
+                    training_set_inputs[inpt_name].shape
+                )
+            print('Input shapes are consistent.')
+
         else:
             classifier.setup(
                 dense_branch=dense_branch,
