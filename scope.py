@@ -708,7 +708,7 @@ class Scope:
         filename: str = 'train_dnn.sh',
         min_count: int = 100,
         path_dataset: str = None,
-        group_name: str = None,
+        pre_trained_group_name: str = None,
         add_keywords: str = '',
         train_all: bool = False,
     ):
@@ -718,7 +718,7 @@ class Scope:
         :param filename: filename of shell script (must not currently exist) (str)
         :param min_count: minimum number of positive examples to include in script (int)
         :param path_dataset: local path to .parquet, .h5 or .csv file with the dataset, if not provided in config.yaml (str)
-        :param group_name: name of group containing trained models within models directory (str)
+        :param pre_trained_group_name: name of group containing pre-trained models within models directory (str)
         :param add_keywords: str containing additional training keywords to append to each line in the script
         :param train_all: if group_name is specified, set this keyword to train all classes regardeless of whether a trained model exists (bool)
 
@@ -769,9 +769,11 @@ class Scope:
                     else:
                         ontol_tags += [tag]
 
-            if group_name is not None:
+            if pre_trained_group_name is not None:
                 group_path = (
-                    pathlib.Path(__file__).parent.absolute() / 'models' / group_name
+                    pathlib.Path(__file__).parent.absolute()
+                    / 'models'
+                    / pre_trained_group_name
                 )
                 gen = os.walk(group_path)
                 model_tags = [tag[1] for tag in gen]
@@ -794,7 +796,7 @@ class Scope:
                         ).name
 
                         script.writelines(
-                            f'./scope.py train --tag {tag} --path_dataset {path_dataset} --pre_trained_model models/{group_name}/{tag}/{most_recent_file} --verbose {add_keywords} \n'
+                            f'./scope.py train --tag {tag} --path_dataset {path_dataset} --pre_trained_model models/{pre_trained_group_name}/{tag}/{most_recent_file} --verbose {add_keywords} \n'
                         )
 
                     elif train_all:
@@ -811,7 +813,7 @@ class Scope:
                         ).name
 
                         script.writelines(
-                            f'./scope.py train --tag {tag} --path_dataset {path_dataset} --pre_trained_model models/{group_name}/{tag}/{most_recent_file} --verbose {add_keywords} \n'
+                            f'./scope.py train --tag {tag} --path_dataset {path_dataset} --pre_trained_model models/{pre_trained_group_name}/{tag}/{most_recent_file} --verbose {add_keywords} \n'
                         )
 
                     elif train_all:
