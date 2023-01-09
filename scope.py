@@ -598,8 +598,8 @@ class Scope:
             )
             for inpt in model_input:
                 inpt_name = inpt.name
-                input_shape = inpt.shape
-                input_shape.assert_is_compatible_with(
+                inpt_shape = inpt.shape
+                inpt_shape.assert_is_compatible_with(
                     training_set_inputs[inpt_name].shape
                 )
             print('Input shapes are consistent.')
