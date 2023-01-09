@@ -565,8 +565,6 @@ class Scope:
             epochs=epochs,
         )
 
-        print(datasets['train'])
-
         # set up and train model
         dense_branch = kwargs.get("dense_branch", True)
         conv_branch = kwargs.get("conv_branch", True)
