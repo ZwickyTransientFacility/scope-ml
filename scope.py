@@ -603,6 +603,7 @@ class Scope:
                     training_set_inputs[inpt_name].shape
                 )
             print('Input shapes are consistent.')
+            classifier.set_callbacks(callbacks, tag, **kwargs)
 
         else:
             classifier.setup(
@@ -649,6 +650,7 @@ class Scope:
                 },
             )
             classifier.meta["callbacks"].append(WandbCallback())
+            print('callback', classifier.meta['callbacks'])
 
         classifier.train(
             datasets["train"],

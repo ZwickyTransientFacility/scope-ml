@@ -197,7 +197,7 @@ class DNN(AbstractClassifier):
             epsilon = kwargs.get("epsilon", 1e-7)  # None?
             decay = kwargs.get("decay", 0.0)
             amsgrad = kwargs.get("amsgrad", 3e-4)
-            self.meta["optimizer"] = tf.keras.optimizers.Adam(
+            self.meta["optimizer"] = tf.keras.optimizers.legacy.Adam(
                 learning_rate=lr,
                 beta_1=beta_1,
                 beta_2=beta_2,
@@ -235,47 +235,7 @@ class DNN(AbstractClassifier):
             tf.keras.metrics.AUC(name="auc"),
         ]
 
-        self.meta["callbacks"] = []
-        for callback in set(callbacks):
-            if callback == "early_stopping":
-                # halt training if no gain in <validation loss> over <patience> epochs
-                monitor = kwargs.get("monitor", "val_loss")
-                patience = kwargs.get("patience", 10)
-                restore_best_weights = kwargs.get("restore_best_weights", True)
-                early_stopping_callback = tf.keras.callbacks.EarlyStopping(
-                    monitor=monitor,
-                    patience=patience,
-                    restore_best_weights=restore_best_weights,
-                )
-                self.meta["callbacks"].append(early_stopping_callback)
-
-            elif callback == "tensorboard":
-                # logs for TensorBoard:
-                if tag:
-                    log_tag = f'{self.name.replace(" ", "_")}-{tag}-{datetime.datetime.now().strftime("%Y%m%d-%H%M%S")}'
-                else:
-                    log_tag = f'{self.name.replace(" ", "_")}-{datetime.datetime.now().strftime("%Y%m%d-%H%M%S")}'
-                logdir_tag = os.path.join("logs", log_tag)
-                tensorboard_callback = tf.keras.callbacks.TensorBoard(
-                    os.path.join(logdir_tag, log_tag), histogram_freq=1
-                )
-                self.meta["callbacks"].append(tensorboard_callback)
-
-            elif callback == "reduce_lr_on_plateau":
-                monitor = kwargs.get("monitor", "val_loss")
-                patience = kwargs.get("patience", 10)
-                lr_reduction_factor = kwargs.get("lr_reduction_factor", 0.1)
-                reduce_lr_on_plateau_callback = tf.keras.callbacks.ReduceLROnPlateau(
-                    monitor=monitor,
-                    factor=lr_reduction_factor,
-                    patience=patience,
-                    verbose=0,
-                    mode="auto",
-                    min_delta=0.0001,
-                    cooldown=0,
-                    min_lr=0,
-                )
-                self.meta["callbacks"].append(reduce_lr_on_plateau_callback)
+        self.set_callbacks(callbacks, tag, **kwargs)
 
         run_eagerly = kwargs.get("run_eagerly", False)
         self.model.compile(
@@ -358,6 +318,49 @@ class DNN(AbstractClassifier):
         m = tf.keras.Model(inputs=[features_input, dmdt_input], outputs=x)
 
         return m
+
+    def set_callbacks(self, callbacks, tag=None, **kwargs):
+        self.meta["callbacks"] = []
+        for callback in set(callbacks):
+            if callback == "early_stopping":
+                # halt training if no gain in <validation loss> over <patience> epochs
+                monitor = kwargs.get("monitor", "val_loss")
+                patience = kwargs.get("patience", 10)
+                restore_best_weights = kwargs.get("restore_best_weights", True)
+                early_stopping_callback = tf.keras.callbacks.EarlyStopping(
+                    monitor=monitor,
+                    patience=patience,
+                    restore_best_weights=restore_best_weights,
+                )
+                self.meta["callbacks"].append(early_stopping_callback)
+
+            elif callback == "tensorboard":
+                # logs for TensorBoard:
+                if tag:
+                    log_tag = f'{self.name.replace(" ", "_")}-{tag}-{datetime.datetime.now().strftime("%Y%m%d-%H%M%S")}'
+                else:
+                    log_tag = f'{self.name.replace(" ", "_")}-{datetime.datetime.now().strftime("%Y%m%d-%H%M%S")}'
+                logdir_tag = os.path.join("logs", log_tag)
+                tensorboard_callback = tf.keras.callbacks.TensorBoard(
+                    os.path.join(logdir_tag, log_tag), histogram_freq=1
+                )
+                self.meta["callbacks"].append(tensorboard_callback)
+
+            elif callback == "reduce_lr_on_plateau":
+                monitor = kwargs.get("monitor", "val_loss")
+                patience = kwargs.get("patience", 10)
+                lr_reduction_factor = kwargs.get("lr_reduction_factor", 0.1)
+                reduce_lr_on_plateau_callback = tf.keras.callbacks.ReduceLROnPlateau(
+                    monitor=monitor,
+                    factor=lr_reduction_factor,
+                    patience=patience,
+                    verbose=0,
+                    mode="auto",
+                    min_delta=0.0001,
+                    cooldown=0,
+                    min_lr=0,
+                )
+                self.meta["callbacks"].append(reduce_lr_on_plateau_callback)
 
     def train(
         self,
