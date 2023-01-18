@@ -2,10 +2,10 @@ deepdiff>=5.0
 gsutil>=4.60
 keras-tuner>=1.0.2
 matplotlib>=3.3
-numpy<1.20
+numpy
 pytest>=6.1.2
 questionary>=1.8.1
 scikit-learn>=0.24.1
-tensorflow<2.6
+tensorflow
 tensorflow-addons>=0.12
 wandb>=0.12.1
