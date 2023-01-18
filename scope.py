@@ -650,7 +650,6 @@ class Scope:
                 },
             )
             classifier.meta["callbacks"].append(WandbCallback())
-            print('callback', classifier.meta['callbacks'])
 
         classifier.train(
             datasets["train"],
