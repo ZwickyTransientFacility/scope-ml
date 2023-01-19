@@ -16,6 +16,7 @@ import os
 
 RADIUS_ARCSEC = 2
 UPLOAD_BATCHSIZE = 10
+OBJ_ID_BATCHSIZE = 10
 
 
 def upload_classification(
@@ -98,7 +99,7 @@ def upload_classification(
         classes = [key for key in tax_map.keys()]  # define list of columns to examine
 
     dict_list = []
-    obj_ids = []
+    obj_id_dict = {}
     for index, row in sources.iterrows():
         probs = {}
         cls_list = []
@@ -222,7 +223,7 @@ def upload_classification(
 
         data_groups = []
         data_classes = []
-        obj_ids += [obj_id]
+        obj_id_dict[index] = obj_id
 
         # check which groups source is already in
         add_group_ids = group_ids.copy()
@@ -346,83 +347,85 @@ def upload_classification(
                 api("POST", "/api/classification", json_classes)
                 dict_list = []
 
-    if write_obj_id:
-        # Check for appropriate result format
-        result_file_extension = os.path.splitext(result_filetag)[-1]
+        if write_obj_id:
+            if (((index - start) + 1) % OBJ_ID_BATCHSIZE == 0) | (index == stop):
+                # Check for appropriate result format
+                result_file_extension = os.path.splitext(result_filetag)[-1]
 
-        # If parquet, h5 or csv extension specified in result_filetag, use that format for saving
-        result_format = (
-            result_format
-            if result_file_extension not in ['.parquet', '.h5', '.csv']
-            else result_file_extension
-        )
+                # If parquet, h5 or csv extension specified in result_filetag, use that format for saving
+                result_format = (
+                    result_format
+                    if result_file_extension not in ['.parquet', '.h5', '.csv']
+                    else result_file_extension
+                )
 
-        if result_format in [
-            '.parquet',
-            'parquet',
-            '.Parquet',
-            'Parquet',
-            '.parq',
-            'parq',
-            '.PARQUET',
-            'PARQUET',
-            '.PARQ',
-            'PARQ',
-        ]:
-            result_format = '.parquet'
-            print('Using .parquet extension for saved files.')
-        elif result_format in [
-            '.h5',
-            'h5',
-            '.H5',
-            'H5',
-            '.hdf5',
-            'hdf5',
-            '.HDF5',
-            'HDF5',
-        ]:
-            result_format = '.h5'
-            print('Using .h5 extension for saved files.')
-        elif result_format in ['.csv', 'csv', '.CSV', 'CSV']:
-            result_format = '.csv'
-            print('Using .csv extension for saved files.')
-        else:
-            raise ValueError('result format must be parquet, hdf5 or csv.')
+                if result_format in [
+                    '.parquet',
+                    'parquet',
+                    '.Parquet',
+                    'Parquet',
+                    '.parq',
+                    'parq',
+                    '.PARQUET',
+                    'PARQUET',
+                    '.PARQ',
+                    'PARQ',
+                ]:
+                    result_format = '.parquet'
+                    print('Using .parquet extension for saved files.')
+                elif result_format in [
+                    '.h5',
+                    'h5',
+                    '.H5',
+                    'H5',
+                    '.hdf5',
+                    'hdf5',
+                    '.HDF5',
+                    'HDF5',
+                ]:
+                    result_format = '.h5'
+                    print('Using .h5 extension for saved files.')
+                elif result_format in ['.csv', 'csv', '.CSV', 'CSV']:
+                    result_format = '.csv'
+                    print('Using .csv extension for saved files.')
+                else:
+                    raise ValueError('result format must be parquet, hdf5 or csv.')
 
-        # If user puts extension in filename, remove it for consistency
-        if (
-            (result_filetag.endswith('.csv'))
-            | (result_filetag.endswith('.h5'))
-            | (result_filetag.endswith('.parquet'))
-        ):
-            result_filetag = os.path.splitext(result_filetag)[0]
+                # If user puts extension in filename, remove it for consistency
+                if (
+                    (result_filetag.endswith('.csv'))
+                    | (result_filetag.endswith('.h5'))
+                    | (result_filetag.endswith('.parquet'))
+                ):
+                    result_filetag = os.path.splitext(result_filetag)[0]
 
-        outpath = os.path.join(os.path.dirname(__file__), result_dir)
-        os.makedirs(outpath, exist_ok=True)
+                outpath = os.path.join(os.path.dirname(__file__), result_dir)
+                os.makedirs(outpath, exist_ok=True)
 
-        filename = (
-            os.path.splitext(os.path.basename(file))[0]
-            + '_'
-            + result_filetag
-            + result_format
-        )  # rename file
-        filepath = os.path.join(outpath, filename)
+                filename = (
+                    os.path.splitext(os.path.basename(file))[0]
+                    + '_'
+                    + result_filetag
+                    + result_format
+                )  # rename file
+                filepath = os.path.join(outpath, filename)
 
-        sources['obj_id'] = obj_ids
+                sources_to_write = sources.loc[[x for x in obj_id_dict.keys()]]
+                sources_to_write['obj_id'] = [x for x in obj_id_dict.values()]
 
-        if 'obj_id' not in all_sources.columns:
-            all_sources['obj_id'] = ''
-        all_sources['obj_id'].loc[start:stop] = sources['obj_id']
+                if 'obj_id' not in all_sources.columns:
+                    all_sources['obj_id'] = ''
+                all_sources['obj_id'].loc[start:stop] = sources_to_write['obj_id']
 
-        print(
-            'Saving obj_id for uploaded sources. If upload is incomplete, use this file for future uploads to continue filling the obj_id column.'
-        )
-        if result_format == '.csv':
-            all_sources.to_csv(filepath, index=False)
-        elif result_format == '.h5':
-            write_hdf(all_sources, filepath)
-        else:
-            write_parquet(all_sources, filepath)
+                print(
+                    'Saving obj_id for uploaded sources. If upload is incomplete, use this file for future uploads to continue filling the obj_id column.'
+                )
+                if result_format == '.csv':
+                    all_sources.to_csv(filepath, index=False)
+                elif result_format == '.h5':
+                    write_hdf(all_sources, filepath)
+                else:
+                    write_parquet(all_sources, filepath)
 
 
 if __name__ == "__main__":
