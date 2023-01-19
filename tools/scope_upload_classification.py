@@ -4,6 +4,7 @@ import json as JSON
 import pandas as pd
 from penquins import Kowalski
 from scope.fritz import save_newsource, api
+from scope.utils import read_hdf, read_parquet, write_hdf, write_parquet
 import math
 import warnings
 import yaml
@@ -11,6 +12,7 @@ import pathlib
 from tools import scope_manage_annotation
 from datetime import datetime
 import numpy as np
+import os
 
 RADIUS_ARCSEC = 2
 UPLOAD_BATCHSIZE = 10
@@ -29,12 +31,16 @@ def upload_classification(
     ztf_origin: str,
     skip_phot: bool = False,
     p_threshold: float = 0.0,
-    no_match_ids: bool = False,
+    match_ids: bool = False,
     use_existing_obj_id: bool = False,
+    write_obj_id: bool = False,
+    result_dir: str = 'fritzUpload',
+    result_filetag: str = 'fritzUpload',
+    result_format: str = 'parquet',
 ):
     """
     Upload labels to Fritz
-    :param file: path to CSV file containing labels (str)
+    :param file: path to .csv, .h5 or .parquet file containing labels (str)
     :param gloria: Gloria object
     :param group_ids: list of group ids on Fritz for upload target location [int, int, ...]
     :param taxonomy_id: scope taxonomy id (int)
@@ -46,13 +52,26 @@ def upload_classification(
     :ztf_origin: origin of uploaded ZTF data; if set, posts ztf_id to annotation (str)
     :skip_phot: if True, only upload groups and classifications (no photometry) (bool)
     :p_threshold: classification probabilties must be >= this number to post (float)
-    :no_match_ids: if True, skip matching ZTF source ids when searching existing sources (bool)
+    :match_ids: if True, match ZTF source ids when searching existing sources (bool)
     :use_existing_obj_id: if True, source obj_id from input dataset (bool)
+    :write_obj_id: if True, write each obj_id to copy of input file (bool)
+    :result_dir: directory to write results from upload (str)
+    :result_filetag: tag to append to input filename after upload (str)
+    :result_format: format of resulting uploaded file (str)
     """
 
     # read in file to csv
-    sources = pd.read_csv(file)
+    if file.endswith('.csv'):
+        sources = pd.read_csv(file)
+    elif file.endswith('.h5'):
+        sources = read_hdf(file)
+        print(sources)
+    elif file.endswith('.parquet'):
+        sources = read_parquet(file)
+    else:
+        raise TypeError('Input file must be csv, h5 or parquet format.')
     columns = sources.columns
+    all_sources = sources.copy()
 
     if start is not None:
         sources = sources.loc[start:]
@@ -80,6 +99,7 @@ def upload_classification(
             ]  # define list of columns to examine
 
     dict_list = []
+    obj_ids = []
     for index, row in sources.iterrows():
         probs = {}
         cls_list = []
@@ -142,7 +162,7 @@ def upload_classification(
 
             if ztf_origin is not None:
                 ztfid = int(row['ztf_id'])
-            elif not no_match_ids:
+            elif match_ids:
                 raise ValueError(
                     'ZTF ID/origin must be provided for IDs to be matched.'
                 )
@@ -156,7 +176,10 @@ def upload_classification(
                     src_id = src['id']
                     src_dict[src_id] = src
 
-                    if not no_match_ids:
+                    if match_ids:
+                        warnings.warn(
+                            "One source may have more than one ZTF ID. It is recommended to match to an exising source's obj_id by setting -use_existing_obj_id."
+                        )
                         annotations = src['annotations']
                         for annot in annotations:
                             if annot['origin'] == ztf_origin:
@@ -174,7 +197,7 @@ def upload_classification(
                 if id_found:
                     existing_source = src_dict[src_id]
                     obj_id = src_id
-                elif no_match_ids:
+                elif not match_ids:
                     create_time_list = [x for x in create_time_dict.keys()]
                     create_time_list.sort(reverse=True)
 
@@ -204,6 +227,7 @@ def upload_classification(
 
         data_groups = []
         data_classes = []
+        obj_ids += [obj_id]
 
         # check which groups source is already in
         add_group_ids = group_ids.copy()
@@ -325,6 +349,84 @@ def upload_classification(
                 api("POST", "/api/classification", json_classes)
                 dict_list = []
 
+    if write_obj_id:
+        # Check for appropriate result format
+        result_file_extension = os.path.splitext(result_filetag)[-1]
+
+        # If parquet, h5 or csv extension specified in result_filetag, use that format for saving
+        result_format = (
+            result_format
+            if result_file_extension not in ['.parquet', '.h5', '.csv']
+            else result_file_extension
+        )
+
+        if result_format in [
+            '.parquet',
+            'parquet',
+            '.Parquet',
+            'Parquet',
+            '.parq',
+            'parq',
+            '.PARQUET',
+            'PARQUET',
+            '.PARQ',
+            'PARQ',
+        ]:
+            result_format = '.parquet'
+            print('Using .parquet extension for saved files.')
+        elif result_format in [
+            '.h5',
+            'h5',
+            '.H5',
+            'H5',
+            '.hdf5',
+            'hdf5',
+            '.HDF5',
+            'HDF5',
+        ]:
+            result_format = '.h5'
+            print('Using .h5 extension for saved files.')
+        elif result_format in ['.csv', 'csv', '.CSV', 'CSV']:
+            result_format = '.csv'
+            print('Using .csv extension for saved files.')
+        else:
+            raise ValueError('result format must be parquet, hdf5 or csv.')
+
+        # If user puts extension in filename, remove it for consistency
+        if (
+            (result_filetag.endswith('.csv'))
+            | (result_filetag.endswith('.h5'))
+            | (result_filetag.endswith('.parquet'))
+        ):
+            result_filetag = os.path.splitext(result_filetag)[0]
+
+        outpath = os.path.join(os.path.dirname(__file__), result_dir)
+        os.makedirs(outpath, exist_ok=True)
+
+        filename = (
+            os.path.splitext(os.path.basename(file))[0]
+            + '_'
+            + result_filetag
+            + result_format
+        )  # rename file
+        filepath = os.path.join(outpath, filename)
+
+        sources['obj_id'] = obj_ids
+
+        if 'obj_id' not in all_sources.columns:
+            all_sources['obj_id'] = ''
+        all_sources['obj_id'].loc[start:stop] = sources['obj_id']
+
+        print(
+            'Saving obj_id for uploaded sources. If upload is incomplete, use this file for future uploads to continue filling the obj_id column.'
+        )
+        if result_format == '.csv':
+            all_sources.to_csv(filepath, index=False)
+        elif result_format == '.h5':
+            write_hdf(all_sources, filepath)
+        else:
+            write_parquet(all_sources, filepath)
+
 
 if __name__ == "__main__":
     # setup connection to gloria to get the lightcurves
@@ -334,7 +436,7 @@ if __name__ == "__main__":
     gloria = Kowalski(**config['kowalski'], verbose=False)
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-file", help="dataset")
+    parser.add_argument("-file", help="dataset with .csv, .h5 or .parquet extension")
     parser.add_argument("-group_ids", type=int, nargs='+', help="list of group ids")
     parser.add_argument(
         "-taxonomy_id",
@@ -380,10 +482,10 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "-no_match_ids",
+        "-match_ids",
         action='store_true',
         default=False,
-        help="If set, match input and existing sources without using ZTF source IDs.",
+        help="If set, match input and existing sources using ZTF source IDs.",
     )
 
     parser.add_argument(
@@ -391,6 +493,34 @@ if __name__ == "__main__":
         action='store_true',
         default=False,
         help="If set, source obj_id from input dataset.",
+    )
+
+    parser.add_argument(
+        "-write_obj_id",
+        action='store_true',
+        default=False,
+        help="If set, write obj_ids corresponding to each uploaded source.",
+    )
+
+    parser.add_argument(
+        "-result_dir",
+        type=str,
+        default='fritzUpload',
+        help="Directory to save upload results",
+    )
+
+    parser.add_argument(
+        "-result_filetag",
+        type=str,
+        default='fritzUpload',
+        help="Directory to save upload results",
+    )
+
+    parser.add_argument(
+        "-result_format",
+        type=str,
+        default='parquet',
+        help="Format of result file: parquet, h5 or csv",
     )
 
     args = parser.parse_args()
@@ -409,6 +539,10 @@ if __name__ == "__main__":
         args.ztf_origin,
         args.skip_phot,
         args.p_threshold,
-        args.no_match_ids,
+        args.match_ids,
         args.use_existing_obj_id,
+        args.write_obj_id,
+        args.result_dir,
+        args.result_filetag,
+        args.result_format,
     )
