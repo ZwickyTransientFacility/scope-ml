@@ -180,7 +180,7 @@ inputs:
 0. gloria object (include Kowalski host, port, protocol, and token or username+password in config.yaml)
 1. CSV, HDF5 or Parquet file containing ra, dec, period, and labels
 2. target group id(s) on Fritz for upload
-3. Class name(s) of file columns containing . Set this to "read" and include taxonomy map to automatically upload multiple classes at once.
+3. Name(s) of input file columns containing classification probabilities (one column per label). Set this to "read" to automatically upload all classes specified in the taxonomy mapper at once.
 4. Filename of taxonomy mapper (JSON format)
 5. Comment to post (if specified)
 6. Index to start uploading (zero-based)
