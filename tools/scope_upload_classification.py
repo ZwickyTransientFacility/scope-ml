@@ -22,7 +22,6 @@ def upload_classification(
     file: str,
     gloria,
     group_ids: list,
-    taxonomy_id: int,
     classification: list,
     taxonomy_map: str,
     comment: str,
@@ -43,7 +42,6 @@ def upload_classification(
     :param file: path to .csv, .h5 or .parquet file containing labels (str)
     :param gloria: Gloria object
     :param group_ids: list of group ids on Fritz for upload target location [int, int, ...]
-    :param taxonomy_id: scope taxonomy id (int)
     :param classification: list of classifications [str, str, ...]
     :param taxonomy_map: if classification is ['read'], path to JSON file containing taxonomy mapping (str)
     :param comment: single comment to post (str)
@@ -91,12 +89,11 @@ def upload_classification(
             | (classification[0] == 'READ')
         ):
             read_classes = True
-            with open(taxonomy_map, 'r') as f:
-                tax_map = JSON.load(f)
 
-            classes = [
-                key for key in tax_map.keys()
-            ]  # define list of columns to examine
+        with open(taxonomy_map, 'r') as f:
+            tax_map = JSON.load(f)
+
+        classes = [key for key in tax_map.keys()]  # define list of columns to examine
 
     dict_list = []
     obj_ids = []
@@ -106,8 +103,11 @@ def upload_classification(
         tax_dict = {}
         existing_classes = []
 
-        if read_classes:
-            row_classes = row[classes]  # limit current row to specific columns
+        if classification is not None:
+            if not read_classes:
+                # Allow subset of all mapper classes to be specified for upload
+                classes = list(set.intersection(set(classification), set(classes)))
+            row_classes = row[classes]  # limit current row to specified columns
             if p_threshold > 0.0:
                 threshold_keys = row_classes.keys()[
                     row_classes >= p_threshold
@@ -123,13 +123,6 @@ def upload_classification(
                     probs[cls] = row[val]
                     cls_list += [cls]
                     tax_dict[cls] = tax_id
-
-        else:
-            # for manual i classifications, use last i columns for probability
-            for i in range(len(classification)):
-                cls = classification[i]
-                cls_list += [cls]
-                probs[cls] = row.iloc[-1 * len(classification) + i]
 
         ra, dec = float(row.ra), float(row.dec)
 
@@ -438,11 +431,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-file", help="dataset with .csv, .h5 or .parquet extension")
     parser.add_argument("-group_ids", type=int, nargs='+', help="list of group ids")
-    parser.add_argument(
-        "-taxonomy_id",
-        type=int,
-        help="Fritz scope taxonomy id",
-    )
+
     # parser.add_argument("-classification", type=str, help="name of object class")
     parser.add_argument(
         "-classification", type=str, nargs='+', help="list of object classes"
@@ -530,7 +519,6 @@ if __name__ == "__main__":
         args.file,
         gloria,
         args.group_ids,
-        args.taxonomy_id,
         args.classification,
         args.taxonomy_map,
         args.comment,
