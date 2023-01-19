@@ -273,24 +273,27 @@ def save_newsource(
 
     # generate position-based name if obj_id not set
     if obj_id is None:
-        ra_mean = float(
-            np.mean(
-                [
-                    light_curve["ra"]
-                    for light_curve in light_curves
-                    if light_curve.get("ra") is not None
-                ]
+        if light_curves is not None:
+            ra_mean = float(
+                np.mean(
+                    [
+                        light_curve["ra"]
+                        for light_curve in light_curves
+                        if light_curve.get("ra") is not None
+                    ]
+                )
             )
-        )
-        dec_mean = float(
-            np.mean(
-                [
-                    light_curve["dec"]
-                    for light_curve in light_curves
-                    if light_curve.get("dec") is not None
-                ]
+            dec_mean = float(
+                np.mean(
+                    [
+                        light_curve["dec"]
+                        for light_curve in light_curves
+                        if light_curve.get("dec") is not None
+                    ]
+                )
             )
-        )
+        else:
+            ra_mean, dec_mean = ra, dec
         obj_id = radec_to_iau_name(ra_mean, dec_mean, prefix="ZTFJ")
 
         # post new source to Fritz
