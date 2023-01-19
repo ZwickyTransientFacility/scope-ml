@@ -32,6 +32,7 @@ def upload_classification(
     p_threshold: float = 0.0,
     match_ids: bool = False,
     use_existing_obj_id: bool = False,
+    post_upvote: bool = False,
     write_obj_id: bool = False,
     result_dir: str = 'fritzUpload',
     result_filetag: str = 'fritzUpload',
@@ -52,6 +53,7 @@ def upload_classification(
     :p_threshold: classification probabilties must be >= this number to post (float)
     :match_ids: if True, match ZTF source ids when searching existing sources (bool)
     :use_existing_obj_id: if True, source obj_id from input dataset (bool)
+    :post_upvote: if True, post upvote to new classifications (bool)
     :write_obj_id: if True, write each obj_id to copy of input file (bool)
     :result_dir: directory to write results from upload (str)
     :result_filetag: tag to append to input filename after upload (str)
@@ -270,6 +272,7 @@ def upload_classification(
                         "taxonomy_id": tax,
                         "probability": prob,
                         "group_ids": group_ids,
+                        "vote": post_upvote,
                     }
                     dict_list += [json]
                 else:
@@ -285,6 +288,7 @@ def upload_classification(
                             "taxonomy_id": tax,
                             "probability": prob,
                             "group_ids": groups_to_post,
+                            "vote": post_upvote,
                         }
                         dict_list += [json]
 
@@ -485,6 +489,13 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        "-post_upvote",
+        action='store_true',
+        default=False,
+        help="If set, post upvote to new classifications.",
+    )
+
+    parser.add_argument(
         "-write_obj_id",
         action='store_true',
         default=False,
@@ -529,6 +540,7 @@ if __name__ == "__main__":
         args.p_threshold,
         args.match_ids,
         args.use_existing_obj_id,
+        args.post_upvote,
         args.write_obj_id,
         args.result_dir,
         args.result_filetag,
