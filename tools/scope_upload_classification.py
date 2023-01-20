@@ -223,129 +223,134 @@ def upload_classification(
 
         data_groups = []
         data_classes = []
-        obj_id_dict[index] = obj_id
+        if obj_id is not None:
 
-        # check which groups source is already in
-        add_group_ids = group_ids.copy()
-        if len(existing_source) > 0:
-            data_groups = existing_source['groups']
-            data_classes = existing_source['classifications']
+            # check which groups source is already in
+            add_group_ids = group_ids.copy()
+            if len(existing_source) > 0:
+                data_groups = existing_source['groups']
+                data_classes = existing_source['classifications']
 
-        # remove existing groups from list of groups
-        for entry in data_groups:
-            existing_group_id = entry['id']
-            if existing_group_id in add_group_ids:
-                add_group_ids.remove(existing_group_id)
+            # remove existing groups from list of groups
+            for entry in data_groups:
+                existing_group_id = entry['id']
+                if existing_group_id in add_group_ids:
+                    add_group_ids.remove(existing_group_id)
 
-        if len(add_group_ids) > 0:
-            # save to new group_ids
-            json = {"objId": obj_id, "inviteGroupIds": add_group_ids}
-            response = api("POST", "/api/source_groups", json)
+            if len(add_group_ids) > 0:
+                # save to new group_ids
+                json = {"objId": obj_id, "inviteGroupIds": add_group_ids}
+                response = api("POST", "/api/source_groups", json)
 
-        # check for existing classifications and their groups
-        class_group_dict = {}
-        for entry in data_classes:
-            c_key = entry['classification']
-            c_values = [x['id'] for x in entry['groups']]
+            # check for existing classifications and their groups
+            class_group_dict = {}
+            for entry in data_classes:
+                c_key = entry['classification']
+                c_values = [x['id'] for x in entry['groups']]
 
-            if c_key not in class_group_dict.keys():
-                class_group_dict[c_key] = c_values
-            else:
-                class_group_dict[entry['classification']].extend(c_values)
-
-        for key in class_group_dict.keys():
-            grp_ids = np.array(class_group_dict[key])
-            unique_grp_ids = np.unique(grp_ids)
-            class_group_dict[key] = unique_grp_ids.tolist()
-
-        existing_classes = [k for k in class_group_dict.keys()]
-
-        # allow classification assignment to be skipped
-        if classification is not None:
-            for cls in cls_list:
-                tax = tax_dict[cls]
-                prob = probs[cls]
-                if cls not in existing_classes:
-                    # post all non-duplicate classifications
-                    json = {
-                        "obj_id": obj_id,
-                        "classification": cls,
-                        "taxonomy_id": tax,
-                        "probability": prob,
-                        "group_ids": group_ids,
-                        "vote": post_upvote,
-                    }
-                    dict_list += [json]
+                if c_key not in class_group_dict.keys():
+                    class_group_dict[c_key] = c_values
                 else:
-                    # Classification may exist, but not for intended groups.
-                    groups_to_post = []
-                    for g in group_ids:
-                        if g not in class_group_dict[cls]:
-                            groups_to_post += [g]
-                    if len(groups_to_post) > 0:
+                    class_group_dict[entry['classification']].extend(c_values)
+
+            for key in class_group_dict.keys():
+                grp_ids = np.array(class_group_dict[key])
+                unique_grp_ids = np.unique(grp_ids)
+                class_group_dict[key] = unique_grp_ids.tolist()
+
+            existing_classes = [k for k in class_group_dict.keys()]
+
+            # allow classification assignment to be skipped
+            if classification is not None:
+                for cls in cls_list:
+                    tax = tax_dict[cls]
+                    prob = probs[cls]
+                    if cls not in existing_classes:
+                        # post all non-duplicate classifications
                         json = {
                             "obj_id": obj_id,
                             "classification": cls,
                             "taxonomy_id": tax,
                             "probability": prob,
-                            "group_ids": groups_to_post,
+                            "group_ids": group_ids,
                             "vote": post_upvote,
                         }
                         dict_list += [json]
+                    else:
+                        # Classification may exist, but not for intended groups.
+                        groups_to_post = []
+                        for g in group_ids:
+                            if g not in class_group_dict[cls]:
+                                groups_to_post += [g]
+                        if len(groups_to_post) > 0:
+                            json = {
+                                "obj_id": obj_id,
+                                "classification": cls,
+                                "taxonomy_id": tax,
+                                "probability": prob,
+                                "group_ids": groups_to_post,
+                                "vote": post_upvote,
+                            }
+                            dict_list += [json]
 
-        if comment is not None:
-            # get comment text
-            response_comments = api("GET", f"/api/sources/{obj_id}/comments")
-            data_comments = response_comments.json().get("data")
+            if comment is not None:
+                # get comment text
+                response_comments = api("GET", f"/api/sources/{obj_id}/comments")
+                data_comments = response_comments.json().get("data")
 
-            # check for existing comments
-            existing_comments = []
-            for entry in data_comments:
-                existing_comments += [entry['text']]
+                # check for existing comments
+                existing_comments = []
+                for entry in data_comments:
+                    existing_comments += [entry['text']]
 
-            # post all non-duplicate comments
-            if comment not in existing_comments:
-                json = {
-                    "text": comment,
-                }
-                response = api("POST", f"/api/sources/{obj_id}/comments", json)
+                # post all non-duplicate comments
+                if comment not in existing_comments:
+                    json = {
+                        "text": comment,
+                    }
+                    response = api("POST", f"/api/sources/{obj_id}/comments", json)
 
-        # Post ZTF ID as annotation
-        if ztf_origin is not None:
-            if obj_id not in [x for x in src_dict.keys()]:
-                scope_manage_annotation.manage_annotation(
-                    'POST', obj_id, group_ids, ztf_origin, 'ztf_id', str(ztfid)
-                )
-            else:
-                source_to_update = src_dict[obj_id]
-                existing_ztf_ids = [
-                    x['data']
-                    for x in source_to_update['annotations']
-                    if x['origin'] == ztf_origin
-                ]
-                if len(existing_ztf_ids) == 0:
+            # Post ZTF ID as annotation
+            if ztf_origin is not None:
+                if obj_id not in [x for x in src_dict.keys()]:
                     scope_manage_annotation.manage_annotation(
                         'POST', obj_id, group_ids, ztf_origin, 'ztf_id', str(ztfid)
                     )
                 else:
-                    n_existing_ztf_ids = len(existing_ztf_ids[0].keys())
-                    if ztfid not in existing_ztf_ids[0].values():
+                    source_to_update = src_dict[obj_id]
+                    existing_ztf_ids = [
+                        x['data']
+                        for x in source_to_update['annotations']
+                        if x['origin'] == ztf_origin
+                    ]
+                    if len(existing_ztf_ids) == 0:
                         scope_manage_annotation.manage_annotation(
-                            'UPDATE',
-                            obj_id,
-                            group_ids,
-                            ztf_origin,
-                            f'ztf_id_{n_existing_ztf_ids+1}',
-                            str(ztfid),
+                            'POST', obj_id, group_ids, ztf_origin, 'ztf_id', str(ztfid)
                         )
+                    else:
+                        n_existing_ztf_ids = len(existing_ztf_ids[0].keys())
+                        if ztfid not in existing_ztf_ids[0].values():
+                            scope_manage_annotation.manage_annotation(
+                                'UPDATE',
+                                obj_id,
+                                group_ids,
+                                ztf_origin,
+                                f'ztf_id_{n_existing_ztf_ids+1}',
+                                str(ztfid),
+                            )
 
-        # batch upload classifications
-        if len(dict_list) != 0:
-            if (((index - start) + 1) % UPLOAD_BATCHSIZE == 0) | (index == stop):
-                print('uploading classifications...')
-                json_classes = {'classifications': dict_list}
-                api("POST", "/api/classification", json_classes)
-                dict_list = []
+            # batch upload classifications
+            if len(dict_list) != 0:
+                if (((index - start) + 1) % UPLOAD_BATCHSIZE == 0) | (index == stop):
+                    print('uploading classifications...')
+                    json_classes = {'classifications': dict_list}
+                    api("POST", "/api/classification", json_classes)
+                    dict_list = []
+
+        else:
+            obj_id = ''
+
+        obj_id_dict[index] = obj_id
 
         if write_obj_id:
             if (((index - start) + 1) % OBJ_ID_BATCHSIZE == 0) | (index == stop):

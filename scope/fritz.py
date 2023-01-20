@@ -271,7 +271,9 @@ def save_newsource(
     light_curves = get_lightcurves(gloria, ra, dec, radius)
 
     # generate position-based name if obj_id not set
+    newsource = False
     if obj_id is None:
+        newsource = True
         if light_curves is not None:
             ra_mean = float(
                 np.mean(
@@ -292,41 +294,6 @@ def save_newsource(
                 )
             )
 
-            # get photometry; drop flagged/nan data
-            df_photometry = make_photometry(light_curves, drop_flagged=True)
-            df_photometry = (
-                df_photometry.dropna().drop_duplicates('expid').reset_index(drop=True)
-            )
-            # Get up-to-date ZTF instrument id
-            name = 'ZTF'
-
-            response_instruments = api(
-                'GET', 'api/instrument', max_attempts=MAX_ATTEMPTS
-            )
-
-            instrument_data = response_instruments.json().get('data')
-
-            for instrument in instrument_data:
-                if instrument['name'] == name:
-                    instrument_id = instrument['id']
-                    break
-
-            photometry = {
-                "obj_id": obj_id,
-                "instrument_id": instrument_id,
-                "mjd": df_photometry["mjd"].tolist(),
-                "mag": df_photometry["mag"].tolist(),
-                "magerr": df_photometry["magerr"].tolist(),
-                "limiting_mag": df_photometry["zp"].tolist(),
-                "magsys": df_photometry["magsys"].tolist(),
-                "filter": df_photometry["ztf_filter"].tolist(),
-                "ra": df_photometry["ra"].tolist(),
-                "dec": df_photometry["dec"].tolist(),
-                "group_ids": group_ids,
-            }
-            if len(photometry.get("mag", ())) > 0:
-                print('No unflagged photometry available. Skipping source.')
-                return None
         else:
             # ra_mean, dec_mean = ra, dec
             print("No lightcurves found. Skipping source.")
@@ -334,25 +301,60 @@ def save_newsource(
 
         obj_id = radec_to_iau_name(ra_mean, dec_mean, prefix="ZTFJ")
 
-        # post new source to Fritz
-        if not dryrun:
-            post_source_data = {
-                "id": obj_id,
-                "ra": ra_mean,
-                "dec": dec_mean,
-                "group_ids": group_ids,
-                "origin": "Fritz",
-            }
+    # get photometry; drop flagged/nan data
+    df_photometry = make_photometry(light_curves, drop_flagged=True)
+    df_photometry = (
+        df_photometry.dropna().drop_duplicates('expid').reset_index(drop=True)
+    )
+    # Get up-to-date ZTF instrument id
+    name = 'ZTF'
 
-            response = api(
-                "POST",
-                "/api/sources",
-                post_source_data,
-                max_attempts=MAX_ATTEMPTS,
-            )
-            if response.json()["status"] == "error":
-                print(f"Failed to save {obj_id} as a Source")
-                return None
+    response_instruments = api('GET', 'api/instrument', max_attempts=MAX_ATTEMPTS)
+
+    instrument_data = response_instruments.json().get('data')
+
+    for instrument in instrument_data:
+        if instrument['name'] == name:
+            instrument_id = instrument['id']
+            break
+
+    photometry = {
+        "obj_id": obj_id,
+        "instrument_id": instrument_id,
+        "mjd": df_photometry["mjd"].tolist(),
+        "mag": df_photometry["mag"].tolist(),
+        "magerr": df_photometry["magerr"].tolist(),
+        "limiting_mag": df_photometry["zp"].tolist(),
+        "magsys": df_photometry["magsys"].tolist(),
+        "filter": df_photometry["ztf_filter"].tolist(),
+        "ra": df_photometry["ra"].tolist(),
+        "dec": df_photometry["dec"].tolist(),
+        "group_ids": group_ids,
+    }
+    print(len(photometry.get("mag", ())))
+    if len(photometry.get("mag", ())) == 0:
+        print('No unflagged photometry available. Skipping source.')
+        return None
+
+    # post new source to Fritz
+    if newsource and not dryrun:
+        post_source_data = {
+            "id": obj_id,
+            "ra": ra_mean,
+            "dec": dec_mean,
+            "group_ids": group_ids,
+            "origin": "Fritz",
+        }
+
+        response = api(
+            "POST",
+            "/api/sources",
+            post_source_data,
+            max_attempts=MAX_ATTEMPTS,
+        )
+        if response.json()["status"] == "error":
+            print(f"Failed to save {obj_id} as a Source")
+            return None
 
     # post photometry
     if not dryrun:
