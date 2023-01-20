@@ -129,6 +129,94 @@ def get_ids_loop(
     return ser
 
 
+def get_cone_ids(
+    obj_id_list: list,
+    ra_list: list,
+    dec_list: list,
+    catalog: str = 'ZTF_source_features_DR5',
+    max_distance: float = 2.0,
+    distance_units: str = "arcsec",
+    limit_per_query: int = 1000,
+) -> pd.DataFrame:
+    """Cone search ZTF ID for a set of given positions
+
+    :param obj_id_list: unique object identifiers (list of str)
+    :param ra_list: RA in deg (list of float)
+    :param dec_list: Dec in deg (list of float)
+    :param catalog: catalog to query
+    :param max_distance: float
+    :param distance_units: arcsec | arcmin | deg | rad
+    :param limit_per_query: max number of sources in a query (int)
+
+    :return: DataFrame with ZTF ids paired with input obj_ids
+    """
+
+    if limit_per_query == 0:
+        limit_per_query = 10000000000
+
+    id = 0
+    data = {}
+
+    while True:
+        selected_obj_id = obj_id_list[
+            id * limit_per_query : min(len(obj_id_list), (id + 1) * limit_per_query)
+        ]
+        selected_ra = ra_list[
+            id * limit_per_query : min(len(obj_id_list), (id + 1) * limit_per_query)
+        ]
+        selected_dec = dec_list[
+            id * limit_per_query : min(len(obj_id_list), (id + 1) * limit_per_query)
+        ]
+
+        radec = [(selected_ra[i], selected_dec[i]) for i in range(len(selected_obj_id))]
+
+        query = {
+            "query_type": "cone_search",
+            "query": {
+                "object_coordinates": {
+                    "radec": dict(zip(selected_obj_id, radec)),
+                    "cone_search_radius": max_distance,
+                    "cone_search_unit": distance_units,
+                },
+                "catalogs": {
+                    catalog: {
+                        "filter": {},
+                        "projection": {
+                            "_id": 1,
+                        },
+                    }
+                },
+            },
+        }
+        response = gloria.query(query=query)
+
+        temp_data = response.get("data").get(catalog)
+
+        if temp_data is None:
+            print(response)
+            raise ValueError(f"No data found for obj_ids {selected_obj_id}")
+
+        data.update(temp_data)
+
+        if ((id + 1) * limit_per_query) >= len(obj_id_list):
+            print(f'{len(obj_id_list)} done')
+            break
+        id += 1
+        if (id * limit_per_query) % limit_per_query == 0:
+            print(id * limit_per_query, "done")
+
+    for obj in data.keys():
+        vals = data[obj]
+        for v in vals:
+            v['obj_id'] = obj.replace('_', '.')
+
+    features_all = [v for k, v in data.items() if len(v) > 0]
+
+    df = pd.DataFrame.from_records([f for x in features_all for f in x])
+
+    return df
+
+
 def get_field_ids(
     catalog,
     field=301,
