@@ -63,16 +63,15 @@ def upload_classification(
 
     # read in file to csv
     if file.endswith('.csv'):
-        sources = pd.read_csv(file)
+        all_sources = pd.read_csv(file)
     elif file.endswith('.h5'):
-        sources = read_hdf(file)
-        print(sources)
+        all_sources = read_hdf(file)
     elif file.endswith('.parquet'):
-        sources = read_parquet(file)
+        all_sources = read_parquet(file)
     else:
         raise TypeError('Input file must be csv, h5 or parquet format.')
-    columns = sources.columns
-    all_sources = sources.copy()
+    columns = all_sources.columns
+    sources = all_sources.copy()
 
     if start is not None:
         sources = sources.loc[start:]
@@ -420,11 +419,12 @@ def upload_classification(
 
                 if 'obj_id' not in all_sources.columns:
                     all_sources['obj_id'] = ''
-                all_sources['obj_id'].loc[start:stop] = sources_to_write['obj_id']
+                all_sources.loc[start:stop, 'obj_id'] = sources_to_write['obj_id']
 
                 print(
                     'Saving obj_id for uploaded sources. If upload is incomplete, use this file for future uploads to continue filling the obj_id column.'
                 )
+                print()
                 if result_format == '.csv':
                     all_sources.to_csv(filepath, index=False)
                 elif result_format == '.h5':
