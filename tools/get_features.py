@@ -48,6 +48,8 @@ def get_features_loop(
     max_sources: int = 100000,
     restart: bool = True,
     write_csv: bool = False,
+    column_list: list = [],
+    suffix: str = None,
 ):
     '''
     Loop over get_features.py to save at specified checkpoints.
@@ -74,6 +76,8 @@ def get_features_loop(
             + str(field)
         )
 
+    if suffix is not None:
+        outfile += f'_{suffix}'
     os.makedirs(os.path.dirname(outfile), exist_ok=True)
 
     DS = ds.dataset(os.path.dirname(outfile), format='parquet')
@@ -102,11 +106,12 @@ def get_features_loop(
             i * max_sources : min(n_sources, (i + 1) * max_sources)
         ]
 
-        df, dmdt = func(
+        df, _ = func(
             source_ids=select_source_ids,
             features_catalog=features_catalog,
             verbose=verbose,
             limit_per_query=limit_per_query,
+            column_list=column_list,
         )
 
         write_parquet(df, f'{outfile}_iter_{i}.parquet')
@@ -120,6 +125,7 @@ def get_features(
     features_catalog: str = "ZTF_source_features_DR5",
     verbose: bool = False,
     limit_per_query: int = 1000,
+    column_list: list = [],
 ):
     '''
     Get features of all ids present in the field in one file.
@@ -127,6 +133,7 @@ def get_features(
 
     id = 0
     df_collection = []
+    dmdt_temp = []
     dmdt_collection = []
 
     while True:
@@ -141,6 +148,7 @@ def get_features(
                         ]
                     }
                 },
+                "projection": column_list,
             },
         }
         response = kowalski.query(query=query)
@@ -151,15 +159,17 @@ def get_features(
             raise ValueError(f"No data found for source ids {source_ids}")
 
         df_temp = pd.DataFrame(source_data)
-        df_temp = df_temp.astype(dtype=dtype_dict)
+        if column_list == []:
+            df_temp = df_temp.astype(dtype=dtype_dict)
         df_collection += [df_temp]
         try:
             dmdt_temp = np.expand_dims(
                 np.array([d for d in df_temp['dmdt'].values]), axis=-1
             )
         except Exception as e:
-            print("Error", e)
-            print(df_temp)
+            if "dmdt" in column_list:
+                print("Error", e)
+                print(df_temp)
         dmdt_collection += [dmdt_temp]
 
         if ((id + 1) * limit_per_query) >= len(source_ids):
@@ -233,12 +243,19 @@ def run(**kwargs):
     quad = kwargs.get("quad", DEFAULT_QUAD)
     limit_per_query = kwargs.get("limit_per_query", DEFAULT_LIMIT)
     max_sources = kwargs.get("max_sources", DEFAULT_SAVE_BATCHSIZE)
+    features_catalog = kwargs.get("features_catalog", DEFAULT_CATALOG)
     whole_field = kwargs.get("whole_field", False)
     start = kwargs.get("start", None)
     end = kwargs.get("end", None)
     restart = kwargs.get("restart", False)
     write_results = kwargs.get("write_results", True)
     write_csv = kwargs.get("write_csv", False)
+    column_list = kwargs.get("column_list", [])
+    suffix = kwargs.get("suffix", None)
+
+    if column_list != []:
+        keys = [name for name in column_list]
+        column_list = {k: 1 for k in keys}
 
     if not whole_field:
         default_file = (
@@ -280,16 +297,17 @@ def run(**kwargs):
         # get raw features
         get_features(
             source_ids=source_ids[start:end],
-            features_catalog=DEFAULT_CATALOG,
+            features_catalog=features_catalog,
             verbose=verbose,
             limit_per_query=limit_per_query,
+            column_list=column_list,
         )
 
     else:
         get_features_loop(
             get_features,
             source_ids=source_ids[start:end],
-            features_catalog=DEFAULT_CATALOG,
+            features_catalog=features_catalog,
             verbose=verbose,
             whole_field=whole_field,
             field=field,
@@ -299,6 +317,8 @@ def run(**kwargs):
             max_sources=max_sources,
             restart=restart,
             write_csv=write_csv,
+            column_list=column_list,
+            suffix=suffix,
         )
 
 
