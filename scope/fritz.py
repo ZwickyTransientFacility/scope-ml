@@ -331,7 +331,7 @@ def save_newsource(
         "dec": df_photometry["dec"].tolist(),
         "group_ids": group_ids,
     }
-    print(len(photometry.get("mag", ())))
+
     if len(photometry.get("mag", ())) == 0:
         print('No unflagged photometry available. Skipping source.')
         return None
