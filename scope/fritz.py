@@ -175,7 +175,6 @@ def get_lightcurves(gloria, ra, dec, radius=2.0):
             item["_id"] for item in response.get("data")[catalog]["query_coords"]
         ]
         if len(light_curve_ids) == 0:
-            print("No lightcurves found")
             return None
         else:
             print("Found %d lightcurves" % len(light_curve_ids))
@@ -272,59 +271,41 @@ def save_newsource(
     light_curves = get_lightcurves(gloria, ra, dec, radius)
 
     # generate position-based name if obj_id not set
+    newsource = False
     if obj_id is None:
-        ra_mean = float(
-            np.mean(
-                [
-                    light_curve["ra"]
-                    for light_curve in light_curves
-                    if light_curve.get("ra") is not None
-                ]
+        newsource = True
+        if light_curves is not None:
+            ra_mean = float(
+                np.mean(
+                    [
+                        light_curve["ra"]
+                        for light_curve in light_curves
+                        if light_curve.get("ra") is not None
+                    ]
+                )
             )
-        )
-        dec_mean = float(
-            np.mean(
-                [
-                    light_curve["dec"]
-                    for light_curve in light_curves
-                    if light_curve.get("dec") is not None
-                ]
+            dec_mean = float(
+                np.mean(
+                    [
+                        light_curve["dec"]
+                        for light_curve in light_curves
+                        if light_curve.get("dec") is not None
+                    ]
+                )
             )
-        )
-        obj_id = radec_to_iau_name(ra_mean, dec_mean, prefix="ZTFJ")
 
-        # post new source to Fritz
-        if not dryrun:
-            post_source_data = {
-                "id": obj_id,
-                "ra": ra_mean,
-                "dec": dec_mean,
-                "group_ids": group_ids,
-                "origin": "Fritz",
-            }
-
-            response = api(
-                "POST",
-                "/api/sources",
-                post_source_data,
-                max_attempts=MAX_ATTEMPTS,
-            )
-            if response.json()["status"] == "error":
-                print(f"Failed to save {obj_id} as a Source")
-                return None
-
-    if light_curves is None:
-        if return_id is True:
-            return obj_id
         else:
+            # ra_mean, dec_mean = ra, dec
+            print("No lightcurves found. Skipping source.")
             return None
+
+        obj_id = radec_to_iau_name(ra_mean, dec_mean, prefix="ZTFJ")
 
     # get photometry; drop flagged/nan data
     df_photometry = make_photometry(light_curves, drop_flagged=True)
     df_photometry = (
         df_photometry.dropna().drop_duplicates('expid').reset_index(drop=True)
     )
-
     # Get up-to-date ZTF instrument id
     name = 'ZTF'
 
@@ -351,7 +332,32 @@ def save_newsource(
         "group_ids": group_ids,
     }
 
-    if (len(photometry.get("mag", ())) > 0) & (not dryrun):
+    if len(photometry.get("mag", ())) == 0:
+        print('No unflagged photometry available. Skipping source.')
+        return None
+
+    # post new source to Fritz
+    if newsource and not dryrun:
+        post_source_data = {
+            "id": obj_id,
+            "ra": ra_mean,
+            "dec": dec_mean,
+            "group_ids": group_ids,
+            "origin": "Fritz",
+        }
+
+        response = api(
+            "POST",
+            "/api/sources",
+            post_source_data,
+            max_attempts=MAX_ATTEMPTS,
+        )
+        if response.json()["status"] == "error":
+            print(f"Failed to save {obj_id} as a Source")
+            return None
+
+    # post photometry
+    if not dryrun:
         print("Uploading photometry for %s" % obj_id)
         response = api("PUT", "/api/photometry", photometry, max_attempts=MAX_ATTEMPTS)
         if response.json()["status"] == "error":
