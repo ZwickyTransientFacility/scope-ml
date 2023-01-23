@@ -48,7 +48,7 @@ def get_features_loop(
     max_sources: int = 100000,
     restart: bool = True,
     write_csv: bool = False,
-    column_list: list = [],
+    projection: list = [],
     suffix: str = None,
 ):
     '''
@@ -111,7 +111,7 @@ def get_features_loop(
             features_catalog=features_catalog,
             verbose=verbose,
             limit_per_query=limit_per_query,
-            column_list=column_list,
+            projection=projection,
         )
 
         write_parquet(df, f'{outfile}_iter_{i}.parquet')
@@ -125,7 +125,7 @@ def get_features(
     features_catalog: str = "ZTF_source_features_DR5",
     verbose: bool = False,
     limit_per_query: int = 1000,
-    column_list: list = [],
+    projection: list = [],
 ):
     '''
     Get features of all ids present in the field in one file.
@@ -148,7 +148,7 @@ def get_features(
                         ]
                     }
                 },
-                "projection": column_list,
+                "projection": projection,
             },
         }
         response = kowalski.query(query=query)
@@ -159,7 +159,7 @@ def get_features(
             raise ValueError(f"No data found for source ids {source_ids}")
 
         df_temp = pd.DataFrame(source_data)
-        if column_list == []:
+        if projection == []:
             df_temp = df_temp.astype(dtype=dtype_dict)
         df_collection += [df_temp]
         try:
@@ -167,7 +167,7 @@ def get_features(
                 np.array([d for d in df_temp['dmdt'].values]), axis=-1
             )
         except Exception as e:
-            if "dmdt" in column_list:
+            if "dmdt" in projection:
                 print("Error", e)
                 print(df_temp)
         dmdt_collection += [dmdt_temp]
@@ -255,7 +255,7 @@ def run(**kwargs):
 
     if column_list != []:
         keys = [name for name in column_list]
-        column_list = {k: 1 for k in keys}
+        projection = {k: 1 for k in keys}
 
     if not whole_field:
         default_file = (
@@ -300,7 +300,7 @@ def run(**kwargs):
             features_catalog=features_catalog,
             verbose=verbose,
             limit_per_query=limit_per_query,
-            column_list=column_list,
+            projection=projection,
         )
 
     else:
@@ -317,7 +317,7 @@ def run(**kwargs):
             max_sources=max_sources,
             restart=restart,
             write_csv=write_csv,
-            column_list=column_list,
+            projection=projection,
             suffix=suffix,
         )
 
