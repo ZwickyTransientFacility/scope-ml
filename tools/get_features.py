@@ -206,14 +206,18 @@ def run(**kwargs):
     ==========
     field: int
         Field number.
-    limit_per_query: int
-        Number of sources to query at a time.
-    whole_field: bool
-        If True, get features of all sources in the field, else get features of a particular quad.
     ccd: int
         CCD number (required if whole_field is False).
     quad: int
         Quad number (required if whole_field is False).
+    limit_per_query: int
+        Number of sources to query at a time.
+    max_sources: int
+        Number of sources to save in single file.
+    features_catalog: str
+        Name of Kowalski collection to query for features
+    whole_field: bool
+        If True, get features of all sources in the field, else get features of a particular quad.
     start: int
         Start index of the sources to query. (to be used with whole_field)
     end: int
