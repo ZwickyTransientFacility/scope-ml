@@ -48,6 +48,8 @@ def get_features_loop(
     max_sources: int = 100000,
     restart: bool = True,
     write_csv: bool = False,
+    projection: list = [],
+    suffix: str = None,
 ):
     '''
     Loop over get_features.py to save at specified checkpoints.
@@ -74,6 +76,8 @@ def get_features_loop(
             + str(field)
         )
 
+    if suffix is not None:
+        outfile += f'_{suffix}'
     os.makedirs(os.path.dirname(outfile), exist_ok=True)
 
     DS = ds.dataset(os.path.dirname(outfile), format='parquet')
@@ -102,11 +106,12 @@ def get_features_loop(
             i * max_sources : min(n_sources, (i + 1) * max_sources)
         ]
 
-        df, dmdt = func(
+        df, _ = func(
             source_ids=select_source_ids,
             features_catalog=features_catalog,
             verbose=verbose,
             limit_per_query=limit_per_query,
+            projection=projection,
         )
 
         write_parquet(df, f'{outfile}_iter_{i}.parquet')
@@ -120,6 +125,7 @@ def get_features(
     features_catalog: str = "ZTF_source_features_DR5",
     verbose: bool = False,
     limit_per_query: int = 1000,
+    projection: list = [],
 ):
     '''
     Get features of all ids present in the field in one file.
@@ -127,6 +133,7 @@ def get_features(
 
     id = 0
     df_collection = []
+    dmdt_temp = []
     dmdt_collection = []
 
     while True:
@@ -141,6 +148,7 @@ def get_features(
                         ]
                     }
                 },
+                "projection": projection,
             },
         }
         response = kowalski.query(query=query)
@@ -151,15 +159,18 @@ def get_features(
             raise ValueError(f"No data found for source ids {source_ids}")
 
         df_temp = pd.DataFrame(source_data)
-        df_temp = df_temp.astype(dtype=dtype_dict)
+        if projection == []:
+            df_temp = df_temp.astype(dtype=dtype_dict)
         df_collection += [df_temp]
         try:
             dmdt_temp = np.expand_dims(
                 np.array([d for d in df_temp['dmdt'].values]), axis=-1
             )
         except Exception as e:
-            print("Error", e)
-            print(df_temp)
+            # Print dmdt error if using the default projection or user requests the feature
+            if (projection == []) | ("dmdt" in projection):
+                print("Error", e)
+                print(df_temp)
         dmdt_collection += [dmdt_temp]
 
         if ((id + 1) * limit_per_query) >= len(source_ids):
@@ -196,14 +207,18 @@ def run(**kwargs):
     ==========
     field: int
         Field number.
-    limit_per_query: int
-        Number of sources to query at a time.
-    whole_field: bool
-        If True, get features of all sources in the field, else get features of a particular quad.
     ccd: int
         CCD number (required if whole_field is False).
     quad: int
         Quad number (required if whole_field is False).
+    limit_per_query: int
+        Number of sources to query at a time.
+    max_sources: int
+        Number of sources to save in single file.
+    features_catalog: str
+        Name of Kowalski collection to query for features
+    whole_field: bool
+        If True, get features of all sources in the field, else get features of a particular quad.
     start: int
         Start index of the sources to query. (to be used with whole_field)
     end: int
@@ -214,6 +229,10 @@ def run(**kwargs):
         if True, write results and make necessary directories.
     write_csv: bool
         if True, writes results as csv file in addition to parquet.
+    column_list: list
+        List of strings for each column to return from Kowalski colleciton.
+    suffix: str
+        Suffix to add to saved feature file.
     Returns
     =======
     Stores the features in a file at the following location:
@@ -233,12 +252,19 @@ def run(**kwargs):
     quad = kwargs.get("quad", DEFAULT_QUAD)
     limit_per_query = kwargs.get("limit_per_query", DEFAULT_LIMIT)
     max_sources = kwargs.get("max_sources", DEFAULT_SAVE_BATCHSIZE)
+    features_catalog = kwargs.get("features_catalog", DEFAULT_CATALOG)
     whole_field = kwargs.get("whole_field", False)
     start = kwargs.get("start", None)
     end = kwargs.get("end", None)
     restart = kwargs.get("restart", False)
     write_results = kwargs.get("write_results", True)
     write_csv = kwargs.get("write_csv", False)
+    column_list = kwargs.get("column_list", [])
+    suffix = kwargs.get("suffix", None)
+
+    if column_list != []:
+        keys = [name for name in column_list]
+        projection = {k: 1 for k in keys}
 
     if not whole_field:
         default_file = (
@@ -280,16 +306,17 @@ def run(**kwargs):
         # get raw features
         get_features(
             source_ids=source_ids[start:end],
-            features_catalog=DEFAULT_CATALOG,
+            features_catalog=features_catalog,
             verbose=verbose,
             limit_per_query=limit_per_query,
+            projection=projection,
         )
 
     else:
         get_features_loop(
             get_features,
             source_ids=source_ids[start:end],
-            features_catalog=DEFAULT_CATALOG,
+            features_catalog=features_catalog,
             verbose=verbose,
             whole_field=whole_field,
             field=field,
@@ -299,6 +326,8 @@ def run(**kwargs):
             max_sources=max_sources,
             restart=restart,
             write_csv=write_csv,
+            projection=projection,
+            suffix=suffix,
         )
 
 
