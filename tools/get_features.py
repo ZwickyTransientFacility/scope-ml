@@ -224,6 +224,10 @@ def run(**kwargs):
         if True, write results and make necessary directories.
     write_csv: bool
         if True, writes results as csv file in addition to parquet.
+    column_list: list
+        List of strings for each column to return from Kowalski colleciton.
+    suffix: str
+        Suffix to add to saved feature file.
     Returns
     =======
     Stores the features in a file at the following location:
