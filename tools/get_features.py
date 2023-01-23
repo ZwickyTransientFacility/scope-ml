@@ -167,7 +167,8 @@ def get_features(
                 np.array([d for d in df_temp['dmdt'].values]), axis=-1
             )
         except Exception as e:
-            if "dmdt" in projection:
+            # Print dmdt error if using the default projection or user requests the feature
+            if (projection == []) | ("dmdt" in projection):
                 print("Error", e)
                 print(df_temp)
         dmdt_collection += [dmdt_temp]
