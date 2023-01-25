@@ -7,6 +7,7 @@ from scope.utils import read_hdf, write_hdf, read_parquet, write_parquet
 import warnings
 import numpy as np
 from tools.get_features import get_features
+from tools.get_quad_ids import get_cone_ids
 import os
 from datetime import datetime
 
@@ -53,8 +54,6 @@ def organize_source_data(src: pd.DataFrame):
     data_annot = src['annotations']
     origin_list = ''
     period_list = ''
-    id_origin_list = ''
-    id_list = ''
     for entry in data_annot:
         annot_origin = entry['origin']
         annot_data = entry['data']
@@ -66,14 +65,8 @@ def organize_source_data(src: pd.DataFrame):
                 origin_list += annot_origin + ';'
                 period_list += str(annot_data[n]) + ';'
 
-            elif 'ztf_id' in n:
-                id_origin_list += annot_origin + ';'
-                id_list += str(annot_data[n]) + ';'
-
     origin_list = origin_list[:-1]
     period_list = period_list[:-1]
-    id_origin_list = id_origin_list[:-1]
-    id_list = id_list[:-1]
 
     dct = {}
     (
@@ -84,8 +77,6 @@ def organize_source_data(src: pd.DataFrame):
         dct['probability'],
         dct['period_origin'],
         dct['period'],
-        dct['ztf_id_origin'],
-        dct['ztf_id'],
         dct['labellers'],
         dct['sum_votes'],
     ) = (
@@ -96,8 +87,6 @@ def organize_source_data(src: pd.DataFrame):
         prb_list,
         origin_list,
         period_list,
-        id_origin_list,
-        id_list,
         lbl_list,
         vote_list,
     )
@@ -118,21 +107,11 @@ def merge_sources_features(
     outpath = os.path.join(os.path.dirname(__file__), output_dir)
     os.makedirs(outpath, exist_ok=True)
 
-    # Drop rows with no ZTF id
-    no_ztf_id = np.sum((sources.isna()['ztf_id']) | (sources['ztf_id'] == ''))
-    if no_ztf_id > 0:
-        print(f'Dropping {no_ztf_id} sources without a ZTF id.')
-        sources = sources[
-            ~((sources.isna()['ztf_id']) | (sources['ztf_id'] == ''))
-        ].reset_index(drop=True)
-
-    # Drop rows with duplicate ZTF ids (keep first instance)
-    dup_ztf_id = np.sum(sources.duplicated('ztf_id'))
-    if dup_ztf_id > 0:
-        print(f'Dropping {dup_ztf_id} sources with duplicate ZTF ids.')
-        sources = sources.drop_duplicates('ztf_id').reset_index(drop=True)
-
-    features_ztf_dr = features_catalog.split('_')[-1]
+    # Drop rows with duplicate obj_ids (keep first instance)
+    dup_obj_id = np.sum(sources.duplicated('obj_id'))
+    if dup_obj_id > 0:
+        print(f'Dropping {dup_obj_id} sources with duplicate obj_ids.')
+        sources = sources.drop_duplicates('obj_id').reset_index(drop=True)
 
     # Open golden dataset mapper
     mapper_dir = os.path.dirname(__file__)
@@ -157,9 +136,13 @@ def merge_sources_features(
         # Initiate dictonary to concatenate with existing dataframe
         source_dict = {}
         obj_id = row['obj_id']
+        ra = row['ra']
+        dec = row['dec']
 
         # Assign Fritz object id
         source_dict['obj_id'] = obj_id
+        source_dict['ra'] = ra
+        source_dict['dec'] = dec
 
         classifications = []
         completed_classifications = []
@@ -189,39 +172,93 @@ def merge_sources_features(
                 ]
                 source_dict[trainingset_label] = 0.0
 
-        # Assign ztf id
-        if not row.isna()['ztf_id']:
-            ztf_id_origin_dr = row['ztf_id_origin'].split('_')[-1]
-
-        # Check if Fritz ZTF DR number is the same as features catalog
-        ztf_ids = row['ztf_id'].split(';')
-        for ztf_id in ztf_ids:
-            source_dict_copy = source_dict.copy()
-            if ztf_id_origin_dr == features_ztf_dr:
-                source_dict_copy['ztf_id'] = int(ztf_id)
-            else:
-                raise ValueError(
-                    'ZTF data release numbers do not match between Fritz and features catalog.'
-                )
-
-            source_dict_list += [source_dict_copy]
+        source_dict_list += [source_dict]
 
     # Create dataframe
     expanded_sources = pd.DataFrame(source_dict_list)
     # Query Kowalski
-    print('Getting features...')
-    df, dmdt = get_features(
-        source_ids=expanded_sources['ztf_id'].values.tolist(),
+    print(
+        f'Getting all ZTF IDs from cone search for {len(expanded_sources)} sources...'
+    )
+    ztf_and_obj_ids = get_cone_ids(
+        expanded_sources['obj_id'].values,
+        expanded_sources['ra'].values,
+        expanded_sources['dec'].values,
+        catalog=features_catalog,
+    )
+    ztf_and_obj_ids_nodup = ztf_and_obj_ids.drop_duplicates('_id', keep=False)
+    ztf_and_obj_ids_dup = ztf_and_obj_ids[ztf_and_obj_ids.duplicated('_id', keep=False)]
+
+    print(f'Found {len(ztf_and_obj_ids)} rows of features - some may be duplicates.')
+
+    print('Getting non-duplicate features...')
+    feature_df_nodup, dmdt_nodup = get_features(
+        source_ids=ztf_and_obj_ids_nodup['_id'].values.tolist(),
         features_catalog=features_catalog,
         limit_per_query=features_limit,
     )
-    df['ztf_id'] = df['_id']
-    df = df.drop(['_id'], axis=1)
+    print('Getting duplicate features for further analysis...')
+    feature_df_dup, dmdt_dup = get_features(
+        source_ids=ztf_and_obj_ids_dup['_id'].values.tolist(),
+        features_catalog=features_catalog,
+        limit_per_query=features_limit,
+    )
 
-    # Merge on ZTF id
-    merged_set = pd.merge(expanded_sources, df, on='ztf_id')
+    features_obj_ids_nodup = pd.merge(ztf_and_obj_ids_nodup, feature_df_nodup, on='_id')
+
+    print('Finding closest source for each duplicate set of features...')
+    feature_df_dup.set_index('_id', inplace=True)
+    dup_expanded_sources = (
+        pd.merge(ztf_and_obj_ids_dup, expanded_sources, on='obj_id')
+        .reset_index()
+        .set_index('_id')
+    )
+    closest_indices = []
+    for ID in feature_df_dup.index:
+        close_sources = dup_expanded_sources.loc[ID]
+        distances = np.sqrt(
+            (close_sources['ra'] - feature_df_dup.loc[ID, 'ra']) ** 2
+            + (close_sources['dec'] - feature_df_dup.loc[ID, 'dec']) ** 2
+        )
+        closest_index = close_sources.reset_index().loc[np.argmin(distances), 'index']
+        closest_indices += [closest_index]
+
+    closest_dup_expanded_sources = (
+        dup_expanded_sources.reset_index()
+        .loc[np.unique(closest_indices)]
+        .drop(['index'], axis=1)
+    )
+
+    # Merge on obj_id
+    merged_set_nodup = pd.merge(
+        expanded_sources,
+        features_obj_ids_nodup.drop(['ra', 'dec'], axis=1),
+        on='obj_id',
+    )
+    merged_set_dup = pd.merge(
+        closest_dup_expanded_sources,
+        feature_df_dup.drop(['ra', 'dec'], axis=1),
+        on='_id',
+    )
+    merged_set = pd.concat([merged_set_nodup, merged_set_dup]).reset_index(drop=True)
+
+    merged_set['ztf_id'] = merged_set['_id']
+    merged_set.drop(['_id'], axis=1, inplace=True)
+
+    print(f'Merged set of {len(merged_set)} sources, labels and features.')
+
+    print('Getting ZTF filters...')
+    filter_df, _ = get_features(
+        source_ids=merged_set['ztf_id'].values.tolist(),
+        features_catalog='ZTF_sources_20210401',
+        limit_per_query=features_limit,
+        projection={'filter': 1},
+    )
+
+    merged_set['filter'] = filter_df['filter']
+
     source_metadata = sources.attrs
-    source_metadata.update(df.attrs)
+    source_metadata.update(feature_df_nodup.attrs)
     merged_set.attrs = source_metadata
 
     # Make ztf_id last column in dataframe
@@ -440,8 +477,6 @@ def download_classification(
             'probability',
             'period_origin',
             'period',
-            'ztf_id_origin',
-            'ztf_id',
         ]:
             if colname not in columns:
                 missing_col_count += 1
