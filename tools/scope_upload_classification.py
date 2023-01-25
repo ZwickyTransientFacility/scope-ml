@@ -199,8 +199,21 @@ def upload_classification(
                     for t in create_time_list:
                         src_id = create_time_dict[t]
                         if src_id[:4] == 'ZTFJ':
-                            existing_source = src_dict[src_id]
-                            obj_id = src_id
+                            # Treat source as new if not posted to all user-specified groups
+                            posted_groups = [
+                                x['id'] for x in src_dict[src_id]['groups']
+                            ]
+                            n_missing_groups = 0
+                            for gid in group_ids:
+                                if gid not in posted_groups:
+                                    n_missing_groups += 1
+                            if n_missing_groups == 0:
+                                existing_source = src_dict[src_id]
+                                obj_id = src_id
+                            else:
+                                print(
+                                    'Source exists but is not posted to all specified groups. Treating as a new source.'
+                                )
                             break
 
         print(f"object {index} id:", obj_id)
