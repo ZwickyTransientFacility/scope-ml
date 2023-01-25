@@ -338,18 +338,18 @@ def upload_classification(
                                 str(ztfid),
                             )
 
-            # batch upload classifications
-            if len(dict_list) != 0:
-                if (((index - start) + 1) % UPLOAD_BATCHSIZE == 0) | (index == stop):
-                    print('uploading classifications...')
-                    json_classes = {'classifications': dict_list}
-                    api("POST", "/api/classification", json_classes)
-                    dict_list = []
-
         else:
             obj_id = ''
 
         obj_id_dict[index] = obj_id
+
+        # batch upload classifications
+        if len(dict_list) != 0:
+            if (((index - start) + 1) % UPLOAD_BATCHSIZE == 0) | (index == stop):
+                print('uploading classifications...')
+                json_classes = {'classifications': dict_list}
+                api("POST", "/api/classification", json_classes)
+                dict_list = []
 
         if write_obj_id:
             if (((index - start) + 1) % OBJ_ID_BATCHSIZE == 0) | (index == stop):
