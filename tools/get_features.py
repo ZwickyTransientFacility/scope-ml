@@ -48,7 +48,7 @@ def get_features_loop(
     max_sources: int = 100000,
     restart: bool = True,
     write_csv: bool = False,
-    projection: list = [],
+    projection: dict = {},
     suffix: str = None,
 ):
     '''
@@ -125,7 +125,7 @@ def get_features(
     features_catalog: str = "ZTF_source_features_DR5",
     verbose: bool = False,
     limit_per_query: int = 1000,
-    projection: list = [],
+    projection: dict = {},
 ):
     '''
     Get features of all ids present in the field in one file.
@@ -159,7 +159,7 @@ def get_features(
             raise ValueError(f"No data found for source ids {source_ids}")
 
         df_temp = pd.DataFrame(source_data)
-        if projection == []:
+        if projection == {}:
             df_temp = df_temp.astype(dtype=dtype_dict)
         df_collection += [df_temp]
         try:
@@ -168,7 +168,7 @@ def get_features(
             )
         except Exception as e:
             # Print dmdt error if using the default projection or user requests the feature
-            if (projection == []) | ("dmdt" in projection):
+            if (projection == {}) | ("dmdt" in projection):
                 print("Error", e)
                 print(df_temp)
         dmdt_collection += [dmdt_temp]
