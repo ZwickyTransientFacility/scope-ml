@@ -102,6 +102,7 @@ def merge_sources_features(
     output_dir='fritzDownload',
     output_filename='merged_classifications_features',
     output_format='parquet',
+    get_ztf_filters=False,
 ):
 
     outpath = os.path.join(os.path.dirname(__file__), output_dir)
@@ -130,7 +131,7 @@ def merge_sources_features(
 
     source_dict_list = []
 
-    for index, row in sources.iterrows():
+    for _, row in sources.iterrows():
         gold_dict_specific = gold_dict.copy()
 
         # Initiate dictonary to concatenate with existing dataframe
@@ -176,6 +177,7 @@ def merge_sources_features(
 
     # Create dataframe
     expanded_sources = pd.DataFrame(source_dict_list)
+
     # Query Kowalski
     print(
         f'Getting all ZTF IDs from cone search for {len(expanded_sources)} sources...'
@@ -186,6 +188,8 @@ def merge_sources_features(
         expanded_sources['dec'].values,
         catalog=features_catalog,
     )
+    # Split ids dataframe based on duplicate vs. non-duplicate rows
+    # (For duplicate rows, more than one source claims that set of features)
     ztf_and_obj_ids_nodup = ztf_and_obj_ids.drop_duplicates('_id', keep=False)
     ztf_and_obj_ids_dup = ztf_and_obj_ids[ztf_and_obj_ids.duplicated('_id', keep=False)]
 
@@ -204,6 +208,7 @@ def merge_sources_features(
         limit_per_query=features_limit,
     )
 
+    # Combine obj_ids and ztf_ids for non-duplicate rows
     features_obj_ids_nodup = pd.merge(ztf_and_obj_ids_nodup, feature_df_nodup, on='_id')
 
     print('Finding closest source for each duplicate set of features...')
@@ -214,6 +219,7 @@ def merge_sources_features(
         .set_index('_id')
     )
     closest_indices = []
+    # Decide which source to assign features based on minimum Euclidean distance from stated ra/dec
     for ID in feature_df_dup.index:
         close_sources = dup_expanded_sources.loc[ID]
         distances = np.sqrt(
@@ -229,7 +235,7 @@ def merge_sources_features(
         .drop(['index'], axis=1)
     )
 
-    # Merge on obj_id
+    # Merge on obj_id, use ra and dec from Fritz
     merged_set_nodup = pd.merge(
         expanded_sources,
         features_obj_ids_nodup.drop(['ra', 'dec'], axis=1),
@@ -240,6 +246,7 @@ def merge_sources_features(
         feature_df_dup.drop(['ra', 'dec'], axis=1),
         on='_id',
     )
+    # Rejoin duplicate and non-duplicate rows
     merged_set = pd.concat([merged_set_nodup, merged_set_dup]).reset_index(drop=True)
 
     merged_set['ztf_id'] = merged_set['_id']
@@ -247,15 +254,17 @@ def merge_sources_features(
 
     print(f'Merged set of {len(merged_set)} sources, labels and features.')
 
-    print('Getting ZTF filters...')
-    filter_df, _ = get_features(
-        source_ids=merged_set['ztf_id'].values.tolist(),
-        features_catalog='ZTF_sources_20210401',
-        limit_per_query=features_limit,
-        projection={'filter': 1},
-    )
+    # Get ztf filters if specified
+    if get_ztf_filters:
+        print('Getting ZTF filters...')
+        filter_df, _ = get_features(
+            source_ids=merged_set['ztf_id'].values.tolist(),
+            features_catalog='ZTF_sources_20210401',
+            limit_per_query=features_limit,
+            projection={'filter': 1},
+        )
 
-    merged_set['filter'] = filter_df['filter']
+        merged_set['filter'] = filter_df['filter']
 
     source_metadata = sources.attrs
     source_metadata.update(feature_df_nodup.attrs)
@@ -300,6 +309,7 @@ def download_classification(
     output_dir: str = 'fritzDownload',
     output_filename: str = 'merged_classifications_features',
     output_format: str = 'parquet',
+    get_ztf_filters: bool = False,
 ):
     """
     Download labels from Fritz
@@ -312,6 +322,7 @@ def download_classification(
     :param output_dir: directory to write output merged features file (str)
     :param output_filename: name of output merged features file (str)
     :param output_format: format of output merged features file (str)
+    :param get_ztf_filters: if True, add ZTF filter ID to default features (bool)
     """
 
     dict_list = []
@@ -445,6 +456,7 @@ def download_classification(
                 output_dir,
                 output_filename,
                 output_format,
+                get_ztf_filters,
             )
             return merged_sources
 
@@ -652,6 +664,13 @@ if __name__ == "__main__":
         help="Format of output file: parquet, h5 or csv",
     )
 
+    parser.add_argument(
+        "-get_ztf_filters",
+        action='store_true',
+        default=False,
+        help="add ZTF filter ID to default features",
+    )
+
     args = parser.parse_args()
 
     # download object classifications in the file
@@ -666,4 +685,5 @@ if __name__ == "__main__":
         args.output_dir,
         args.output_filename,
         args.output_format,
+        args.get_ztf_filters,
     )
