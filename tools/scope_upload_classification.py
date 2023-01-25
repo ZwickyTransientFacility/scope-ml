@@ -139,6 +139,7 @@ def upload_classification(
             warnings.warn('period column is missing - skipping period upload.')
 
         existing_source = []
+        n_missing_groups = 0
         if ('obj_id' in columns) & (use_existing_obj_id):
             obj_id = row.obj_id
             response = api("GET", f"/api/sources/{obj_id}")
@@ -199,15 +200,26 @@ def upload_classification(
                     for t in create_time_list:
                         src_id = create_time_dict[t]
                         if src_id[:4] == 'ZTFJ':
+                            # Treat source as new if not posted to all user-specified groups
+                            posted_groups = [
+                                x['id'] for x in src_dict[src_id]['groups']
+                            ]
+                            for gid in group_ids:
+                                if gid not in posted_groups:
+                                    n_missing_groups += 1
                             existing_source = src_dict[src_id]
                             obj_id = src_id
+                            if n_missing_groups > 0:
+                                print(
+                                    'Source exists but is not posted to all specified groups. Treating as a new source for non-member groups.'
+                                )
                             break
 
         print(f"object {index} id:", obj_id)
 
-        # save_newsource can only be skipped if source exists
-        if (len(existing_source) == 0) | (not skip_phot):
-            if (len(existing_source) == 0) & (skip_phot):
+        # save_newsource can only be skipped if source exists in all specified groups
+        if (len(existing_source) == 0) | (not skip_phot) | (n_missing_groups > 0):
+            if ((len(existing_source) == 0) | (n_missing_groups > 0)) & (skip_phot):
                 warnings.warn('Cannot skip new source - saving.')
             obj_id = save_newsource(
                 gloria,
