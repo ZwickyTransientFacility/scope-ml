@@ -34,6 +34,7 @@ def upload_classification(
     match_ids: bool = False,
     use_existing_obj_id: bool = False,
     post_upvote: bool = False,
+    check_labelled_box: bool = False,
     write_obj_id: bool = False,
     result_dir: str = 'fritzUpload',
     result_filetag: str = 'fritzUpload',
@@ -55,6 +56,7 @@ def upload_classification(
     :match_ids: if True, match ZTF source ids when searching existing sources (bool)
     :use_existing_obj_id: if True, source obj_id from input dataset (bool)
     :post_upvote: if True, post upvote to new classifications (bool)
+    :check_labelled_box: if True, check labelled box for source (bool)
     :write_obj_id: if True, write each obj_id to copy of input file (bool)
     :result_dir: directory to write results from upload (str)
     :result_filetag: tag to append to input filename after upload (str)
@@ -285,6 +287,7 @@ def upload_classification(
                             "probability": prob,
                             "group_ids": group_ids,
                             "vote": post_upvote,
+                            "label": check_labelled_box,
                         }
                         dict_list += [json]
                     else:
@@ -301,6 +304,7 @@ def upload_classification(
                                 "probability": prob,
                                 "group_ids": groups_to_post,
                                 "vote": post_upvote,
+                                "label": check_labelled_box,
                             }
                             dict_list += [json]
 
@@ -516,6 +520,13 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        "-check_labelled_box",
+        action='store_true',
+        default=False,
+        help="If set, check 'labelled' box for source.",
+    )
+
+    parser.add_argument(
         "-write_obj_id",
         action='store_true',
         default=False,
@@ -561,6 +572,7 @@ if __name__ == "__main__":
         args.match_ids,
         args.use_existing_obj_id,
         args.post_upvote,
+        args.check_labelled_box,
         args.write_obj_id,
         args.result_dir,
         args.result_filetag,
