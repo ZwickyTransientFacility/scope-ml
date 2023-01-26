@@ -745,6 +745,7 @@ features:
       include: true
       dtype: float
       impute_strategy: regress
+    # The below magnitude error is missing from the majority of training sources; we therefore exclude it by default.
     AllWISE__w3sigmpro:
       include: false
       dtype: float
@@ -753,6 +754,7 @@ features:
       include: true
       dtype: float
       impute_strategy: regress
+    # The below magnitude error is missing from the majority of training sources; we therefore exclude it by default.
     AllWISE__w4sigmpro:
       include: false
       dtype: float
