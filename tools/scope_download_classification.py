@@ -602,6 +602,7 @@ def download_classification(
                 output_dir,
                 output_filename,
                 output_format,
+                get_ztf_filters,
             )
             return merged_sources
 
