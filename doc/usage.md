@@ -197,6 +197,7 @@ inputs:
 16. Set -result_dir to customize the directory where the upload results file is saved. Default is 'fritzUpload' within the tools directory.
 17. Set -result_filetag to customize the tag appended to the result filename. Default is 'fritzUpload'.
 18. Set -result_format to one of csv, h5 or parquet to customize the result file format. Default is parquet.
+19. Set -replpace_classifications to delete each source's existing classifications before posting new ones.
 
 process:
 1. check if each input source exists by comparing input and existing ZTF IDs
