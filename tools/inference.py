@@ -133,7 +133,7 @@ def clean_data(
                 missing_dict[id.astype(str)] += [feature]  # add feature to dict
 
     # impute missing values as specified in config
-    features_df = impute_features(features_df)
+    features_df = impute_features(features_df, self_impute=True)
 
     if flag_ids:
         os.makedirs(os.path.dirname(filename), exist_ok=True)
