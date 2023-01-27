@@ -542,13 +542,16 @@ class Scope:
         test_size = kwargs.get("test_size", train_config.get("test_size", 0.1))
         val_size = kwargs.get("val_size", train_config.get("val_size", 0.1))
         random_state = kwargs.get("random_state", train_config.get("random_state", 42))
-        feature_stats = self.config.get("feature_stats", None)
+        feature_stats = kwargs.get("feature_stats", None)
+        if feature_stats == 'config':
+            feature_stats = self.config.get("feature_stats", None)
 
         batch_size = kwargs.get("batch_size", train_config.get("batch_size", 64))
         shuffle_buffer_size = kwargs.get(
             "shuffle_buffer_size", train_config.get("shuffle_buffer_size", 512)
         )
         epochs = kwargs.get("epochs", train_config.get("epochs", 100))
+        float_convert_types = kwargs.get("float_convert_types", (64, 32))
 
         datasets, indexes, steps_per_epoch, class_weight = ds.make(
             target_label=label,
@@ -563,6 +566,7 @@ class Scope:
             batch_size=batch_size,
             shuffle_buffer_size=shuffle_buffer_size,
             epochs=epochs,
+            float_convert_types=float_convert_types,
         )
 
         # set up and train model
