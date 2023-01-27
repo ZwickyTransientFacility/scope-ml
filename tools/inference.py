@@ -15,9 +15,8 @@ import time
 import h5py
 import pyarrow.dataset as ds
 import scope
-from scope.utils import read_hdf, write_hdf
+from scope.utils import read_hdf, write_hdf, forgiving_true, impute_features
 from datetime import datetime
-from scope.utils import forgiving_true
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 warnings.filterwarnings('ignore')
@@ -115,11 +114,9 @@ def clean_data(
                 if id not in missing_dict.keys():
                     missing_dict[id.astype(str)] = []
                 missing_dict[id.astype(str)] += [feature]  # add feature to dict
-        # get stats of feature from config.yaml
-        stats = feature_stats.get(feature)
 
-        # fill missing values with mean
-        features_df[feature] = features_df[feature].fillna(stats['mean'])
+        # impute missing values as specified in config
+        features_df = impute_features(features_df)
     if flag_ids:
         os.makedirs(os.path.dirname(filename), exist_ok=True)
         with open(filename, "w") as outfile:
