@@ -39,6 +39,7 @@ def upload_classification(
     result_dir: str = 'fritzUpload',
     result_filetag: str = 'fritzUpload',
     result_format: str = 'parquet',
+    replace_classifications: bool = False,
 ):
     """
     Upload labels to Fritz
@@ -61,6 +62,7 @@ def upload_classification(
     :result_dir: directory to write results from upload (str)
     :result_filetag: tag to append to input filename after upload (str)
     :result_format: format of resulting uploaded file (str)
+    :replace_classifications: if True, delete each object's existing classifications before posting new ones (bool)
     """
 
     # read in file to csv
@@ -272,6 +274,9 @@ def upload_classification(
                 class_group_dict[key] = unique_grp_ids.tolist()
 
             existing_classes = [k for k in class_group_dict.keys()]
+            if (len(existing_classes) > 0) & (replace_classifications):
+                api('DELETE', f'/api/sources/{obj_id}/classifications')
+                existing_classes = []
 
             # allow classification assignment to be skipped
             if classification is not None:
@@ -554,6 +559,13 @@ if __name__ == "__main__":
         help="Format of result file: parquet, h5 or csv",
     )
 
+    parser.add_argument(
+        "-replace_classifications",
+        action='store_true',
+        default=False,
+        help="If set, delete each object's existing classifications before posting new ones.",
+    )
+
     args = parser.parse_args()
 
     # upload classification objects
@@ -577,4 +589,5 @@ if __name__ == "__main__":
         args.result_dir,
         args.result_filetag,
         args.result_format,
+        args.replace_classifications,
     )
