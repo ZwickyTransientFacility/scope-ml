@@ -859,6 +859,7 @@ class Scope:
         filename: str = 'get_all_preds_dnn.sh',
         group_name: str = 'experiment',
         algorithm: str = 'dnn',
+        scale_features: str = 'min_max',
         write_csv: bool = False,
     ):
         """
@@ -867,6 +868,7 @@ class Scope:
         :param filename: filename of shell script (must not currently exist) (str)
         :param group_name: name of group containing trained models within models directory (str)
         :param algorithm: algorithm to use in script (str)
+        :param scale_features: method to scale features (str, currently "min_max" or "median_std")
         :param write_csv: if True, write CSV file in addition to HDF5 (bool)
 
         :return:
@@ -901,7 +903,7 @@ class Scope:
                         [file for file in tag_file_gen], key=os.path.getctime
                     ).name
                     script.write(
-                        f'echo -n "{tag} ..." && python tools/inference.py --path-model=models/{group_name}/{tag}/{most_recent_file} --model-class={tag} --field=$1 --whole-field --flag_ids {addtl_args} && echo "done"\n'
+                        f'echo -n "{tag} ..." && python tools/inference.py --path-model=models/{group_name}/{tag}/{most_recent_file} --model-class={tag} --field=$1 --whole-field --flag_ids --scale_features={scale_features} {addtl_args} && echo "done"\n'
                     )
 
             elif algorithm in ['xgb', 'XGB', 'xgboost', 'XGBOOST', 'XGBoost']:
