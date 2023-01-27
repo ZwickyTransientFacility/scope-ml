@@ -15,7 +15,14 @@ import time
 import h5py
 import pyarrow.dataset as ds
 import scope
-from scope.utils import read_hdf, write_hdf, forgiving_true, impute_features
+from scope.utils import (
+    read_hdf,
+    read_parquet,
+    write_hdf,
+    forgiving_true,
+    impute_features,
+    get_feature_stats,
+)
 from datetime import datetime
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
@@ -28,6 +35,19 @@ JUST = 50
 config_path = pathlib.Path(__file__).parent.parent.absolute() / "config.yaml"
 with open(config_path) as config_yaml:
     config = yaml.load(config_yaml, Loader=yaml.FullLoader)
+
+# Load training set
+trainingSetPath = config['training']['dataset']
+if trainingSetPath.endswith('.parquet'):
+    trainingSet = read_parquet(trainingSetPath)
+elif trainingSetPath.endswith('.h5'):
+    trainingSet = read_hdf(trainingSetPath)
+elif trainingSetPath.endswith('.csv'):
+    trainingSet = pd.read_csv(trainingSetPath)
+else:
+    raise ValueError(
+        'Training set must have one of .parquet, .h5 or .csv file formats.'
+    )
 
 # Use KowalskiInstances class here when approved
 kowalski = Kowalski(
@@ -59,7 +79,6 @@ def make_missing_dict(source_ids):
 def clean_data(
     features_df,
     feature_names,
-    feature_stats,
     field,
     ccd,
     quad,
@@ -74,8 +93,6 @@ def clean_data(
         dataframe containing features of all sources (output of get_features)
     feature_names : List<str>
         features of interest for inference
-    feature_stats : dict
-        feature statistics from config.yaml
     flag_ids : bool
         whether to store flagged ids and features with missing values
     ccd : int
@@ -115,8 +132,9 @@ def clean_data(
                     missing_dict[id.astype(str)] = []
                 missing_dict[id.astype(str)] += [feature]  # add feature to dict
 
-        # impute missing values as specified in config
-        features_df = impute_features(features_df)
+    # impute missing values as specified in config
+    features_df = impute_features(features_df, self_impute=True)
+
     if flag_ids:
         os.makedirs(os.path.dirname(filename), exist_ok=True)
         with open(filename, "w") as outfile:
@@ -246,6 +264,8 @@ def run(
     whole_field = kwargs.get("whole_field", False)
     write_csv = kwargs.get("write_csv", False)
     float_convert_types = kwargs.get("float_convert_types", (64, 32))
+    feature_stats = kwargs.get("feature_stats", None)
+    scale_features = kwargs.get("scale_features", "min_max")
 
     # default file location for source ids
     if whole_field:
@@ -309,8 +329,6 @@ def run(
             + " s"
         )
 
-    # get raw features
-    feature_stats = config.get("feature_stats", None)
     preds_collection = []
     ra_collection = np.array([])
     dec_collection = np.array([])
@@ -353,8 +371,9 @@ def run(
                 np.array([d for d in features['dmdt'].apply(list).values]), axis=-1
             )
 
-            # scale features
-            ts = time.time()
+            if verbose:
+                print("Features:\n", features)
+
             train_config = config["training"]["classes"][model_class]
             all_features = config["features"][train_config["features"]]
             feature_names = [
@@ -362,7 +381,30 @@ def run(
                 for key in all_features
                 if forgiving_true(all_features[key]["include"])
             ]
-            scale_features = "min_max"
+
+            # Impute missing data and flag source ids containing missing values
+            make_missing_dict(source_ids)
+            features = clean_data(
+                features,
+                feature_names,
+                field,
+                ccd,
+                quad,
+                flag_ids,
+                whole_field,
+            )
+
+            # Get feature stats using training set for scaling consistency
+            if feature_stats is None:
+                feature_stats = get_feature_stats(trainingSet, feature_names)
+            elif feature_stats == 'config':
+                feature_stats = config.get("feature_stats", None)
+
+            if verbose:
+                print("Computed feature stats:\n", feature_stats)
+
+            # scale features
+            ts = time.time()
 
             for feature in feature_names:
                 stats = feature_stats.get(feature)
@@ -375,6 +417,10 @@ def run(
                         features[feature] = (features[feature] - stats["min"]) / (
                             stats["max"] - stats["min"]
                         )
+                    else:
+                        raise ValueError(
+                            'Currently supported scaling methods are min_max and median_std.'
+                        )
             te = time.time()
             if tm:
                 print(
@@ -383,22 +429,6 @@ def run(
                     + str(round(te - ts, 4))
                     + " s"
                 )
-
-            if verbose:
-                print(features)
-
-            # Impute missing data and flag source ids containing missing values
-            make_missing_dict(source_ids)
-            features = clean_data(
-                features,
-                feature_names,
-                feature_stats,
-                field,
-                ccd,
-                quad,
-                flag_ids,
-                whole_field,
-            )  # 1
 
             ts = time.time()
             # Convert float64 to float32 to satisfy tensorflow requirements
@@ -438,7 +468,6 @@ def run(
             features = clean_data(
                 features,
                 feature_names,
-                feature_stats,
                 field,
                 ccd,
                 quad,
