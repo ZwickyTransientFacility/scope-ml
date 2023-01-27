@@ -601,6 +601,20 @@ def impute_features(
     return features_df
 
 
+def get_feature_stats(df: pd.DataFrame, features: list):
+    feature_stats = {
+        feature: {
+            "min": np.min(df[feature]),
+            "max": np.max(df[feature]),
+            "median": np.median(df[feature]),
+            "mean": np.mean(df[feature]),
+            "std": np.std(df[feature]),
+        }
+        for feature in features
+    }
+    return feature_stats
+
+
 """ Datasets """
 
 
@@ -715,7 +729,8 @@ class Dataset(object):
         :return:
         """
 
-        # Note: Dataset.from_tensor_slices method requires the target variable to be of the int type.
+        # Note: Dataset.from_tensor_slices method requires the target variable to be of the int or float32 type.
+        float_convert_types = kwargs.get("float_convert_types", (64, 32))
         # TODO: see what to do about it when trying label smoothing in the future.
 
         target = np.asarray(
@@ -794,16 +809,7 @@ class Dataset(object):
 
         # load/compute feature norms:
         if feature_stats is None:
-            feature_stats = {
-                feature: {
-                    "min": np.min(self.df_ds.loc[ds_indexes, feature]),
-                    "max": np.max(self.df_ds.loc[ds_indexes, feature]),
-                    "median": np.median(self.df_ds.loc[ds_indexes, feature]),
-                    "mean": np.mean(self.df_ds.loc[ds_indexes, feature]),
-                    "std": np.std(self.df_ds.loc[ds_indexes, feature]),
-                }
-                for feature in self.features
-            }
+            feature_stats = get_feature_stats(self.df_ds.loc[ds_indexes], self.features)
             if self.verbose:
                 print("Computed feature stats:\n", feature_stats)
 
@@ -831,6 +837,18 @@ class Dataset(object):
         #
         # for feature, norm in norms.items():
         #     self.df_ds[feature] /= norm
+
+        # Convert float64 to float32 to satisfy tensorflow requirements
+        float_type_dict = {16: np.float16, 32: np.float32, 64: np.float64}
+        float_init, float_final = float_convert_types[0], float_convert_types[1]
+
+        # float_init, float_final = float_convert_types[0], float_convert_types[1]
+
+        self.df_ds[
+            self.df_ds.select_dtypes(float_type_dict[float_init]).columns
+        ] = self.df_ds.select_dtypes(float_type_dict[float_init]).astype(
+            float_type_dict[float_final]
+        )
 
         train_dataset = tf.data.Dataset.from_tensor_slices(
             (
