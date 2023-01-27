@@ -17,6 +17,7 @@ import pyarrow.dataset as ds
 import scope
 from scope.utils import (
     read_hdf,
+    read_parquet,
     write_hdf,
     forgiving_true,
     impute_features,
@@ -34,6 +35,19 @@ JUST = 50
 config_path = pathlib.Path(__file__).parent.parent.absolute() / "config.yaml"
 with open(config_path) as config_yaml:
     config = yaml.load(config_yaml, Loader=yaml.FullLoader)
+
+# Load training set
+trainingSetPath = config['training']['dataset']
+if trainingSetPath.endswith('.parquet'):
+    trainingSet = read_parquet(trainingSetPath)
+elif trainingSetPath.endswith('.h5'):
+    trainingSet = read_hdf(trainingSetPath)
+elif trainingSetPath.endswith('.csv'):
+    trainingSet = pd.read_csv(trainingSetPath)
+else:
+    raise ValueError(
+        'Training set must have one of .parquet, .h5 or .csv file formats.'
+    )
 
 # Use KowalskiInstances class here when approved
 kowalski = Kowalski(
@@ -380,9 +394,9 @@ def run(
                 whole_field,
             )
 
-            # Get feature stats
+            # Get feature stats using training set for scaling consistency
             if feature_stats is None:
-                feature_stats = get_feature_stats(features, feature_names)
+                feature_stats = get_feature_stats(trainingSet, feature_names)
             elif feature_stats == 'config':
                 feature_stats = config.get("feature_stats", None)
 
