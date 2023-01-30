@@ -259,14 +259,22 @@ def upload_classification(
 
             # check for existing classifications and their groups
             class_group_dict = {}
+            class_id_dict = {}
+            not_in_group_count = 0
             for entry in data_classes:
                 c_key = entry['classification']
+                c_id = [entry['id']]
                 c_values = [x['id'] for x in entry['groups']]
 
-                if c_key not in class_group_dict.keys():
-                    class_group_dict[c_key] = c_values
+                if len(list(set.intersection(set(group_ids), set(c_values)))) > 0:
+                    if c_key not in class_group_dict.keys():
+                        class_group_dict[c_key] = c_values
+                        class_id_dict[c_key] = c_id
+                    else:
+                        class_group_dict[entry['classification']].extend(c_values)
+                        class_id_dict[entry['classification']].extend(c_id)
                 else:
-                    class_group_dict[entry['classification']].extend(c_values)
+                    not_in_group_count += 1
 
             for key in class_group_dict.keys():
                 grp_ids = np.array(class_group_dict[key])
@@ -274,9 +282,22 @@ def upload_classification(
                 class_group_dict[key] = unique_grp_ids.tolist()
 
             existing_classes = [k for k in class_group_dict.keys()]
+            remaining_classes = existing_classes.copy()
+
+            # If all existing classifications are in at least one of the user's specified groups
+            # and replace_classifications is given, delete all classifications
             if (len(existing_classes) > 0) & (replace_classifications):
-                api('DELETE', f'/api/sources/{obj_id}/classifications')
-                existing_classes = []
+                if not_in_group_count == 0:
+                    api('DELETE', f'/api/sources/{obj_id}/classifications')
+                    existing_classes = []
+
+                else:
+                    # Otherwise, delete classifications that are within user-specified groups one-by-one
+                    for exst_cls in existing_classes:
+                        for class_id in class_id_dict[exst_cls]:
+                            api('DELETE', f'api/classification/{class_id}')
+                        remaining_classes.remove(exst_cls)
+                    existing_classes = remaining_classes
 
             # allow classification assignment to be skipped
             if classification is not None:
