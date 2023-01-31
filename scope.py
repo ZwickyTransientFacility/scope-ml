@@ -927,14 +927,27 @@ class Scope:
         statistic: str = 'mean',
     ):
 
-        dataset = read_hdf('/Users/bhealy/scope/preds/field_296/field_296.h5')
-
         withGaiaID = dataset[dataset['Gaia_EDR3___id'] != 0].reset_index(drop=True)
         nanGaiaID = dataset[dataset['Gaia_EDR3___id'] == 0].reset_index(drop=True)
 
-        skip_mean_cols = withGaiaID[
+        withAllWiseID = nanGaiaID[nanGaiaID['AllWISE___id'] != 0].reset_index(drop=True)
+        nanAllWiseID = nanGaiaID[nanGaiaID['AllWISE___id'] == 0].reset_index(drop=True)
+
+        withPS1ID = nanAllWiseID[nanAllWiseID['PS1_DR1___id'] != 0].reset_index(
+            drop=True
+        )
+        # nanPS1ID = nanAllWiseID[nanAllWiseID['PS1_DR1___id'] == 0].reset_index(drop=True)
+
+        skip_mean_cols_Gaia = withGaiaID[
             ['Gaia_EDR3___id', 'AllWISE___id', 'PS1_DR1___id', '_id', 'period']
         ]
+        skip_mean_cols_AllWise = withAllWiseID[
+            ['Gaia_EDR3___id', 'AllWISE___id', 'PS1_DR1___id', '_id', 'period']
+        ]
+        skip_mean_cols_PS1 = withPS1ID[
+            ['Gaia_EDR3___id', 'AllWISE___id', 'PS1_DR1___id', '_id', 'period']
+        ]
+
         groupedMeans_Gaia = (
             withGaiaID.groupby('Gaia_EDR3___id')
             .mean()
@@ -942,25 +955,6 @@ class Scope:
             .reset_index()
         )
 
-        string_ids = groupedMeans_Gaia['Gaia_EDR3___id'].astype(str)
-        groupedMeans_Gaia['survey_id'] = ["Gaia_EDR3___" + s for s in string_ids]
-
-        raArr = [ra for ra in groupedMeans_Gaia['ra']]
-        decArr = [dec for dec in groupedMeans_Gaia['dec']]
-        obj_ids = [radec_to_iau_name(x, y) for x, y in zip(raArr, decArr)]
-        groupedMeans_Gaia['obj_id'] = obj_ids
-
-        allRows_Gaia = pd.merge(
-            groupedMeans_Gaia, skip_mean_cols, on=['Gaia_EDR3___id']
-        )
-        groupedMeans_Gaia.drop('Gaia_EDR3___id', axis=1, inplace=True)
-
-        withAllWiseID = nanGaiaID[nanGaiaID['AllWISE___id'] != 0].reset_index(drop=True)
-        nanAllWiseID = nanGaiaID[nanGaiaID['AllWISE___id'] == 0].reset_index(drop=True)
-
-        skip_mean_cols = withAllWiseID[
-            ['Gaia_EDR3___id', 'AllWISE___id', 'PS1_DR1___id', '_id', 'period']
-        ]
         groupedMeans_AllWise = (
             withAllWiseID.groupby('AllWISE___id')
             .mean()
@@ -968,26 +962,6 @@ class Scope:
             .reset_index()
         )
 
-        raArr = [ra for ra in groupedMeans_AllWise['ra']]
-        decArr = [dec for dec in groupedMeans_AllWise['dec']]
-        obj_ids = [radec_to_iau_name(x, y) for x, y in zip(raArr, decArr)]
-        groupedMeans_AllWise['obj_id'] = obj_ids
-
-        string_ids = groupedMeans_AllWise['AllWISE___id'].astype(str)
-        groupedMeans_AllWise['survey_id'] = ["AllWISE___" + s for s in string_ids]
-        allRows_AllWise = pd.merge(
-            groupedMeans_AllWise, skip_mean_cols, on=['AllWISE___id']
-        )
-        groupedMeans_AllWise.drop('AllWISE___id', axis=1, inplace=True)
-
-        withPS1ID = nanAllWiseID[nanAllWiseID['PS1_DR1___id'] != 0].reset_index(
-            drop=True
-        )
-        # nanPS1ID = nanAllWiseID[nanAllWiseID['PS1_DR1___id'] == 0].reset_index(drop=True)
-
-        skip_mean_cols = withPS1ID[
-            ['Gaia_EDR3___id', 'AllWISE___id', 'PS1_DR1___id', '_id', 'period']
-        ]
         groupedMeans_PS1 = (
             withPS1ID.groupby('PS1_DR1___id')
             .mean()
@@ -995,14 +969,49 @@ class Scope:
             .reset_index()
         )
 
-        raArr = [ra for ra in groupedMeans_PS1['ra']]
-        decArr = [dec for dec in groupedMeans_PS1['dec']]
-        obj_ids = [radec_to_iau_name(x, y) for x, y in zip(raArr, decArr)]
-        groupedMeans_PS1['obj_id'] = obj_ids
+        string_ids_Gaia = groupedMeans_Gaia['Gaia_EDR3___id'].astype(str)
+        groupedMeans_Gaia['survey_id'] = ["Gaia_EDR3___" + s for s in string_ids_Gaia]
 
-        string_ids = groupedMeans_PS1['PS1_DR1___id'].astype(str)
-        groupedMeans_PS1['survey_id'] = ["PS1_DR1___" + s for s in string_ids]
-        allRows_PS1 = pd.merge(groupedMeans_PS1, skip_mean_cols, on=['PS1_DR1___id'])
+        string_ids_AllWise = groupedMeans_AllWise['AllWISE___id'].astype(str)
+        groupedMeans_AllWise['survey_id'] = [
+            "AllWISE___" + s for s in string_ids_AllWise
+        ]
+
+        string_ids_PS1 = groupedMeans_PS1['PS1_DR1___id'].astype(str)
+        groupedMeans_PS1['survey_id'] = ["PS1_DR1___" + s for s in string_ids_PS1]
+
+        raArr_Gaia = [ra for ra in groupedMeans_Gaia['ra']]
+        decArr_Gaia = [dec for dec in groupedMeans_Gaia['dec']]
+        obj_ids_Gaia = [
+            radec_to_iau_name(x, y) for x, y in zip(raArr_Gaia, decArr_Gaia)
+        ]
+        groupedMeans_Gaia['obj_id'] = obj_ids_Gaia
+
+        raArr_AllWise = [ra for ra in groupedMeans_AllWise['ra']]
+        decArr_AllWise = [dec for dec in groupedMeans_AllWise['dec']]
+        obj_ids_AllWise = [
+            radec_to_iau_name(x, y) for x, y in zip(raArr_AllWise, decArr_AllWise)
+        ]
+        groupedMeans_AllWise['obj_id'] = obj_ids_AllWise
+
+        raArr_PS1 = [ra for ra in groupedMeans_PS1['ra']]
+        decArr_PS1 = [dec for dec in groupedMeans_PS1['dec']]
+        obj_ids_PS1 = [radec_to_iau_name(x, y) for x, y in zip(raArr_PS1, decArr_PS1)]
+        groupedMeans_PS1['obj_id'] = obj_ids_PS1
+
+        allRows_Gaia = pd.merge(
+            groupedMeans_Gaia, skip_mean_cols_Gaia, on=['Gaia_EDR3___id']
+        )
+        groupedMeans_Gaia.drop('Gaia_EDR3___id', axis=1, inplace=True)
+
+        allRows_AllWise = pd.merge(
+            groupedMeans_AllWise, skip_mean_cols_AllWise, on=['AllWISE___id']
+        )
+        groupedMeans_AllWise.drop('AllWISE___id', axis=1, inplace=True)
+
+        allRows_PS1 = pd.merge(
+            groupedMeans_PS1, skip_mean_cols_PS1, on=['PS1_DR1___id']
+        )
         groupedMeans_PS1.drop('PS1_DR1___id', axis=1, inplace=True)
 
         test = pd.concat(
@@ -1016,9 +1025,6 @@ class Scope:
             .reset_index()
         )
         test = test.drop_duplicates('obj_id', keep=False).reset_index(drop=True)
-
-        test.to_csv('/Users/bhealy/Downloads/test.csv', index=False)
-        test_allRows.to_csv('/Users/bhealy/Downloads/test_allRows.csv', index=False)
 
     def select_al_sample(
         self,
