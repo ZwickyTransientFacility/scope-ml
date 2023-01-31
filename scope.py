@@ -17,6 +17,7 @@ from tdtax import taxonomy  # noqa: F401
 from typing import Optional, Sequence, Union
 import yaml
 from scope.utils import forgiving_true, load_config, read_hdf, read_parquet, write_hdf
+from scope.fritz import radec_to_iau_name
 import json
 
 
@@ -920,6 +921,105 @@ class Scope:
             else:
                 raise ValueError('algorithm must be DNN or XGB')
 
+    def consolidate_inference_results(
+        self,
+        dataset: pd.DataFrame,
+        statistic: str = 'mean',
+    ):
+
+        dataset = read_hdf('/Users/bhealy/scope/preds/field_296/field_296.h5')
+
+        withGaiaID = dataset[dataset['Gaia_EDR3___id'] != 0].reset_index(drop=True)
+        nanGaiaID = dataset[dataset['Gaia_EDR3___id'] == 0].reset_index(drop=True)
+
+        skip_mean_cols = withGaiaID[
+            ['Gaia_EDR3___id', 'AllWISE___id', 'PS1_DR1___id', '_id', 'period']
+        ]
+        groupedMeans_Gaia = (
+            withGaiaID.groupby('Gaia_EDR3___id')
+            .mean()
+            .drop(['_id', 'period', 'AllWISE___id', 'PS1_DR1___id'], axis=1)
+            .reset_index()
+        )
+
+        string_ids = groupedMeans_Gaia['Gaia_EDR3___id'].astype(str)
+        groupedMeans_Gaia['survey_id'] = ["Gaia_EDR3___" + s for s in string_ids]
+
+        raArr = [ra for ra in groupedMeans_Gaia['ra']]
+        decArr = [dec for dec in groupedMeans_Gaia['dec']]
+        obj_ids = [radec_to_iau_name(x, y) for x, y in zip(raArr, decArr)]
+        groupedMeans_Gaia['obj_id'] = obj_ids
+
+        allRows_Gaia = pd.merge(
+            groupedMeans_Gaia, skip_mean_cols, on=['Gaia_EDR3___id']
+        )
+        groupedMeans_Gaia.drop('Gaia_EDR3___id', axis=1, inplace=True)
+
+        withAllWiseID = nanGaiaID[nanGaiaID['AllWISE___id'] != 0].reset_index(drop=True)
+        nanAllWiseID = nanGaiaID[nanGaiaID['AllWISE___id'] == 0].reset_index(drop=True)
+
+        skip_mean_cols = withAllWiseID[
+            ['Gaia_EDR3___id', 'AllWISE___id', 'PS1_DR1___id', '_id', 'period']
+        ]
+        groupedMeans_AllWise = (
+            withAllWiseID.groupby('AllWISE___id')
+            .mean()
+            .drop(['_id', 'period', 'Gaia_EDR3___id', 'PS1_DR1___id'], axis=1)
+            .reset_index()
+        )
+
+        raArr = [ra for ra in groupedMeans_AllWise['ra']]
+        decArr = [dec for dec in groupedMeans_AllWise['dec']]
+        obj_ids = [radec_to_iau_name(x, y) for x, y in zip(raArr, decArr)]
+        groupedMeans_AllWise['obj_id'] = obj_ids
+
+        string_ids = groupedMeans_AllWise['AllWISE___id'].astype(str)
+        groupedMeans_AllWise['survey_id'] = ["AllWISE___" + s for s in string_ids]
+        allRows_AllWise = pd.merge(
+            groupedMeans_AllWise, skip_mean_cols, on=['AllWISE___id']
+        )
+        groupedMeans_AllWise.drop('AllWISE___id', axis=1, inplace=True)
+
+        withPS1ID = nanAllWiseID[nanAllWiseID['PS1_DR1___id'] != 0].reset_index(
+            drop=True
+        )
+        # nanPS1ID = nanAllWiseID[nanAllWiseID['PS1_DR1___id'] == 0].reset_index(drop=True)
+
+        skip_mean_cols = withPS1ID[
+            ['Gaia_EDR3___id', 'AllWISE___id', 'PS1_DR1___id', '_id', 'period']
+        ]
+        groupedMeans_PS1 = (
+            withPS1ID.groupby('PS1_DR1___id')
+            .mean()
+            .drop(['_id', 'period', 'Gaia_EDR3___id', 'AllWISE___id'], axis=1)
+            .reset_index()
+        )
+
+        raArr = [ra for ra in groupedMeans_PS1['ra']]
+        decArr = [dec for dec in groupedMeans_PS1['dec']]
+        obj_ids = [radec_to_iau_name(x, y) for x, y in zip(raArr, decArr)]
+        groupedMeans_PS1['obj_id'] = obj_ids
+
+        string_ids = groupedMeans_PS1['PS1_DR1___id'].astype(str)
+        groupedMeans_PS1['survey_id'] = ["PS1_DR1___" + s for s in string_ids]
+        allRows_PS1 = pd.merge(groupedMeans_PS1, skip_mean_cols, on=['PS1_DR1___id'])
+        groupedMeans_PS1.drop('PS1_DR1___id', axis=1, inplace=True)
+
+        test = pd.concat(
+            [groupedMeans_Gaia, groupedMeans_AllWise, groupedMeans_PS1]
+        ).reset_index(drop=True)
+        test_allRows = pd.concat([allRows_Gaia, allRows_AllWise, allRows_PS1])
+
+        test_allRows = (
+            test_allRows.set_index('obj_id')
+            .drop(test[test.duplicated('obj_id')]['obj_id'])
+            .reset_index()
+        )
+        test = test.drop_duplicates('obj_id', keep=False).reset_index(drop=True)
+
+        test.to_csv('/Users/bhealy/Downloads/test.csv', index=False)
+        test_allRows.to_csv('/Users/bhealy/Downloads/test_allRows.csv', index=False)
+
     def select_al_sample(
         self,
         fields: Union[list, str] = 'all',
@@ -932,6 +1032,8 @@ class Scope:
         exclude_training_sources: bool = False,
         write_csv: bool = True,
         verbose: bool = False,
+        consolidation_statistic: str = 'mean',
+        write_consolidated_file: bool = True,
     ):
         """
         Select subset of predictions to use for active learning.
@@ -946,6 +1048,8 @@ class Scope:
         :param exclude_training_sources: if True, exclude sources in current training set from AL sample (bool)
         :param write_csv: if True, write CSV file in addition to HDF5 (bool)
         :param verbose: if True, print additional information (bool)
+        :param consolidation_statistic: (str)
+        :param write_consolidated_file: (bool)
 
         :return:
 
@@ -973,12 +1077,16 @@ class Scope:
         column_nums = []
         for field in fields:
             h = read_hdf(str(preds_path / field / f'{field}.h5'))
-            column_nums += [len(h.columns)]
-            df_coll += [h]
+            consolidated_df = self.consolidate_inference_results(
+                h, statistic=consolidation_statistic
+            )
+
+            column_nums += [len(consolidated_df.columns)]
+            df_coll += [consolidated_df]
 
             if verbose:
                 print(field)
-                print(h)
+                print(consolidated_df)
                 print()
 
         if len(np.unique(column_nums)) > 1:
