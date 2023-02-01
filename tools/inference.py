@@ -459,7 +459,20 @@ def run(
                     + str(round(te - ts, 4))
                     + " s"
                 )
-            preds_df = features[["_id", model_class + '_dnn']].round(2)
+            features['Gaia_EDR3___id'] = (
+                features['Gaia_EDR3___id'].fillna(0).astype(int)
+            )
+            features['AllWISE___id'] = features['AllWISE___id'].fillna(0).astype(int)
+            features['PS1_DR1___id'] = features['PS1_DR1___id'].fillna(0).astype(int)
+            preds_df = features[
+                [
+                    "_id",
+                    "Gaia_EDR3___id",
+                    "AllWISE___id",
+                    "PS1_DR1___id",
+                    model_class + '_dnn',
+                ]
+            ].round(2)
             preds_df.reset_index(inplace=True, drop=True)
         else:
             # xgboost inferencing
@@ -527,7 +540,12 @@ def run(
         existing_preds = read_hdf(f'{filename}.h5')
         existing_attrs = existing_preds.attrs
         existing_attrs.update(preds_df.attrs)
-        preds_df = pd.merge(existing_preds, preds_df, on='_id', how='outer')
+        preds_df = pd.merge(
+            existing_preds,
+            preds_df,
+            on=['_id', 'Gaia_EDR3___id', 'AllWISE___id', 'PS1_DR1___id'],
+            how='outer',
+        )
         preds_df.attrs = existing_attrs
     else:
         # If new file, add ra/dec/period columns

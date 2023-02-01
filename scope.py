@@ -17,6 +17,7 @@ from tdtax import taxonomy  # noqa: F401
 from typing import Optional, Sequence, Union
 import yaml
 from scope.utils import forgiving_true, load_config, read_hdf, read_parquet, write_hdf
+from scope.fritz import radec_to_iau_name
 import json
 
 
@@ -920,6 +921,198 @@ class Scope:
             else:
                 raise ValueError('algorithm must be DNN or XGB')
 
+    def consolidate_inference_results(
+        self,
+        dataset: pd.DataFrame,
+        statistic: str = 'mean',
+    ):
+        """
+        Consolidate inference results from multiple rows to one per source (called in select_al_sample)
+
+        :param dataset: inference results from 'preds' directory (pandas DataFrame)
+        :param statistic: method to combine multiple predictions for single source [mean, median and max currently supported] (str)
+
+        """
+
+        # Define subsets of data with or without Gaia, AllWISE and PS1 IDs.
+        # Survey IDs are used to identify unique sources.
+        # Begin with Gaia EDR3 ID
+        # If no Gaia ID, use AllWISE
+        # If no AllWISE, use PS1
+        withGaiaID = dataset[dataset['Gaia_EDR3___id'] != 0].reset_index(drop=True)
+        nanGaiaID = dataset[dataset['Gaia_EDR3___id'] == 0].reset_index(drop=True)
+
+        withAllWiseID = nanGaiaID[nanGaiaID['AllWISE___id'] != 0].reset_index(drop=True)
+        nanAllWiseID = nanGaiaID[nanGaiaID['AllWISE___id'] == 0].reset_index(drop=True)
+
+        withPS1ID = nanAllWiseID[nanAllWiseID['PS1_DR1___id'] != 0].reset_index(
+            drop=True
+        )
+
+        # Define columns for each subset that should not be averaged or otherwise aggregated
+        skip_mean_cols_Gaia = withGaiaID[
+            ['Gaia_EDR3___id', 'AllWISE___id', 'PS1_DR1___id', '_id', 'period']
+        ]
+        skip_mean_cols_AllWise = withAllWiseID[
+            ['Gaia_EDR3___id', 'AllWISE___id', 'PS1_DR1___id', '_id', 'period']
+        ]
+        skip_mean_cols_PS1 = withPS1ID[
+            ['Gaia_EDR3___id', 'AllWISE___id', 'PS1_DR1___id', '_id', 'period']
+        ]
+
+        if statistic in [
+            'mean',
+            'Mean',
+            'MEAN',
+            'average',
+            'AVERAGE',
+            'Average',
+            'avg',
+            'AVG',
+        ]:
+            groupedMeans_Gaia = (
+                withGaiaID.groupby('Gaia_EDR3___id')
+                .mean()
+                .drop(['_id', 'period', 'AllWISE___id', 'PS1_DR1___id'], axis=1)
+                .reset_index()
+            )
+
+            groupedMeans_AllWise = (
+                withAllWiseID.groupby('AllWISE___id')
+                .mean()
+                .drop(['_id', 'period', 'Gaia_EDR3___id', 'PS1_DR1___id'], axis=1)
+                .reset_index()
+            )
+
+            groupedMeans_PS1 = (
+                withPS1ID.groupby('PS1_DR1___id')
+                .mean()
+                .drop(['_id', 'period', 'Gaia_EDR3___id', 'AllWISE___id'], axis=1)
+                .reset_index()
+            )
+
+        elif statistic in ['max', 'Max', 'MAX', 'maximum', 'Maximum', 'MAXIMUM']:
+            groupedMeans_Gaia = (
+                withGaiaID.groupby('Gaia_EDR3___id')
+                .max()
+                .drop(['_id', 'period', 'AllWISE___id', 'PS1_DR1___id'], axis=1)
+                .reset_index()
+            )
+
+            groupedMeans_AllWise = (
+                withAllWiseID.groupby('AllWISE___id')
+                .max()
+                .drop(['_id', 'period', 'Gaia_EDR3___id', 'PS1_DR1___id'], axis=1)
+                .reset_index()
+            )
+
+            groupedMeans_PS1 = (
+                withPS1ID.groupby('PS1_DR1___id')
+                .max()
+                .drop(['_id', 'period', 'Gaia_EDR3___id', 'AllWISE___id'], axis=1)
+                .reset_index()
+            )
+
+        elif statistic in ['median', 'Median', 'MEDIAN', 'med', 'MED']:
+            groupedMeans_Gaia = (
+                withGaiaID.groupby('Gaia_EDR3___id')
+                .median()
+                .drop(['_id', 'period', 'AllWISE___id', 'PS1_DR1___id'], axis=1)
+                .reset_index()
+            )
+
+            groupedMeans_AllWise = (
+                withAllWiseID.groupby('AllWISE___id')
+                .median()
+                .drop(['_id', 'period', 'Gaia_EDR3___id', 'PS1_DR1___id'], axis=1)
+                .reset_index()
+            )
+
+            groupedMeans_PS1 = (
+                withPS1ID.groupby('PS1_DR1___id')
+                .median()
+                .drop(['_id', 'period', 'Gaia_EDR3___id', 'AllWISE___id'], axis=1)
+                .reset_index()
+            )
+
+        else:
+            raise ValueError(
+                'Mean, median and max are the currently supported statistics.'
+            )
+
+        # Construct new survey_id column that contains the ID used to add grouped source to the list
+        string_ids_Gaia = groupedMeans_Gaia['Gaia_EDR3___id'].astype(str)
+        groupedMeans_Gaia['survey_id'] = ["Gaia_EDR3___" + s for s in string_ids_Gaia]
+
+        string_ids_AllWise = groupedMeans_AllWise['AllWISE___id'].astype(str)
+        groupedMeans_AllWise['survey_id'] = [
+            "AllWISE___" + s for s in string_ids_AllWise
+        ]
+
+        string_ids_PS1 = groupedMeans_PS1['PS1_DR1___id'].astype(str)
+        groupedMeans_PS1['survey_id'] = ["PS1_DR1___" + s for s in string_ids_PS1]
+
+        # Generate position-based obj_ids for Fritz
+        raArr_Gaia = [ra for ra in groupedMeans_Gaia['ra']]
+        decArr_Gaia = [dec for dec in groupedMeans_Gaia['dec']]
+        obj_ids_Gaia = [
+            radec_to_iau_name(x, y) for x, y in zip(raArr_Gaia, decArr_Gaia)
+        ]
+        groupedMeans_Gaia['obj_id'] = obj_ids_Gaia
+
+        raArr_AllWise = [ra for ra in groupedMeans_AllWise['ra']]
+        decArr_AllWise = [dec for dec in groupedMeans_AllWise['dec']]
+        obj_ids_AllWise = [
+            radec_to_iau_name(x, y) for x, y in zip(raArr_AllWise, decArr_AllWise)
+        ]
+        groupedMeans_AllWise['obj_id'] = obj_ids_AllWise
+
+        raArr_PS1 = [ra for ra in groupedMeans_PS1['ra']]
+        decArr_PS1 = [dec for dec in groupedMeans_PS1['dec']]
+        obj_ids_PS1 = [radec_to_iau_name(x, y) for x, y in zip(raArr_PS1, decArr_PS1)]
+        groupedMeans_PS1['obj_id'] = obj_ids_PS1
+
+        # Create dataframes containing all rows (including duplicates for multiple light curves)
+        allRows_Gaia = pd.merge(
+            groupedMeans_Gaia, skip_mean_cols_Gaia, on=['Gaia_EDR3___id']
+        )
+        groupedMeans_Gaia.drop('Gaia_EDR3___id', axis=1, inplace=True)
+
+        allRows_AllWise = pd.merge(
+            groupedMeans_AllWise, skip_mean_cols_AllWise, on=['AllWISE___id']
+        )
+        groupedMeans_AllWise.drop('AllWISE___id', axis=1, inplace=True)
+
+        allRows_PS1 = pd.merge(
+            groupedMeans_PS1, skip_mean_cols_PS1, on=['PS1_DR1___id']
+        )
+        groupedMeans_PS1.drop('PS1_DR1___id', axis=1, inplace=True)
+
+        # Create dataframe with no duplicates (upload this to Fritz)
+        consol_rows = pd.concat(
+            [groupedMeans_Gaia, groupedMeans_AllWise, groupedMeans_PS1]
+        ).reset_index(drop=True)
+        all_rows = pd.concat([allRows_Gaia, allRows_AllWise, allRows_PS1])
+
+        # Create dataframe including all light curves (multiple rows per source)
+        all_rows = (
+            all_rows.set_index('obj_id')
+            .drop(consol_rows[consol_rows.duplicated('obj_id')]['obj_id'])
+            .reset_index()
+        )
+        consol_rows = consol_rows.drop_duplicates('obj_id', keep=False).reset_index(
+            drop=True
+        )
+
+        # Reorder columns for better legibility
+        consol_rows = consol_rows.set_index('survey_id').reset_index()
+        consol_rows = consol_rows.set_index('obj_id').reset_index()
+
+        all_rows = all_rows.set_index('survey_id').reset_index()
+        all_rows = all_rows.set_index('obj_id').reset_index()
+
+        return consol_rows, all_rows
+
     def select_al_sample(
         self,
         fields: Union[list, str] = 'all',
@@ -927,32 +1120,44 @@ class Scope:
         min_class_examples: int = 1000,
         probability_threshold: float = 0.9,
         al_directory: str = 'AL_datasets',
-        filename: str = 'active_learning_set',
+        al_filename: str = 'active_learning_set',
         algorithm: str = 'dnn',
         exclude_training_sources: bool = False,
         write_csv: bool = True,
         verbose: bool = False,
+        consolidation_statistic: str = 'mean',
+        write_consolidation_results: bool = False,
+        consol_filename: str = 'inference_results',
     ):
         """
         Select subset of predictions to use for active learning.
 
         :param fields: list of field predictions (integers) to include, or 'all' to use all available fields (list or str)
+            note: do not use spaces if providing a list of comma-separated integers to this argument.
         :param group: name of group containing trained models within models directory (str)
         :param min_class_examples: minimum number of examples to include for each class. Some classes may contain fewer than this if the sample is limited (int)
         :param probability_threshold: minimum probability to select examples for active learning (float)
         :param al_directory: name of directory to create/populate with active learning sample (str)
-        :param filename: name of file (no extension) to store active learning sample (str)
+        :param al_filename: name of file (no extension) to store active learning sample (str)
         :param algorithm: algorithm [dnn or xgb] (str)
         :param exclude_training_sources: if True, exclude sources in current training set from AL sample (bool)
         :param write_csv: if True, write CSV file in addition to HDF5 (bool)
         :param verbose: if True, print additional information (bool)
+        :param consolidation_statistic: method to combine multiple classification probabilities for a single source [mean, median or max currently supported] (str)
+        :param write_consolidation_results: if True, save two files: consolidated inference results [1 row per source] and full results [≥ 1 row per source] (bool)
+        :param consol_filename: name of file (no extension) to store consolidated and full results (str)
 
         :return:
 
-        :example:  ./scope.py select_al_sample --fields=[296, 297] --group='experiment' --min_class_examples=1000 --probability_threshold=0.9 --exclude_training_sources
+        :example:  ./scope.py select_al_sample --fields=[296,297] --group='experiment' --min_class_examples=1000 --probability_threshold=0.9 --exclude_training_sources --write_consolidation_results
         """
         base_path = pathlib.Path(__file__).parent.absolute()
         preds_path = base_path / 'preds'
+
+        # Strip extension from filename if provided
+        al_filename = al_filename.split('.')[0]
+        AL_directory_path = str(base_path / f'{al_directory}_{algorithm}' / al_filename)
+        os.makedirs(AL_directory_path, exist_ok=True)
 
         if algorithm in ['dnn', 'DNN']:
             algorithm = 'dnn'
@@ -971,14 +1176,31 @@ class Scope:
         print(f'Generating active learning sample from {len(fields)} fields.')
 
         column_nums = []
+
         for field in fields:
             h = read_hdf(str(preds_path / field / f'{field}.h5'))
-            column_nums += [len(h.columns)]
-            df_coll += [h]
+            consolidated_df, all_rows_df = self.consolidate_inference_results(
+                h, statistic=consolidation_statistic
+            )
+            if write_consolidation_results:
+                write_hdf(
+                    consolidated_df, f'{AL_directory_path}/{consol_filename}_consol.h5'
+                )
+                write_hdf(all_rows_df, f'{AL_directory_path}/{consol_filename}_full.h5')
+                if write_csv:
+                    consolidated_df.to_csv(
+                        f'{AL_directory_path}/{consol_filename}_consol.csv', index=False
+                    )
+                    consolidated_df.to_csv(
+                        f'{AL_directory_path}/{consol_filename}_full.csv', index=False
+                    )
+
+            column_nums += [len(consolidated_df.columns)]
+            df_coll += [consolidated_df]
 
             if verbose:
                 print(field)
-                print(h)
+                print(consolidated_df)
                 print()
 
         if len(np.unique(column_nums)) > 1:
@@ -1010,10 +1232,10 @@ class Scope:
                 )
 
             intersec = set.intersection(
-                set(preds_df['_id'].values), set(training_set['ztf_id'].values)
+                set(preds_df['obj_id'].values), set(training_set['obj_id'].values)
             )
             print(f'Dropping {len(intersec)} sources already in training set.')
-            preds_df = preds_df.set_index('_id').drop(list(intersec)).reset_index()
+            preds_df = preds_df.set_index('obj_id').drop(list(intersec)).reset_index()
 
         # Use trained model names to establish classes to train
         gen = os.walk(base_path / 'models' / group)
@@ -1027,8 +1249,8 @@ class Scope:
 
         toPost_df = pd.DataFrame(columns=preds_df.columns)
         completed_dict = {}
-        preds_df.set_index('_id', inplace=True)
-        toPost_df.set_index('_id', inplace=True)
+        preds_df.set_index('obj_id', inplace=True)
+        toPost_df.set_index('obj_id', inplace=True)
 
         # Fix random state to allow reproducible results
         rng = np.random.RandomState(9)
@@ -1069,20 +1291,12 @@ class Scope:
                 np.sum(toPost_df[f'{tag}_{algorithm}'].values >= probability_threshold)
             )
 
-        # Establish consistency with scope_upload_classification inputs
-        final_toPost = toPost_df.reset_index(drop=False).rename(
-            {'_id': 'ztf_id'}, axis=1
-        )
-
-        # Strip extension from filename if provided
-        filename = filename.split('.')[0]
-        AL_directory_path = str(base_path / f'{al_directory}_{algorithm}' / filename)
-        os.makedirs(AL_directory_path, exist_ok=True)
+        final_toPost = toPost_df.reset_index(drop=False)
 
         # Write hdf5 and csv files
-        write_hdf(final_toPost, f'{AL_directory_path}/{filename}.h5')
+        write_hdf(final_toPost, f'{AL_directory_path}/{al_filename}.h5')
         if write_csv:
-            final_toPost.to_csv(f'{AL_directory_path}/{filename}.csv', index=False)
+            final_toPost.to_csv(f'{AL_directory_path}/{al_filename}.csv', index=False)
 
         # Write metadata
         meta_filepath = f'{AL_directory_path}/meta.json'
