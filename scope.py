@@ -927,6 +927,11 @@ class Scope:
         statistic: str = 'mean',
     ):
 
+        # Define subsets of data with or without Gaia, AllWISE and PS1 IDs.
+        # Survey IDs are used to identify unique sources.
+        # Begin with Gaia EDR3 ID
+        # If no Gaia ID, use AllWISE
+        # If no AllWISE, use PS1
         withGaiaID = dataset[dataset['Gaia_EDR3___id'] != 0].reset_index(drop=True)
         nanGaiaID = dataset[dataset['Gaia_EDR3___id'] == 0].reset_index(drop=True)
 
@@ -936,8 +941,8 @@ class Scope:
         withPS1ID = nanAllWiseID[nanAllWiseID['PS1_DR1___id'] != 0].reset_index(
             drop=True
         )
-        # nanPS1ID = nanAllWiseID[nanAllWiseID['PS1_DR1___id'] == 0].reset_index(drop=True)
 
+        # Define columns for each subset that should not be averaged or otherwise aggregated
         skip_mean_cols_Gaia = withGaiaID[
             ['Gaia_EDR3___id', 'AllWISE___id', 'PS1_DR1___id', '_id', 'period']
         ]
@@ -948,27 +953,87 @@ class Scope:
             ['Gaia_EDR3___id', 'AllWISE___id', 'PS1_DR1___id', '_id', 'period']
         ]
 
-        groupedMeans_Gaia = (
-            withGaiaID.groupby('Gaia_EDR3___id')
-            .mean()
-            .drop(['_id', 'period', 'AllWISE___id', 'PS1_DR1___id'], axis=1)
-            .reset_index()
-        )
+        if statistic in [
+            'mean',
+            'Mean',
+            'MEAN',
+            'average',
+            'AVERAGE',
+            'Average',
+            'avg',
+            'AVG',
+        ]:
+            groupedMeans_Gaia = (
+                withGaiaID.groupby('Gaia_EDR3___id')
+                .mean()
+                .drop(['_id', 'period', 'AllWISE___id', 'PS1_DR1___id'], axis=1)
+                .reset_index()
+            )
 
-        groupedMeans_AllWise = (
-            withAllWiseID.groupby('AllWISE___id')
-            .mean()
-            .drop(['_id', 'period', 'Gaia_EDR3___id', 'PS1_DR1___id'], axis=1)
-            .reset_index()
-        )
+            groupedMeans_AllWise = (
+                withAllWiseID.groupby('AllWISE___id')
+                .mean()
+                .drop(['_id', 'period', 'Gaia_EDR3___id', 'PS1_DR1___id'], axis=1)
+                .reset_index()
+            )
 
-        groupedMeans_PS1 = (
-            withPS1ID.groupby('PS1_DR1___id')
-            .mean()
-            .drop(['_id', 'period', 'Gaia_EDR3___id', 'AllWISE___id'], axis=1)
-            .reset_index()
-        )
+            groupedMeans_PS1 = (
+                withPS1ID.groupby('PS1_DR1___id')
+                .mean()
+                .drop(['_id', 'period', 'Gaia_EDR3___id', 'AllWISE___id'], axis=1)
+                .reset_index()
+            )
 
+        elif statistic in ['max', 'Max', 'MAX', 'maximum', 'Maximum', 'MAXIMUM']:
+            groupedMeans_Gaia = (
+                withGaiaID.groupby('Gaia_EDR3___id')
+                .max()
+                .drop(['_id', 'period', 'AllWISE___id', 'PS1_DR1___id'], axis=1)
+                .reset_index()
+            )
+
+            groupedMeans_AllWise = (
+                withAllWiseID.groupby('AllWISE___id')
+                .max()
+                .drop(['_id', 'period', 'Gaia_EDR3___id', 'PS1_DR1___id'], axis=1)
+                .reset_index()
+            )
+
+            groupedMeans_PS1 = (
+                withPS1ID.groupby('PS1_DR1___id')
+                .max()
+                .drop(['_id', 'period', 'Gaia_EDR3___id', 'AllWISE___id'], axis=1)
+                .reset_index()
+            )
+
+        elif statistic in ['median', 'Median', 'MEDIAN', 'med', 'MED']:
+            groupedMeans_Gaia = (
+                withGaiaID.groupby('Gaia_EDR3___id')
+                .median()
+                .drop(['_id', 'period', 'AllWISE___id', 'PS1_DR1___id'], axis=1)
+                .reset_index()
+            )
+
+            groupedMeans_AllWise = (
+                withAllWiseID.groupby('AllWISE___id')
+                .median()
+                .drop(['_id', 'period', 'Gaia_EDR3___id', 'PS1_DR1___id'], axis=1)
+                .reset_index()
+            )
+
+            groupedMeans_PS1 = (
+                withPS1ID.groupby('PS1_DR1___id')
+                .median()
+                .drop(['_id', 'period', 'Gaia_EDR3___id', 'AllWISE___id'], axis=1)
+                .reset_index()
+            )
+
+        else:
+            raise ValueError(
+                'Mean, median and max are the currently supported statistics.'
+            )
+
+        # Construct new survey_id column that contains the ID used to add grouped source to the list
         string_ids_Gaia = groupedMeans_Gaia['Gaia_EDR3___id'].astype(str)
         groupedMeans_Gaia['survey_id'] = ["Gaia_EDR3___" + s for s in string_ids_Gaia]
 
@@ -980,6 +1045,7 @@ class Scope:
         string_ids_PS1 = groupedMeans_PS1['PS1_DR1___id'].astype(str)
         groupedMeans_PS1['survey_id'] = ["PS1_DR1___" + s for s in string_ids_PS1]
 
+        # Generate position-based obj_ids for Fritz
         raArr_Gaia = [ra for ra in groupedMeans_Gaia['ra']]
         decArr_Gaia = [dec for dec in groupedMeans_Gaia['dec']]
         obj_ids_Gaia = [
@@ -999,6 +1065,7 @@ class Scope:
         obj_ids_PS1 = [radec_to_iau_name(x, y) for x, y in zip(raArr_PS1, decArr_PS1)]
         groupedMeans_PS1['obj_id'] = obj_ids_PS1
 
+        # Create dataframes containing all rows (including duplicates for multiple light curves)
         allRows_Gaia = pd.merge(
             groupedMeans_Gaia, skip_mean_cols_Gaia, on=['Gaia_EDR3___id']
         )
@@ -1014,17 +1081,23 @@ class Scope:
         )
         groupedMeans_PS1.drop('PS1_DR1___id', axis=1, inplace=True)
 
-        test = pd.concat(
+        # Create dataframe with no duplicates (upload this to Fritz)
+        consol_rows = pd.concat(
             [groupedMeans_Gaia, groupedMeans_AllWise, groupedMeans_PS1]
         ).reset_index(drop=True)
-        test_allRows = pd.concat([allRows_Gaia, allRows_AllWise, allRows_PS1])
+        all_rows = pd.concat([allRows_Gaia, allRows_AllWise, allRows_PS1])
 
-        test_allRows = (
-            test_allRows.set_index('obj_id')
-            .drop(test[test.duplicated('obj_id')]['obj_id'])
+        # Create dataframe including all light curves (multiple rows per source)
+        all_rows = (
+            all_rows.set_index('obj_id')
+            .drop(consol_rows[consol_rows.duplicated('obj_id')]['obj_id'])
             .reset_index()
         )
-        test = test.drop_duplicates('obj_id', keep=False).reset_index(drop=True)
+        consol_rows = consol_rows.drop_duplicates('obj_id', keep=False).reset_index(
+            drop=True
+        )
+
+        return consol_rows, all_rows
 
     def select_al_sample(
         self,
@@ -1039,7 +1112,7 @@ class Scope:
         write_csv: bool = True,
         verbose: bool = False,
         consolidation_statistic: str = 'mean',
-        write_consolidated_file: bool = True,
+        write_consolidation_results: bool = True,
     ):
         """
         Select subset of predictions to use for active learning.
@@ -1055,7 +1128,7 @@ class Scope:
         :param write_csv: if True, write CSV file in addition to HDF5 (bool)
         :param verbose: if True, print additional information (bool)
         :param consolidation_statistic: (str)
-        :param write_consolidated_file: (bool)
+        :param write_consolidation_results: (bool)
 
         :return:
 
@@ -1083,9 +1156,12 @@ class Scope:
         column_nums = []
         for field in fields:
             h = read_hdf(str(preds_path / field / f'{field}.h5'))
-            consolidated_df = self.consolidate_inference_results(
+            consolidated_df, all_rows_df = self.consolidate_inference_results(
                 h, statistic=consolidation_statistic
             )
+            if write_consolidation_results:
+                write_hdf(consolidated_df, 'file1')
+                write_hdf(all_rows_df, 'file2')
 
             column_nums += [len(consolidated_df.columns)]
             df_coll += [consolidated_df]
