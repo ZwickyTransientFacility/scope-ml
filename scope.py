@@ -926,6 +926,13 @@ class Scope:
         dataset: pd.DataFrame,
         statistic: str = 'mean',
     ):
+        """
+        Consolidate inference results from multiple rows to one per source (called in select_al_sample)
+
+        :param dataset: inference results from 'preds' directory (pandas DataFrame)
+        :param statistic: method to combine multiple predictions for single source [mean, median and max currently supported] (str)
+
+        """
 
         # Define subsets of data with or without Gaia, AllWISE and PS1 IDs.
         # Survey IDs are used to identify unique sources.
@@ -1097,6 +1104,13 @@ class Scope:
             drop=True
         )
 
+        # Reorder columns for better legibility
+        consol_rows = consol_rows.set_index('survey_id').reset_index()
+        consol_rows = consol_rows.set_index('obj_id').reset_index()
+
+        all_rows = all_rows.set_index('survey_id').reset_index()
+        all_rows = all_rows.set_index('obj_id').reset_index()
+
         return consol_rows, all_rows
 
     def select_al_sample(
@@ -1106,36 +1120,44 @@ class Scope:
         min_class_examples: int = 1000,
         probability_threshold: float = 0.9,
         al_directory: str = 'AL_datasets',
-        filename: str = 'active_learning_set',
+        al_filename: str = 'active_learning_set',
         algorithm: str = 'dnn',
         exclude_training_sources: bool = False,
         write_csv: bool = True,
         verbose: bool = False,
         consolidation_statistic: str = 'mean',
-        write_consolidation_results: bool = True,
+        write_consolidation_results: bool = False,
+        consol_filename: str = 'inference_results',
     ):
         """
         Select subset of predictions to use for active learning.
 
         :param fields: list of field predictions (integers) to include, or 'all' to use all available fields (list or str)
+            note: do not use spaces if providing a list of comma-separated integers to this argument.
         :param group: name of group containing trained models within models directory (str)
         :param min_class_examples: minimum number of examples to include for each class. Some classes may contain fewer than this if the sample is limited (int)
         :param probability_threshold: minimum probability to select examples for active learning (float)
         :param al_directory: name of directory to create/populate with active learning sample (str)
-        :param filename: name of file (no extension) to store active learning sample (str)
+        :param al_filename: name of file (no extension) to store active learning sample (str)
         :param algorithm: algorithm [dnn or xgb] (str)
         :param exclude_training_sources: if True, exclude sources in current training set from AL sample (bool)
         :param write_csv: if True, write CSV file in addition to HDF5 (bool)
         :param verbose: if True, print additional information (bool)
-        :param consolidation_statistic: (str)
-        :param write_consolidation_results: (bool)
+        :param consolidation_statistic: method to combine multiple classification probabilities for a single source [mean, median or max currently supported] (str)
+        :param write_consolidation_results: if True, save two files: consolidated inference results [1 row per source] and full results [≥ 1 row per source] (bool)
+        :param consol_filename: name of file (no extension) to store consolidated and full results (str)
 
         :return:
 
-        :example:  ./scope.py select_al_sample --fields=[296, 297] --group='experiment' --min_class_examples=1000 --probability_threshold=0.9 --exclude_training_sources
+        :example:  ./scope.py select_al_sample --fields=[296,297] --group='experiment' --min_class_examples=1000 --probability_threshold=0.9 --exclude_training_sources --write_consolidation_results
         """
         base_path = pathlib.Path(__file__).parent.absolute()
         preds_path = base_path / 'preds'
+
+        # Strip extension from filename if provided
+        al_filename = al_filename.split('.')[0]
+        AL_directory_path = str(base_path / f'{al_directory}_{algorithm}' / al_filename)
+        os.makedirs(AL_directory_path, exist_ok=True)
 
         if algorithm in ['dnn', 'DNN']:
             algorithm = 'dnn'
@@ -1154,14 +1176,24 @@ class Scope:
         print(f'Generating active learning sample from {len(fields)} fields.')
 
         column_nums = []
+
         for field in fields:
             h = read_hdf(str(preds_path / field / f'{field}.h5'))
             consolidated_df, all_rows_df = self.consolidate_inference_results(
                 h, statistic=consolidation_statistic
             )
             if write_consolidation_results:
-                write_hdf(consolidated_df, 'file1')
-                write_hdf(all_rows_df, 'file2')
+                write_hdf(
+                    consolidated_df, f'{AL_directory_path}/{consol_filename}_consol.h5'
+                )
+                write_hdf(all_rows_df, f'{AL_directory_path}/{consol_filename}_full.h5')
+                if write_csv:
+                    consolidated_df.to_csv(
+                        f'{AL_directory_path}/{consol_filename}_consol.csv', index=False
+                    )
+                    consolidated_df.to_csv(
+                        f'{AL_directory_path}/{consol_filename}_full.csv', index=False
+                    )
 
             column_nums += [len(consolidated_df.columns)]
             df_coll += [consolidated_df]
@@ -1200,10 +1232,10 @@ class Scope:
                 )
 
             intersec = set.intersection(
-                set(preds_df['_id'].values), set(training_set['ztf_id'].values)
+                set(preds_df['obj_id'].values), set(training_set['obj_id'].values)
             )
             print(f'Dropping {len(intersec)} sources already in training set.')
-            preds_df = preds_df.set_index('_id').drop(list(intersec)).reset_index()
+            preds_df = preds_df.set_index('obj_id').drop(list(intersec)).reset_index()
 
         # Use trained model names to establish classes to train
         gen = os.walk(base_path / 'models' / group)
@@ -1217,8 +1249,8 @@ class Scope:
 
         toPost_df = pd.DataFrame(columns=preds_df.columns)
         completed_dict = {}
-        preds_df.set_index('_id', inplace=True)
-        toPost_df.set_index('_id', inplace=True)
+        preds_df.set_index('obj_id', inplace=True)
+        toPost_df.set_index('obj_id', inplace=True)
 
         # Fix random state to allow reproducible results
         rng = np.random.RandomState(9)
@@ -1259,20 +1291,12 @@ class Scope:
                 np.sum(toPost_df[f'{tag}_{algorithm}'].values >= probability_threshold)
             )
 
-        # Establish consistency with scope_upload_classification inputs
-        final_toPost = toPost_df.reset_index(drop=False).rename(
-            {'_id': 'ztf_id'}, axis=1
-        )
-
-        # Strip extension from filename if provided
-        filename = filename.split('.')[0]
-        AL_directory_path = str(base_path / f'{al_directory}_{algorithm}' / filename)
-        os.makedirs(AL_directory_path, exist_ok=True)
+        final_toPost = toPost_df.reset_index(drop=False)
 
         # Write hdf5 and csv files
-        write_hdf(final_toPost, f'{AL_directory_path}/{filename}.h5')
+        write_hdf(final_toPost, f'{AL_directory_path}/{al_filename}.h5')
         if write_csv:
-            final_toPost.to_csv(f'{AL_directory_path}/{filename}.csv', index=False)
+            final_toPost.to_csv(f'{AL_directory_path}/{al_filename}.csv', index=False)
 
         # Write metadata
         meta_filepath = f'{AL_directory_path}/meta.json'
