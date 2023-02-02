@@ -951,13 +951,13 @@ class Scope:
 
         # Define columns for each subset that should not be averaged or otherwise aggregated
         skip_mean_cols_Gaia = withGaiaID[
-            ['Gaia_EDR3___id', 'AllWISE___id', 'PS1_DR1___id', '_id', 'period']
+            ['Gaia_EDR3___id', 'AllWISE___id', 'PS1_DR1___id', '_id']
         ]
         skip_mean_cols_AllWise = withAllWiseID[
-            ['Gaia_EDR3___id', 'AllWISE___id', 'PS1_DR1___id', '_id', 'period']
+            ['Gaia_EDR3___id', 'AllWISE___id', 'PS1_DR1___id', '_id']
         ]
         skip_mean_cols_PS1 = withPS1ID[
-            ['Gaia_EDR3___id', 'AllWISE___id', 'PS1_DR1___id', '_id', 'period']
+            ['Gaia_EDR3___id', 'AllWISE___id', 'PS1_DR1___id', '_id']
         ]
 
         if statistic in [
@@ -973,21 +973,21 @@ class Scope:
             groupedMeans_Gaia = (
                 withGaiaID.groupby('Gaia_EDR3___id')
                 .mean()
-                .drop(['_id', 'period', 'AllWISE___id', 'PS1_DR1___id'], axis=1)
+                .drop(['_id', 'AllWISE___id', 'PS1_DR1___id'], axis=1)
                 .reset_index()
             )
 
             groupedMeans_AllWise = (
                 withAllWiseID.groupby('AllWISE___id')
                 .mean()
-                .drop(['_id', 'period', 'Gaia_EDR3___id', 'PS1_DR1___id'], axis=1)
+                .drop(['_id', 'Gaia_EDR3___id', 'PS1_DR1___id'], axis=1)
                 .reset_index()
             )
 
             groupedMeans_PS1 = (
                 withPS1ID.groupby('PS1_DR1___id')
                 .mean()
-                .drop(['_id', 'period', 'Gaia_EDR3___id', 'AllWISE___id'], axis=1)
+                .drop(['_id', 'Gaia_EDR3___id', 'AllWISE___id'], axis=1)
                 .reset_index()
             )
 
@@ -995,21 +995,21 @@ class Scope:
             groupedMeans_Gaia = (
                 withGaiaID.groupby('Gaia_EDR3___id')
                 .max()
-                .drop(['_id', 'period', 'AllWISE___id', 'PS1_DR1___id'], axis=1)
+                .drop(['_id', 'AllWISE___id', 'PS1_DR1___id'], axis=1)
                 .reset_index()
             )
 
             groupedMeans_AllWise = (
                 withAllWiseID.groupby('AllWISE___id')
                 .max()
-                .drop(['_id', 'period', 'Gaia_EDR3___id', 'PS1_DR1___id'], axis=1)
+                .drop(['_id', 'Gaia_EDR3___id', 'PS1_DR1___id'], axis=1)
                 .reset_index()
             )
 
             groupedMeans_PS1 = (
                 withPS1ID.groupby('PS1_DR1___id')
                 .max()
-                .drop(['_id', 'period', 'Gaia_EDR3___id', 'AllWISE___id'], axis=1)
+                .drop(['_id', 'Gaia_EDR3___id', 'AllWISE___id'], axis=1)
                 .reset_index()
             )
 
@@ -1017,21 +1017,21 @@ class Scope:
             groupedMeans_Gaia = (
                 withGaiaID.groupby('Gaia_EDR3___id')
                 .median()
-                .drop(['_id', 'period', 'AllWISE___id', 'PS1_DR1___id'], axis=1)
+                .drop(['_id', 'AllWISE___id', 'PS1_DR1___id'], axis=1)
                 .reset_index()
             )
 
             groupedMeans_AllWise = (
                 withAllWiseID.groupby('AllWISE___id')
                 .median()
-                .drop(['_id', 'period', 'Gaia_EDR3___id', 'PS1_DR1___id'], axis=1)
+                .drop(['_id', 'Gaia_EDR3___id', 'PS1_DR1___id'], axis=1)
                 .reset_index()
             )
 
             groupedMeans_PS1 = (
                 withPS1ID.groupby('PS1_DR1___id')
                 .median()
-                .drop(['_id', 'period', 'Gaia_EDR3___id', 'AllWISE___id'], axis=1)
+                .drop(['_id', 'Gaia_EDR3___id', 'AllWISE___id'], axis=1)
                 .reset_index()
             )
 
@@ -1052,27 +1052,7 @@ class Scope:
         string_ids_PS1 = groupedMeans_PS1['PS1_DR1___id'].astype(str)
         groupedMeans_PS1['survey_id'] = ["PS1_DR1___" + s for s in string_ids_PS1]
 
-        # Generate position-based obj_ids for Fritz
-        raArr_Gaia = [ra for ra in groupedMeans_Gaia['ra']]
-        decArr_Gaia = [dec for dec in groupedMeans_Gaia['dec']]
-        obj_ids_Gaia = [
-            radec_to_iau_name(x, y) for x, y in zip(raArr_Gaia, decArr_Gaia)
-        ]
-        groupedMeans_Gaia['obj_id'] = obj_ids_Gaia
-
-        raArr_AllWise = [ra for ra in groupedMeans_AllWise['ra']]
-        decArr_AllWise = [dec for dec in groupedMeans_AllWise['dec']]
-        obj_ids_AllWise = [
-            radec_to_iau_name(x, y) for x, y in zip(raArr_AllWise, decArr_AllWise)
-        ]
-        groupedMeans_AllWise['obj_id'] = obj_ids_AllWise
-
-        raArr_PS1 = [ra for ra in groupedMeans_PS1['ra']]
-        decArr_PS1 = [dec for dec in groupedMeans_PS1['dec']]
-        obj_ids_PS1 = [radec_to_iau_name(x, y) for x, y in zip(raArr_PS1, decArr_PS1)]
-        groupedMeans_PS1['obj_id'] = obj_ids_PS1
-
-        # Create dataframes containing all rows (including duplicates for multiple light curves)
+        # Merge averaged, non-averaged columns on obj_id
         allRows_Gaia = pd.merge(
             groupedMeans_Gaia, skip_mean_cols_Gaia, on=['Gaia_EDR3___id']
         )
@@ -1088,28 +1068,20 @@ class Scope:
         )
         groupedMeans_PS1.drop('PS1_DR1___id', axis=1, inplace=True)
 
-        # Create dataframe with no duplicates (upload this to Fritz)
+        # Create dataframe with one row per source
         consol_rows = pd.concat(
             [groupedMeans_Gaia, groupedMeans_AllWise, groupedMeans_PS1]
         ).reset_index(drop=True)
-        all_rows = pd.concat([allRows_Gaia, allRows_AllWise, allRows_PS1])
 
-        # Create dataframe including all light curves (multiple rows per source)
-        all_rows = (
-            all_rows.set_index('obj_id')
-            .drop(consol_rows[consol_rows.duplicated('obj_id')]['obj_id'])
-            .reset_index()
-        )
-        consol_rows = consol_rows.drop_duplicates('obj_id', keep=False).reset_index(
-            drop=True
+        # Create dataframe containing all rows (including duplicates for multiple light curves)
+        all_rows = pd.concat([allRows_Gaia, allRows_AllWise, allRows_PS1])
+        all_rows.drop(
+            ['Gaia_EDR3___id', 'AllWISE___id', 'PS1_DR1___id'], axis=1, inplace=True
         )
 
         # Reorder columns for better legibility
         consol_rows = consol_rows.set_index('survey_id').reset_index()
-        consol_rows = consol_rows.set_index('obj_id').reset_index()
-
         all_rows = all_rows.set_index('survey_id').reset_index()
-        all_rows = all_rows.set_index('obj_id').reset_index()
 
         return consol_rows, all_rows
 
@@ -1118,6 +1090,7 @@ class Scope:
         fields: Union[list, str] = 'all',
         group: str = 'experiment',
         min_class_examples: int = 1000,
+        select_top_n: bool = False,
         probability_threshold: float = 0.9,
         al_directory: str = 'AL_datasets',
         al_filename: str = 'active_learning_set',
@@ -1126,6 +1099,7 @@ class Scope:
         write_csv: bool = True,
         verbose: bool = False,
         consolidation_statistic: str = 'mean',
+        read_consolidation_results: bool = False,
         write_consolidation_results: bool = False,
         consol_filename: str = 'inference_results',
     ):
@@ -1136,6 +1110,7 @@ class Scope:
             note: do not use spaces if providing a list of comma-separated integers to this argument.
         :param group: name of group containing trained models within models directory (str)
         :param min_class_examples: minimum number of examples to include for each class. Some classes may contain fewer than this if the sample is limited (int)
+        :param select_top_n: if True, select top N probabilities above probability_threshold from each class (bool)
         :param probability_threshold: minimum probability to select examples for active learning (float)
         :param al_directory: name of directory to create/populate with active learning sample (str)
         :param al_filename: name of file (no extension) to store active learning sample (str)
@@ -1144,6 +1119,7 @@ class Scope:
         :param write_csv: if True, write CSV file in addition to HDF5 (bool)
         :param verbose: if True, print additional information (bool)
         :param consolidation_statistic: method to combine multiple classification probabilities for a single source [mean, median or max currently supported] (str)
+        :param read_consolidation_results: if True, search for and read an existing consolidated file having _consol.h5 suffix (bool)
         :param write_consolidation_results: if True, save two files: consolidated inference results [1 row per source] and full results [≥ 1 row per source] (bool)
         :param consol_filename: name of file (no extension) to store consolidated and full results (str)
 
@@ -1167,46 +1143,95 @@ class Scope:
             raise ValueError('Algorithm must be either dnn or xgb.')
 
         df_coll = []
+        df_coll_allRows = []
         if fields in ['all', 'All', 'ALL']:
             gen_fields = os.walk(preds_path)
             fields = [x for x in gen_fields][0][1]
         else:
             fields = [f'field_{f}' for f in fields]
 
-        print(f'Generating active learning sample from {len(fields)} fields.')
+        print(f'Generating active learning sample from {len(fields)} fields:')
 
         column_nums = []
 
-        for field in fields:
-            h = read_hdf(str(preds_path / field / f'{field}.h5'))
-            consolidated_df, all_rows_df = self.consolidate_inference_results(
-                h, statistic=consolidation_statistic
-            )
-            if write_consolidation_results:
-                write_hdf(
-                    consolidated_df, f'{AL_directory_path}/{consol_filename}_consol.h5'
+        AL_directory_PL = pathlib.Path(AL_directory_path)
+        gen = AL_directory_PL.glob(f'{consol_filename}_consol.h5')
+        existing_consol_files = [str(x) for x in gen]
+
+        if (read_consolidation_results) & (len(existing_consol_files) > 0):
+            print('Loading existing consolidated results...')
+            preds_df = read_hdf(existing_consol_files[0])
+
+        else:
+            print('Consolidating classification probabilities to one per source...')
+            for field in fields:
+                h = read_hdf(str(preds_path / field / f'{field}.h5'))
+                consolidated_df, all_rows_df = self.consolidate_inference_results(
+                    h, statistic=consolidation_statistic
                 )
-                write_hdf(all_rows_df, f'{AL_directory_path}/{consol_filename}_full.h5')
-                if write_csv:
-                    consolidated_df.to_csv(
-                        f'{AL_directory_path}/{consol_filename}_consol.csv', index=False
+
+                column_nums += [len(consolidated_df.columns)]
+                df_coll += [consolidated_df]
+                df_coll_allRows += [all_rows_df]
+
+                if verbose:
+                    print(field)
+                    print(consolidated_df)
+                    print()
+
+                if len(np.unique(column_nums)) > 1:
+                    raise ValueError(
+                        'Not all predictions have the same number of columns.'
                     )
-                    consolidated_df.to_csv(
-                        f'{AL_directory_path}/{consol_filename}_full.csv', index=False
+
+                # Create consolidated dataframe (one row per source)
+                preds_df = pd.concat(df_coll, axis=0)
+                # One more groupby to combine sources across multiple fields
+                preds_df = preds_df.groupby('survey_id').mean().reset_index()
+
+                # Create dataframe including all light curves (multiple rows per source)
+                preds_df_allRows = pd.concat(df_coll_allRows, axis=0)
+
+                # Generate position-based obj_ids for Fritz
+                raArr = [ra for ra in preds_df['ra']]
+                decArr = [dec for dec in preds_df['dec']]
+                obj_ids = [radec_to_iau_name(x, y) for x, y in zip(raArr, decArr)]
+                preds_df['obj_id'] = obj_ids
+
+                # Assign obj_ids to all rows
+                preds_df_allRows = pd.merge(
+                    preds_df_allRows, preds_df[['obj_id', 'survey_id']], on='survey_id'
+                )
+
+                # Drop sources which are so close that they cannot be resolved by our position-based ID (~0.0004 of sources)
+                preds_df_allRows = (
+                    preds_df_allRows.set_index('obj_id')
+                    .drop(preds_df[preds_df.duplicated('obj_id')]['obj_id'])
+                    .reset_index()
+                )
+                preds_df = preds_df.drop_duplicates('obj_id', keep=False).reset_index(
+                    drop=True
+                )
+
+                # Save results
+                if write_consolidation_results:
+                    write_hdf(
+                        preds_df, f'{AL_directory_path}/{consol_filename}_consol.h5'
                     )
+                    write_hdf(
+                        preds_df_allRows,
+                        f'{AL_directory_path}/{consol_filename}_full.h5',
+                    )
+                    if write_csv:
+                        preds_df.to_csv(
+                            f'{AL_directory_path}/{consol_filename}_consol.csv',
+                            index=False,
+                        )
+                        preds_df_allRows.to_csv(
+                            f'{AL_directory_path}/{consol_filename}_full.csv',
+                            index=False,
+                        )
 
-            column_nums += [len(consolidated_df.columns)]
-            df_coll += [consolidated_df]
-
-            if verbose:
-                print(field)
-                print(consolidated_df)
-                print()
-
-        if len(np.unique(column_nums)) > 1:
-            raise ValueError('Not all predictions have the same number of columns.')
-
-        preds_df = pd.concat(df_coll, axis=0)
         # Define non-variable class as 1 - variable
         include_nonvar = False
         if f'vnv_{algorithm}' in preds_df.columns:
@@ -1234,7 +1259,7 @@ class Scope:
             intersec = set.intersection(
                 set(preds_df['obj_id'].values), set(training_set['obj_id'].values)
             )
-            print(f'Dropping {len(intersec)} sources already in training set.')
+            print(f'Dropping {len(intersec)} sources already in training set...')
             preds_df = preds_df.set_index('obj_id').drop(list(intersec)).reset_index()
 
         # Use trained model names to establish classes to train
@@ -1255,35 +1280,66 @@ class Scope:
         # Fix random state to allow reproducible results
         rng = np.random.RandomState(9)
 
-        for tag in model_tags:
-            # Idenfity all sources above probability threshold
-            highprob_preds = preds_df[
-                preds_df[f'{tag}_{algorithm}'].values >= probability_threshold
-            ]
-            # Find existing sources in AL sample above probability threshold
-            existing_df = toPost_df[
-                toPost_df[f'{tag}_{algorithm}'].values >= probability_threshold
-            ]
-            existing_count = len(existing_df)
+        if not select_top_n:
+            for tag in model_tags:
+                # Idenfity all sources above probability threshold
+                highprob_preds = preds_df[
+                    preds_df[f'{tag}_{algorithm}'].values >= probability_threshold
+                ]
+                # Find existing sources in AL sample above probability threshold
+                existing_df = toPost_df[
+                    toPost_df[f'{tag}_{algorithm}'].values >= probability_threshold
+                ]
+                existing_count = len(existing_df)
 
-            # Determine number of sources needed to reach at least min_class_examples
-            still_to_post_count = min_class_examples - existing_count
+                # Determine number of sources needed to reach at least min_class_examples
+                still_to_post_count = min_class_examples - existing_count
 
-            if still_to_post_count > 0:
-                if len(highprob_preds) >= still_to_post_count:
-                    # Randomly select from remaining examples without replacement
-                    highprob_toPost = rng.choice(
-                        highprob_preds.drop(existing_df.index).index,
-                        still_to_post_count,
-                        replace=False,
-                    )
-                    concat_toPost_df = highprob_preds.loc[highprob_toPost]
-                else:
-                    # If sample is limited, use all remaining available examples
-                    concat_toPost_df = highprob_preds
+                if still_to_post_count > 0:
+                    if len(highprob_preds) >= still_to_post_count:
+                        # Randomly select from remaining examples without replacement
+                        highprob_toPost = rng.choice(
+                            highprob_preds.drop(existing_df.index).index,
+                            still_to_post_count,
+                            replace=False,
+                        )
+                        concat_toPost_df = highprob_preds.loc[highprob_toPost]
+                    else:
+                        # If sample is limited, use all remaining available examples
+                        concat_toPost_df = highprob_preds
 
-            toPost_df = pd.concat([toPost_df, concat_toPost_df], axis=0)
-            toPost_df.drop_duplicates(keep='first', inplace=True)
+                toPost_df = pd.concat([toPost_df, concat_toPost_df], axis=0)
+                toPost_df.drop_duplicates(keep='first', inplace=True)
+
+        else:
+            # Select top N classifications above probability threshold for all classes
+            print(
+                f'Selecting top {min_class_examples} classifications above P = {probability_threshold}...'
+            )
+            preds_df.reset_index(inplace=True)
+            topN_df = pd.DataFrame()
+            for tag in model_tags:
+                goodprob_preds = preds_df[
+                    preds_df[f'{tag}_{algorithm}'].values >= probability_threshold
+                ]
+                topN_preds = (
+                    goodprob_preds[
+                        [
+                            'obj_id',
+                            'survey_id',
+                            'ra',
+                            'dec',
+                            'period',
+                            f'{tag}_{algorithm}',
+                        ]
+                    ]
+                    .sort_values(by=f'{tag}_{algorithm}', ascending=False)
+                    .iloc[:min_class_examples]
+                    .reset_index(drop=True)
+                )
+                topN_df = pd.concat([topN_df, topN_preds]).reset_index(drop=True)
+
+            toPost_df = topN_df.fillna(0.0).groupby('obj_id').max().reset_index()
 
         for tag in model_tags:
             # Make metadata dictionary of example count per class
@@ -1291,7 +1347,7 @@ class Scope:
                 np.sum(toPost_df[f'{tag}_{algorithm}'].values >= probability_threshold)
             )
 
-        final_toPost = toPost_df.reset_index(drop=False)
+        final_toPost = toPost_df.reset_index(drop=True)
 
         # Write hdf5 and csv files
         write_hdf(final_toPost, f'{AL_directory_path}/{al_filename}.h5')
