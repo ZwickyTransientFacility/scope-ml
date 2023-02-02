@@ -1098,7 +1098,7 @@ class Scope:
         group: str = 'experiment',
         min_class_examples: int = 1000,
         select_top_n: bool = False,
-        include_all_highprob_classifications: bool = False,
+        include_all_highprob_labels: bool = False,
         probability_threshold: float = 0.9,
         al_directory: str = 'AL_datasets',
         al_filename: str = 'active_learning_set',
@@ -1119,8 +1119,8 @@ class Scope:
         :param group: name of group containing trained models within models directory (str)
         :param min_class_examples: minimum number of examples to include for each class. Some classes may contain fewer than this if the sample is limited (int)
         :param select_top_n: if True, select top N probabilities above probability_threshold from each class (bool)
-        :param include_all_highprob_classifications: if select_top_n is set, setting this keyword includes any classification above the probability_threshold for all top N sources.
-            Otherwise, literally only the top N probabilities for each classification will be included, which may artifically exclude relevant information.
+        :param include_all_highprob_labels: if select_top_n is set, setting this keyword includes any classification above the probability_threshold for all top N sources.
+            Otherwise, literally only the top N probabilities for each classification will be included, which may artifically exclude relevant labels.
         :param probability_threshold: minimum probability to select examples for active learning (float)
         :param al_directory: name of directory to create/populate with active learning sample (str)
         :param al_filename: name of file (no extension) to store active learning sample (str)
@@ -1136,7 +1136,7 @@ class Scope:
         :return:
 
         :examples:  ./scope.py select_al_sample --fields=[296,297] --group='experiment' --min_class_examples=1000 --probability_threshold=0.9 --exclude_training_sources --write_consolidation_results
-                    ./scope.py select_al_sample --fields=[296,297] --group='experiment' --min_class_examples=500 --select_top_n --include_all_highprob_classifications --probability_threshold=0.7 --exclude_training_sources --read_consolidation_results
+                    ./scope.py select_al_sample --fields=[296,297] --group='experiment' --min_class_examples=500 --select_top_n --include_all_highprob_labels --probability_threshold=0.7 --exclude_training_sources --read_consolidation_results
         """
         base_path = pathlib.Path(__file__).parent.absolute()
         preds_path = base_path / 'preds'
@@ -1337,7 +1337,7 @@ class Scope:
                     preds_df[f'{tag}_{algorithm}'].values >= probability_threshold
                 ]
 
-                if not include_all_highprob_classifications:
+                if not include_all_highprob_labels:
                     # Return only the top N probabilities for each class, even if other high-probability classifications are excluded
                     topN_preds = (
                         goodprob_preds[
