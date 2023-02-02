@@ -283,6 +283,13 @@ class Scope:
 
         return df
 
+    def _drop_low_probs(self, ser, class_list, threshold):
+        if ser.name in class_list:
+            new_values = [0.0 if v < threshold else v for v in ser.values]
+            return new_values
+        else:
+            return ser
+
     @staticmethod
     def develop():
         """Install developer tools"""
@@ -1091,6 +1098,7 @@ class Scope:
         group: str = 'experiment',
         min_class_examples: int = 1000,
         select_top_n: bool = False,
+        include_all_highprob_classifications: bool = False,
         probability_threshold: float = 0.9,
         al_directory: str = 'AL_datasets',
         al_filename: str = 'active_learning_set',
@@ -1111,6 +1119,8 @@ class Scope:
         :param group: name of group containing trained models within models directory (str)
         :param min_class_examples: minimum number of examples to include for each class. Some classes may contain fewer than this if the sample is limited (int)
         :param select_top_n: if True, select top N probabilities above probability_threshold from each class (bool)
+        :param include_all_highprob_classifications: if select_top_n is set, setting this keyword includes any classification above the probability_threshold for all top N sources.
+            Otherwise, literally only the top N probabilities for each classification will be included, which may artifically exclude relevant information.
         :param probability_threshold: minimum probability to select examples for active learning (float)
         :param al_directory: name of directory to create/populate with active learning sample (str)
         :param al_filename: name of file (no extension) to store active learning sample (str)
@@ -1126,7 +1136,7 @@ class Scope:
         :return:
 
         :examples:  ./scope.py select_al_sample --fields=[296,297] --group='experiment' --min_class_examples=1000 --probability_threshold=0.9 --exclude_training_sources --write_consolidation_results
-                    ./scope.py select_al_sample --fields=[296,297] --group='experiment' --min_class_examples=500 --select_top_n --probability_threshold=0.7 --exclude_training_sources --read_consolidation_results
+                    ./scope.py select_al_sample --fields=[296,297] --group='experiment' --min_class_examples=500 --select_top_n --include_all_highprob_classifications --probability_threshold=0.7 --exclude_training_sources --read_consolidation_results
         """
         base_path = pathlib.Path(__file__).parent.absolute()
         preds_path = base_path / 'preds'
@@ -1166,6 +1176,7 @@ class Scope:
         else:
             print('Consolidating classification probabilities to one per source...')
             for field in fields:
+                print(field)
                 h = read_hdf(str(preds_path / field / f'{field}.h5'))
                 consolidated_df, all_rows_df = self.consolidate_inference_results(
                     h, statistic=consolidation_statistic
@@ -1319,25 +1330,47 @@ class Scope:
             )
             preds_df.reset_index(inplace=True)
             topN_df = pd.DataFrame()
+            class_list = [f'{t}_{algorithm}' for t in model_tags]
+
             for tag in model_tags:
                 goodprob_preds = preds_df[
                     preds_df[f'{tag}_{algorithm}'].values >= probability_threshold
                 ]
-                topN_preds = (
-                    goodprob_preds[
-                        [
-                            'obj_id',
-                            'survey_id',
-                            'ra',
-                            'dec',
-                            'period',
-                            f'{tag}_{algorithm}',
+
+                if not include_all_highprob_classifications:
+                    # Return only the top N probabilities for each class, even if other high-probability classifications are excluded
+                    topN_preds = (
+                        goodprob_preds[
+                            [
+                                'obj_id',
+                                'survey_id',
+                                'ra',
+                                'dec',
+                                'period',
+                                f'{tag}_{algorithm}',
+                            ]
                         ]
-                    ]
-                    .sort_values(by=f'{tag}_{algorithm}', ascending=False)
-                    .iloc[:min_class_examples]
-                    .reset_index(drop=True)
-                )
+                        .sort_values(by=f'{tag}_{algorithm}', ascending=False)
+                        .iloc[:min_class_examples]
+                        .reset_index(drop=True)
+                    )
+
+                else:
+                    # Include not only the top N probabilities for each class but also any other classifications above probability_threshold for these sources
+                    topN_preds = (
+                        goodprob_preds.sort_values(
+                            by=f'{tag}_{algorithm}', ascending=False
+                        )
+                        .iloc[:min_class_examples]
+                        .reset_index(drop=True)
+                    )
+
+                    topN_preds = topN_preds.apply(
+                        self._drop_low_probs,
+                        class_list=class_list,
+                        threshold=probability_threshold,
+                    )
+
                 topN_df = pd.concat([topN_df, topN_preds]).reset_index(drop=True)
 
             toPost_df = topN_df.fillna(0.0).groupby('obj_id').max().reset_index()
