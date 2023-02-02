@@ -1125,7 +1125,8 @@ class Scope:
 
         :return:
 
-        :example:  ./scope.py select_al_sample --fields=[296,297] --group='experiment' --min_class_examples=1000 --probability_threshold=0.9 --exclude_training_sources --write_consolidation_results
+        :examples:  ./scope.py select_al_sample --fields=[296,297] --group='experiment' --min_class_examples=1000 --probability_threshold=0.9 --exclude_training_sources --write_consolidation_results
+                    ./scope.py select_al_sample --fields=[296,297] --group='experiment' --min_class_examples=500 --select_top_n --probability_threshold=0.7 --exclude_training_sources --read_consolidation_results
         """
         base_path = pathlib.Path(__file__).parent.absolute()
         preds_path = base_path / 'preds'
