@@ -29,6 +29,7 @@ def upload_classification(
     start: int,
     stop: int,
     post_survey_id: bool = False,
+    survey_id_origin: str = 'SCoPe_xmatch',
     skip_phot: bool = False,
     p_threshold: float = 0.0,
     match_ids: bool = False,
@@ -178,7 +179,7 @@ def upload_classification(
                         print("Attempting to match with survey_id annotation.")
                         annotations = src['annotations']
                         for annot in annotations:
-                            if annot['origin'] == 'SCoPe':
+                            if annot['origin'] == survey_id_origin:
                                 src_survey_ids = [x for x in annot['data'].values()]
                                 if survey_id in src_survey_ids:
                                     id_found = 1
@@ -363,18 +364,28 @@ def upload_classification(
             if post_survey_id:
                 if obj_id not in [x for x in src_dict.keys()]:
                     scope_manage_annotation.manage_annotation(
-                        'POST', obj_id, group_ids, 'SCoPe', 'survey_id', survey_id
+                        'POST',
+                        obj_id,
+                        group_ids,
+                        survey_id_origin,
+                        'survey_id',
+                        survey_id,
                     )
                 else:
                     source_to_update = src_dict[obj_id]
                     existing_survey_ids = [
                         x['data']
                         for x in source_to_update['annotations']
-                        if x['origin'] == 'SCoPe'
+                        if x['origin'] == survey_id_origin
                     ]
                     if len(existing_survey_ids) == 0:
                         scope_manage_annotation.manage_annotation(
-                            'POST', obj_id, group_ids, 'SCoPe', 'survey_id', survey_id
+                            'POST',
+                            obj_id,
+                            group_ids,
+                            survey_id_origin,
+                            'survey_id',
+                            survey_id,
                         )
                     else:
                         n_existing_survey_ids = len(existing_survey_ids[0].keys())
@@ -383,7 +394,7 @@ def upload_classification(
                                 'UPDATE',
                                 obj_id,
                                 group_ids,
-                                'SCoPe',
+                                survey_id_origin,
                                 f'survey_id_{n_existing_survey_ids+1}',
                                 str(survey_id),
                             )
@@ -530,6 +541,13 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        "-survey_id_origin",
+        type=str,
+        default='SCoPE_xmatch',
+        help="Annotation origin for survey ID",
+    )
+
+    parser.add_argument(
         "-p_threshold",
         type=float,
         default=0.0,
@@ -612,6 +630,7 @@ if __name__ == "__main__":
         args.start,
         args.stop,
         args.post_survey_id,
+        args.survey_id_origin,
         args.skip_phot,
         args.p_threshold,
         args.match_ids,
