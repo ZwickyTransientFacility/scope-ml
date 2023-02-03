@@ -261,12 +261,19 @@ def upload_classification(
             class_group_dict = {}
             class_id_dict = {}
             not_in_group_count = 0
+            check_group_ids = group_ids.copy()
+
             for entry in data_classes:
                 c_key = entry['classification']
                 c_id = [entry['id']]
                 c_values = [x['id'] for x in entry['groups']]
+                # If a classification has no groups, include it for replacement
+                if c_values == []:
+                    c_values = [-1]
+                    if -1 not in check_group_ids:
+                        check_group_ids.append(-1)
 
-                if len(list(set.intersection(set(group_ids), set(c_values)))) > 0:
+                if len(list(set.intersection(set(check_group_ids), set(c_values)))) > 0:
                     if c_key not in class_group_dict.keys():
                         class_group_dict[c_key] = c_values
                         class_id_dict[c_key] = c_id
