@@ -269,6 +269,7 @@ def upload_classification(
                 c_values = [x['id'] for x in entry['groups']]
                 # If a classification has no groups, include it for replacement
                 if c_values == []:
+                    # Use -1 as placeholder for 'no group', since no existing group will have this id
                     c_values = [-1]
                     if -1 not in check_group_ids:
                         check_group_ids.append(-1)
