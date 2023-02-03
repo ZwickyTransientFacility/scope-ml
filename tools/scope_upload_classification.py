@@ -28,7 +28,7 @@ def upload_classification(
     comment: str,
     start: int,
     stop: int,
-    ztf_origin: str,
+    post_survey_id: bool = False,
     skip_phot: bool = False,
     p_threshold: float = 0.0,
     match_ids: bool = False,
@@ -51,7 +51,7 @@ def upload_classification(
     :param comment: single comment to post (str)
     :param start: index in CSV file to start upload (int)
     :param stop: index in CSV file to stop upload (inclusive) (int)
-    :ztf_origin: origin of uploaded ZTF data; if set, posts ztf_id to annotation (str)
+    :post_survey_id: if True, post survey_id from input dataset (bool)
     :skip_phot: if True, only upload groups and classifications (no photometry) (bool)
     :p_threshold: classification probabilties must be >= this number to post (float)
     :match_ids: if True, match ZTF source ids when searching existing sources (bool)
@@ -144,11 +144,17 @@ def upload_classification(
 
         existing_source = []
         n_missing_groups = 0
+        src_dict = {}
+        if post_survey_id:
+            survey_id = row['survey_id']
+
         if ('obj_id' in columns) & (use_existing_obj_id):
             obj_id = row.obj_id
             response = api("GET", f"/api/sources/{obj_id}")
             data = response.json().get('data')
             existing_source = data
+            if len(data) > 0:
+                src_dict[obj_id] = data
         else:
             obj_id = None
             # get object id
@@ -157,15 +163,7 @@ def upload_classification(
             )
             data = response.json().get('data')
 
-            src_dict = {}
             create_time_dict = {}
-
-            if ztf_origin is not None:
-                ztfid = int(row['ztf_id'])
-            elif match_ids:
-                raise ValueError(
-                    'ZTF ID/origin must be provided for IDs to be matched.'
-                )
 
             if data["totalMatches"] > 0:
                 # get most recent ZTFJ source
@@ -177,17 +175,16 @@ def upload_classification(
                     src_dict[src_id] = src
 
                     if match_ids:
-                        warnings.warn(
-                            "One source may have more than one ZTF ID. It is recommended to match to an exising source's obj_id by setting -use_existing_obj_id."
-                        )
+                        print("Attempting to match with survey_id annotation.")
                         annotations = src['annotations']
                         for annot in annotations:
-                            if annot['origin'] == ztf_origin:
-                                src_ztf_ids = [int(x) for x in annot['data'].values()]
-                                if ztfid in src_ztf_ids:
+                            if annot['origin'] == 'SCoPe':
+                                src_survey_ids = [x for x in annot['data'].values()]
+                                if survey_id in src_survey_ids:
                                     id_found = 1
                                     break
-                    else:
+                    if not id_found:
+                        print('Searching most recent ZTFJ source IDs...')
                         create_time = src['created_at']
                         dt_create_time = datetime.strptime(
                             create_time, '%Y-%m-%dT%H:%M:%S.%f'
@@ -197,7 +194,7 @@ def upload_classification(
                 if id_found:
                     existing_source = src_dict[src_id]
                     obj_id = src_id
-                elif not match_ids:
+                else:
                     create_time_list = [x for x in create_time_dict.keys()]
                     create_time_list.sort(reverse=True)
 
@@ -360,32 +357,32 @@ def upload_classification(
                     response = api("POST", f"/api/sources/{obj_id}/comments", json)
 
             # Post ZTF ID as annotation
-            if ztf_origin is not None:
+            if post_survey_id:
                 if obj_id not in [x for x in src_dict.keys()]:
                     scope_manage_annotation.manage_annotation(
-                        'POST', obj_id, group_ids, ztf_origin, 'ztf_id', str(ztfid)
+                        'POST', obj_id, group_ids, 'SCoPe', 'survey_id', survey_id
                     )
                 else:
                     source_to_update = src_dict[obj_id]
                     existing_ztf_ids = [
                         x['data']
                         for x in source_to_update['annotations']
-                        if x['origin'] == ztf_origin
+                        if x['origin'] == 'SCoPe'
                     ]
                     if len(existing_ztf_ids) == 0:
                         scope_manage_annotation.manage_annotation(
-                            'POST', obj_id, group_ids, ztf_origin, 'ztf_id', str(ztfid)
+                            'POST', obj_id, group_ids, 'SCoPe', 'survey_id', survey_id
                         )
                     else:
                         n_existing_ztf_ids = len(existing_ztf_ids[0].keys())
-                        if ztfid not in existing_ztf_ids[0].values():
+                        if survey_id not in existing_ztf_ids[0].values():
                             scope_manage_annotation.manage_annotation(
                                 'UPDATE',
                                 obj_id,
                                 group_ids,
-                                ztf_origin,
-                                f'ztf_id_{n_existing_ztf_ids+1}',
-                                str(ztfid),
+                                'SCoPe',
+                                f'survey_id_{n_existing_ztf_ids+1}',
+                                str(survey_id),
                             )
 
         else:
@@ -523,7 +520,11 @@ if __name__ == "__main__":
         help="Skip photometry upload, only post groups and classifications.",
     )
 
-    parser.add_argument("-ztf_origin", type=str, help="Origin of uploaded ZTF data")
+    parser.add_argument(
+        "-post_survey_id",
+        action='store_true',
+        help="If set, post survey_id from input dataset.",
+    )
 
     parser.add_argument(
         "-p_threshold",
@@ -607,7 +608,7 @@ if __name__ == "__main__":
         args.comment,
         args.start,
         args.stop,
-        args.ztf_origin,
+        args.post_survey_id,
         args.skip_phot,
         args.p_threshold,
         args.match_ids,
