@@ -222,6 +222,7 @@ def upload_classification(
         if (len(existing_source) == 0) | (not skip_phot) | (n_missing_groups > 0):
             if ((len(existing_source) == 0) | (n_missing_groups > 0)) & (skip_phot):
                 warnings.warn('Cannot skip new source - saving.')
+            post_source = len(existing_source) == 0
             obj_id = save_newsource(
                 gloria,
                 group_ids,
@@ -231,6 +232,8 @@ def upload_classification(
                 period=period,
                 return_id=True,
                 radius=RADIUS_ARCSEC,
+                post_source=post_source,
+                skip_phot=skip_phot,
             )
 
         data_groups = []
@@ -364,24 +367,24 @@ def upload_classification(
                     )
                 else:
                     source_to_update = src_dict[obj_id]
-                    existing_ztf_ids = [
+                    existing_survey_ids = [
                         x['data']
                         for x in source_to_update['annotations']
                         if x['origin'] == 'SCoPe'
                     ]
-                    if len(existing_ztf_ids) == 0:
+                    if len(existing_survey_ids) == 0:
                         scope_manage_annotation.manage_annotation(
                             'POST', obj_id, group_ids, 'SCoPe', 'survey_id', survey_id
                         )
                     else:
-                        n_existing_ztf_ids = len(existing_ztf_ids[0].keys())
-                        if survey_id not in existing_ztf_ids[0].values():
+                        n_existing_survey_ids = len(existing_survey_ids[0].keys())
+                        if survey_id not in existing_survey_ids[0].values():
                             scope_manage_annotation.manage_annotation(
                                 'UPDATE',
                                 obj_id,
                                 group_ids,
                                 'SCoPe',
-                                f'survey_id_{n_existing_ztf_ids+1}',
+                                f'survey_id_{n_existing_survey_ids+1}',
                                 str(survey_id),
                             )
 

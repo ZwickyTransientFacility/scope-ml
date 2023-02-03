@@ -265,6 +265,7 @@ def save_newsource(
     post_source=True,
     period=None,
     return_id=False,
+    skip_phot=False,
 ):
 
     # get the lightcurves
@@ -354,12 +355,13 @@ def save_newsource(
             post_source_data,
             max_attempts=MAX_ATTEMPTS,
         )
+        print(response.json())
         if response.json()["status"] == "error":
             print(f"Failed to save {obj_id} as a Source")
             return None
 
     # post photometry
-    if post_source:
+    if not skip_phot:
         print("Uploading photometry for %s" % obj_id)
         response = api("PUT", "/api/photometry", photometry, max_attempts=MAX_ATTEMPTS)
         if response.json()["status"] == "error":
