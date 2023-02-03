@@ -262,7 +262,7 @@ def save_newsource(
     dec,
     radius=2.0,
     obj_id=None,
-    dryrun=False,
+    post_source=True,
     period=None,
     return_id=False,
 ):
@@ -295,11 +295,13 @@ def save_newsource(
             )
 
         else:
-            # ra_mean, dec_mean = ra, dec
             print("No lightcurves found. Skipping source.")
             return None
 
         obj_id = radec_to_iau_name(ra_mean, dec_mean, prefix="ZTFJ")
+
+    else:
+        ra_mean, dec_mean = ra, dec
 
     # get photometry; drop flagged/nan data
     df_photometry = make_photometry(light_curves, drop_flagged=True)
@@ -337,7 +339,7 @@ def save_newsource(
         return None
 
     # post new source to Fritz
-    if newsource and not dryrun:
+    if newsource or post_source:
         post_source_data = {
             "id": obj_id,
             "ra": ra_mean,
@@ -357,7 +359,7 @@ def save_newsource(
             return None
 
     # post photometry
-    if not dryrun:
+    if post_source:
         print("Uploading photometry for %s" % obj_id)
         response = api("PUT", "/api/photometry", photometry, max_attempts=MAX_ATTEMPTS)
         if response.json()["status"] == "error":
