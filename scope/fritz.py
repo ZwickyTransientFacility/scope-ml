@@ -355,7 +355,7 @@ def save_newsource(
             post_source_data,
             max_attempts=MAX_ATTEMPTS,
         )
-        print(response.json())
+
         if response.json()["status"] == "error":
             print(f"Failed to save {obj_id} as a Source")
             return None
