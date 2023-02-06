@@ -543,7 +543,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "-survey_id_origin",
         type=str,
-        default='SCoPE_xmatch',
+        default='SCoPe_xmatch',
         help="Annotation origin for survey ID",
     )
 
