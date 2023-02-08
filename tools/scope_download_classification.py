@@ -10,6 +10,7 @@ from tools.get_features import get_features
 from tools.get_quad_ids import get_cone_ids
 import os
 from datetime import datetime
+from scope.utils import impute_features
 
 NUM_PER_PAGE = 500
 CHECKPOINT_NUM = 500
@@ -103,6 +104,7 @@ def merge_sources_features(
     output_filename='merged_classifications_features',
     output_format='parquet',
     get_ztf_filters=False,
+    impute_missing_features=False,
 ):
 
     outpath = os.path.join(os.path.dirname(__file__), output_dir)
@@ -249,22 +251,22 @@ def merge_sources_features(
     # Rejoin duplicate and non-duplicate rows
     merged_set = pd.concat([merged_set_nodup, merged_set_dup]).reset_index(drop=True)
 
-    merged_set['ztf_id'] = merged_set['_id']
-    merged_set.drop(['_id'], axis=1, inplace=True)
-
     print(f'Merged set of {len(merged_set)} sources, labels and features.')
 
     # Get ztf filters if specified
     if get_ztf_filters:
         print('Getting ZTF filters...')
         filter_df, _ = get_features(
-            source_ids=merged_set['ztf_id'].values.tolist(),
+            source_ids=merged_set['_id'].values.tolist(),
             features_catalog='ZTF_sources_20210401',
             limit_per_query=features_limit,
             projection={'filter': 1},
         )
 
-        merged_set['filter'] = filter_df['filter']
+        merged_set = pd.merge(merged_set, filter_df, on='_id')
+
+    merged_set['ztf_id'] = merged_set['_id']
+    merged_set.drop(['_id'], axis=1, inplace=True)
 
     source_metadata = sources.attrs
     source_metadata.update(feature_df_nodup.attrs)
@@ -273,6 +275,9 @@ def merge_sources_features(
     # Make ztf_id last column in dataframe
     ztf_id_col = merged_set.pop('ztf_id')
     merged_set['ztf_id'] = ztf_id_col
+
+    if impute_missing_features:
+        merged_set = impute_features(merged_set, self_impute=True)
 
     filepath = os.path.join(outpath, output_filename + output_format)
     if output_format == '.csv':
@@ -310,6 +315,7 @@ def download_classification(
     output_filename: str = 'merged_classifications_features',
     output_format: str = 'parquet',
     get_ztf_filters: bool = False,
+    impute_missing_features: bool = False,
 ):
     """
     Download labels from Fritz
@@ -323,6 +329,7 @@ def download_classification(
     :param output_filename: name of output merged features file (str)
     :param output_format: format of output merged features file (str)
     :param get_ztf_filters: if True, add ZTF filter ID to default features (bool)
+    :param impute_missing_features: if True, impute missing features using scope.utils.impute_features (bool)
     """
 
     dict_list = []
@@ -457,6 +464,7 @@ def download_classification(
                 output_filename,
                 output_format,
                 get_ztf_filters,
+                impute_missing_features,
             )
             return merged_sources
 
@@ -603,6 +611,7 @@ def download_classification(
                 output_filename,
                 output_format,
                 get_ztf_filters,
+                impute_missing_features,
             )
             return merged_sources
 
@@ -672,6 +681,13 @@ if __name__ == "__main__":
         help="add ZTF filter ID to default features",
     )
 
+    parser.add_argument(
+        "-impute_missing_features",
+        action='store_true',
+        default=False,
+        help="impute missing features using strategy specified by config",
+    )
+
     args = parser.parse_args()
 
     # download object classifications in the file
@@ -687,4 +703,5 @@ if __name__ == "__main__":
         args.output_filename,
         args.output_format,
         args.get_ztf_filters,
+        args.impute_missing_features,
     )
