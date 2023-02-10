@@ -297,14 +297,22 @@ def upload_classification(
             # and replace_classifications is given, delete all classifications
             if (len(existing_classes) > 0) & (replace_classifications):
                 if not_in_group_count == 0:
-                    api('DELETE', f'/api/sources/{obj_id}/classifications')
+                    api(
+                        'DELETE',
+                        f'/api/sources/{obj_id}/classifications',
+                        {'label': check_labelled_box},
+                    )
                     existing_classes = []
 
                 else:
                     # Otherwise, delete classifications that are within user-specified groups one-by-one
                     for exst_cls in existing_classes:
                         for class_id in class_id_dict[exst_cls]:
-                            api('DELETE', f'api/classification/{class_id}')
+                            api(
+                                'DELETE',
+                                f'api/classification/{class_id}',
+                                {'label': check_labelled_box},
+                            )
                         remaining_classes.remove(exst_cls)
                     existing_classes = remaining_classes
 
