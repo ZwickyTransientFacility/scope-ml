@@ -5,8 +5,6 @@ import scope_phenom # https://github.com/bfhealy/scope-phenomenology
 from scope.utils import read_parquet
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-from collections import Counter
 
 phenom = scope_phenom.taxonomy
 sitewide = tdtax.taxonomy
