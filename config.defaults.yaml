@@ -1442,8 +1442,8 @@ training:
       balance: 1
       weight_per_class: false
       batch_size: 8
-    gal:
-      label: galaxy
+    ext:
+      label: extended
       features: phenomenological
       threshold: 0.7
       balance: 2.5
@@ -1619,6 +1619,7 @@ training:
       threshold: 0.7
       balance: 2.5
       weight_per_class: true
+      batch_size: 2
     rscvn:
       label: RS CVn
       features: ontological
@@ -1651,10 +1652,10 @@ training:
       threshold: 0.7
       balance: 2.5
       weight_per_class: true
+      batch_size: 2
     yso:
       label: YSO
       features: ontological
       threshold: 0.7
       balance: 3
       weight_per_class: false
-      batch_size: 8
