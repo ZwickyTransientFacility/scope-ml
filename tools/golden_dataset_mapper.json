@@ -64,9 +64,9 @@
       "taxonomy_id": 1012
     },
 
-"galaxy":
-    {"fritz_label": "galaxy",
-      "taxonomy_id": 1012
+"extended":
+    {"fritz_label": "extended",
+      "taxonomy_id": 1017
     },
 
 "eclipsing":
