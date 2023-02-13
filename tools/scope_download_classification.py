@@ -177,8 +177,17 @@ def merge_sources_features(
 
         source_dict_list += [source_dict]
 
-    # Create dataframe
+    # Create and write dataframe
     expanded_sources = pd.DataFrame(source_dict_list)
+
+    sources_filepath = os.path.join(outpath, f'sources_{output_dir}' + output_format)
+    if output_format == '.csv':
+        expanded_sources.to_csv(sources_filepath, index=False)
+    elif output_format == '.h5':
+        write_hdf(expanded_sources, sources_filepath)
+    else:
+        write_parquet(expanded_sources, sources_filepath)
+    print(f'Saved list of {len(expanded_sources)} unique sources.')
 
     # Query Kowalski
     print(
