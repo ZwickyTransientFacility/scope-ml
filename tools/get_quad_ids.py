@@ -258,16 +258,19 @@ def get_field_ids(
     if limit == 0:
         limit = 10000000000
 
+    filter = {
+        "field": {"$eq": field},
+        "ccd": {"$eq": ccd},
+        "quad": {"$eq": quad},
+    }
+    if minobs > 0:
+        filter["n"] = {"$gt": minobs}
+
     q = {
         'query_type': 'find',
         'query': {
             'catalog': catalog,
-            'filter': {
-                "field": {"$eq": field},
-                "ccd": {"$eq": ccd},
-                "quad": {"$eq": quad},
-                "n": {"$gt": minobs},
-            },
+            'filter': filter,
             "projection": {
                 "_id": 1,
             },
