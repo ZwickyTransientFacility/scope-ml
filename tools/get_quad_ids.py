@@ -29,6 +29,7 @@ def get_ids_loop(
     verbose=2,
     output_dir=None,
     whole_field=False,
+    save=True,
 ):
     '''
         Function wrapper for getting ids in a particular ccd and quad range
@@ -53,6 +54,8 @@ def get_ids_loop(
             Relative directory path to save output files to
         whole_field: bool
             If True, save one file containing all field ids. Otherwise, save files for each ccd/quad pair
+        save: bool
+            If True, save results (either by ccd/quad or whole field)
 
         Returns
         -------
@@ -78,7 +81,7 @@ def get_ids_loop(
         count = 0
 
     ser = pd.Series(np.array([]))
-    save_individual = not whole_field
+    save_individual = (save) & (not whole_field)
 
     for ccd in range(ccd_range[0], ccd_range[1] + 1):
         dct["ccd"][ccd] = {}
@@ -108,7 +111,7 @@ def get_ids_loop(
                         dct["ccd"][ccd]["quad"][quad] = length
                     break
                 i += 1
-    if (verbose > 1) & (whole_field):
+    if (verbose > 1) & (whole_field) & (save):
         hf = h5py.File(
             output_dir + "field_" + str(field) + '.h5',
             'w',
@@ -126,6 +129,7 @@ def get_ids_loop(
         except Exception as e:
             print("error dumping to json, message: ", e)
 
+    print(f'Found {len(ser)} total IDs.')
     return ser
 
 
@@ -433,6 +437,7 @@ if __name__ == "__main__":
             verbose=args.verbose,
             output_dir=os.path.join(os.path.dirname(__file__), output_dir),
             whole_field=args.whole_field,
+            save=True,
         )
 
     else:
