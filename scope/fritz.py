@@ -133,7 +133,9 @@ def radec_to_iau_name(ra: float, dec: float, prefix: str = "ZTFJ"):
     return prefix + hms + dms
 
 
-def get_lightcurves(gloria, ra, dec, radius=2.0):
+def get_lightcurves_via_coords(
+    gloria, ra, dec, radius=2.0, catalog=None, program_id_selector=list([1, 2, 3])
+):
 
     query = {"query_type": "info", "query": {"command": "catalog_names"}}
     available_catalog_names = gloria.query(query=query).get("data")
@@ -142,11 +144,9 @@ def get_lightcurves(gloria, ra, dec, radius=2.0):
         catalog for catalog in available_catalog_names if "ZTF_sources" in catalog
     ]
 
-    # simply select last catalog
-    catalog = available_catalogs[-1]
-
-    # allow access to all data by default
-    program_id_selector = list([1, 2, 3])
+    if catalog is None:
+        # simply select last catalog
+        catalog = available_catalogs[-1]
 
     # executing a cone search
     # grab id's first
@@ -179,12 +179,33 @@ def get_lightcurves(gloria, ra, dec, radius=2.0):
         else:
             print("Found %d lightcurves" % len(light_curve_ids))
 
+    return get_lightcurves_via_ids(
+        gloria, light_curve_ids, catalog, program_id_selector
+    )
+
+
+def get_lightcurves_via_ids(
+    gloria, ids, catalog, program_id_selector=list([1, 2, 3]), limit_per_query=1000
+):
+
+    itr = 0
+    lcs = []
+
+    while True:
         query = {
             "query_type": "aggregate",
             "query": {
                 "catalog": catalog,
                 "pipeline": [
-                    {"$match": {"_id": {"$in": light_curve_ids}}},
+                    {
+                        "$match": {
+                            "_id": {
+                                "$in": ids[
+                                    itr * limit_per_query : (itr + 1) * limit_per_query
+                                ]
+                            }
+                        }
+                    },
                     {
                         "$project": {
                             "_id": 1,
@@ -217,8 +238,16 @@ def get_lightcurves(gloria, ra, dec, radius=2.0):
         response = gloria.query(query=query)
         if response.get("status", "error") == "success":
             light_curves = response.get("data")
+            lcs += light_curves
 
-    return light_curves
+        if ((itr + 1) * limit_per_query) >= len(ids):
+            print(f'{len(ids)} done')
+            break
+        itr += 1
+        if (itr * limit_per_query) % limit_per_query == 0:
+            print(itr * limit_per_query, "done")
+
+    return lcs
 
 
 def make_photometry(light_curves: list, drop_flagged: bool = False):
@@ -269,7 +298,7 @@ def save_newsource(
 ):
 
     # get the lightcurves
-    light_curves = get_lightcurves(gloria, ra, dec, radius)
+    light_curves = get_lightcurves_via_coords(gloria, ra, dec, radius)
 
     # generate position-based name if obj_id not set
     newsource = False
