@@ -147,6 +147,7 @@ def get_lightcurves_via_coords(
     if catalog is None:
         # simply select last catalog
         catalog = available_catalogs[-1]
+        print(f'Using {catalog} catalog for light curves.')
 
     # executing a cone search
     # grab id's first
