@@ -615,6 +615,26 @@ def get_feature_stats(df: pd.DataFrame, features: list):
     return feature_stats
 
 
+def overlapping_histogram(a, bins):
+    a = a.ravel()
+    n = np.zeros(len(bins), int)
+
+    block = 65536
+    for i in np.arange(0, len(a), block):
+        sa = np.sort(a[i : i + block])
+        n += (
+            np.r_[
+                sa.searchsorted(bins[:-1, 1], 'left'),
+                sa.searchsorted(bins[-1, 1], 'right'),
+            ]
+            - np.r_[
+                sa.searchsorted(bins[:-1, 0], 'left'),
+                sa.searchsorted(bins[-1, 0], 'right'),
+            ]
+        )
+    return n, (bins[:, 0] + bins[:, 1]) / 2.0
+
+
 """ Datasets """
 
 
