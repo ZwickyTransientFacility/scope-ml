@@ -1,4 +1,5 @@
 astropy
+fast-histogram
 fire>=0.4.0
 healpy
 Jinja2<3.1
