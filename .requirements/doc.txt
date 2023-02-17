@@ -2,13 +2,13 @@ astropy
 fast-histogram
 fire>=0.4.0
 healpy
-Jinja2<3.1
-myst-parser
+Jinja2<=3.1
+myst-parser>=0.18.1
 pandas>=1.2
 penquins>=2.1
 pre-commit
 pyyaml>=5.3.1
-sphinx<3
+sphinx>=4.2
 sphinx_press_theme
 tdtax>=0.1.3
 tables>=3.7
