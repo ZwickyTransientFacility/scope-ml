@@ -1,5 +1,6 @@
 import numpy as np
 from scope import utils
+import fast_histogram
 
 
 def find_periods(
@@ -485,7 +486,6 @@ def find_periods(
 
             from cuvarbase.lombscargle import LombScargleAsyncProcess, fap_baluev
             from gcex.gce import ConditionalEntropy
-            from ztfperiodic.pyaov.pyaov import amhw
 
             ce = ConditionalEntropy(phase_bins=phase_bins, mag_bins=mag_bins)
 
@@ -613,7 +613,6 @@ def find_periods(
 
             from cuvarbase.lombscargle import LombScargleAsyncProcess, fap_baluev
             from gcex.gce import ConditionalEntropy
-            from ztfperiodic.pyaov.pyaov import amhw
 
             ce = ConditionalEntropy(phase_bins=phase_bins, mag_bins=mag_bins)
 
@@ -776,7 +775,6 @@ def find_periods(
         elif algorithm == "GCE_LS":
             from cuvarbase.lombscargle import LombScargleAsyncProcess, fap_baluev
             from gcex.gce import ConditionalEntropy
-            from ztfperiodic.pyaov.pyaov import amhw
 
             ce = ConditionalEntropy(phase_bins=phase_bins, mag_bins=mag_bins)
 
@@ -928,13 +926,13 @@ def find_periods(
         periods = 1 / freqs
 
         if algorithm == "LS":
-            from astropy.stats import LombScargle
+            from astropy.timeseries import LombScargle
 
             for ii, data in enumerate(lightcurves):
                 if np.mod(ii, 1) == 0:
                     print("%d/%d" % (ii, len(lightcurves)))
                 copy = np.ma.copy(data).T
-                nrows, ncols = copy.shape
+                nrows, _ = copy.shape
 
                 if nrows == 1:
                     periods_best.append(-1)
@@ -952,8 +950,6 @@ def find_periods(
                 significances.append(significance)
 
         elif algorithm == "CE":
-            from ztfperiodic.period import CE
-
             for ii, data in enumerate(lightcurves):
                 if np.mod(ii, 1) == 0:
                     print("%d/%d" % (ii, len(lightcurves)))
@@ -975,8 +971,6 @@ def find_periods(
                 significances.append(significance)
 
         elif algorithm == "AOV":
-            from ztfperiodic.pyaov.pyaov import amhw
-
             for ii, data in enumerate(lightcurves):
                 if np.mod(ii, 10) == 0:
                     print("%d/%d" % (ii, len(lightcurves)))
@@ -986,7 +980,7 @@ def find_periods(
                     np.max(copy[:, 1]) - np.min(copy[:, 1])
                 )
 
-                aov, fr, _ = amhw(
+                aov, _, _ = amhw(
                     copy[:, 0],
                     copy[:, 1],
                     copy[:, 2],
@@ -1061,3 +1055,139 @@ def calc_AOV(amhw, data, freqs_to_keep, df):
     period = periods[np.argmax(aovs)]
 
     return [period, significance]
+
+
+def CE(period, data, xbins=10, ybins=5):
+    """
+    Returns the conditional entropy of *data* rephased with *period*.
+
+    **Parameters**
+
+    period : number
+        The period to rephase *data* by.
+    data : array-like, shape = [n_samples, 2] or [n_samples, 3]
+        Array containing columns *time*, *mag*, and (optional) *error*.
+    xbins : int, optional
+        Number of phase bins (default 10).
+    ybins : int, optional
+        Number of magnitude bins (default 5).
+    """
+    if period <= 0:
+        return np.PINF
+
+    r = np.ma.array(data, copy=True)
+    r[:, 0] = np.mod(r[:, 0], period) / period
+
+    bins = fast_histogram.histogram2d(
+        r[:, 0], r[:, 1], range=[[0, 1], [0, 1]], bins=[xbins, ybins]
+    )
+    size = r.shape[0]
+
+    if size > 0:
+        divided_bins = bins / size
+
+        # indices where that is positive to avoid division by zero
+        arg_positive = divided_bins > 0
+
+        # array containing the sums of each column in the bins array
+        column_sums = np.sum(divided_bins, axis=1)  # changed 0 by 1
+
+        # array is repeated row-wise, so that it can be sliced by arg_positive
+        column_sums = np.repeat(np.atleast_2d(column_sums).T, ybins, axis=1)
+
+        # select only the elements in both arrays which correspond to a positive bin
+        select_divided_bins = divided_bins[arg_positive]
+        select_column_sums = column_sums[arg_positive]
+
+        # initialize the result array
+        A = np.empty((xbins, ybins), dtype=float)
+
+        # store at every index [i,j] in A which corresponds to a positive bin:
+        A[arg_positive] = select_divided_bins * np.log(
+            select_column_sums / select_divided_bins
+        )
+
+        # store 0 at every index in A which corresponds to a non-positive bin
+        A[~arg_positive] = 0
+
+        # return the summation
+        return np.sum(A)
+
+    else:
+        return np.PINF
+
+
+def amhw(time, amplitude, error, fstop, fstep, nh2=3, fr0=0.0):
+    '''
+    th,fr,frmax=pyaov.amhw(time, valin, error, fstop, fstep, nh2=3, fr0=0.)
+
+    Purpose: Returns multiharmonic AOV periodogram, obtained by fitting data
+        with a series of trigonometric polynomials. For default nh2=3 this
+        is Lomb-Scargle periodogram corrected for constant shift.
+    Input:
+        time, amplitude, error : numpy arrays of size (n*1)
+        fstop: frequency to stop calculation at, float
+        fstep: size of frequency steps, float
+    Optional input:
+        nh2[=3]: no. of model parms. (number of harmonics=nh2/2)
+        fr0[=0.]: start frequency
+
+    Output:
+        th,fr: periodogram values & frequencies: numpy arrays of size (m*1)
+              where m = (fstop-fr0)/fstep+1
+        frmax: frequency of maximum
+
+    Method:
+        General method involving projection onto orthogonal trigonometric
+        polynomials is due to Schwarzenberg-Czerny, 1996. For nh2=2 or 3 it reduces
+        Ferraz-Mello (1991), i.e. to Lomb-Scargle periodogram improved by constant
+        shift of values. Advantage of the shift is vividly illustrated by Foster (1995).
+    Please quote:
+        A.Schwarzenberg-Czerny, 1996, Astrophys. J.,460, L107.
+    Other references:
+        Foster, G., 1995, AJ v.109, p.1889 (his Fig.1).
+        Ferraz-Mello, S., 1981, AJ v.86, p.619.
+        Lomb, N. R., 1976, Ap&SS v.39, p.447.
+        Scargle, J. D., 1982, ApJ v.263, p.835.
+    '''
+    #
+    # Python wrapper for period search routines
+    # (C) Alex Schwarzenberg-Czerny, 2011                alex@camk.edu.pl
+    # Based on the wrapper scheme contributed by Ewald Zietsman <ewald.zietsman@gmail.com>
+    import aov as _aov
+
+    # check the arrays here, make sure they are all the same size
+    try:
+        assert time.size == amplitude.size == error.size
+    except AssertionError:
+        print('Input arrays must be the same dimensions')
+        return 0
+
+    # check the other input values
+    try:
+        assert fstop > 0
+        assert fstep > 0
+    except AssertionError:
+        print('Frequency stop and step values must be greater than 0')
+        return 0
+
+    # maybe something else can go wrong?
+    try:
+        th, frmax = _aov.aov.aovmhw(
+            time,
+            amplitude,
+            error,
+            fstep,
+            int((fstop - fr0) / fstep + 1),
+            fr0=fr0,
+            nh2=nh2,
+        )
+
+        # make an array that contains the frequencies too
+        freqs = np.linspace(fr0, fstop, int((fstop - fr0) / fstep + 1))
+        return th, freqs, frmax
+
+    except Exception as e:
+        print(e)
+        print("Something unexpected went wrong!!")
+        return 0

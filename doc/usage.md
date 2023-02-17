@@ -146,6 +146,9 @@ The fields associated with each key are `fritz_label` (containing the associated
 
 ```
 
+## Generating features (work in progress)
+We are actively adapting code from [ztfperiodic](https://github.com/mcoughlin/ztfperiodic) and other sources to calculate basic and Fourier stats for light curves. This will allow new features to be generated using SCoPe, both locally and using GPU cluster resources. Currently, the basic stats are calculated via `tools/lcstats.py`, and a host of period-finding algorithms are available in `tools/periodsearch.py`. Only the CPU-based algorithms have been tested so far, and among those there is not yet support for `AOV_cython`. For the `AOV` algorithm to work, run `source build.sh` in the `tools/pyaov/` directory, then copy the `aov.cpython-36m-darwin.so` file to `lib/python3.10/site-packages/` or equivalent within your environment.
+
 
 ## Scope Download Classification
 inputs:
