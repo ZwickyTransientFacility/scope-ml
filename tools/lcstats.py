@@ -16,7 +16,189 @@ from scipy.stats import anderson, shapiro
 from scipy.optimize import curve_fit
 from scipy.signal import sawtooth
 
+from numba import jit
+
 warnings.filterwarnings("ignore")
+
+
+# Define bin intervals for dmdt histograms
+dmdt_ints = {
+    'original': {
+        'dmints': [
+            -8,
+            -5,
+            -3,
+            -2.5,
+            -2,
+            -1.5,
+            -1,
+            -0.5,
+            -0.3,
+            -0.2,
+            -0.1,
+            0,
+            0.1,
+            0.2,
+            0.3,
+            0.5,
+            1,
+            1.5,
+            2,
+            2.5,
+            3,
+            5,
+            8,
+        ],
+        'dtints': [
+            0.0,
+            1.0 / 145,
+            2.0 / 145,
+            3.0 / 145,
+            4.0 / 145,
+            1.0 / 25,
+            2.0 / 25,
+            3.0 / 25,
+            1.5,
+            2.5,
+            3.5,
+            4.5,
+            5.5,
+            7,
+            10,
+            20,
+            30,
+            60,
+            90,
+            120,
+            240,
+            600,
+            960,
+            2000,
+            4000,
+        ],
+    },
+    # Below intervals are the current default:
+    'v20200205': {
+        'dmints': [
+            -8,
+            -5,
+            -4,
+            -3,
+            -2.5,
+            -2,
+            -1.5,
+            -1,
+            -0.5,
+            -0.3,
+            -0.2,
+            -0.1,
+            -0.05,
+            0,
+            0.05,
+            0.1,
+            0.2,
+            0.3,
+            0.5,
+            1,
+            1.5,
+            2,
+            2.5,
+            3,
+            4,
+            5,
+            8,
+        ],
+        'dtints': [
+            0.0,
+            4.0 / 145,
+            1.0 / 25,
+            2.0 / 25,
+            3.0 / 25,
+            0.3,
+            0.75,
+            1,
+            1.5,
+            2.5,
+            3.5,
+            4.5,
+            5.5,
+            7,
+            10,
+            20,
+            30,
+            45,
+            60,
+            90,
+            120,
+            180,
+            240,
+            360,
+            500,
+            650,
+            2000,
+        ],
+    },
+    'v20200318': {
+        'dmints': [
+            -8,
+            -4.5,
+            -3,
+            -2.5,
+            -2,
+            -1.5,
+            -1.25,
+            -0.75,
+            -0.5,
+            -0.3,
+            -0.2,
+            -0.1,
+            -0.05,
+            0,
+            0.05,
+            0.1,
+            0.2,
+            0.3,
+            0.5,
+            0.75,
+            1.25,
+            1.5,
+            2,
+            2.5,
+            3,
+            4.5,
+            8,
+        ],
+        'dtints': [
+            0.0,
+            4.0 / 145,
+            1.0 / 25,
+            2.0 / 25,
+            3.0 / 25,
+            0.3,
+            0.5,
+            0.75,
+            1,
+            1.5,
+            2.5,
+            3.5,
+            4.5,
+            5.5,
+            7,
+            10,
+            20,
+            30,
+            45,
+            60,
+            75,
+            90,
+            120,
+            150,
+            180,
+            210,
+            240,
+        ],
+    },
+}
 
 
 def calc_weighted_mean_std(mag, w):
@@ -537,3 +719,36 @@ def calc_fourier_stats_sidereal(t, mag, err, p):
     period = periods[idx]
 
     return [period, periodic_stat]
+
+
+@jit
+def pwd_for(a):
+    """
+    Compute pairwise differences with for loops
+    """
+    return np.array([a[j] - a[i] for i in range(len(a)) for j in range(i + 1, len(a))])
+
+
+def compute_dmdt(jd, mag, dmdt_ints_v: str = 'v20200205'):
+    """
+    Compute dmdt histograms from time and magnitude inputs
+    """
+    jd_diff = pwd_for(jd)
+    mag_diff = pwd_for(mag)
+
+    hh, _, _ = np.histogram2d(
+        jd_diff,
+        mag_diff,
+        bins=[dmdt_ints[dmdt_ints_v]['dtints'], dmdt_ints[dmdt_ints_v]['dmints']],
+    )
+
+    dmdt = hh
+    dmdt = np.transpose(dmdt)
+
+    norm = np.linalg.norm(dmdt)
+    if norm != 0.0:
+        dmdt /= np.linalg.norm(dmdt)
+    else:
+        dmdt = np.zeros_like(dmdt)
+
+    return dmdt
