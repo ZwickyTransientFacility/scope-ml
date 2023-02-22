@@ -81,6 +81,7 @@ def get_ids_loop(
         count = 0
 
     ser = pd.Series(np.array([]))
+    lst = []
     save_individual = (save) & (not whole_field)
 
     for ccd in range(ccd_range[0], ccd_range[1] + 1):
@@ -89,6 +90,7 @@ def get_ids_loop(
         for quad in range(quad_range[0], quad_range[1] + 1):
 
             i = 0
+            quaddata = []
             while True:
                 data = func(
                     catalog,
@@ -101,6 +103,7 @@ def get_ids_loop(
                     save=save_individual,
                     output_dir=output_dir,
                 )
+                quaddata += [x for x in data]
                 # concat data to series containing all data
                 if verbose > 1:
                     ser = pd.concat([ser, pd.Series(data)], axis=0)
@@ -109,6 +112,7 @@ def get_ids_loop(
                         length = len(data) + (i * limit)
                         count += length
                         dct["ccd"][ccd]["quad"][quad] = length
+                        lst += [quaddata]
                     break
                 i += 1
     if (verbose > 1) & (whole_field) & (save):
@@ -130,7 +134,7 @@ def get_ids_loop(
             print("error dumping to json, message: ", e)
 
     print(f'Found {len(ser)} total IDs.')
-    return ser
+    return ser, lst
 
 
 def get_cone_ids(
