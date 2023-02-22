@@ -637,7 +637,7 @@ def overlapping_histogram(a, bins):
 
 def removeHighCadence(t, m, e, cadence_minutes=30.0):
     idx = []
-    for ii, _ in enumerate(t):
+    for ii in range(len(t)):
         if ii == 0:
             idx.append(ii)
         else:
