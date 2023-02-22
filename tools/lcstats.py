@@ -198,7 +198,7 @@ dmdt_ints = {
             240,
         ],
     },
-    # Below intervals are the current default (aka v20200205):
+    # Below intervals are the current default:
     'v20230221': {
         'dmints': [
             -8,
