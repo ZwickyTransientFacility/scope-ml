@@ -30,6 +30,7 @@ def get_ids_loop(
     output_dir=None,
     whole_field=False,
     save=True,
+    get_coords=False,
 ):
     '''
         Function wrapper for getting ids in a particular ccd and quad range
@@ -90,7 +91,13 @@ def get_ids_loop(
         for quad in range(quad_range[0], quad_range[1] + 1):
 
             i = 0
-            quaddata = []
+            if get_coords:
+                quaddata = {}
+                quaddata_keys = []
+                quaddata_values = []
+            else:
+                quaddata = []
+
             while True:
                 data = func(
                     catalog,
@@ -102,8 +109,15 @@ def get_ids_loop(
                     limit=limit,
                     save=save_individual,
                     output_dir=output_dir,
+                    get_coords=get_coords,
                 )
-                quaddata += [x for x in data]
+                if get_coords:
+                    quaddata_keys += [x for x in data.keys()]
+                    quaddata_values += [x for x in data.values()]
+                    quaddata.update(dict(zip(quaddata_keys, quaddata_values)))
+                else:
+                    quaddata += [x for x in data]
+
                 # concat data to series containing all data
                 if verbose > 1:
                     ser = pd.concat([ser, pd.Series(data)], axis=0)
@@ -235,6 +249,7 @@ def get_field_ids(
     limit=10000,
     save=False,
     output_dir=None,
+    get_coords=False,
 ):
     '''Get ids for a specific quad of a CCD for a particular ZTF field.
     Parameters
@@ -274,14 +289,16 @@ def get_field_ids(
     if minobs > 0:
         filter["n"] = {"$gt": minobs}
 
+    projection = {"_id": 1}
+    if get_coords:
+        projection['coordinates.radec_geojson.coordinates'] = 1
+
     q = {
         'query_type': 'find',
         'query': {
             'catalog': catalog,
             'filter': filter,
-            "projection": {
-                "_id": 1,
-            },
+            "projection": projection,
         },
         "kwargs": {"limit": limit, "skip": skip},
     }
@@ -289,6 +306,8 @@ def get_field_ids(
     r = gloria.query(q)
     data = r.get('data')
     ids = [data[i]['_id'] for i in range(len(data))]
+    if get_coords:
+        coords = [data[i]['coordinates'] for i in range(len(data))]
 
     if save:
         print(f"Found {len(ids)} results to save.")
@@ -318,7 +337,10 @@ def get_field_ids(
         )
         hf.close()
 
-    return ids
+    if get_coords:
+        return dict(zip(ids, coords))
+    else:
+        return ids
 
 
 if __name__ == "__main__":
