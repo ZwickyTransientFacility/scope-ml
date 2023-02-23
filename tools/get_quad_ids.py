@@ -10,17 +10,18 @@ import pathlib
 import yaml
 
 BASE_DIR = os.path.dirname(__file__)
-# Set up gloria connection
+# Set up Kowalski instance connection
 # Use Kowalski_Instances class here once approved
 config_path = pathlib.Path(__file__).parent.parent.absolute() / "config.yaml"
 with open(config_path) as config_yaml:
     config = yaml.load(config_yaml, Loader=yaml.FullLoader)
-gloria = Kowalski(**config['kowalski'], verbose=False)
+kowalski_instance = Kowalski(**config['kowalski'], verbose=False)
 
 
 def get_ids_loop(
     func,
     catalog,
+    kowalski_instance=kowalski_instance,
     field=301,
     ccd_range=[1, 16],
     quad_range=[1, 4],
@@ -41,6 +42,8 @@ def get_ids_loop(
             Function for getting ids for a specific quad of a CCD for a particular ZTF field.
         catalog : str
             Catalog containing ids, CCD, quad, and light curves
+        kowalski_instance:
+            Authenticated instance of kowalski, gloria or melman. Defaults to config-specified info.
         field : int
             ZTF field number
         ccd_range : int
@@ -101,6 +104,7 @@ def get_ids_loop(
             while True:
                 data = func(
                     catalog,
+                    kowalski_instance=kowalski_instance,
                     field=field,
                     ccd=ccd,
                     quad=quad,
@@ -156,6 +160,7 @@ def get_cone_ids(
     ra_list: list,
     dec_list: list,
     catalog: str = 'ZTF_source_features_DR5',
+    kowalski_instance=kowalski_instance,
     max_distance: float = 2.0,
     distance_units: str = "arcsec",
     limit_per_query: int = 1000,
@@ -166,6 +171,7 @@ def get_cone_ids(
     :param ra_list: RA in deg (list of float)
     :param dec_list: Dec in deg (list of float)
     :param catalog: catalog to query
+    :kowalski_instance: Authenticated instance of kowalski, gloria or melman. Defaults to config-specified info.
     :param max_distance: float
     :param distance_units: arcsec | arcmin | deg | rad
     :param limit_per_query: max number of sources in a query (int)
@@ -210,7 +216,7 @@ def get_cone_ids(
                 },
             },
         }
-        response = gloria.query(query=query)
+        response = kowalski_instance.query(query=query)
 
         temp_data = response.get("data").get(catalog)
 
@@ -241,6 +247,7 @@ def get_cone_ids(
 
 def get_field_ids(
     catalog,
+    kowalski_instance=kowalski_instance,
     field=301,
     ccd=4,
     quad=3,
@@ -256,6 +263,8 @@ def get_field_ids(
     ----------
     catalog : str
         Catalog containing ids, CCD, quad, and light curves
+    kowalski_instance:
+        Authenticated instance of kowalski, gloria or melman. Defaults to config-specified info.
     field : int
         ZTF field number
     ccd : int
@@ -303,7 +312,7 @@ def get_field_ids(
         "kwargs": {"limit": limit, "skip": skip},
     }
 
-    r = gloria.query(q)
+    r = kowalski_instance.query(q)
     data = r.get('data')
     ids = [data[i]['_id'] for i in range(len(data))]
     if get_coords:
@@ -455,6 +464,7 @@ if __name__ == "__main__":
         get_ids_loop(
             get_field_ids,
             catalog=args.catalog,
+            kowalski_instance=kowalski_instance,
             field=args.field,
             ccd_range=args.ccd_range,
             quad_range=args.quad_range,
@@ -472,6 +482,7 @@ if __name__ == "__main__":
         )
         data = get_field_ids(
             catalog=args.catalog,
+            kowalski_instance=kowalski_instance,
             field=args.field,
             ccd=args.ccd,
             quad=args.quad,
