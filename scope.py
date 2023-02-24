@@ -265,8 +265,6 @@ class Scope:
         }
         response = self.kowalski.query(query=query)
         light_curves_raw = response.get("data").get(catalog).get("target")
-        print(light_curves_raw)
-        print(len(light_curves_raw))
 
         light_curves = []
         for light_curve in light_curves_raw:
