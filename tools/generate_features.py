@@ -1,15 +1,23 @@
 #!/usr/bin/env python
+import scope
 import argparse
 import pathlib
 import yaml
+import os
 from tools.get_quad_ids import get_ids_loop, get_field_ids
 from scope.fritz import get_lightcurves_via_ids
-from scope.utils import TychoBVfromGaia, exclude_radius, removeHighCadence
+from scope.utils import (
+    TychoBVfromGaia,
+    exclude_radius,
+    removeHighCadence,
+    write_parquet,
+)
 import numpy as np
 from penquins import Kowalski
 import pandas as pd
 from astropy.coordinates import SkyCoord
 import astropy.units as u
+from datetime import datetime
 
 # import time
 # from tools import lcstats
@@ -17,6 +25,8 @@ import astropy.units as u
 # from cesium.featurize import time_series, featurize_single_ts, featurize_time_series, featurize_ts_files
 # import cesium.features as fts
 
+
+BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
 
 # setup connection to Kowalski instances
 config_path = pathlib.Path(__file__).parent.parent.absolute() / "config.yaml"
@@ -182,7 +192,9 @@ def drop_close_bright_stars(
     return id_dct_keep
 
 
-# def generate_features(source_catalog=source_catalog, gaia_catalog=gaia_catalog, bright_star_query_radius_arcsec=300., xmatch_radius_arcsec=2., kowalski_instances = kowalski_instances, limit=10000, doAllFields=False, field=296, doAllCCDs=False, ccd=1, doAllQuads=False, quad=1, min_n_lc_points=50, min_cadence_minutes=30.):
+# def generate_features(source_catalog=source_catalog, gaia_catalog=gaia_catalog, bright_star_query_radius_arcsec=300.,
+# xmatch_radius_arcsec=2., kowalski_instances = kowalski_instances, limit=10000, doAllFields=False, field=296, doAllCCDs=False,
+# ccd=1, doAllQuads=False, quad=1, min_n_lc_points=50, min_cadence_minutes=30., dirname='generated_features', filename='features', doNotSave=False):
 def generate_features(
     source_catalog=source_catalog,
     gaia_catalog=gaia_catalog,
@@ -195,7 +207,15 @@ def generate_features(
     quad=1,
     min_n_lc_points=50,
     min_cadence_minutes=30.0,
+    dirname='generated_features',
+    filename='features',
+    doNotSave=False,
 ):
+
+    # Get code version and current date/time for metadata
+    code_version = scope.__version__
+    utcnow = datetime.utcnow()
+    start_dt = utcnow.strftime("%Y-%m-%d %H:%M:%S")
 
     print('Getting IDs...')
     _, lst = get_ids_loop(
@@ -251,11 +271,11 @@ def generate_features(
             # Remove all but the first of each group of high-cadence points
             tt, mm, ee = removeHighCadence(t, m, e, cadence_minutes=min_cadence_minutes)
 
+            # Discard sources lacking minimum number of points
             if len(tt) < min_n_lc_points:
                 feature_dict.pop(_id)
             else:
                 # Add basic info
-                feature_dict[_id]['_id'] = _id
                 feature_dict[_id]['ra'] = (
                     feature_gen_source_list[_id]['radec_geojson']['coordinates'][0]
                     + 180.0
@@ -281,6 +301,23 @@ def generate_features(
             feature_dict.pop(_id)
 
     feature_df = pd.DataFrame.from_dict(feature_dict, orient='index')
+    utcnow = datetime.utcnow()
+    end_dt = utcnow.strftime("%Y-%m-%d %H:%M:%S")
+
+    # Add metadata
+    feature_df.attrs['scope_code_version'] = code_version
+    feature_df.attrs['feature_generation_start_dateTime_utc'] = start_dt
+    feature_df.attrs['feature_generation_end_dateTime_utc'] = end_dt
+    feature_df.attrs['ZTF_source_catalog'] = source_catalog
+    feature_df.attrs['Gaia_catalog'] = gaia_catalog
+    if not doNotSave:
+        filename += f"_field_{field}_ccd_{ccd}_quad_{quad}"
+        filename += '.parquet'
+        dirpath = BASE_DIR / dirname / f"field_{field}"
+        os.makedirs(dirpath, exist_ok=True)
+
+        filepath = dirpath / filename
+        write_parquet(feature_df, str(filepath))
     return feature_df
 
 
@@ -342,6 +379,24 @@ if __name__ == "__main__":
         default=30.0,
         help="minimum cadence (in minutes) between light curve points. For groups of points closer together than this value, only the first will be kept.",
     )
+    parser.add_argument(
+        "-dirname",
+        type=str,
+        default='generated_features',
+        help="if True, run on all quads for specified field/ccds",
+    )
+    parser.add_argument(
+        "-filename",
+        type=str,
+        default='gen_features',
+        help="if True, run on all quads for specified field/ccds",
+    )
+    parser.add_argument(
+        "-doNotSave",
+        action='store_true',
+        default=False,
+        help="if True, do not save features",
+    )
 
     args = parser.parse_args()
 
@@ -360,4 +415,7 @@ if __name__ == "__main__":
         quad=args.quad,
         min_n_lc_points=args.min_n_lc_points,
         min_cadence_minutes=args.min_cadence_minutes,
+        dirname=args.dirname,
+        filename=args.filename,
+        doNotSave=args.doNotSave,
     )
