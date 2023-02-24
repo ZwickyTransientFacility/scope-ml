@@ -354,6 +354,9 @@ def generate_features(
                 # Continue with periodfind/periodsearch (to be added)
                 #
 
+                # Call lcstats.calc_fourier_stats()
+                #
+
         except ValueError:
             feature_dict.pop(_id)
 
@@ -369,6 +372,9 @@ def generate_features(
         feature_dict[_id]['mean_ztf_alert_braai'] = alert_stats_dct[_id][
             'mean_ztf_alert_braai'
         ]
+
+    # Add crossmatches to Gaia, AllWISE and PS1 (call xmatch.py)
+    #
 
     feature_df = pd.DataFrame.from_dict(feature_dict, orient='index')
     utcnow = datetime.utcnow()
@@ -401,6 +407,7 @@ def generate_features(
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
+    # Add arguments for GPU/CPU, period algorithm?
 
     parser.add_argument(
         "-source_catalog",
