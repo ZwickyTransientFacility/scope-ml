@@ -47,9 +47,9 @@ def get_ids_loop(
         field : int
             ZTF field number
         ccd_range : int
-            Range of CCD numbers starting from 1 to get the ids. Takes values from [1,16]
+            CCD number or range of numbers, starting from 1 to get the ids. Takes values from [1,16]
         quad_range : int
-            Range of CCD quad numbers starting from 1. Takes values from [1,4]
+            CCD quad number or range of numbers, starting from 1. Takes values from [1,4]
         minobs : int
             Minimum points in the light curve for the object to be selected
         limit : int
@@ -67,6 +67,8 @@ def get_ids_loop(
         for all the quads in the specified range.
 
         USAGE: get_ids_loop(get_field_ids, 'ZTF_sources_20210401',field=301,ccd_range=[1,2],quad_range=[2,4],\
+            minobs=5,limit=2000, whole_field=False)
+                get_ids_loop(get_field_ids, 'ZTF_sources_20210401',field=301,ccd_range=1,quad_range=2,\
             minobs=5,limit=2000, whole_field=False)
         '''
     if output_dir is None:
@@ -87,6 +89,11 @@ def get_ids_loop(
     ser = pd.Series(np.array([]))
     lst = []
     save_individual = (save) & (not whole_field)
+
+    if type(ccd_range) == int:
+        ccd_range = [ccd_range, ccd_range]
+    if type(quad_range) == int:
+        quad_range = [quad_range, quad_range]
 
     for ccd in range(ccd_range[0], ccd_range[1] + 1):
         dct["ccd"][ccd] = {}
