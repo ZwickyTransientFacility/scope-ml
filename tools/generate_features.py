@@ -18,10 +18,10 @@ import pandas as pd
 from astropy.coordinates import SkyCoord
 import astropy.units as u
 from datetime import datetime
-from tools.featureGeneration import alertstats
+from tools.featureGeneration import lcstats, alertstats
 
 # import time
-# from tools.featureGeneration import lcstats, periodsearch
+# from tools.featureGeneration import periodsearch
 # import periodfind
 # from numba import jit
 # from cesium.featurize import time_series, featurize_single_ts, featurize_time_series, featurize_ts_files
@@ -302,15 +302,58 @@ def generate_features(
                 feature_dict[_id]['quad'] = quad
                 feature_dict[_id]['filter'] = flt
 
-                # Begin generating features - below code to be replaced by lcstats, periodfind, etc.
-                mean_mag = np.mean(mm)
-                median_mag = np.median(mm)
-                mean_err = np.mean(ee)
+                # Begin generating features - start with basic stats
+                (
+                    N,
+                    median,
+                    wmean,
+                    chi2red,
+                    RoMS,
+                    wstd,
+                    NormPeaktoPeakamp,
+                    NormExcessVar,
+                    medianAbsDev,
+                    iqr,
+                    i60r,
+                    i70r,
+                    i80r,
+                    i90r,
+                    skew,
+                    smallkurt,
+                    invNeumann,
+                    WelchI,
+                    StetsonJ,
+                    StetsonK,
+                    AD,
+                    SW,
+                ) = lcstats.calc_basic_stats(tt, mm, ee)
 
-                feature_dict[_id]['mean'] = mean_mag
-                feature_dict[_id]['median'] = median_mag
-                feature_dict[_id]['mean_err'] = mean_err
+                feature_dict[_id]['n'] = N
+                feature_dict[_id]['median'] = median
+                feature_dict[_id]['wmean'] = wmean
+                feature_dict[_id]['chi2red'] = chi2red
+                feature_dict[_id]['roms'] = RoMS
+                feature_dict[_id]['wstd'] = wstd
+                feature_dict[_id]['norm_peak_to_peak_amp'] = NormPeaktoPeakamp
+                feature_dict[_id]['norm_excess_var'] = NormExcessVar
+                feature_dict[_id]['median_abs_dev'] = medianAbsDev
+                feature_dict[_id]['iqr'] = iqr
+                feature_dict[_id]['i60r'] = i60r
+                feature_dict[_id]['i70r'] = i70r
+                feature_dict[_id]['i80r'] = i80r
+                feature_dict[_id]['i90r'] = i90r
+                feature_dict[_id]['skew'] = skew
+                feature_dict[_id]['smallkurt'] = smallkurt
+                feature_dict[_id]['inv_vonneumannratio'] = invNeumann
+                feature_dict[_id]['welch_i'] = WelchI
+                feature_dict[_id]['stetson_j'] = StetsonJ
+                feature_dict[_id]['stetson_k'] = StetsonK
+                feature_dict[_id]['ad'] = AD
+                feature_dict[_id]['sw'] = SW
+
+                # Continue with periodfind/periodsearch (to be added)
                 #
+
         except ValueError:
             feature_dict.pop(_id)
 
