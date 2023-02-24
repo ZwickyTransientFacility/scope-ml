@@ -231,6 +231,8 @@ def generate_features(
     utcnow = datetime.utcnow()
     start_dt = utcnow.strftime("%Y-%m-%d %H:%M:%S")
 
+    # Add code for parallelization across fields/ccds/quads
+
     print('Getting IDs...')
     _, lst = get_ids_loop(
         get_field_ids,
