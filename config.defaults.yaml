@@ -3,6 +3,9 @@ kowalski:
   port: 443
   protocol: https
   token:
+  # For users who have more than one token for Kowalski
+  # instances, use the field below for the second token
+  alt_token:
   timeout: 300
   collections:
     gaia: Gaia_EDR3
@@ -12,6 +15,8 @@ kowalski:
     features: ZTF_source_features_DR5
     # Current classifications are from DR5 (on gloria)
     classifications: ZTF_source_classifications_DR5
+    # Current alerts (on kowalski)
+    alerts: ZTF_alerts
 fritz:
   token:
   protocol: https

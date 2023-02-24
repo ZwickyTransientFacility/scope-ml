@@ -18,6 +18,7 @@ import pandas as pd
 from astropy.coordinates import SkyCoord
 import astropy.units as u
 from datetime import datetime
+from tools.featureGeneration import alertstats
 
 # import time
 # from tools.featureGeneration import lcstats, periodsearch
@@ -44,20 +45,28 @@ melman = Kowalski(
     port=443,
     timeout=timeout,
 )
+kowalski = Kowalski(
+    token=config['kowalski']['alt_token'],
+    protocol="https",
+    host="kowalski.caltech.edu",
+    port=443,
+    timeout=timeout,
+)
 
 source_catalog = config['kowalski']['collections']['sources']
+alerts_catalog = config['kowalski']['collections']['alerts']
 gaia_catalog = config['kowalski']['collections']['gaia']
 
-kowalski_instances = {'gloria': gloria, 'melman': melman}
+kowalski_instances = {'kowalski': kowalski, 'gloria': gloria, 'melman': melman}
 
 
 def drop_close_bright_stars(
-    id_dct,
-    kowalski_instance,
-    catalog=gaia_catalog,
-    query_radius_arcsec=300.0,
-    xmatch_radius_arcsec=2.0,
-    limit=10000,
+    id_dct: dict,
+    kowalski_instance: Kowalski,
+    catalog: str = gaia_catalog,
+    query_radius_arcsec: float = 300.0,
+    xmatch_radius_arcsec: float = 2.0,
+    limit: int = 10000,
 ):
     """
     Use Gaia to identify and drop sources that are too close to bright stars
@@ -69,6 +78,9 @@ def drop_close_bright_stars(
         Default is 300 corresponding with approximate maximum from A. Drake's exclusion radius (float)
     :param xmatch_radius_arcsec: size of cone within which to match a queried source with an input source.
         If any sources from the query fall within this cone, the closest one will be matched to the input source and dropped from further bright-star considerations (float)
+    :param limit: batch size of kowalski_instance queries (int)
+
+    :return id_dct_keep: dictionary containing subset of input sources far enough away from bright stars
     """
 
     ids = [x for x in id_dct]
@@ -193,24 +205,25 @@ def drop_close_bright_stars(
     return id_dct_keep
 
 
-# def generate_features(source_catalog=source_catalog, gaia_catalog=gaia_catalog, bright_star_query_radius_arcsec=300.,
+# def generate_features(source_catalog=source_catalog, alerts_catalog=alerts_catalog, gaia_catalog=gaia_catalog, bright_star_query_radius_arcsec=300.,
 # xmatch_radius_arcsec=2., kowalski_instances = kowalski_instances, limit=10000, doAllFields=False, field=296, doAllCCDs=False,
 # ccd=1, doAllQuads=False, quad=1, min_n_lc_points=50, min_cadence_minutes=30., dirname='generated_features', filename='features', doNotSave=False):
 def generate_features(
-    source_catalog=source_catalog,
-    gaia_catalog=gaia_catalog,
-    bright_star_query_radius_arcsec=300.0,
-    xmatch_radius_arcsec=2.0,
-    kowalski_instances=kowalski_instances,
-    limit=10000,
-    field=296,
-    ccd=1,
-    quad=1,
-    min_n_lc_points=50,
-    min_cadence_minutes=30.0,
-    dirname='generated_features',
-    filename='features',
-    doNotSave=False,
+    source_catalog: str = source_catalog,
+    alerts_catalog: str = alerts_catalog,
+    gaia_catalog: str = gaia_catalog,
+    bright_star_query_radius_arcsec: float = 300.0,
+    xmatch_radius_arcsec: float = 2.0,
+    kowalski_instances: dict = kowalski_instances,
+    limit: int = 10000,
+    field: int = 296,
+    ccd: int = 1,
+    quad: int = 1,
+    min_n_lc_points: int = 50,
+    min_cadence_minutes: float = 30.0,
+    dirname: str = 'generated_features',
+    filename: str = 'features',
+    doNotSave: bool = False,
 ):
 
     # Get code version and current date/time for metadata
@@ -301,6 +314,19 @@ def generate_features(
         except ValueError:
             feature_dict.pop(_id)
 
+    # Get ZTF alert stats
+    alert_stats_dct = alertstats.get_ztf_alert_stats(
+        feature_dict,
+        kowalski_instance=kowalski_instances['kowalski'],
+        radius_arcsec=xmatch_radius_arcsec,
+        limit=limit,
+    )
+    for _id in feature_dict.keys():
+        feature_dict[_id]['n_ztf_alerts'] = alert_stats_dct[_id]['n_ztf_alerts']
+        feature_dict[_id]['mean_ztf_alert_braai'] = alert_stats_dct[_id][
+            'mean_ztf_alert_braai'
+        ]
+
     feature_df = pd.DataFrame.from_dict(feature_dict, orient='index')
     utcnow = datetime.utcnow()
     end_dt = utcnow.strftime("%Y-%m-%d %H:%M:%S")
@@ -310,6 +336,7 @@ def generate_features(
     feature_df.attrs['feature_generation_start_dateTime_utc'] = start_dt
     feature_df.attrs['feature_generation_end_dateTime_utc'] = end_dt
     feature_df.attrs['ZTF_source_catalog'] = source_catalog
+    feature_df.attrs['ZTF_alerts_catalog'] = alerts_catalog
     feature_df.attrs['Gaia_catalog'] = gaia_catalog
 
     # Write results
@@ -336,6 +363,11 @@ if __name__ == "__main__":
         "-source_catalog",
         default=source_catalog,
         help="name of source collection on Kowalski",
+    )
+    parser.add_argument(
+        "-alerts_catalog",
+        default=alerts_catalog,
+        help="name of alerts collection on Kowalski",
     )
     parser.add_argument(
         "-gaia_catalog",
@@ -410,6 +442,7 @@ if __name__ == "__main__":
     # call generate_features
     generate_features(
         source_catalog=args.source_catalog,
+        alerts_catalog=args.alerts_catalog,
         gaia_catalog=args.gaia_catalog,
         bright_star_query_radius_arcsec=args.bright_star_query_radius_arcsec,
         xmatch_radius_arcsec=args.xmatch_radius_arcsec,

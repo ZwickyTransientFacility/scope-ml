@@ -1,0 +1,83 @@
+import numpy as np
+from penquins import Kowalski
+
+
+def get_ztf_alert_stats(
+    id_dct: dict,
+    kowalski_instance: Kowalski,
+    catalog: str = 'ZTF_alerts',
+    radius_arcsec: float = 2.0,
+    limit: int = 10000,
+):
+    """
+    Get n_ztf_alerts and mean_ztf_alert_braai features
+
+    :param id_dct: one quadrant's worth of id-coordinate pairs (dict)
+    :param kowalski_instance: authenticated instance of a Kowalski database
+    :param catalog: name of alert catalog to use (str)
+    :param radius_arcsec: size of cone within which to query alerts (float)
+    :param limit: batch size of kowalski_instance queries (int)
+
+    :return alert_stats_dct: Dictionary containing n_ztf_alerts and mean_ztf_alert_braai for each source ID
+    """
+
+    ids = [x for x in id_dct]
+
+    n_sources = len(id_dct)
+    n_iterations = n_sources // limit + 1
+    alert_results_dct = {}
+
+    print(f'Querying {catalog} catalog in batches...')
+    for i in range(0, n_iterations):
+        print(f"Iteration {i+1} of {n_iterations}...")
+        id_slice = [x for x in id_dct.keys()][
+            i * limit : min(n_sources, (i + 1) * limit)
+        ]
+
+        radec_geojson = np.array(
+            [id_dct[x]['radec_geojson']['coordinates'] for x in id_slice]
+        ).transpose()
+
+        # Need to add 180 -> no negative RAs
+        radec_geojson[0, :] += 180.0
+
+        # Get ZTF alert data
+        query = {
+            "query_type": "cone_search",
+            "query": {
+                "object_coordinates": {
+                    "radec": dict(zip(id_slice, radec_geojson.transpose().tolist())),
+                    "cone_search_radius": radius_arcsec,
+                    "cone_search_unit": 'arcsec',
+                },
+                "catalogs": {
+                    catalog: {"filter": {}, "projection": {"classifications.braai": 1}}
+                },
+                "filter": {},
+            },
+        }
+        q = kowalski_instance.query(query)
+
+        alert_results = q['data'][catalog]
+        alert_results_dct.update(alert_results)
+
+    alert_stats_dct = {}
+
+    for id in ids:
+        n_ztf_alerts = len(q['data']['ZTF_alerts'][str(id)])
+        if n_ztf_alerts > 0:
+            mean_ztf_alert_braai = np.nanmean(
+                [
+                    y
+                    for x in q['data']['ZTF_alerts'][str(id)]
+                    for y in x['classifications'].values()
+                ]
+            )
+        else:
+            mean_ztf_alert_braai = 0.0
+        alert_stats_dct[id] = {
+            'n_ztf_alerts': n_ztf_alerts,
+            'mean_ztf_alert_braai': mean_ztf_alert_braai,
+        }
+
+    return alert_stats_dct
