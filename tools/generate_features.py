@@ -250,7 +250,7 @@ def generate_features(
     )
 
     feature_dict = feature_gen_source_list.copy()
-    print('Computing features...')
+    print('Analyzing lightcuves and computing features...')
     # Start by dropping flagged points
     count = 0
     for idx, lc in enumerate(lcs):
@@ -310,6 +310,8 @@ def generate_features(
     feature_df.attrs['feature_generation_end_dateTime_utc'] = end_dt
     feature_df.attrs['ZTF_source_catalog'] = source_catalog
     feature_df.attrs['Gaia_catalog'] = gaia_catalog
+
+    # Write results
     if not doNotSave:
         filename += f"_field_{field}_ccd_{ccd}_quad_{quad}"
         filename += '.parquet'
@@ -318,6 +320,10 @@ def generate_features(
 
         filepath = dirpath / filename
         write_parquet(feature_df, str(filepath))
+        print(f"Wrote features for {len(feature_df)} sources.")
+    else:
+        print(f"Generated features for {len(feature_df)} sources.")
+
     return feature_df
 
 
