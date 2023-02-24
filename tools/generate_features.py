@@ -61,12 +61,12 @@ kowalski_instances = {'kowalski': kowalski, 'gloria': gloria, 'melman': melman}
 
 
 def drop_close_bright_stars(
-    id_dct,
-    kowalski_instance,
-    catalog=gaia_catalog,
-    query_radius_arcsec=300.0,
-    xmatch_radius_arcsec=2.0,
-    limit=10000,
+    id_dct: dict,
+    kowalski_instance: Kowalski,
+    catalog: str = gaia_catalog,
+    query_radius_arcsec: float = 300.0,
+    xmatch_radius_arcsec: float = 2.0,
+    limit: int = 10000,
 ):
     """
     Use Gaia to identify and drop sources that are too close to bright stars
@@ -209,21 +209,21 @@ def drop_close_bright_stars(
 # xmatch_radius_arcsec=2., kowalski_instances = kowalski_instances, limit=10000, doAllFields=False, field=296, doAllCCDs=False,
 # ccd=1, doAllQuads=False, quad=1, min_n_lc_points=50, min_cadence_minutes=30., dirname='generated_features', filename='features', doNotSave=False):
 def generate_features(
-    source_catalog=source_catalog,
-    alerts_catalog=alerts_catalog,
-    gaia_catalog=gaia_catalog,
-    bright_star_query_radius_arcsec=300.0,
-    xmatch_radius_arcsec=2.0,
-    kowalski_instances=kowalski_instances,
-    limit=10000,
-    field=296,
-    ccd=1,
-    quad=1,
-    min_n_lc_points=50,
-    min_cadence_minutes=30.0,
-    dirname='generated_features',
-    filename='features',
-    doNotSave=False,
+    source_catalog: str = source_catalog,
+    alerts_catalog: str = alerts_catalog,
+    gaia_catalog: str = gaia_catalog,
+    bright_star_query_radius_arcsec: float = 300.0,
+    xmatch_radius_arcsec: float = 2.0,
+    kowalski_instances: dict = kowalski_instances,
+    limit: int = 10000,
+    field: int = 296,
+    ccd: int = 1,
+    quad: int = 1,
+    min_n_lc_points: int = 50,
+    min_cadence_minutes: float = 30.0,
+    dirname: str = 'generated_features',
+    filename: str = 'features',
+    doNotSave: bool = False,
 ):
 
     # Get code version and current date/time for metadata

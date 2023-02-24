@@ -1,8 +1,13 @@
 import numpy as np
+from penquins import Kowalski
 
 
 def get_ztf_alert_stats(
-    id_dct, kowalski_instance, catalog='ZTF_alerts', radius_arcsec=2.0, limit=10000
+    id_dct: dict,
+    kowalski_instance: Kowalski,
+    catalog: str = 'ZTF_alerts',
+    radius_arcsec: float = 2.0,
+    limit: int = 10000,
 ):
     """
     Get n_ztf_alerts and mean_ztf_alert_braai features
