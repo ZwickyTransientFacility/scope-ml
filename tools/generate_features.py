@@ -20,7 +20,8 @@ import astropy.units as u
 from datetime import datetime
 
 # import time
-# from tools import lcstats
+# from tools.featureGeneration import lcstats, periodsearch
+# import periodfind
 # from numba import jit
 # from cesium.featurize import time_series, featurize_single_ts, featurize_time_series, featurize_ts_files
 # import cesium.features as fts
