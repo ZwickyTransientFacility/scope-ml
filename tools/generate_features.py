@@ -54,8 +54,10 @@ def drop_close_bright_stars(
     :param id_dct: one quadrant's worth of id-coordinate pairs (dict)
     :param kowalski_instance: authenticated instance of a Kowalski database
     :param catalog: name of catalog to use [currently only supports Gaia catalogs] (str)
-    :param query_radius_arcsec: size of cone search radius to search for bright stars. Default is 300 corresponding with approximate maximum from A. Drake's exclusion radius (float)
-    :param xmatch_radius_arcsec: size of cone within which to match a queried source with an input source. If any sources from the query fall within this cone, the closest one will be matched to the input source and dropped from further bright-star considerations (float)
+    :param query_radius_arcsec: size of cone search radius to search for bright stars.
+        Default is 300 corresponding with approximate maximum from A. Drake's exclusion radius (float)
+    :param xmatch_radius_arcsec: size of cone within which to match a queried source with an input source.
+        If any sources from the query fall within this cone, the closest one will be matched to the input source and dropped from further bright-star considerations (float)
     """
 
     ids = [x for x in id_dct]
