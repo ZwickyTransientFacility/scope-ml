@@ -218,7 +218,7 @@ class Scope:
         self,
         ra: float,
         dec: float,
-        catalog: str = "ZTF_sources_20201201",
+        catalog: str = "ZTF_sources_20210401",
         cone_search_radius: Union[float, int] = 2,
         cone_search_unit: str = "arcsec",
         filter_flagged_data: bool = True,
@@ -405,7 +405,7 @@ class Scope:
                 sample_light_curves = self._get_light_curve_data(
                     ra=sample_object["coordinates"][0],
                     dec=sample_object["coordinates"][1],
-                    catalog=self.config["kowalski"]["collections"]["sources"],
+                    # catalog=self.config["kowalski"]["collections"]["sources"],
                 )
                 plot_light_curve_data(
                     light_curve_data=sample_light_curves,
