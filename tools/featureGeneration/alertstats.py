@@ -24,7 +24,10 @@ def get_ztf_alert_stats(
     ids = [x for x in id_dct]
 
     n_sources = len(id_dct)
-    n_iterations = n_sources // limit + 1
+    if n_sources % limit != 0:
+        n_iterations = n_sources // limit + 1
+    else:
+        n_iterations = n_sources // limit
     alert_results_dct = {}
 
     print(f'Querying {catalog} catalog in batches...')

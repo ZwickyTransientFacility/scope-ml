@@ -26,5 +26,7 @@ jobs:
         ./scope.py develop
 
     - name: Run tests
+      env:
+        KOWALSKI_TOKEN: ${{ secrets.KOWALSKI_TOKEN }}
       run: |
         ./scope.py test
