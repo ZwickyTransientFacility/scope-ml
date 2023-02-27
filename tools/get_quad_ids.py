@@ -106,7 +106,7 @@ def get_ids_loop(
     if type(quad_range) == int:
         quad_range = [quad_range, quad_range]
 
-    print('get_quad_ids instance: ', kowalski_instance)
+    print('get_quad_ids instance: ', kowalski_instance.host)
 
     for ccd in range(ccd_range[0], ccd_range[1] + 1):
         dct["ccd"][ccd] = {}

@@ -45,6 +45,14 @@ def load_config(config_path: Union[str, pathlib.Path]):
     return config
 
 
+def write_config(config, config_path: Union[str, pathlib.Path]):
+    """
+    Load config and secrets
+    """
+    with open(config_path, 'w') as config_yaml:
+        yaml.dump(config, config_yaml)
+
+
 def time_stamp():
     """
 

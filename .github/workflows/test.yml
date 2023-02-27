@@ -27,6 +27,7 @@ jobs:
 
     - name: Run tests
       env:
-        KOWALSKI_TOKEN: ${{ secrets.KOWALSKI_TOKEN }}
+        #KOWALSKI_TOKEN: ${{ secrets.KOWALSKI_TOKEN }}
+        KOWALSKI_TOKEN: dummyToken1
       run: |
         ./scope.py test
