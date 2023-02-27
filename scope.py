@@ -114,6 +114,7 @@ class Scope:
                     host=self.config["kowalski"]["host"],
                     port=self.config["kowalski"]["port"],
                 )
+                print('Ping', self.kowalski.ping())
         else:
             self.kowalski = None
             # raise ConnectionError("Could not connect to Kowalski.")
