@@ -18,7 +18,6 @@ from typing import Optional, Sequence, Union
 import yaml
 from scope.utils import forgiving_true, load_config, read_hdf, read_parquet, write_hdf
 from scope.fritz import radec_to_iau_name
-from tools import generate_features
 import json
 
 
@@ -1404,6 +1403,7 @@ class Scope:
         :return:
         """
         import uuid
+        from tools import generate_features
 
         # Test feature generation
         test_field, test_ccd, test_quad = 297, 2, 2
