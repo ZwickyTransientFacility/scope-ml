@@ -59,6 +59,9 @@ kowalski = Kowalski(
     timeout=timeout,
 )
 
+print('Pings for kowalski, gloria, melman')
+print(kowalski.ping(), gloria.ping(), melman.ping())
+
 source_catalog = config['kowalski']['collections']['sources']
 alerts_catalog = config['kowalski']['collections']['alerts']
 gaia_catalog = config['kowalski']['collections']['gaia']
