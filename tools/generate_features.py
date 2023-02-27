@@ -18,10 +18,10 @@ import pandas as pd
 from astropy.coordinates import SkyCoord
 import astropy.units as u
 from datetime import datetime
-from tools.featureGeneration import lcstats, alertstats
+from tools.featureGeneration import lcstats, periodsearch, alertstats
+import warnings
 
 # import time
-# from tools.featureGeneration import periodsearch
 # import periodfind
 # from numba import jit
 # from cesium.featurize import time_series, featurize_single_ts, featurize_time_series, featurize_ts_files
@@ -206,8 +206,9 @@ def drop_close_bright_stars(
 
 
 # def generate_features(source_catalog=source_catalog, alerts_catalog=alerts_catalog, gaia_catalog=gaia_catalog, bright_star_query_radius_arcsec=300.,
-# xmatch_radius_arcsec=2., kowalski_instances = kowalski_instances, limit=10000, doAllFields=False, field=296, doAllCCDs=False,
-# ccd=1, doAllQuads=False, quad=1, min_n_lc_points=50, min_cadence_minutes=30., dirname='generated_features', filename='features', doNotSave=False):
+# xmatch_radius_arcsec=2., kowalski_instances = kowalski_instances, limit=10000, period_algorithm='LS', period_batch_size=1, doCPU=False, doGPU=False, samples_per_peak=10, doLongPeriod=False, doRemoveTerrestrial=False,
+# doParallel=False, Ncore=8, doAllFields=False, field=296, doAllCCDs=False, ccd=1, doAllQuads=False, quad=1, min_n_lc_points=50, min_cadence_minutes=30., dirname='generated_features',
+# filename='features', doNotSave=False):
 def generate_features(
     source_catalog: str = source_catalog,
     alerts_catalog: str = alerts_catalog,
@@ -216,6 +217,15 @@ def generate_features(
     xmatch_radius_arcsec: float = 2.0,
     kowalski_instances: dict = kowalski_instances,
     limit: int = 10000,
+    period_algorithm: str = 'LS',
+    period_batch_size: int = 1,
+    doCPU: bool = False,
+    doGPU: bool = False,
+    samples_per_peak: int = 10,
+    doLongPeriod: bool = False,
+    doRemoveTerrestrial: bool = False,
+    doParallel: bool = False,
+    Ncore: int = 8,
     field: int = 296,
     ccd: int = 1,
     quad: int = 1,
@@ -266,9 +276,12 @@ def generate_features(
     )
 
     feature_dict = feature_gen_source_list.copy()
-    print('Analyzing lightcuves and computing features...')
+    print('Analyzing lightcuves and computing basic features...')
     # Start by dropping flagged points
     count = 0
+    baseline = 0
+    keep_id_list = []
+    tme_collection = []
     for idx, lc in enumerate(lcs):
         count += 1
         if (idx + 1) % limit == 0:
@@ -291,6 +304,15 @@ def generate_features(
             if len(tt) < min_n_lc_points:
                 feature_dict.pop(_id)
             else:
+                keep_id_list += [_id]
+                # Determine largest time baseline over loop
+                new_baseline = max(tt) - min(tt)
+                if new_baseline > baseline:
+                    baseline = new_baseline
+
+                new_tme_arr = np.array([tt, mm, ee])
+                tme_collection += [new_tme_arr]
+
                 # Add basic info
                 feature_dict[_id]['ra'] = (
                     feature_gen_source_list[_id]['radec_geojson']['coordinates'][0]
@@ -353,14 +375,112 @@ def generate_features(
                 feature_dict[_id]['ad'] = AD
                 feature_dict[_id]['sw'] = SW
 
-                # Continue with periodfind/periodsearch (to be added)
-                #
-
-                # Call lcstats.calc_fourier_stats()
-                #
-
         except ValueError:
             feature_dict.pop(_id)
+
+    # Define frequency grid using largest LC time baseline
+    if doLongPeriod:
+        fmin, fmax = 2 / baseline, 48
+    else:
+        fmin, fmax = 2 / baseline, 480
+
+    df = 1.0 / (samples_per_peak * baseline)
+    nf = int(np.ceil((fmax - fmin) / df))
+    freqs = fmin + df * np.arange(nf)
+
+    # Define terrestrial frequencies to remove
+    if doRemoveTerrestrial:
+        freqs_to_remove = [
+            [3e-2, 4e-2],
+            [3.95, 4.05],
+            [2.95, 3.05],
+            [1.95, 2.05],
+            [0.95, 1.05],
+            [0.48, 0.52],
+            [0.32, 0.34],
+        ]
+    else:
+        freqs_to_remove = None
+
+    # Continue with periodsearch/periodfind
+    if doCPU or doGPU:
+        if doCPU and doGPU:
+            raise KeyError('Please set only one of -doCPU or -doGPU.')
+        periods, significances, pdots = periodsearch.find_periods(
+            period_algorithm,
+            tme_collection,
+            freqs,
+            batch_size=period_batch_size,
+            doGPU=doGPU,
+            doCPU=doCPU,
+            doSaveMemory=False,
+            doRemoveTerrestrial=doRemoveTerrestrial,
+            doUsePDot=False,
+            doSingleTimeSegment=False,
+            freqs_to_remove=freqs_to_remove,
+            phase_bins=20,
+            mag_bins=10,
+            doParallel=doParallel,
+            Ncore=Ncore,
+        )
+
+    else:
+        warnings.warn("Skipping period finding; setting all periods to 1.0 d.")
+        # Default periods 1.0 d
+        periods = np.ones(len(tme_collection))
+        significances = np.ones(len(tme_collection))
+        pdots = np.ones(len(tme_collection))
+
+    print('Calculating Fourier stats...')
+    count = 0
+    for idx, _id in enumerate(keep_id_list):
+        count += 1
+        if (idx + 1) % limit == 0:
+            print(f"{count} done")
+        if count == len(keep_id_list):
+            print(f"{count} done")
+
+        period = periods[idx]
+        significance = significances[idx]
+        pdot = pdots[idx]
+        tt, mm, ee = tme_collection[idx]
+
+        # Calculate Fourier stats
+        (
+            f1_power,
+            f1_BIC,
+            f1_a,
+            f1_b,
+            f1_amp,
+            f1_phi0,
+            f1_relamp1,
+            f1_relphi1,
+            f1_relamp2,
+            f1_relphi2,
+            f1_relamp3,
+            f1_relphi3,
+            f1_relamp4,
+            f1_relphi4,
+        ) = lcstats.calc_fourier_stats(tt, mm, ee, period)
+
+        feature_dict[_id]['f1_power'] = f1_power
+        feature_dict[_id]['f1_BIC'] = f1_BIC
+        feature_dict[_id]['f1_a'] = f1_a
+        feature_dict[_id]['f1_b'] = f1_b
+        feature_dict[_id]['f1_amp'] = f1_amp
+        feature_dict[_id]['f1_phi0'] = f1_phi0
+        feature_dict[_id]['f1_relamp1'] = f1_relamp1
+        feature_dict[_id]['f1_relphi1'] = f1_relphi1
+        feature_dict[_id]['f1_relamp2'] = f1_relamp2
+        feature_dict[_id]['f1_relphi2'] = f1_relphi2
+        feature_dict[_id]['f1_relamp3'] = f1_relamp3
+        feature_dict[_id]['f1_relphi3'] = f1_relphi3
+        feature_dict[_id]['f1_relamp4'] = f1_relamp4
+        feature_dict[_id]['f1_relphi4'] = f1_relphi4
+
+        feature_dict[_id]['period'] = period
+        feature_dict[_id]['significance'] = significance
+        feature_dict[_id]['pdot'] = pdot
 
     # Get ZTF alert stats
     alert_stats_dct = alertstats.get_ztf_alert_stats(
@@ -409,7 +529,6 @@ def generate_features(
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    # Add arguments for GPU/CPU, period algorithm?
 
     parser.add_argument(
         "-source_catalog",
@@ -445,6 +564,59 @@ if __name__ == "__main__":
         help="sources per query limit for large Kowalski queries",
     )
 
+    parser.add_argument(
+        "-period_algorithm",
+        default='LS',
+        help="algorithm in periodsearch.py to use for period-finding",
+    )
+
+    parser.add_argument(
+        "-period_batch_size",
+        type=int,
+        default=1,
+        help="batch size for GPU-accelerated period algorithms",
+    )
+    parser.add_argument(
+        "-doCPU",
+        action='store_true',
+        default=False,
+        help="if True, run period-finding algorithm on CPU",
+    )
+    parser.add_argument(
+        "-doGPU",
+        action='store_true',
+        default=False,
+        help="if True, use GPU-accelerated period algorithm",
+    )
+    parser.add_argument(
+        "-samples_per_peak",
+        default=10,
+        type=int,
+    )
+    parser.add_argument(
+        "-doLongPeriod",
+        action='store_true',
+        default=False,
+        help="if True, optimize frequency grid for long periods",
+    )
+    parser.add_argument(
+        "-doRemoveTerrestrial",
+        action='store_true',
+        default=False,
+        help="if True, remove terrestrial frequencies from period analysis",
+    )
+    parser.add_argument(
+        "-doParallel",
+        action="store_true",
+        default=False,
+        help="If True, parallelize period finding",
+    )
+    parser.add_argument(
+        "-Ncore",
+        default=8,
+        type=int,
+        help="number of cores for parallel period finding",
+    )
     # Loop over field/ccd/quad functionality coming soon
     # parser.add_argument("-doAllFields", action='store_true', default=False, help="if True, run on all fields")
     parser.add_argument(
@@ -499,6 +671,15 @@ if __name__ == "__main__":
         bright_star_query_radius_arcsec=args.bright_star_query_radius_arcsec,
         xmatch_radius_arcsec=args.xmatch_radius_arcsec,
         limit=args.query_size_limit,
+        period_algorithm=args.period_algorithm,
+        period_batch_size=args.period_batch_size,
+        doCPU=args.doCPU,
+        doGPU=args.doGPU,
+        samples_per_peak=args.samples_per_peak,
+        doLongPeriod=args.doLongPeriod,
+        doRemoveTerrestrial=args.doRemoveTerrestrial,
+        doParallel=args.doParallel,
+        Ncore=args.Ncore,
         # args.doAllFields,
         field=args.field,
         # args.doAllCCDs,
