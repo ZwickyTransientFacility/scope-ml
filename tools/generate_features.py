@@ -35,6 +35,13 @@ config_path = pathlib.Path(__file__).parent.parent.absolute() / "config.yaml"
 with open(config_path) as config_yaml:
     config = yaml.load(config_yaml, Loader=yaml.FullLoader)
 
+# use token specified as env var (if exists)
+kowalski_token_env = os.environ.get("KOWALSKI_TOKEN")
+kowalski_alt_token_env = os.environ.get("KOWALSKI_ALT_TOKEN")
+if (kowalski_token_env is not None) & (kowalski_alt_token_env is not None):
+    config["kowalski"]["token"] = kowalski_token_env
+    config["kowalski"]["alt_token"] = kowalski_alt_token_env
+
 timeout = config['kowalski']['timeout']
 
 gloria = Kowalski(**config['kowalski'], verbose=False)
@@ -52,6 +59,9 @@ kowalski = Kowalski(
     port=443,
     timeout=timeout,
 )
+
+print('Pings for kowalski, gloria, melman')
+print(kowalski.ping(), gloria.ping(), melman.ping())
 
 source_catalog = config['kowalski']['collections']['sources']
 alerts_catalog = config['kowalski']['collections']['alerts']
@@ -87,7 +97,11 @@ def drop_close_bright_stars(
     id_dct_keep = id_dct.copy()
 
     n_sources = len(id_dct)
-    n_iterations = n_sources // limit + 1
+    if n_sources % limit != 0:
+        n_iterations = n_sources // limit + 1
+    else:
+        n_iterations = n_sources // limit
+
     gaia_results_dct = {}
 
     print(f'Querying {catalog} catalog in batches...')
@@ -208,7 +222,7 @@ def drop_close_bright_stars(
 # def generate_features(source_catalog=source_catalog, alerts_catalog=alerts_catalog, gaia_catalog=gaia_catalog, bright_star_query_radius_arcsec=300.,
 # xmatch_radius_arcsec=2., kowalski_instances = kowalski_instances, limit=10000, period_algorithm='LS', period_batch_size=1, doCPU=False, doGPU=False, samples_per_peak=10, doLongPeriod=False, doRemoveTerrestrial=False,
 # doParallel=False, Ncore=8, doAllFields=False, field=296, doAllCCDs=False, ccd=1, doAllQuads=False, quad=1, min_n_lc_points=50, min_cadence_minutes=30., dirname='generated_features',
-# filename='features', doNotSave=False):
+# filename='features', doNotSave=False, stop_early=False):
 def generate_features(
     source_catalog: str = source_catalog,
     alerts_catalog: str = alerts_catalog,
@@ -234,6 +248,7 @@ def generate_features(
     dirname: str = 'generated_features',
     filename: str = 'features',
     doNotSave: bool = False,
+    stop_early: bool = False,
 ):
 
     # Get code version and current date/time for metadata
@@ -255,6 +270,7 @@ def generate_features(
         minobs=0,
         save=False,
         get_coords=True,
+        stop_early=stop_early,
     )
 
     # Each index of lst corresponds to a different ccd/quad combo
@@ -660,6 +676,12 @@ if __name__ == "__main__":
         default=False,
         help="if True, do not save features",
     )
+    parser.add_argument(
+        "-stop_early",
+        action='store_true',
+        default=False,
+        help="if True, stop when number of sources reaches query_size_limit. Helpful for testing on small samples.",
+    )
 
     args = parser.parse_args()
 
@@ -691,4 +713,5 @@ if __name__ == "__main__":
         dirname=args.dirname,
         filename=args.filename,
         doNotSave=args.doNotSave,
+        stop_early=args.stop_early,
     )
