@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Request clearance
-      run: echo For security reasons, all pull requests need to be cleared before running any automated CI.
+      run: echo For security reasons, all pull requests need to be cleared before running any automated CI involving tokens.
 
   docs:
     runs-on: ubuntu-latest
