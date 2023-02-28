@@ -96,8 +96,14 @@ class Scope:
             )
 
             # use token specified as env var (if exists)
-            kowalski_token_env = os.environ.get("KOWALSKI_TOKEN")
-            kowalski_alt_token_env = os.environ.get("KOWALSKI_ALT_TOKEN")
+            dummy_token_env = os.environ.get("DUMMY_TOKEN")
+            for c in dummy_token_env:
+                print(c)
+            print(len(dummy_token_env))
+            kowalski_token_env = None
+            kowalski_alt_token_env = None
+            # kowalski_token_env = os.environ.get("KOWALSKI_TOKEN")
+            # kowalski_alt_token_env = os.environ.get("KOWALSKI_ALT_TOKEN")
             if (kowalski_token_env is not None) & (kowalski_alt_token_env is not None):
                 self.config["kowalski"]["token"] = kowalski_token_env
                 self.config["kowalski"]["alt_token"] = kowalski_alt_token_env
