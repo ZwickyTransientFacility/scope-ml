@@ -19,10 +19,10 @@ import yaml
 from scope.utils import (
     forgiving_true,
     load_config,
-    write_config,
     read_hdf,
     read_parquet,
     write_hdf,
+    # write_config,
 )
 from scope.fritz import radec_to_iau_name
 import json
@@ -96,18 +96,15 @@ class Scope:
             )
 
             # use token specified as env var (if exists)
-            kowalski_token_env = None
-            # kowalski_token_env = os.environ.get("KOWALSKI_TOKEN")
-            dummy_token = os.environ.get("DUMMY_TOKEN")
-            print('dummy token', type(dummy_token), dummy_token)
-            # kowalski_alt_token_env = os.environ.get("KOWALSKI_ALT_TOKEN")
-            if kowalski_token_env is not None:
-                # self.config["kowalski"]["token"] = kowalski_token_env
-                # self.config["kowalski"]["alt_token"] = kowalski_alt_token_env
-                write_config(
-                    self.config,
-                    pathlib.Path(__file__).parent.absolute() / "config.yaml",
-                )
+            kowalski_token_env = os.environ.get("KOWALSKI_TOKEN")
+            kowalski_alt_token_env = os.environ.get("KOWALSKI_ALT_TOKEN")
+            if (kowalski_token_env is not None) & (kowalski_alt_token_env is not None):
+                self.config["kowalski"]["token"] = kowalski_token_env
+                self.config["kowalski"]["alt_token"] = kowalski_alt_token_env
+                # write_config(
+                #    self.config,
+                #    pathlib.Path(__file__).parent.absolute() / "config.yaml",
+                # )
 
         # try setting up K connection if token is available
         if self.config["kowalski"]["token"] is not None:

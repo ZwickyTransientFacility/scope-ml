@@ -35,6 +35,15 @@ config_path = pathlib.Path(__file__).parent.parent.absolute() / "config.yaml"
 with open(config_path) as config_yaml:
     config = yaml.load(config_yaml, Loader=yaml.FullLoader)
 
+# use token specified as env var (if exists)
+kowalski_token_env = os.environ.get("KOWALSKI_TOKEN")
+kowalski_alt_token_env = os.environ.get("KOWALSKI_ALT_TOKEN")
+if (kowalski_token_env is not None) & (kowalski_alt_token_env is not None):
+    config["kowalski"]["token"] = kowalski_token_env
+    config["kowalski"]["alt_token"] = kowalski_alt_token_env
+else:
+    print('Did not find kowalski env token')
+
 timeout = config['kowalski']['timeout']
 
 gloria = Kowalski(**config['kowalski'], verbose=False)
