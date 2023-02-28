@@ -16,7 +16,13 @@ import tdtax
 from tdtax import taxonomy  # noqa: F401
 from typing import Optional, Sequence, Union
 import yaml
-from scope.utils import forgiving_true, load_config, read_hdf, read_parquet, write_hdf
+from scope.utils import (
+    forgiving_true,
+    load_config,
+    read_hdf,
+    read_parquet,
+    write_hdf,
+)
 from scope.fritz import radec_to_iau_name
 import json
 
@@ -90,8 +96,10 @@ class Scope:
 
             # use token specified as env var (if exists)
             kowalski_token_env = os.environ.get("KOWALSKI_TOKEN")
-            if kowalski_token_env is not None:
+            kowalski_alt_token_env = os.environ.get("KOWALSKI_ALT_TOKEN")
+            if (kowalski_token_env is not None) & (kowalski_alt_token_env is not None):
                 self.config["kowalski"]["token"] = kowalski_token_env
+                self.config["kowalski"]["alt_token"] = kowalski_alt_token_env
 
         # try setting up K connection if token is available
         if self.config["kowalski"]["token"] is not None:
@@ -1402,6 +1410,33 @@ class Scope:
         :return:
         """
         import uuid
+        from tools import generate_features
+
+        # Test feature generation
+        test_field, test_ccd, test_quad = 297, 2, 2
+        test_feature_directory = 'generated_features'
+        test_feature_filename = 'testFeatures'
+        n_sources = 3
+
+        _ = generate_features.generate_features(
+            period_algorithm='LS',
+            doCPU=True,
+            field=test_field,
+            ccd=test_ccd,
+            quad=test_quad,
+            dirname=test_feature_directory,
+            filename=test_feature_filename,
+            limit=n_sources,
+            stop_early=True,
+        )
+
+        path_gen_features = (
+            pathlib.Path(__file__).parent.absolute()
+            / test_feature_directory
+            / f"field_{test_field}"
+            / f"{test_feature_filename}_field_{test_field}_ccd_{test_ccd}_quad_{test_quad}.parquet"
+        )
+        os.remove(path_gen_features)
 
         # create a mock dataset and check that the training pipeline works
         dataset = f"{uuid.uuid4().hex}.csv"
