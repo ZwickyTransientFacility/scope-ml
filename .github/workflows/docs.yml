@@ -47,14 +47,12 @@ jobs:
       run: |
         ./scope.py doc
     - name: Install SSH Client 🔑
-      #if: github.ref == 'refs/heads/main'
       if: github.event_name == 'push'
       uses: webfactory/ssh-agent@v0.4.1
       with:
         ssh-private-key: ${{ secrets.CI_DEPLOY_KEY }}
 
     - name: Deploy docs
-      #if: github.ref == 'refs/heads/main'
       if: github.event_name == 'push'
       uses: JamesIves/github-pages-deploy-action@releases/v4
       with:
