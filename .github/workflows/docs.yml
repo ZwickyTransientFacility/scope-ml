@@ -2,18 +2,29 @@ name: Build, test, and upload docs
 
 on:
   push:
-    branches:
-      - main
-  pull_request:
+    branches: [ main ]
+  pull_request_target:
+    branches: [ main ]
 jobs:
+  request_clearance: # First step
+    runs-on: ubuntu-latest
+    steps:
+    - name: Request clearance
+      run: echo For security reasons, all pull requests need to be cleared before running any automated CI involving tokens.
+
   docs:
     runs-on: ubuntu-latest
+    needs: [request_clearance]
+    environment:
+      name: Integrate Pull Request # dummy environment
     timeout-minutes: 20
     steps:
 
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
+      with:
+        ref: ${{ github.event.pull_request.head.sha }} # Check out the code of the PR
 
-    - uses: actions/setup-python@v1
+    - uses: actions/setup-python@v4
       with:
         python-version: '3.9'
 
@@ -32,6 +43,7 @@ jobs:
     - name: Build docs
       env:
         KOWALSKI_TOKEN: ${{ secrets.KOWALSKI_TOKEN }}
+        KOWALSKI_ALT_TOKEN: ${{ secrets.KOWALSKI_ALT_TOKEN }}
       run: |
         ./scope.py doc
     - name: Install SSH Client 🔑
