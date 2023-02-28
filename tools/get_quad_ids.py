@@ -15,6 +15,14 @@ BASE_DIR = os.path.dirname(__file__)
 config_path = pathlib.Path(__file__).parent.parent.absolute() / "config.yaml"
 with open(config_path) as config_yaml:
     config = yaml.load(config_yaml, Loader=yaml.FullLoader)
+
+# use token specified as env var (if exists)
+kowalski_token_env = os.environ.get("KOWALSKI_TOKEN")
+kowalski_alt_token_env = os.environ.get("KOWALSKI_ALT_TOKEN")
+if (kowalski_token_env is not None) & (kowalski_alt_token_env is not None):
+    config["kowalski"]["token"] = kowalski_token_env
+    config["kowalski"]["alt_token"] = kowalski_alt_token_env
+
 kowalski_instance = Kowalski(**config['kowalski'], verbose=False)
 
 
@@ -22,7 +30,7 @@ def get_ids_loop(
     func,
     catalog,
     kowalski_instance=kowalski_instance,
-    field=301,
+    field=296,
     ccd_range=[1, 16],
     quad_range=[1, 4],
     minobs=20,
@@ -32,6 +40,7 @@ def get_ids_loop(
     whole_field=False,
     save=True,
     get_coords=False,
+    stop_early=False,
 ):
     '''
         Function wrapper for getting ids in a particular ccd and quad range
@@ -60,6 +69,10 @@ def get_ids_loop(
             If True, save one file containing all field ids. Otherwise, save files for each ccd/quad pair
         save: bool
             If True, save results (either by ccd/quad or whole field)
+        get_coords: bool
+            If True, return dictionary linking ids and object geojson coordinates
+        stop_early: bool
+            If True, stop loop when number of sources reaches limit
 
         Returns
         -------
@@ -94,6 +107,8 @@ def get_ids_loop(
         ccd_range = [ccd_range, ccd_range]
     if type(quad_range) == int:
         quad_range = [quad_range, quad_range]
+
+    print('get_quad_ids instance: ', kowalski_instance.host)
 
     for ccd in range(ccd_range[0], ccd_range[1] + 1):
         dct["ccd"][ccd] = {}
@@ -132,7 +147,7 @@ def get_ids_loop(
                 # concat data to series containing all data
                 if verbose > 1:
                     ser = pd.concat([ser, pd.Series(data)], axis=0)
-                if len(data) < limit:
+                if (len(data) < limit) | ((len(data) == limit) & stop_early):
                     if verbose > 0:
                         length = len(data) + (i * limit)
                         count += length
