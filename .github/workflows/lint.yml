@@ -9,10 +9,6 @@ on:
 jobs:
   lint:
     runs-on: ubuntu-latest
-    env:
-      DUMMY_TOKEN: ${{ secrets.DUMMY_TOKEN }}
-      #KOWALSKI_TOKEN: ${{ secrets.KOWALSKI_TOKEN }}
-      #KOWALSKI_ALT_TOKEN: ${{ secrets.KOWALSKI_ALT_TOKEN }}
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v3

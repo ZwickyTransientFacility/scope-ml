@@ -97,9 +97,10 @@ class Scope:
 
             # use token specified as env var (if exists)
             dummy_token_env = os.environ.get("DUMMY_TOKEN")
-            for c in dummy_token_env:
-                print(c)
-            print(len(dummy_token_env))
+            if dummy_token_env is not None:
+                for c in dummy_token_env:
+                    print(c)
+                print(len(dummy_token_env))
             kowalski_token_env = None
             kowalski_alt_token_env = None
             # kowalski_token_env = os.environ.get("KOWALSKI_TOKEN")
