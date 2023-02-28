@@ -22,7 +22,6 @@ from scope.utils import (
     read_hdf,
     read_parquet,
     write_hdf,
-    # write_config,
 )
 from scope.fritz import radec_to_iau_name
 import json
@@ -96,22 +95,11 @@ class Scope:
             )
 
             # use token specified as env var (if exists)
-            dummy_token_env = os.environ.get("DUMMY_TOKEN")
-            if dummy_token_env is not None:
-                for c in dummy_token_env:
-                    print(c)
-                print(len(dummy_token_env))
-            kowalski_token_env = None
-            kowalski_alt_token_env = None
-            # kowalski_token_env = os.environ.get("KOWALSKI_TOKEN")
-            # kowalski_alt_token_env = os.environ.get("KOWALSKI_ALT_TOKEN")
+            kowalski_token_env = os.environ.get("KOWALSKI_TOKEN")
+            kowalski_alt_token_env = os.environ.get("KOWALSKI_ALT_TOKEN")
             if (kowalski_token_env is not None) & (kowalski_alt_token_env is not None):
                 self.config["kowalski"]["token"] = kowalski_token_env
                 self.config["kowalski"]["alt_token"] = kowalski_alt_token_env
-                # write_config(
-                #    self.config,
-                #    pathlib.Path(__file__).parent.absolute() / "config.yaml",
-                # )
 
         # try setting up K connection if token is available
         if self.config["kowalski"]["token"] is not None:
@@ -122,7 +110,6 @@ class Scope:
                     host=self.config["kowalski"]["host"],
                     port=self.config["kowalski"]["port"],
                 )
-                print('Ping', self.kowalski.ping())
         else:
             self.kowalski = None
             # raise ConnectionError("Could not connect to Kowalski.")
