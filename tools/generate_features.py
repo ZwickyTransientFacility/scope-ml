@@ -519,7 +519,7 @@ def generate_features(
     )
     feature_df = pd.DataFrame.from_dict(feature_dict, orient='index')
 
-    # Convert mixed _id datatypes to Int64
+    # Convert various _id datatypes to Int64
     colnames = [x for x in feature_df.columns]
     for col in colnames:
         if '_id' in col:
