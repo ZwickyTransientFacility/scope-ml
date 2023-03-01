@@ -18,7 +18,7 @@ import pandas as pd
 from astropy.coordinates import SkyCoord
 import astropy.units as u
 from datetime import datetime
-from tools.featureGeneration import lcstats, periodsearch, alertstats
+from tools.featureGeneration import lcstats, periodsearch, alertstats, external_xmatch
 import warnings
 
 # import time
@@ -63,6 +63,7 @@ kowalski = Kowalski(
 source_catalog = config['kowalski']['collections']['sources']
 alerts_catalog = config['kowalski']['collections']['alerts']
 gaia_catalog = config['kowalski']['collections']['gaia']
+ext_catalog_info = config['feature_generation']['external_catalog_features']
 
 kowalski_instances = {'kowalski': kowalski, 'gloria': gloria, 'melman': melman}
 
@@ -451,7 +452,7 @@ def generate_features(
         if (idx + 1) % limit == 0:
             print(f"{count} done")
         if count == len(keep_id_list):
-            print(f"{count} done")
+            print(f"{count} meeting min_n_lc_points requirement done")
 
         period = periods[idx]
         significance = significances[idx]
@@ -508,10 +509,22 @@ def generate_features(
             'mean_ztf_alert_braai'
         ]
 
-    # Add crossmatches to Gaia, AllWISE and PS1 (call xmatch.py)
-    #
-
+    # Add crossmatches to Gaia, AllWISE and PS1 (by default, see config.yaml)
+    feature_dict = external_xmatch.xmatch(
+        feature_dict,
+        kowalski_instances['gloria'],
+        catalog_info=ext_catalog_info,
+        radius_arcsec=xmatch_radius_arcsec,
+        limit=limit,
+    )
     feature_df = pd.DataFrame.from_dict(feature_dict, orient='index')
+
+    # Convert various _id datatypes to Int64
+    colnames = [x for x in feature_df.columns]
+    for col in colnames:
+        if '_id' in col:
+            feature_df[col] = feature_df[col].astype("Int64")
+
     utcnow = datetime.utcnow()
     end_dt = utcnow.strftime("%Y-%m-%d %H:%M:%S")
 
