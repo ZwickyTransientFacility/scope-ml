@@ -10,18 +10,27 @@ import pathlib
 import yaml
 
 BASE_DIR = os.path.dirname(__file__)
-# Set up gloria connection
+# Set up Kowalski instance connection
 # Use Kowalski_Instances class here once approved
 config_path = pathlib.Path(__file__).parent.parent.absolute() / "config.yaml"
 with open(config_path) as config_yaml:
     config = yaml.load(config_yaml, Loader=yaml.FullLoader)
-gloria = Kowalski(**config['kowalski'], verbose=False)
+
+# use token specified as env var (if exists)
+kowalski_token_env = os.environ.get("KOWALSKI_TOKEN")
+kowalski_alt_token_env = os.environ.get("KOWALSKI_ALT_TOKEN")
+if (kowalski_token_env is not None) & (kowalski_alt_token_env is not None):
+    config["kowalski"]["token"] = kowalski_token_env
+    config["kowalski"]["alt_token"] = kowalski_alt_token_env
+
+kowalski_instance = Kowalski(**config['kowalski'], verbose=False)
 
 
 def get_ids_loop(
     func,
     catalog,
-    field=301,
+    kowalski_instance=kowalski_instance,
+    field=296,
     ccd_range=[1, 16],
     quad_range=[1, 4],
     minobs=20,
@@ -30,6 +39,8 @@ def get_ids_loop(
     output_dir=None,
     whole_field=False,
     save=True,
+    get_coords=False,
+    stop_early=False,
 ):
     '''
         Function wrapper for getting ids in a particular ccd and quad range
@@ -40,12 +51,14 @@ def get_ids_loop(
             Function for getting ids for a specific quad of a CCD for a particular ZTF field.
         catalog : str
             Catalog containing ids, CCD, quad, and light curves
+        kowalski_instance:
+            Authenticated instance of kowalski, gloria or melman. Defaults to config-specified info.
         field : int
             ZTF field number
         ccd_range : int
-            Range of CCD numbers starting from 1 to get the ids. Takes values from [1,16]
+            CCD number or range of numbers, starting from 1 to get the ids. Takes values from [1,16]
         quad_range : int
-            Range of CCD quad numbers starting from 1. Takes values from [1,4]
+            CCD quad number or range of numbers, starting from 1. Takes values from [1,4]
         minobs : int
             Minimum points in the light curve for the object to be selected
         limit : int
@@ -56,6 +69,10 @@ def get_ids_loop(
             If True, save one file containing all field ids. Otherwise, save files for each ccd/quad pair
         save: bool
             If True, save results (either by ccd/quad or whole field)
+        get_coords: bool
+            If True, return dictionary linking ids and object geojson coordinates
+        stop_early: bool
+            If True, stop loop when number of sources reaches limit
 
         Returns
         -------
@@ -63,6 +80,8 @@ def get_ids_loop(
         for all the quads in the specified range.
 
         USAGE: get_ids_loop(get_field_ids, 'ZTF_sources_20210401',field=301,ccd_range=[1,2],quad_range=[2,4],\
+            minobs=5,limit=2000, whole_field=False)
+                get_ids_loop(get_field_ids, 'ZTF_sources_20210401',field=301,ccd_range=1,quad_range=2,\
             minobs=5,limit=2000, whole_field=False)
         '''
     if output_dir is None:
@@ -81,7 +100,13 @@ def get_ids_loop(
         count = 0
 
     ser = pd.Series(np.array([]))
+    lst = []
     save_individual = (save) & (not whole_field)
+
+    if type(ccd_range) == int:
+        ccd_range = [ccd_range, ccd_range]
+    if type(quad_range) == int:
+        quad_range = [quad_range, quad_range]
 
     for ccd in range(ccd_range[0], ccd_range[1] + 1):
         dct["ccd"][ccd] = {}
@@ -89,9 +114,17 @@ def get_ids_loop(
         for quad in range(quad_range[0], quad_range[1] + 1):
 
             i = 0
+            if get_coords:
+                quaddata = {}
+                quaddata_keys = []
+                quaddata_values = []
+            else:
+                quaddata = []
+
             while True:
                 data = func(
                     catalog,
+                    kowalski_instance=kowalski_instance,
                     field=field,
                     ccd=ccd,
                     quad=quad,
@@ -100,15 +133,24 @@ def get_ids_loop(
                     limit=limit,
                     save=save_individual,
                     output_dir=output_dir,
+                    get_coords=get_coords,
                 )
+                if get_coords:
+                    quaddata_keys += [x for x in data.keys()]
+                    quaddata_values += [x for x in data.values()]
+                    quaddata.update(dict(zip(quaddata_keys, quaddata_values)))
+                else:
+                    quaddata += [x for x in data]
+
                 # concat data to series containing all data
                 if verbose > 1:
                     ser = pd.concat([ser, pd.Series(data)], axis=0)
-                if len(data) < limit:
+                if (len(data) < limit) | ((len(data) == limit) & stop_early):
                     if verbose > 0:
                         length = len(data) + (i * limit)
                         count += length
                         dct["ccd"][ccd]["quad"][quad] = length
+                        lst += [quaddata]
                     break
                 i += 1
     if (verbose > 1) & (whole_field) & (save):
@@ -130,7 +172,7 @@ def get_ids_loop(
             print("error dumping to json, message: ", e)
 
     print(f'Found {len(ser)} total IDs.')
-    return ser
+    return ser, lst
 
 
 def get_cone_ids(
@@ -138,6 +180,7 @@ def get_cone_ids(
     ra_list: list,
     dec_list: list,
     catalog: str = 'ZTF_source_features_DR5',
+    kowalski_instance=kowalski_instance,
     max_distance: float = 2.0,
     distance_units: str = "arcsec",
     limit_per_query: int = 1000,
@@ -148,6 +191,7 @@ def get_cone_ids(
     :param ra_list: RA in deg (list of float)
     :param dec_list: Dec in deg (list of float)
     :param catalog: catalog to query
+    :kowalski_instance: Authenticated instance of kowalski, gloria or melman. Defaults to config-specified info.
     :param max_distance: float
     :param distance_units: arcsec | arcmin | deg | rad
     :param limit_per_query: max number of sources in a query (int)
@@ -192,7 +236,7 @@ def get_cone_ids(
                 },
             },
         }
-        response = gloria.query(query=query)
+        response = kowalski_instance.query(query=query)
 
         temp_data = response.get("data").get(catalog)
 
@@ -223,6 +267,7 @@ def get_cone_ids(
 
 def get_field_ids(
     catalog,
+    kowalski_instance=kowalski_instance,
     field=301,
     ccd=4,
     quad=3,
@@ -231,12 +276,15 @@ def get_field_ids(
     limit=10000,
     save=False,
     output_dir=None,
+    get_coords=False,
 ):
     '''Get ids for a specific quad of a CCD for a particular ZTF field.
     Parameters
     ----------
     catalog : str
         Catalog containing ids, CCD, quad, and light curves
+    kowalski_instance:
+        Authenticated instance of kowalski, gloria or melman. Defaults to config-specified info.
     field : int
         ZTF field number
     ccd : int
@@ -270,21 +318,25 @@ def get_field_ids(
     if minobs > 0:
         filter["n"] = {"$gt": minobs}
 
+    projection = {"_id": 1}
+    if get_coords:
+        projection['coordinates.radec_geojson.coordinates'] = 1
+
     q = {
         'query_type': 'find',
         'query': {
             'catalog': catalog,
             'filter': filter,
-            "projection": {
-                "_id": 1,
-            },
+            "projection": projection,
         },
         "kwargs": {"limit": limit, "skip": skip},
     }
 
-    r = gloria.query(q)
+    r = kowalski_instance.query(q)
     data = r.get('data')
     ids = [data[i]['_id'] for i in range(len(data))]
+    if get_coords:
+        coords = [data[i]['coordinates'] for i in range(len(data))]
 
     if save:
         print(f"Found {len(ids)} results to save.")
@@ -314,7 +366,10 @@ def get_field_ids(
         )
         hf.close()
 
-    return ids
+    if get_coords:
+        return dict(zip(ids, coords))
+    else:
+        return ids
 
 
 if __name__ == "__main__":
@@ -429,6 +484,7 @@ if __name__ == "__main__":
         get_ids_loop(
             get_field_ids,
             catalog=args.catalog,
+            kowalski_instance=kowalski_instance,
             field=args.field,
             ccd_range=args.ccd_range,
             quad_range=args.quad_range,
@@ -446,6 +502,7 @@ if __name__ == "__main__":
         )
         data = get_field_ids(
             catalog=args.catalog,
+            kowalski_instance=kowalski_instance,
             field=args.field,
             ccd=args.ccd,
             quad=args.quad,

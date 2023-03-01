@@ -635,6 +635,57 @@ def overlapping_histogram(a, bins):
     return n, (bins[:, 0] + bins[:, 1]) / 2.0
 
 
+def removeHighCadence(t, m, e, cadence_minutes=30.0):
+    idx = []
+    for ii in range(len(t)):
+        if ii == 0:
+            idx.append(ii)
+        else:
+            dt = t[ii] - t[idx[-1]]
+            if dt >= cadence_minutes * 60.0 / 86400.0:
+                idx.append(ii)
+    if len(idx) > 0:
+        t, m, e = t[idx], m[idx], e[idx]
+    return t, m, e
+
+
+def TychoBVfromGaia(G, BP_RP):
+    # Conversion formulas from Gaia EDR3 documentation:
+    # https://gea.esac.esa.int/archive/documentation/GEDR3/Data_processing/chap_cu5pho/cu5pho_sec_photSystem/cu5pho_ssec_photRelations.html
+    if G < 13:
+        Tycho_B = G - (
+            -0.004288
+            - 0.8547 * (BP_RP)
+            + 0.1244 * (BP_RP) ** 2
+            - 0.9085 * (BP_RP) ** 3
+            + 0.4843 * (BP_RP) ** 4
+            - 0.06814 * (BP_RP) ** 5
+        )
+        Tycho_V = G - (
+            -0.01077 - 0.0682 * (BP_RP) - 0.2387 * (BP_RP) ** 2 + 0.02342 * (BP_RP) ** 3
+        )
+    else:
+        Tycho_B, Tycho_V = np.nan, np.nan
+    return Tycho_B, Tycho_V
+
+
+def exclude_radius(Tycho_B, Tycho_V):
+    # from Andrew Drake (2022)
+    if Tycho_B < 13:
+        radius = (
+            3.54817e02
+            - 5.327823e01 * Tycho_B
+            + 6.601137e01 * (Tycho_B - Tycho_V)
+            + 2.1031286 * Tycho_B**2
+            + 7.6737066 * (Tycho_B - Tycho_V) ** 2
+            - 6.164676 * Tycho_B * (Tycho_B - Tycho_V)
+        )
+    else:
+        # For nearby stars fainter than 13th Tycho-B mag, do not need to exclude
+        radius = 0.0
+    return radius
+
+
 """ Datasets """
 
 

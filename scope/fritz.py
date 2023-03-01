@@ -134,11 +134,16 @@ def radec_to_iau_name(ra: float, dec: float, prefix: str = "ZTFJ"):
 
 
 def get_lightcurves_via_coords(
-    gloria, ra, dec, radius=2.0, catalog=None, program_id_selector=list([1, 2, 3])
+    kowalski_instance,
+    ra,
+    dec,
+    radius=2.0,
+    catalog=None,
+    program_id_selector=list([1, 2, 3]),
 ):
 
     query = {"query_type": "info", "query": {"command": "catalog_names"}}
-    available_catalog_names = gloria.query(query=query).get("data")
+    available_catalog_names = kowalski_instance.query(query=query).get("data")
     # expose only the ZTF light curves for now
     available_catalogs = [
         catalog for catalog in available_catalog_names if "ZTF_sources" in catalog
@@ -170,7 +175,7 @@ def get_lightcurves_via_coords(
         },
     }
 
-    response = gloria.query(query=query)
+    response = kowalski_instance.query(query=query)
     if response.get("status", "error") == "success":
         light_curve_ids = [
             item["_id"] for item in response.get("data")[catalog]["query_coords"]
@@ -181,12 +186,16 @@ def get_lightcurves_via_coords(
             print("Found %d lightcurves" % len(light_curve_ids))
 
     return get_lightcurves_via_ids(
-        gloria, light_curve_ids, catalog, program_id_selector
+        kowalski_instance, light_curve_ids, catalog, program_id_selector
     )
 
 
 def get_lightcurves_via_ids(
-    gloria, ids, catalog, program_id_selector=list([1, 2, 3]), limit_per_query=1000
+    kowalski_instance,
+    ids,
+    catalog,
+    program_id_selector=list([1, 2, 3]),
+    limit_per_query=1000,
 ):
 
     itr = 0
@@ -236,7 +245,7 @@ def get_lightcurves_via_ids(
                 ],
             },
         }
-        response = gloria.query(query=query)
+        response = kowalski_instance.query(query=query)
         if response.get("status", "error") == "success":
             light_curves = response.get("data")
             lcs += light_curves
@@ -286,7 +295,7 @@ def make_photometry(light_curves: list, drop_flagged: bool = False):
 
 
 def save_newsource(
-    gloria,
+    kowalski_instance,
     group_ids,
     ra,
     dec,
@@ -299,7 +308,7 @@ def save_newsource(
 ):
 
     # get the lightcurves
-    light_curves = get_lightcurves_via_coords(gloria, ra, dec, radius)
+    light_curves = get_lightcurves_via_coords(kowalski_instance, ra, dec, radius)
 
     # generate position-based name if obj_id not set
     newsource = False
