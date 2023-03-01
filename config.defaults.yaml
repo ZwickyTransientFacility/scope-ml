@@ -1337,6 +1337,7 @@ feature_generation:
         w2mpro : 1
         w2sigmpro : 1
         w3mpro : 1
+        w3sigmpro : 1
         w4mpro : 1
         w4sigmpro : 1
         ph_qual : 1
