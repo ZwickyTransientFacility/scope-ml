@@ -1341,8 +1341,6 @@ feature_generation:
         w4mpro : 1
         w4sigmpro : 1
         ph_qual : 1
-        # Coordinates are used during xmatch but are not included among external features
-        coordinates.radec_geojson : 1
     Gaia_EDR3:
       filter: {}
       projection:
@@ -1358,7 +1356,6 @@ feature_generation:
         pmdec_error : 1
         astrometric_excess_noise : 1
         phot_bp_rp_excess_factor : 1
-        coordinates.radec_geojson : 1
     PS1_DR1:
       filter: {}
       projection:
@@ -1374,7 +1371,6 @@ feature_generation:
         yMeanPSFMag : 1
         yMeanPSFMagErr : 1
         qualityFlag : 1
-        coordinates.radec_geojson : 1
 
 training:
   # Below, enter path to training set
