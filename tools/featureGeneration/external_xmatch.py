@@ -1,5 +1,6 @@
 import numpy as np
 from penquins import Kowalski
+from astropy.coordinates import SkyCoord
 
 
 def xmatch(
@@ -67,8 +68,35 @@ def xmatch(
         cat_projection_names = [x for x in catalog_info[catalog]['projection'].keys()]
         for id in id_dct_external.keys():
             ext_values = cat_results[str(id)]
+
             if len(ext_values) > 0:
-                ext_values = ext_values[0]
+                if len(ext_values) == 1:
+                    ext_values = ext_values[0]
+                    # Pop coordinates once they aren't needed
+                    ext_values.pop('coordinates')
+                else:
+                    # If more than one source is matched, choose the closest
+                    ra_input, dec_input = id_dct_external[id]['radec_geojson'][
+                        'coordinates'
+                    ]
+                    input_SC = SkyCoord(
+                        ra_input + 180.0, dec_input, unit=['deg', 'deg']
+                    )
+                    ras = []
+                    decs = []
+                    for entry in ext_values:
+                        coord = entry['coordinates']
+                        ra_match, dec_match = coord['radec_geojson']['coordinates']
+                        ras += [ra_match]
+                        decs += [dec_match]
+
+                    match_SC = SkyCoord(
+                        ra_match + 180.0, dec_match, unit=['deg', 'deg']
+                    )
+                    seps_argmin = np.argmin(input_SC.separation(match_SC))
+                    ext_values = ext_values[seps_argmin]
+                    ext_values.pop('coordinates')
+
                 for val_name in cat_projection_names:
                     try:
                         id_dct_external[id][f'{catalog}__{val_name}'] = ext_values[
