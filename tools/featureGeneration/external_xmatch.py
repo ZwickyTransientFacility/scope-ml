@@ -43,6 +43,19 @@ def xmatch(
         # Need to add 180 -> no negative RAs
         radec_geojson[0, :] += 180.0
 
+        # Store desired external features for later
+        cat_projection_names = {}
+        for catalog in catalog_info.keys():
+            cat_projection_names[catalog] = [
+                x for x in catalog_info[catalog]['projection'].keys()
+            ]
+
+        # Add coordinates.radec_geojson to each catalog projection
+        [
+            catalog_info[x]['projection'].update({'coordinates.radec_geojson': 1})
+            for x in catalog_info.keys()
+        ]
+
         # Get external catalog data
         query = {
             "query_type": "cone_search",
@@ -65,15 +78,13 @@ def xmatch(
     print('Iterating through results and assigning xmatch features to sources...')
     for catalog in catalog_info.keys():
         cat_results = ext_results_dct[catalog]
-        cat_projection_names = [x for x in catalog_info[catalog]['projection'].keys()]
+
         for id in id_dct_external.keys():
             ext_values = cat_results[str(id)]
 
             if len(ext_values) > 0:
                 if len(ext_values) == 1:
                     ext_values = ext_values[0]
-                    # Pop coordinates once they aren't needed
-                    ext_values.pop('coordinates')
                 else:
                     # If more than one source is matched, choose the closest
                     ra_input, dec_input = id_dct_external[id]['radec_geojson'][
@@ -84,9 +95,11 @@ def xmatch(
                     )
                     ras = []
                     decs = []
+
                     for entry in ext_values:
-                        coord = entry['coordinates']
-                        ra_match, dec_match = coord['radec_geojson']['coordinates']
+                        ra_match, dec_match = entry['coordinates']['radec_geojson'][
+                            'coordinates'
+                        ]
                         ras += [ra_match]
                         decs += [dec_match]
 
@@ -95,9 +108,8 @@ def xmatch(
                     )
                     seps_argmin = np.argmin(input_SC.separation(match_SC))
                     ext_values = ext_values[seps_argmin]
-                    ext_values.pop('coordinates')
 
-                for val_name in cat_projection_names:
+                for val_name in cat_projection_names[catalog]:
                     try:
                         id_dct_external[id][f'{catalog}__{val_name}'] = ext_values[
                             val_name
@@ -105,7 +117,7 @@ def xmatch(
                     except KeyError:
                         id_dct_external[id][f'{catalog}__{val_name}'] = np.nan
             else:
-                for val_name in cat_projection_names:
+                for val_name in cat_projection_names[catalog]:
                     id_dct_external[id][f'{catalog}__{val_name}'] = np.nan
 
     return id_dct_external
