@@ -20,11 +20,12 @@ import astropy.units as u
 from datetime import datetime
 from tools.featureGeneration import lcstats, periodsearch, alertstats, external_xmatch
 import warnings
+from cesium.featurize import time_series, featurize_single_ts
+
 
 # import time
 # import periodfind
 # from numba import jit
-# from cesium.featurize import time_series, featurize_single_ts, featurize_time_series, featurize_ts_files
 # import cesium.features as fts
 
 
@@ -64,6 +65,7 @@ source_catalog = config['kowalski']['collections']['sources']
 alerts_catalog = config['kowalski']['collections']['alerts']
 gaia_catalog = config['kowalski']['collections']['gaia']
 ext_catalog_info = config['feature_generation']['external_catalog_features']
+cesium_feature_list = config['feature_generation']['cesium_features']
 
 kowalski_instances = {'kowalski': kowalski, 'gloria': gloria, 'melman': melman}
 
@@ -220,7 +222,7 @@ def drop_close_bright_stars(
 # def generate_features(source_catalog=source_catalog, alerts_catalog=alerts_catalog, gaia_catalog=gaia_catalog, bright_star_query_radius_arcsec=300.,
 # xmatch_radius_arcsec=2., kowalski_instances = kowalski_instances, limit=10000, period_algorithm='LS', period_batch_size=1, doCPU=False, doGPU=False, samples_per_peak=10, doLongPeriod=False, doRemoveTerrestrial=False,
 # doParallel=False, Ncore=8, doAllFields=False, field=296, doAllCCDs=False, ccd=1, doAllQuads=False, quad=1, min_n_lc_points=50, min_cadence_minutes=30., dirname='generated_features',
-# filename='features', doNotSave=False, stop_early=False):
+# filename='features', doCesium=False, doNotSave=False, stop_early=False):
 def generate_features(
     source_catalog: str = source_catalog,
     alerts_catalog: str = alerts_catalog,
@@ -245,6 +247,7 @@ def generate_features(
     min_cadence_minutes: float = 30.0,
     dirname: str = 'generated_features',
     filename: str = 'features',
+    doCesium: bool = False,
     doNotSave: bool = False,
     stop_early: bool = False,
 ):
@@ -319,6 +322,9 @@ def generate_features(
                 feature_dict.pop(_id)
             else:
                 keep_id_list += [_id]
+                if doCesium:
+                    cesium_TS = time_series.TimeSeries(tt, mm, ee)
+
                 # Determine largest time baseline over loop
                 new_baseline = max(tt) - min(tt)
                 if new_baseline > baseline:
@@ -389,6 +395,18 @@ def generate_features(
                 feature_dict[_id]['ad'] = AD
                 feature_dict[_id]['sw'] = SW
 
+                if doCesium:
+                    cesium_features = featurize_single_ts(
+                        cesium_TS, cesium_feature_list
+                    )
+                    cesium_features_dict = (
+                        cesium_features.reset_index()
+                        .drop('channel', axis=1)
+                        .set_index('feature')
+                        .to_dict()[0]
+                    )
+                    feature_dict[_id].update(cesium_features_dict)
+
         except ValueError:
             feature_dict.pop(_id)
 
@@ -452,7 +470,7 @@ def generate_features(
         if (idx + 1) % limit == 0:
             print(f"{count} done")
         if count == len(keep_id_list):
-            print(f"{count} meeting min_n_lc_points requirement done")
+            print(f"{count} sources meeting min_n_lc_points requirement done")
 
         period = periods[idx]
         significance = significances[idx]
@@ -606,13 +624,13 @@ if __name__ == "__main__":
         "-doCPU",
         action='store_true',
         default=False,
-        help="if True, run period-finding algorithm on CPU",
+        help="if set, run period-finding algorithm on CPU",
     )
     parser.add_argument(
         "-doGPU",
         action='store_true',
         default=False,
-        help="if True, use GPU-accelerated period algorithm",
+        help="if set, use GPU-accelerated period algorithm",
     )
     parser.add_argument(
         "-samples_per_peak",
@@ -623,19 +641,19 @@ if __name__ == "__main__":
         "-doLongPeriod",
         action='store_true',
         default=False,
-        help="if True, optimize frequency grid for long periods",
+        help="if set, optimize frequency grid for long periods",
     )
     parser.add_argument(
         "-doRemoveTerrestrial",
         action='store_true',
         default=False,
-        help="if True, remove terrestrial frequencies from period analysis",
+        help="if set, remove terrestrial frequencies from period analysis",
     )
     parser.add_argument(
         "-doParallel",
         action="store_true",
         default=False,
-        help="If True, parallelize period finding",
+        help="If set, parallelize period finding",
     )
     parser.add_argument(
         "-Ncore",
@@ -644,15 +662,15 @@ if __name__ == "__main__":
         help="number of cores for parallel period finding",
     )
     # Loop over field/ccd/quad functionality coming soon
-    # parser.add_argument("-doAllFields", action='store_true', default=False, help="if True, run on all fields")
+    # parser.add_argument("-doAllFields", action='store_true', default=False, help="if set, run on all fields")
     parser.add_argument(
         "-field", type=int, default=296, help="if not -doAllFields, ZTF field to run on"
     )
-    # parser.add_argument("-doAllCCDs", action='store_true', default=False, help="if True, run on all ccds for given field")
+    # parser.add_argument("-doAllCCDs", action='store_true', default=False, help="if set, run on all ccds for given field")
     parser.add_argument(
         "-ccd", type=int, default=1, help="if not -doAllCCDs, ZTF ccd to run on"
     )
-    # parser.add_argument("-doAllQuads", action='store_true', default=False, help="if True, run on all quads for specified field/ccds")
+    # parser.add_argument("-doAllQuads", action='store_true', default=False, help="if set, run on all quads for specified field/ccds")
     parser.add_argument(
         "-quad", type=int, default=1, help="if not -doAllQuads, ZTF field to run on"
     )
@@ -672,25 +690,31 @@ if __name__ == "__main__":
         "-dirname",
         type=str,
         default='generated_features',
-        help="if True, run on all quads for specified field/ccds",
+        help="if set, run on all quads for specified field/ccds",
     )
     parser.add_argument(
         "-filename",
         type=str,
         default='gen_features',
-        help="if True, run on all quads for specified field/ccds",
+        help="if set, run on all quads for specified field/ccds",
+    )
+    parser.add_argument(
+        "-doCesium",
+        action='store_true',
+        default=False,
+        help="if set, use Cesium to generate additional features specified in config",
     )
     parser.add_argument(
         "-doNotSave",
         action='store_true',
         default=False,
-        help="if True, do not save features",
+        help="if set, do not save features",
     )
     parser.add_argument(
         "-stop_early",
         action='store_true',
         default=False,
-        help="if True, stop when number of sources reaches query_size_limit. Helpful for testing on small samples.",
+        help="if set, stop when number of sources reaches query_size_limit. Helpful for testing on small samples.",
     )
 
     args = parser.parse_args()
@@ -722,6 +746,7 @@ if __name__ == "__main__":
         min_cadence_minutes=args.min_cadence_minutes,
         dirname=args.dirname,
         filename=args.filename,
+        doCesium=args.doCesium,
         doNotSave=args.doNotSave,
         stop_early=args.stop_early,
     )
