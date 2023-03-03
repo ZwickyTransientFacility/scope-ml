@@ -1427,6 +1427,7 @@ class Scope:
             dirname=test_feature_directory,
             filename=test_feature_filename,
             limit=n_sources,
+            doCesium=True,
             stop_early=True,
         )
 
