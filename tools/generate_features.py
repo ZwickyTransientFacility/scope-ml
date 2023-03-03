@@ -218,10 +218,6 @@ def drop_close_bright_stars(
     return id_dct_keep
 
 
-# def generate_features(source_catalog=source_catalog, alerts_catalog=alerts_catalog, gaia_catalog=gaia_catalog, bright_star_query_radius_arcsec=300.,
-# xmatch_radius_arcsec=2., kowalski_instances = kowalski_instances, limit=10000, period_algorithm='LS', period_batch_size=1, doCPU=False, doGPU=False, samples_per_peak=10, doLongPeriod=False, doRemoveTerrestrial=False,
-# doParallel=False, Ncore=8, doAllFields=False, field=296, doAllCCDs=False, ccd=1, doAllQuads=False, quad=1, min_n_lc_points=50, min_cadence_minutes=30., dirname='generated_features',
-# filename='features', doCesium=False, doNotSave=False, stop_early=False):
 def generate_features(
     source_catalog: str = source_catalog,
     alerts_catalog: str = alerts_catalog,
