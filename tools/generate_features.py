@@ -26,7 +26,6 @@ from cesium.featurize import time_series, featurize_single_ts
 # import time
 # import periodfind
 # from numba import jit
-# import cesium.features as fts
 
 
 BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
