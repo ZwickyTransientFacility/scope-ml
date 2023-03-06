@@ -23,11 +23,6 @@ import warnings
 from cesium.featurize import time_series, featurize_single_ts
 
 
-# import time
-# import periodfind
-# from numba import jit
-
-
 BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
 
 # setup connection to Kowalski instances
@@ -241,10 +236,13 @@ def generate_features(
     min_n_lc_points: int = 50,
     min_cadence_minutes: float = 30.0,
     dirname: str = 'generated_features',
-    filename: str = 'features',
+    filename: str = 'gen_features',
     doCesium: bool = False,
     doNotSave: bool = False,
     stop_early: bool = False,
+    doQuadrantFile: bool = False,
+    quadrant_file: str = 'slurm.dat',
+    quadrant_index: int = 0,
 ):
 
     # Get code version and current date/time for metadata
@@ -252,7 +250,20 @@ def generate_features(
     utcnow = datetime.utcnow()
     start_dt = utcnow.strftime("%Y-%m-%d %H:%M:%S")
 
-    # Add code for parallelization across fields/ccds/quads
+    # Code supporting parallelization across fields/ccds/quads
+    slurmDir = os.path.join(str(BASE_DIR / dirname), 'slurm')
+    if doQuadrantFile:
+        names = ["job_number", "field", "ccd", "quadrant"]
+        df_original = pd.read_csv(
+            os.path.join(slurmDir, quadrant_file),
+            header=None,
+            delimiter=' ',
+            names=names,
+        )
+        row = df_original.iloc[quadrant_index, :]
+        field, ccd, quad = int(row["field"]), int(row["ccd"]), int(row["quadrant"])
+
+    print(f'Running field {field}, CCD {ccd}, Quadrant {quad}...')
 
     print('Getting IDs...')
     _, lst = get_ids_loop(
@@ -405,149 +416,156 @@ def generate_features(
         except ValueError:
             feature_dict.pop(_id)
 
-    # Define frequency grid using largest LC time baseline
-    if doLongPeriod:
-        fmin, fmax = 2 / baseline, 48
-    else:
-        fmin, fmax = 2 / baseline, 480
+    if baseline > 0:
+        # Define frequency grid using largest LC time baseline
+        if doLongPeriod:
+            fmin, fmax = 2 / baseline, 48
+        else:
+            fmin, fmax = 2 / baseline, 480
 
-    df = 1.0 / (samples_per_peak * baseline)
-    nf = int(np.ceil((fmax - fmin) / df))
-    freqs = fmin + df * np.arange(nf)
+        df = 1.0 / (samples_per_peak * baseline)
+        nf = int(np.ceil((fmax - fmin) / df))
+        freqs = fmin + df * np.arange(nf)
 
-    # Define terrestrial frequencies to remove
-    if doRemoveTerrestrial:
-        freqs_to_remove = [
-            [3e-2, 4e-2],
-            [3.95, 4.05],
-            [2.95, 3.05],
-            [1.95, 2.05],
-            [0.95, 1.05],
-            [0.48, 0.52],
-            [0.32, 0.34],
-        ]
-    else:
-        freqs_to_remove = None
+        # Define terrestrial frequencies to remove
+        if doRemoveTerrestrial:
+            freqs_to_remove = [
+                [3e-2, 4e-2],
+                [3.95, 4.05],
+                [2.95, 3.05],
+                [1.95, 2.05],
+                [0.95, 1.05],
+                [0.48, 0.52],
+                [0.32, 0.34],
+            ]
+        else:
+            freqs_to_remove = None
 
-    # Continue with periodsearch/periodfind
-    if doCPU or doGPU:
-        if doCPU and doGPU:
-            raise KeyError('Please set only one of -doCPU or -doGPU.')
-        periods, significances, pdots = periodsearch.find_periods(
-            period_algorithm,
-            tme_collection,
-            freqs,
-            batch_size=period_batch_size,
-            doGPU=doGPU,
-            doCPU=doCPU,
-            doSaveMemory=False,
-            doRemoveTerrestrial=doRemoveTerrestrial,
-            doUsePDot=False,
-            doSingleTimeSegment=False,
-            freqs_to_remove=freqs_to_remove,
-            phase_bins=20,
-            mag_bins=10,
-            doParallel=doParallel,
-            Ncore=Ncore,
+        # Continue with periodsearch/periodfind
+        if doCPU or doGPU:
+            if doCPU and doGPU:
+                raise KeyError('Please set only one of -doCPU or -doGPU.')
+            periods, significances, pdots = periodsearch.find_periods(
+                period_algorithm,
+                tme_collection,
+                freqs,
+                batch_size=period_batch_size,
+                doGPU=doGPU,
+                doCPU=doCPU,
+                doSaveMemory=False,
+                doRemoveTerrestrial=doRemoveTerrestrial,
+                doUsePDot=False,
+                doSingleTimeSegment=False,
+                freqs_to_remove=freqs_to_remove,
+                phase_bins=20,
+                mag_bins=10,
+                doParallel=doParallel,
+                Ncore=Ncore,
+            )
+
+        else:
+            warnings.warn("Skipping period finding; setting all periods to 1.0 d.")
+            # Default periods 1.0 d
+            periods = np.ones(len(tme_collection))
+            significances = np.ones(len(tme_collection))
+            pdots = np.ones(len(tme_collection))
+
+        print('Calculating Fourier stats...')
+        count = 0
+        for idx, _id in enumerate(keep_id_list):
+            count += 1
+            if (idx + 1) % limit == 0:
+                print(f"{count} done")
+            if count == len(keep_id_list):
+                print(f"{count} sources meeting min_n_lc_points requirement done")
+
+            period = periods[idx]
+            significance = significances[idx]
+            pdot = pdots[idx]
+            tt, mm, ee = tme_collection[idx]
+
+            # Calculate Fourier stats
+            (
+                f1_power,
+                f1_BIC,
+                f1_a,
+                f1_b,
+                f1_amp,
+                f1_phi0,
+                f1_relamp1,
+                f1_relphi1,
+                f1_relamp2,
+                f1_relphi2,
+                f1_relamp3,
+                f1_relphi3,
+                f1_relamp4,
+                f1_relphi4,
+            ) = lcstats.calc_fourier_stats(tt, mm, ee, period)
+
+            feature_dict[_id]['f1_power'] = f1_power
+            feature_dict[_id]['f1_BIC'] = f1_BIC
+            feature_dict[_id]['f1_a'] = f1_a
+            feature_dict[_id]['f1_b'] = f1_b
+            feature_dict[_id]['f1_amp'] = f1_amp
+            feature_dict[_id]['f1_phi0'] = f1_phi0
+            feature_dict[_id]['f1_relamp1'] = f1_relamp1
+            feature_dict[_id]['f1_relphi1'] = f1_relphi1
+            feature_dict[_id]['f1_relamp2'] = f1_relamp2
+            feature_dict[_id]['f1_relphi2'] = f1_relphi2
+            feature_dict[_id]['f1_relamp3'] = f1_relamp3
+            feature_dict[_id]['f1_relphi3'] = f1_relphi3
+            feature_dict[_id]['f1_relamp4'] = f1_relamp4
+            feature_dict[_id]['f1_relphi4'] = f1_relphi4
+
+            feature_dict[_id]['period'] = period
+            feature_dict[_id]['significance'] = significance
+            feature_dict[_id]['pdot'] = pdot
+
+        # Get ZTF alert stats
+        alert_stats_dct = alertstats.get_ztf_alert_stats(
+            feature_dict,
+            kowalski_instance=kowalski_instances['kowalski'],
+            radius_arcsec=xmatch_radius_arcsec,
+            limit=limit,
         )
+        for _id in feature_dict.keys():
+            feature_dict[_id]['n_ztf_alerts'] = alert_stats_dct[_id]['n_ztf_alerts']
+            feature_dict[_id]['mean_ztf_alert_braai'] = alert_stats_dct[_id][
+                'mean_ztf_alert_braai'
+            ]
+
+        # Add crossmatches to Gaia, AllWISE and PS1 (by default, see config.yaml)
+        feature_dict = external_xmatch.xmatch(
+            feature_dict,
+            kowalski_instances['gloria'],
+            catalog_info=ext_catalog_info,
+            radius_arcsec=xmatch_radius_arcsec,
+            limit=limit,
+        )
+        feature_df = pd.DataFrame.from_dict(feature_dict, orient='index')
+
+        # Convert various _id datatypes to Int64
+        colnames = [x for x in feature_df.columns]
+        for col in colnames:
+            if '_id' in col:
+                feature_df[col] = feature_df[col].astype("Int64")
+
+        utcnow = datetime.utcnow()
+        end_dt = utcnow.strftime("%Y-%m-%d %H:%M:%S")
+
+        # Add metadata
+        feature_df.attrs['scope_code_version'] = code_version
+        feature_df.attrs['feature_generation_start_dateTime_utc'] = start_dt
+        feature_df.attrs['feature_generation_end_dateTime_utc'] = end_dt
+        feature_df.attrs['ZTF_source_catalog'] = source_catalog
+        feature_df.attrs['ZTF_alerts_catalog'] = alerts_catalog
+        feature_df.attrs['Gaia_catalog'] = gaia_catalog
 
     else:
-        warnings.warn("Skipping period finding; setting all periods to 1.0 d.")
-        # Default periods 1.0 d
-        periods = np.ones(len(tme_collection))
-        significances = np.ones(len(tme_collection))
-        pdots = np.ones(len(tme_collection))
-
-    print('Calculating Fourier stats...')
-    count = 0
-    for idx, _id in enumerate(keep_id_list):
-        count += 1
-        if (idx + 1) % limit == 0:
-            print(f"{count} done")
-        if count == len(keep_id_list):
-            print(f"{count} sources meeting min_n_lc_points requirement done")
-
-        period = periods[idx]
-        significance = significances[idx]
-        pdot = pdots[idx]
-        tt, mm, ee = tme_collection[idx]
-
-        # Calculate Fourier stats
-        (
-            f1_power,
-            f1_BIC,
-            f1_a,
-            f1_b,
-            f1_amp,
-            f1_phi0,
-            f1_relamp1,
-            f1_relphi1,
-            f1_relamp2,
-            f1_relphi2,
-            f1_relamp3,
-            f1_relphi3,
-            f1_relamp4,
-            f1_relphi4,
-        ) = lcstats.calc_fourier_stats(tt, mm, ee, period)
-
-        feature_dict[_id]['f1_power'] = f1_power
-        feature_dict[_id]['f1_BIC'] = f1_BIC
-        feature_dict[_id]['f1_a'] = f1_a
-        feature_dict[_id]['f1_b'] = f1_b
-        feature_dict[_id]['f1_amp'] = f1_amp
-        feature_dict[_id]['f1_phi0'] = f1_phi0
-        feature_dict[_id]['f1_relamp1'] = f1_relamp1
-        feature_dict[_id]['f1_relphi1'] = f1_relphi1
-        feature_dict[_id]['f1_relamp2'] = f1_relamp2
-        feature_dict[_id]['f1_relphi2'] = f1_relphi2
-        feature_dict[_id]['f1_relamp3'] = f1_relamp3
-        feature_dict[_id]['f1_relphi3'] = f1_relphi3
-        feature_dict[_id]['f1_relamp4'] = f1_relamp4
-        feature_dict[_id]['f1_relphi4'] = f1_relphi4
-
-        feature_dict[_id]['period'] = period
-        feature_dict[_id]['significance'] = significance
-        feature_dict[_id]['pdot'] = pdot
-
-    # Get ZTF alert stats
-    alert_stats_dct = alertstats.get_ztf_alert_stats(
-        feature_dict,
-        kowalski_instance=kowalski_instances['kowalski'],
-        radius_arcsec=xmatch_radius_arcsec,
-        limit=limit,
-    )
-    for _id in feature_dict.keys():
-        feature_dict[_id]['n_ztf_alerts'] = alert_stats_dct[_id]['n_ztf_alerts']
-        feature_dict[_id]['mean_ztf_alert_braai'] = alert_stats_dct[_id][
-            'mean_ztf_alert_braai'
-        ]
-
-    # Add crossmatches to Gaia, AllWISE and PS1 (by default, see config.yaml)
-    feature_dict = external_xmatch.xmatch(
-        feature_dict,
-        kowalski_instances['gloria'],
-        catalog_info=ext_catalog_info,
-        radius_arcsec=xmatch_radius_arcsec,
-        limit=limit,
-    )
-    feature_df = pd.DataFrame.from_dict(feature_dict, orient='index')
-
-    # Convert various _id datatypes to Int64
-    colnames = [x for x in feature_df.columns]
-    for col in colnames:
-        if '_id' in col:
-            feature_df[col] = feature_df[col].astype("Int64")
-
-    utcnow = datetime.utcnow()
-    end_dt = utcnow.strftime("%Y-%m-%d %H:%M:%S")
-
-    # Add metadata
-    feature_df.attrs['scope_code_version'] = code_version
-    feature_df.attrs['feature_generation_start_dateTime_utc'] = start_dt
-    feature_df.attrs['feature_generation_end_dateTime_utc'] = end_dt
-    feature_df.attrs['ZTF_source_catalog'] = source_catalog
-    feature_df.attrs['ZTF_alerts_catalog'] = alerts_catalog
-    feature_df.attrs['Gaia_catalog'] = gaia_catalog
+        # If baseline is still zero, then no light curves met the selection criteria
+        # Generate an empty DF instead so this field/ccd/quad is treated as done
+        print('No light curves meet selection criteria.')
+        feature_df = pd.DataFrame()
 
     # Write results
     if not doNotSave:
@@ -570,147 +588,149 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
-        "-source_catalog",
+        "--source_catalog",
         default=source_catalog,
         help="name of source collection on Kowalski",
     )
     parser.add_argument(
-        "-alerts_catalog",
+        "--alerts_catalog",
         default=alerts_catalog,
         help="name of alerts collection on Kowalski",
     )
     parser.add_argument(
-        "-gaia_catalog",
+        "--gaia_catalog",
         default=gaia_catalog,
         help="name of Gaia collection on Kowalski",
     )
     parser.add_argument(
-        "-bright_star_query_radius_arcsec",
+        "--bright_star_query_radius_arcsec",
         type=float,
         default=300.0,
         help="size of cone search radius to search for bright stars",
     )
     parser.add_argument(
-        "-xmatch_radius_arcsec",
+        "--xmatch_radius_arcsec",
         type=float,
         default=2.0,
         help="cone radius for all crossmatches",
     )
     parser.add_argument(
-        "-query_size_limit",
+        "--query_size_limit",
         type=int,
         default=10000,
         help="sources per query limit for large Kowalski queries",
     )
 
     parser.add_argument(
-        "-period_algorithm",
+        "--period_algorithm",
         default='LS',
         help="algorithm in periodsearch.py to use for period-finding",
     )
 
     parser.add_argument(
-        "-period_batch_size",
+        "--period_batch_size",
         type=int,
         default=1,
         help="batch size for GPU-accelerated period algorithms",
     )
     parser.add_argument(
-        "-doCPU",
+        "--doCPU",
         action='store_true',
         default=False,
         help="if set, run period-finding algorithm on CPU",
     )
     parser.add_argument(
-        "-doGPU",
+        "--doGPU",
         action='store_true',
         default=False,
         help="if set, use GPU-accelerated period algorithm",
     )
     parser.add_argument(
-        "-samples_per_peak",
+        "--samples_per_peak",
         default=10,
         type=int,
     )
     parser.add_argument(
-        "-doLongPeriod",
+        "--doLongPeriod",
         action='store_true',
         default=False,
         help="if set, optimize frequency grid for long periods",
     )
     parser.add_argument(
-        "-doRemoveTerrestrial",
+        "--doRemoveTerrestrial",
         action='store_true',
         default=False,
         help="if set, remove terrestrial frequencies from period analysis",
     )
     parser.add_argument(
-        "-doParallel",
+        "--doParallel",
         action="store_true",
         default=False,
         help="If set, parallelize period finding",
     )
     parser.add_argument(
-        "-Ncore",
+        "--Ncore",
         default=8,
         type=int,
         help="number of cores for parallel period finding",
     )
-    # Loop over field/ccd/quad functionality coming soon
-    # parser.add_argument("-doAllFields", action='store_true', default=False, help="if set, run on all fields")
     parser.add_argument(
-        "-field", type=int, default=296, help="if not -doAllFields, ZTF field to run on"
-    )
-    # parser.add_argument("-doAllCCDs", action='store_true', default=False, help="if set, run on all ccds for given field")
-    parser.add_argument(
-        "-ccd", type=int, default=1, help="if not -doAllCCDs, ZTF ccd to run on"
-    )
-    # parser.add_argument("-doAllQuads", action='store_true', default=False, help="if set, run on all quads for specified field/ccds")
-    parser.add_argument(
-        "-quad", type=int, default=1, help="if not -doAllQuads, ZTF field to run on"
+        "--field",
+        type=int,
+        default=296,
+        help="if not -doAllFields, ZTF field to run on",
     )
     parser.add_argument(
-        "-min_n_lc_points",
+        "--ccd", type=int, default=1, help="if not -doAllCCDs, ZTF ccd to run on"
+    )
+    parser.add_argument(
+        "--quad", type=int, default=1, help="if not -doAllQuads, ZTF field to run on"
+    )
+    parser.add_argument(
+        "--min_n_lc_points",
         type=int,
         default=50,
         help="minimum number of unflagged light curve points to run feature generation",
     )
     parser.add_argument(
-        "-min_cadence_minutes",
+        "--min_cadence_minutes",
         type=float,
         default=30.0,
         help="minimum cadence (in minutes) between light curve points. For groups of points closer together than this value, only the first will be kept.",
     )
     parser.add_argument(
-        "-dirname",
+        "--dirname",
         type=str,
         default='generated_features',
-        help="if set, run on all quads for specified field/ccds",
+        help="Directory name for generated features",
     )
     parser.add_argument(
-        "-filename",
+        "--filename",
         type=str,
         default='gen_features',
-        help="if set, run on all quads for specified field/ccds",
+        help="Prefix for generated feature file",
     )
     parser.add_argument(
-        "-doCesium",
+        "--doCesium",
         action='store_true',
         default=False,
         help="if set, use Cesium to generate additional features specified in config",
     )
     parser.add_argument(
-        "-doNotSave",
+        "--doNotSave",
         action='store_true',
         default=False,
         help="if set, do not save features",
     )
     parser.add_argument(
-        "-stop_early",
+        "--stop_early",
         action='store_true',
         default=False,
         help="if set, stop when number of sources reaches query_size_limit. Helpful for testing on small samples.",
     )
+    parser.add_argument("--doQuadrantFile", action="store_true", default=False)
+    parser.add_argument("--quadrant_file", default="slurm.dat")
+    parser.add_argument("--quadrant_index", default=0, type=int)
 
     args = parser.parse_args()
 
@@ -731,11 +751,8 @@ if __name__ == "__main__":
         doRemoveTerrestrial=args.doRemoveTerrestrial,
         doParallel=args.doParallel,
         Ncore=args.Ncore,
-        # args.doAllFields,
         field=args.field,
-        # args.doAllCCDs,
         ccd=args.ccd,
-        # args.doAllQuads,
         quad=args.quad,
         min_n_lc_points=args.min_n_lc_points,
         min_cadence_minutes=args.min_cadence_minutes,
@@ -744,4 +761,7 @@ if __name__ == "__main__":
         doCesium=args.doCesium,
         doNotSave=args.doNotSave,
         stop_early=args.stop_early,
+        doQuadrantFile=args.doQuadrantFile,
+        quadrant_file=args.quadrant_file,
+        quadrant_index=args.quadrant_index,
     )
