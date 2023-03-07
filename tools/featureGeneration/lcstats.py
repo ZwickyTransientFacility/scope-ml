@@ -7,14 +7,12 @@
 """
 
 import copy
-
 import warnings
-
 import numpy as np
-
 from scipy.stats import anderson, shapiro
 from scipy.optimize import curve_fit
 from scipy.signal import sawtooth
+from numba import jit
 
 warnings.filterwarnings("ignore")
 
@@ -537,3 +535,36 @@ def calc_fourier_stats_sidereal(t, mag, err, p):
     period = periods[idx]
 
     return [period, periodic_stat]
+
+
+@jit
+def pwd_for(a):
+    """
+    Compute pairwise differences with for loops
+    """
+    return np.array([a[j] - a[i] for i in range(len(a)) for j in range(i + 1, len(a))])
+
+
+def compute_dmdt(jd, mag, dmdt_ints):
+    """
+    Compute dmdt histograms from time and magnitude inputs
+    """
+    jd_diff = pwd_for(jd)
+    mag_diff = pwd_for(mag)
+
+    hh, _, _ = np.histogram2d(
+        jd_diff,
+        mag_diff,
+        bins=[dmdt_ints['dtints'], dmdt_ints['dmints']],
+    )
+
+    dmdt = hh
+    dmdt = np.transpose(dmdt)
+
+    norm = np.linalg.norm(dmdt)
+    if norm != 0.0:
+        dmdt /= np.linalg.norm(dmdt)
+    else:
+        dmdt = np.zeros_like(dmdt)
+
+    return dmdt

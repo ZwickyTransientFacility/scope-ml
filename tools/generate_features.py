@@ -58,6 +58,7 @@ kowalski = Kowalski(
 source_catalog = config['kowalski']['collections']['sources']
 alerts_catalog = config['kowalski']['collections']['alerts']
 gaia_catalog = config['kowalski']['collections']['gaia']
+dmdt_ints = config['feature_generation']['dmdt_ints']
 ext_catalog_info = config['feature_generation']['external_catalog_features']
 cesium_feature_list = config['feature_generation']['cesium_features']
 
@@ -470,7 +471,7 @@ def generate_features(
             significances = np.ones(len(tme_collection))
             pdots = np.ones(len(tme_collection))
 
-        print('Calculating Fourier stats...')
+        print('Computing Fourier stats...')
         count = 0
         for idx, _id in enumerate(keep_id_list):
             count += 1
@@ -484,7 +485,7 @@ def generate_features(
             pdot = pdots[idx]
             tt, mm, ee = tme_collection[idx]
 
-            # Calculate Fourier stats
+            # Compute Fourier stats
             (
                 f1_power,
                 f1_BIC,
@@ -520,6 +521,19 @@ def generate_features(
             feature_dict[_id]['period'] = period
             feature_dict[_id]['significance'] = significance
             feature_dict[_id]['pdot'] = pdot
+
+        print('Computing dmdt histograms...')
+        count = 0
+        for idx, _id in enumerate(keep_id_list):
+            count += 1
+            if (idx + 1) % limit == 0:
+                print(f"{count} done")
+            if count == len(keep_id_list):
+                print(f"{count} done")
+
+            tt, mm, _ = tme_collection[idx]
+            dmdt = lcstats.compute_dmdt(tt, mm, dmdt_ints)
+            feature_dict[_id]['dmdt'] = dmdt.tolist()
 
         # Get ZTF alert stats
         alert_stats_dct = alertstats.get_ztf_alert_stats(
