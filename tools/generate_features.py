@@ -521,6 +521,19 @@ def generate_features(
             feature_dict[_id]['significance'] = significance
             feature_dict[_id]['pdot'] = pdot
 
+        print('Computing dmdt histograms...')
+        count = 0
+        for idx, _id in enumerate(keep_id_list):
+            count += 1
+            if (idx + 1) % limit == 0:
+                print(f"{count} done")
+            if count == len(keep_id_list):
+                print(f"{count} done")
+
+            tt, mm, _ = tme_collection[idx]
+            dmdt = lcstats.compute_dmdt(tt, mm, dmdt_ints_v='v20230221')
+            feature_dict[_id]['dmdt'] = dmdt.tolist()
+
         # Get ZTF alert stats
         alert_stats_dct = alertstats.get_ztf_alert_stats(
             feature_dict,
