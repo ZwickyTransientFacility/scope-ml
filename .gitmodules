@@ -1,3 +1,6 @@
 [submodule "periodfind"]
 	path = periodfind
 	url = git@github.com:ejaszewski/periodfind.git
+[submodule "scope-phenomenology"]
+	path = scope-phenomenology
+	url = git@github.com:bfhealy/scope-phenomenology.git

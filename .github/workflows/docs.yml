@@ -47,13 +47,13 @@ jobs:
       run: |
         ./scope.py doc
     - name: Install SSH Client 🔑
-      if: github.event_name == 'push'
+      if: github.event_name == 'push' && github.repository_owner == 'ZwickyTransientFacility'
       uses: webfactory/ssh-agent@v0.4.1
       with:
         ssh-private-key: ${{ secrets.CI_DEPLOY_KEY }}
 
     - name: Deploy docs
-      if: github.event_name == 'push'
+      if: github.event_name == 'push' && github.repository_owner == 'ZwickyTransientFacility'
       uses: JamesIves/github-pages-deploy-action@releases/v4
       with:
         FOLDER: doc/_build/html
