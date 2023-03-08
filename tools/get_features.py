@@ -342,6 +342,7 @@ def run(**kwargs):
             write_csv=write_csv,
             projection=projection,
             suffix=suffix,
+            save=True,
         )
 
 

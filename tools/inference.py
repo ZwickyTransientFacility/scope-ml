@@ -4,7 +4,6 @@ import fire
 import numpy as np
 import pandas as pd
 import pathlib
-from penquins import Kowalski
 import xgboost as xgb
 import warnings
 from typing import Union
@@ -39,23 +38,27 @@ with open(config_path) as config_yaml:
 # Load training set
 trainingSetPath = config['training']['dataset']
 if trainingSetPath.endswith('.parquet'):
-    trainingSet = read_parquet(trainingSetPath)
+    try:
+        TRAINING_SET = read_parquet(trainingSetPath)
+    except FileNotFoundError:
+        warnings.warn('Training set file not found.')
+        TRAINING_SET = []
 elif trainingSetPath.endswith('.h5'):
-    trainingSet = read_hdf(trainingSetPath)
+    try:
+        TRAINING_SET = read_hdf(trainingSetPath)
+    except FileNotFoundError:
+        warnings.warn('Training set file not found.')
+        TRAINING_SET = []
 elif trainingSetPath.endswith('.csv'):
-    trainingSet = pd.read_csv(trainingSetPath)
+    try:
+        TRAINING_SET = pd.read_csv(trainingSetPath)
+    except FileNotFoundError:
+        warnings.warn('Training set file not found.')
+        TRAINING_SET = []
 else:
     raise ValueError(
         'Training set must have one of .parquet, .h5 or .csv file formats.'
     )
-
-# Use KowalskiInstances class here when approved
-kowalski = Kowalski(
-    token=config["kowalski"]["token"],
-    protocol=config["kowalski"]["protocol"],
-    host=config["kowalski"]["host"],
-    port=config["kowalski"]["port"],
-)
 
 
 def clean_dataset_xgb(df):
@@ -266,6 +269,7 @@ def run(
     float_convert_types = kwargs.get("float_convert_types", (64, 32))
     feature_stats = kwargs.get("feature_stats", None)
     scale_features = kwargs.get("scale_features", "min_max")
+    trainingSet = kwargs.get("trainingSet", "use_config")
 
     # default file location for source ids
     if whole_field:
@@ -395,6 +399,11 @@ def run(
             )
 
             # Get feature stats using training set for scaling consistency
+            if type(trainingSet) == str:
+                if (trainingSet == 'use_config') & (len(TRAINING_SET) > 0):
+                    trainingSet = TRAINING_SET
+                else:
+                    raise ValueError('Unable to find config-specified training set.')
             if feature_stats is None:
                 feature_stats = get_feature_stats(trainingSet, feature_names)
             elif feature_stats == 'config':
@@ -593,6 +602,9 @@ def run(
 
     if verbose:
         print("Predictions:\n", preds_df)
+
+    final_outfile = pathlib.Path(f'{filename}.h5')
+    return preds_df, final_outfile
 
 
 if __name__ == "__main__":

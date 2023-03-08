@@ -21,6 +21,7 @@ from scope.utils import (
     load_config,
     read_hdf,
     read_parquet,
+    write_parquet,
     write_hdf,
 )
 from scope.fritz import radec_to_iau_name
@@ -1118,6 +1119,7 @@ class Scope:
         read_consolidation_results: bool = False,
         write_consolidation_results: bool = False,
         consol_filename: str = 'inference_results',
+        doNotSave: bool = False,
     ):
         """
         Select subset of predictions to use for active learning.
@@ -1140,6 +1142,7 @@ class Scope:
         :param read_consolidation_results: if True, search for and read an existing consolidated file having _consol.h5 suffix (bool)
         :param write_consolidation_results: if True, save two files: consolidated inference results [1 row per source] and full results [≥ 1 row per source] (bool)
         :param consol_filename: name of file (no extension) to store consolidated and full results (str)
+        :param doNotSave: if set, do not write results
 
         :return:
 
@@ -1391,18 +1394,23 @@ class Scope:
 
         final_toPost = toPost_df.reset_index(drop=True)
 
-        # Write hdf5 and csv files
-        write_hdf(final_toPost, f'{AL_directory_path}/{al_filename}.h5')
-        if write_csv:
-            final_toPost.to_csv(f'{AL_directory_path}/{al_filename}.csv', index=False)
+        if not doNotSave:
+            # Write hdf5 and csv files
+            write_hdf(final_toPost, f'{AL_directory_path}/{al_filename}.h5')
+            if write_csv:
+                final_toPost.to_csv(
+                    f'{AL_directory_path}/{al_filename}.csv', index=False
+                )
 
-        # Write metadata
-        meta_filepath = f'{AL_directory_path}/meta.json'
-        with open(meta_filepath, "w") as f:
-            try:
-                json.dump(completed_dict, f)  # dump dictionary to a json file
-            except Exception as e:
-                print("error dumping to json, message: ", e)
+            # Write metadata
+            meta_filepath = f'{AL_directory_path}/meta.json'
+            with open(meta_filepath, "w") as f:
+                try:
+                    json.dump(completed_dict, f)  # dump dictionary to a json file
+                except Exception as e:
+                    print("error dumping to json, message: ", e)
+
+        return final_toPost
 
     def test(self):
         """Test different workflows
@@ -1410,64 +1418,78 @@ class Scope:
         :return:
         """
         import uuid
-        from tools import generate_features, get_quad_ids, get_features
+        from tools import generate_features, get_quad_ids, get_features, inference
 
         # Test feature generation
-        test_field, test_ccd, test_quad = 297, 2, 2
-        test_feature_directory = 'generated_features'
-        test_feature_filename = 'testFeatures'
-        n_sources = 3
+        with status("Test generate_features"):
+            print()
+            test_field, test_ccd, test_quad = 297, 2, 2
+            test_feature_directory = 'generated_features'
+            test_feature_filename = 'testFeatures'
+            n_sources = 3
 
-        _ = generate_features.generate_features(
-            period_algorithm='LS',
-            doCPU=True,
-            field=test_field,
-            ccd=test_ccd,
-            quad=test_quad,
-            dirname=test_feature_directory,
-            filename=test_feature_filename,
-            limit=n_sources,
-            doCesium=True,
-            stop_early=True,
-        )
+            _ = generate_features.generate_features(
+                period_algorithm='LS',
+                doCPU=True,
+                field=test_field,
+                ccd=test_ccd,
+                quad=test_quad,
+                dirname=test_feature_directory,
+                filename=test_feature_filename,
+                limit=n_sources,
+                doCesium=True,
+                stop_early=True,
+            )
 
-        path_gen_features = (
-            pathlib.Path(__file__).parent.absolute()
-            / test_feature_directory
-            / f"field_{test_field}"
-            / f"{test_feature_filename}_field_{test_field}_ccd_{test_ccd}_quad_{test_quad}.parquet"
-        )
-        os.remove(path_gen_features)
+            path_gen_features = (
+                pathlib.Path(__file__).parent.absolute()
+                / test_feature_directory
+                / f"field_{test_field}"
+                / f"{test_feature_filename}_field_{test_field}_ccd_{test_ccd}_quad_{test_quad}.parquet"
+            )
+            os.remove(path_gen_features)
 
-        print("Testing get_cone_ids...")
-        _ = get_quad_ids.get_cone_ids(
-            obj_id_list=['obj1', 'obj2', 'obj3'],
-            ra_list=[40.0, 41.0, 42.0],
-            dec_list=[50.0, 51.0, 52.0],
-        )
+        with status("Test get_cone_ids"):
+            print()
+            _ = get_quad_ids.get_cone_ids(
+                obj_id_list=['obj1', 'obj2', 'obj3'],
+                ra_list=[40.0, 41.0, 42.0],
+                dec_list=[50.0, 51.0, 52.0],
+            )
 
-        print("Testing get_ids_loop and get_field_ids...")
-        _, lst = get_quad_ids.get_ids_loop(
-            get_quad_ids.get_field_ids,
-            catalog=self.config['kowalski']['collections']['features'],
-            field=298,
-            ccd_range=3,
-            quad_range=4,
-            limit=10,
-            stop_early=True,
-            save=False,
-        )
+        with status("Test get_ids_loop and get_field_ids"):
+            print()
+            _, lst = get_quad_ids.get_ids_loop(
+                get_quad_ids.get_field_ids,
+                catalog=self.config['kowalski']['collections']['features'],
+                field=298,
+                ccd_range=3,
+                quad_range=4,
+                limit=10,
+                stop_early=True,
+                save=False,
+            )
 
-        print("Testing get_features_loop and get_features...")
-        _, _ = get_features.get_features_loop(
-            get_features.get_features,
-            source_ids=lst[0],
-            features_catalog=self.config['kowalski']['collections']['features'],
-            field=298,
-            limit_per_query=5,
-            max_sources=10,
-            save=False,
-        )
+        with status("Test get_features_loop and get_features"):
+            print()
+            test_ftrs, outfile = get_features.get_features_loop(
+                get_features.get_features,
+                source_ids=lst[0],
+                features_catalog=self.config['kowalski']['collections']['features'],
+                field=298,
+                limit_per_query=5,
+                max_sources=10,
+                save=False,
+            )
+
+            testpath = pathlib.Path(outfile)
+            testpath = testpath.parent.parent
+            # Use 'field_0' as test directory to avoid removing any existing data locally
+            testpath_features = testpath / 'field_0'
+
+            if not testpath_features.exists():
+                testpath_features.mkdir(parents=True, exist_ok=True)
+            write_parquet(test_ftrs, str(testpath_features / 'field_0_iter_0.parquet'))
 
         # create a mock dataset and check that the training pipeline works
         dataset = f"{uuid.uuid4().hex}.csv"
@@ -1475,60 +1497,91 @@ class Scope:
         group_mock = 'experiment'
 
         try:
-            if not path_mock.exists():
-                path_mock.mkdir(parents=True, exist_ok=True)
+            with status('Test training'):
+                print()
+                if not path_mock.exists():
+                    path_mock.mkdir(parents=True, exist_ok=True)
 
-            all_feature_names = self.config["features"]["ontological"]
-            feature_names = [
-                key
-                for key in all_feature_names
-                if forgiving_true(all_feature_names[key]['include'])
-            ]
-            class_names = [
-                self.config["training"]["classes"][class_name]["label"]
-                for class_name in self.config["training"]["classes"]
-            ]
+                all_feature_names = self.config["features"]["ontological"]
+                feature_names = [
+                    key
+                    for key in all_feature_names
+                    if forgiving_true(all_feature_names[key]['include'])
+                ]
+                class_names = [
+                    self.config["training"]["classes"][class_name]["label"]
+                    for class_name in self.config["training"]["classes"]
+                ]
 
-            entries = []
-            for i in range(1000):
-                entry = {
-                    **{
-                        feature_name: np.random.normal(0, 0.1)
-                        for feature_name in feature_names
-                    },
-                    **{
-                        class_name: np.random.choice([0, 1])
-                        for class_name in class_names
-                    },
-                    **{"non-variable": np.random.choice([0, 1])},
-                    **{"dmdt": np.abs(np.random.random((26, 26))).tolist()},
-                }
-                entries.append(entry)
+                entries = []
+                for i in range(1000):
+                    entry = {
+                        **{
+                            feature_name: np.random.normal(0, 0.1)
+                            for feature_name in feature_names
+                        },
+                        **{
+                            class_name: np.random.choice([0, 1])
+                            for class_name in class_names
+                        },
+                        **{"non-variable": np.random.choice([0, 1])},
+                        **{"dmdt": np.abs(np.random.random((26, 26))).tolist()},
+                    }
+                    entries.append(entry)
 
-            df_mock = pd.DataFrame.from_records(entries)
-            df_mock.to_csv(path_mock / dataset, index=False)
+                df_mock = pd.DataFrame.from_records(entries)
+                df_mock.to_csv(path_mock / dataset, index=False)
 
-            tag = "vnv"
-            time_tag = self.train(
-                tag=tag,
-                path_dataset=path_mock / dataset,
-                batch_size=32,
-                epochs=3,
-                verbose=True,
-                save=True,
-                test=True,
-            )
-            path_model = (
-                pathlib.Path(__file__).parent.absolute()
-                / "models"
-                / group_mock
-                / tag
-                / f"{tag}.{time_tag}.h5"
-            )
-            os.remove(path_model)
+                tag = "vnv"
+                time_tag = self.train(
+                    tag=tag,
+                    path_dataset=path_mock / dataset,
+                    batch_size=32,
+                    epochs=3,
+                    verbose=True,
+                    save=True,
+                    test=True,
+                )
+                path_model = (
+                    pathlib.Path(__file__).parent.absolute()
+                    / "models"
+                    / group_mock
+                    / tag
+                    / f"{tag}.{time_tag}.h5"
+                )
+
+            with status("Test inference"):
+                print()
+                _, preds_filename = inference.run(
+                    str(path_model),
+                    tag,
+                    field=0,
+                    whole_field=True,
+                    trainingSet=df_mock,
+                )
+
+            with status("Test select_al_sample"):
+                print()
+                _ = self.select_al_sample(
+                    [0], probability_threshold=0.0, doNotSave=True
+                )
+                _ = self.select_al_sample(
+                    [0],
+                    select_top_n=True,
+                    include_all_highprob_labels=True,
+                    min_class_examples=3,
+                    probability_threshold=0.0,
+                    doNotSave=True,
+                )
+
         finally:
             # clean up after thyself
             (path_mock / dataset).unlink()
+            (testpath_features / 'field_0_iter_0.parquet').unlink()
+            os.rmdir(testpath_features)
+            (preds_filename).unlink()
+            (preds_filename.parent / 'meta.json').unlink()
+            os.rmdir(preds_filename.parent)
 
 
 if __name__ == "__main__":
