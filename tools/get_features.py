@@ -25,8 +25,15 @@ with open(config_path) as config_yaml:
 feature_names = config['features']['ontological']
 dtype_dict = {key: feature_names[key]['dtype'] for key in feature_names}
 
+# use token specified as env var (if exists)
+kowalski_token_env = os.environ.get("KOWALSKI_TOKEN")
+kowalski_alt_token_env = os.environ.get("KOWALSKI_ALT_TOKEN")
+if (kowalski_token_env is not None) & (kowalski_alt_token_env is not None):
+    config["kowalski"]["token"] = kowalski_token_env
+    config["kowalski"]["alt_token"] = kowalski_alt_token_env
+
 # Use new penquins KowalskiInstances class here once approved
-kowalski = Kowalski(
+kowalski_instance = Kowalski(
     token=config["kowalski"]["token"],
     protocol=config["kowalski"]["protocol"],
     host=config["kowalski"]["host"],
@@ -50,6 +57,7 @@ def get_features_loop(
     write_csv: bool = False,
     projection: dict = {},
     suffix: str = None,
+    save: bool = True,
 ):
     '''
     Loop over get_features.py to save at specified checkpoints.
@@ -97,7 +105,10 @@ def get_features_loop(
             return
 
     n_sources = len(source_ids)
-    n_iterations = n_sources // max_sources + 1
+    if n_sources % max_sources != 0:
+        n_iterations = n_sources // max_sources + 1
+    else:
+        n_iterations = n_sources // max_sources
     start_iteration = len(existing_ids) // max_sources
 
     for i in range(start_iteration, n_iterations):
@@ -114,10 +125,13 @@ def get_features_loop(
             projection=projection,
         )
 
-        write_parquet(df, f'{outfile}_iter_{i}.parquet')
-        files_exist = True
-        if write_csv:
-            df.to_csv(f'{outfile}_iter_{i}.csv', index=False)
+        if save:
+            write_parquet(df, f'{outfile}_iter_{i}.parquet')
+            files_exist = True
+            if write_csv:
+                df.to_csv(f'{outfile}_iter_{i}.csv', index=False)
+
+    return df, outfile
 
 
 def get_features(
@@ -151,7 +165,7 @@ def get_features(
                 "projection": projection,
             },
         }
-        response = kowalski.query(query=query)
+        response = kowalski_instance.query(query=query)
         source_data = response.get("data")
 
         if source_data is None:
