@@ -1440,12 +1440,11 @@ class Scope:
         os.remove(path_gen_features)
 
         print("Testing get_cone_ids...")
-        id_df = get_quad_ids.get_cone_ids(
+        _ = get_quad_ids.get_cone_ids(
             obj_id_list=['obj1', 'obj2', 'obj3'],
             ra_list=[40.0, 41.0, 42.0],
             dec_list=[50.0, 51.0, 52.0],
         )
-        print(id_df)
 
         print("Testing get_ids_loop and get_field_ids...")
         _, lst = get_quad_ids.get_ids_loop(
