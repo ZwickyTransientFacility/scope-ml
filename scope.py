@@ -1483,9 +1483,9 @@ class Scope:
             )
 
             testpath = pathlib.Path(outfile)
-            testpath = testpath.parent.parent.parent
+            testpath = testpath.parent.parent
             # Use 'field_0' as test directory to avoid removing any existing data locally
-            testpath_features = testpath / 'features/field_0'
+            testpath_features = testpath / 'field_0'
 
             if not testpath_features.exists():
                 testpath_features.mkdir(parents=True, exist_ok=True)
