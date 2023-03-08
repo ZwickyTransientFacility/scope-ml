@@ -25,8 +25,15 @@ with open(config_path) as config_yaml:
 feature_names = config['features']['ontological']
 dtype_dict = {key: feature_names[key]['dtype'] for key in feature_names}
 
+# use token specified as env var (if exists)
+kowalski_token_env = os.environ.get("KOWALSKI_TOKEN")
+kowalski_alt_token_env = os.environ.get("KOWALSKI_ALT_TOKEN")
+if (kowalski_token_env is not None) & (kowalski_alt_token_env is not None):
+    config["kowalski"]["token"] = kowalski_token_env
+    config["kowalski"]["alt_token"] = kowalski_alt_token_env
+
 # Use new penquins KowalskiInstances class here once approved
-kowalski = Kowalski(
+kowalski_instance = Kowalski(
     token=config["kowalski"]["token"],
     protocol=config["kowalski"]["protocol"],
     host=config["kowalski"]["host"],
@@ -158,7 +165,7 @@ def get_features(
                 "projection": projection,
             },
         }
-        response = kowalski.query(query=query)
+        response = kowalski_instance.query(query=query)
         source_data = response.get("data")
 
         if source_data is None:
