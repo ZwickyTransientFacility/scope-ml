@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 import argparse
+import pathlib
+import yaml
 import pandas as pd
 import scope
 from scope.fritz import api
@@ -14,6 +16,12 @@ from scope.utils import impute_features
 
 NUM_PER_PAGE = 500
 CHECKPOINT_NUM = 500
+
+config_path = pathlib.Path(__file__).parent.parent.absolute() / "config.yaml"
+with open(config_path) as config_yaml:
+    config = yaml.load(config_yaml, Loader=yaml.FullLoader)
+
+features_catalog = config['kowalski']['collections']['features']
 
 
 def organize_source_data(src: pd.DataFrame):
@@ -644,7 +652,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "-features_catalog",
         type=str,
-        default='ZTF_source_features_DR5',
+        default=features_catalog,
         help="catalog of features on Kowalski",
     )
 

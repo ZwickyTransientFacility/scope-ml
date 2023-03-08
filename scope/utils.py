@@ -598,6 +598,28 @@ def impute_features(
     for feat in feature_list_regression:
         features_df[feat] = imputed_feats[feat]
 
+    # After imputation, drop rows containing NaN features with no imputation strategy
+    # (Ensures no subsequent errors due to these missing values)
+    feature_list_impute_none = [
+        x
+        for x in config['features']['ontological']
+        if (
+            config['features']['ontological'][x]['include']
+            and config['features']['ontological'][x]['impute_strategy']
+            in ['none', 'None', 'NONE']
+        )
+    ]
+
+    orig_len = len(features_df)
+    features_df = features_df.dropna(subset=feature_list_impute_none).reset_index(
+        drop=True
+    )
+    new_len = len(features_df)
+    print()
+    print(
+        f'Dropped {orig_len - new_len} rows containing missing features with no imputation strategy.'
+    )
+
     return features_df
 
 
@@ -735,6 +757,8 @@ class Dataset(object):
         if self.verbose:
             log(self.df_ds[list(features)].describe())
 
+        # Last-chance imputation - this should have happened by now, but the messages will still print.
+        # If no missing features, the process runs quickly.
         self.df_ds = impute_features(self.df_ds, self_impute=True)
 
         dmdt = []
