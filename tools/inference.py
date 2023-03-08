@@ -594,6 +594,9 @@ def run(
     if verbose:
         print("Predictions:\n", preds_df)
 
+    final_outfile = pathlib.Path(f'{filename}.h5')
+    return preds_df, final_outfile
+
 
 if __name__ == "__main__":
     fire.Fire(run)
