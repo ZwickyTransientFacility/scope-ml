@@ -54,7 +54,7 @@ def get_features_loop(
     limit_per_query: int = 1000,
     max_sources: int = 100000,
     impute_missing_features: bool = False,
-    self_impute: bool = False,
+    self_impute: bool = True,
     restart: bool = True,
     write_csv: bool = False,
     projection: dict = {},
@@ -144,7 +144,7 @@ def get_features(
     verbose: bool = False,
     limit_per_query: int = 1000,
     impute_missing_features: bool = False,
-    self_impute: bool = False,
+    self_impute: bool = True,
     projection: dict = {},
 ):
     '''
@@ -286,7 +286,7 @@ def run(**kwargs):
     column_list = kwargs.get("column_list", None)
     suffix = kwargs.get("suffix", None)
     impute_missing_features = kwargs.get("impute_missing_features", False)
-    self_impute = kwargs.get("self_impute", False)
+    self_impute = kwargs.get("self_impute", True)
 
     projection = {}
     if column_list is not None:
