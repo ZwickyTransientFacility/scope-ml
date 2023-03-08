@@ -1553,7 +1553,11 @@ class Scope:
             with status("Test inference"):
                 print()
                 _, preds_filename = inference.run(
-                    str(path_model), tag, field=0, whole_field=True
+                    str(path_model),
+                    tag,
+                    field=0,
+                    whole_field=True,
+                    trainingSet=df_mock,
                 )
 
             with status("Test select_al_sample"):
