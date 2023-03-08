@@ -757,6 +757,8 @@ class Dataset(object):
         if self.verbose:
             log(self.df_ds[list(features)].describe())
 
+        # Last-chance imputation - this should have happened by now, but the messages will still print.
+        # If no missing features, the process runs quickly.
         self.df_ds = impute_features(self.df_ds, self_impute=True)
 
         dmdt = []
