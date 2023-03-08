@@ -9,7 +9,7 @@ import yaml
 import os
 import time
 import h5py
-from scope.utils import write_parquet
+from scope.utils import write_parquet, impute_features
 from datetime import datetime
 import pyarrow.dataset as ds
 
@@ -53,6 +53,8 @@ def get_features_loop(
     quad: int = 1,
     limit_per_query: int = 1000,
     max_sources: int = 100000,
+    impute_missing_features: bool = False,
+    self_impute: bool = False,
     restart: bool = True,
     write_csv: bool = False,
     projection: dict = {},
@@ -122,6 +124,8 @@ def get_features_loop(
             features_catalog=features_catalog,
             verbose=verbose,
             limit_per_query=limit_per_query,
+            impute_missing_features=impute_missing_features,
+            self_impute=self_impute,
             projection=projection,
         )
 
@@ -139,6 +143,8 @@ def get_features(
     features_catalog: str = "ZTF_source_features_DR5",
     verbose: bool = False,
     limit_per_query: int = 1000,
+    impute_missing_features: bool = False,
+    self_impute: bool = False,
     projection: dict = {},
 ):
     '''
@@ -198,18 +204,21 @@ def get_features(
     df.reset_index(drop=True, inplace=True)
     dmdt = np.vstack(dmdt_collection)
 
+    if impute_missing_features:
+        df = impute_features(df, self_impute=self_impute)
+
     # Add metadata
     utcnow = datetime.utcnow()
     start_dt = utcnow.strftime("%Y-%m-%d %H:%M:%S")
     features_ztf_dr = features_catalog.split('_')[-1]
     df.attrs['features_download_dateTime_utc'] = start_dt
     df.attrs['features_ztf_dataRelease'] = features_ztf_dr
+    df.attrs['features_imputed'] = impute_missing_features
 
     if verbose:
         print("Features dataframe: ", df)
         print("dmdt shape: ", dmdt.shape)
 
-    # if not write_results:
     return df, dmdt
 
 
@@ -244,7 +253,7 @@ def run(**kwargs):
     write_csv: bool
         if True, writes results as csv file in addition to parquet.
     column_list: list
-        List of strings for each column to return from Kowalski colleciton.
+        List of strings for each column to return from Kowalski collection.
     suffix: str
         Suffix to add to saved feature file.
     Returns
@@ -259,7 +268,8 @@ def run(**kwargs):
     DEFAULT_QUAD = 1
     DEFAULT_LIMIT = 1000
     DEFAULT_SAVE_BATCHSIZE = 100000
-    DEFAULT_CATALOG = "ZTF_source_features_DR5"
+    features_catalog = config['kowalski']['collections']['features']
+    DEFAULT_CATALOG = features_catalog
 
     field = kwargs.get("field", DEFAULT_FIELD)
     ccd = kwargs.get("ccd", DEFAULT_CCD)
@@ -273,10 +283,13 @@ def run(**kwargs):
     restart = kwargs.get("restart", False)
     write_results = kwargs.get("write_results", True)
     write_csv = kwargs.get("write_csv", False)
-    column_list = kwargs.get("column_list", [])
+    column_list = kwargs.get("column_list", None)
     suffix = kwargs.get("suffix", None)
+    impute_missing_features = kwargs.get("impute_missing_features", False)
+    self_impute = kwargs.get("self_impute", False)
 
-    if column_list != []:
+    projection = {}
+    if column_list is not None:
         keys = [name for name in column_list]
         projection = {k: 1 for k in keys}
 
@@ -323,6 +336,8 @@ def run(**kwargs):
             features_catalog=features_catalog,
             verbose=verbose,
             limit_per_query=limit_per_query,
+            impute_missing_features=impute_missing_features,
+            self_impute=self_impute,
             projection=projection,
         )
 
@@ -338,6 +353,8 @@ def run(**kwargs):
             quad=quad,
             limit_per_query=limit_per_query,
             max_sources=max_sources,
+            impute_missing_features=impute_missing_features,
+            self_impute=self_impute,
             restart=restart,
             write_csv=write_csv,
             projection=projection,
