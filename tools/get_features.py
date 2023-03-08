@@ -50,6 +50,7 @@ def get_features_loop(
     write_csv: bool = False,
     projection: dict = {},
     suffix: str = None,
+    save: bool = True,
 ):
     '''
     Loop over get_features.py to save at specified checkpoints.
@@ -97,7 +98,10 @@ def get_features_loop(
             return
 
     n_sources = len(source_ids)
-    n_iterations = n_sources // max_sources + 1
+    if n_sources % max_sources != 0:
+        n_iterations = n_sources // max_sources + 1
+    else:
+        n_iterations = n_sources // max_sources
     start_iteration = len(existing_ids) // max_sources
 
     for i in range(start_iteration, n_iterations):
@@ -114,10 +118,13 @@ def get_features_loop(
             projection=projection,
         )
 
-        write_parquet(df, f'{outfile}_iter_{i}.parquet')
-        files_exist = True
-        if write_csv:
-            df.to_csv(f'{outfile}_iter_{i}.csv', index=False)
+        if save:
+            write_parquet(df, f'{outfile}_iter_{i}.parquet')
+            files_exist = True
+            if write_csv:
+                df.to_csv(f'{outfile}_iter_{i}.csv', index=False)
+
+    return df, outfile
 
 
 def get_features(

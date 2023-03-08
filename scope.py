@@ -1410,7 +1410,7 @@ class Scope:
         :return:
         """
         import uuid
-        from tools import generate_features
+        from tools import generate_features, get_quad_ids, get_features
 
         # Test feature generation
         test_field, test_ccd, test_quad = 297, 2, 2
@@ -1438,6 +1438,37 @@ class Scope:
             / f"{test_feature_filename}_field_{test_field}_ccd_{test_ccd}_quad_{test_quad}.parquet"
         )
         os.remove(path_gen_features)
+
+        print("Testing get_cone_ids...")
+        id_df = get_quad_ids.get_cone_ids(
+            obj_id_list=['obj1', 'obj2', 'obj3'],
+            ra_list=[40.0, 41.0, 42.0],
+            dec_list=[50.0, 51.0, 52.0],
+        )
+        print(id_df)
+
+        print("Testing get_ids_loop and get_field_ids...")
+        _, lst = get_quad_ids.get_ids_loop(
+            get_quad_ids.get_field_ids,
+            catalog=self.config['kowalski']['collections']['features'],
+            field=298,
+            ccd_range=3,
+            quad_range=4,
+            limit=10,
+            stop_early=True,
+            save=False,
+        )
+
+        print("Testing get_features_loop and get_features...")
+        _, _ = get_features.get_features_loop(
+            get_features.get_features,
+            source_ids=lst[0],
+            features_catalog=self.config['kowalski']['collections']['features'],
+            field=298,
+            limit_per_query=5,
+            max_sources=10,
+            save=False,
+        )
 
         # create a mock dataset and check that the training pipeline works
         dataset = f"{uuid.uuid4().hex}.csv"
