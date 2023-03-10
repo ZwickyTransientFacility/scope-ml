@@ -230,10 +230,10 @@ def run(**kwargs):
     ==========
     field: int
         Field number.
-    ccd: int
-        CCD number (required if whole_field is False).
-    quad: int
-        Quad number (required if whole_field is False).
+    ccd_range: int, list
+        CCD range, single int or list of two ints between 1 and 16 (default range is [1,16])
+    quad_range: int, list
+        Quadrant range, single int or list of two ints between 1 and 4 (default range is [1,4])
     limit_per_query: int
         Number of sources to query at a time.
     max_sources: int
@@ -264,16 +264,16 @@ def run(**kwargs):
     """
 
     DEFAULT_FIELD = 291
-    DEFAULT_CCD = 1
-    DEFAULT_QUAD = 1
+    DEFAULT_CCD_RANGE = [1, 16]
+    DEFAULT_QUAD_RANGE = [1, 4]
     DEFAULT_LIMIT = 1000
     DEFAULT_SAVE_BATCHSIZE = 100000
     features_catalog = config['kowalski']['collections']['features']
     DEFAULT_CATALOG = features_catalog
 
     field = kwargs.get("field", DEFAULT_FIELD)
-    ccd = kwargs.get("ccd", DEFAULT_CCD)
-    quad = kwargs.get("quad", DEFAULT_QUAD)
+    ccd_range = kwargs.get("ccd_range", DEFAULT_CCD_RANGE)
+    quad_range = kwargs.get("quad_range", DEFAULT_QUAD_RANGE)
     limit_per_query = kwargs.get("limit_per_query", DEFAULT_LIMIT)
     max_sources = kwargs.get("max_sources", DEFAULT_SAVE_BATCHSIZE)
     features_catalog = kwargs.get("features_catalog", DEFAULT_CATALOG)
@@ -293,74 +293,93 @@ def run(**kwargs):
         keys = [name for name in column_list]
         projection = {k: 1 for k in keys}
 
+    if type(ccd_range) == int:
+        ccd_range = [ccd_range, ccd_range]
+    if type(quad_range) == int:
+        quad_range = [quad_range, quad_range]
+
+    iter_dct = {}
+
     if not whole_field:
-        default_file = (
-            "../ids/field_"
-            + str(field)
-            + "/data_ccd_"
-            + str(ccd).zfill(2)
-            + "_quad_"
-            + str(quad)
-            + ".h5"
-        )
+        for ccd in range(ccd_range[0], ccd_range[1] + 1):
+            for quad in range(quad_range[0], quad_range[1] + 1):
+                default_file = (
+                    "../ids/field_"
+                    + str(field)
+                    + "/data_ccd_"
+                    + str(ccd).zfill(2)
+                    + "_quad_"
+                    + str(quad)
+                    + ".h5"
+                )
+                iter_dct[(ccd, quad)] = default_file
     else:
         default_file = "../ids/field_" + str(field) + "/field_" + str(field) + ".h5"
+        iter_dct[field] = default_file
 
-    source_ids_filename = kwargs.get("source_ids_filename", default_file)
+    for k, v in iter_dct.items():
+        if type(k) == tuple:
+            ccd_quad = k
+            print(f'Getting features for ccd {ccd_quad[0]} quad {ccd_quad[1]}...')
+        else:
+            ccd_quad = (0, 0)
+            print(f'Getting features for field {field}...')
+        default_file = v
+        source_ids_filename = kwargs.get("source_ids_filename", default_file)
 
-    tm = kwargs.get("time", False)
-    filename = os.path.join(BASE_DIR, source_ids_filename)
+        tm = kwargs.get("time", False)
+        filename = os.path.join(BASE_DIR, source_ids_filename)
 
-    ts = time.time()
-    source_ids = np.array([])
-    with h5py.File(filename, "r") as f:
-        ids = np.array(f[list(f.keys())[0]])
-        source_ids = list(map(int, np.concatenate((source_ids, ids), axis=0)))
-    te = time.time()
-    if tm:
-        print(
-            "read source_ids from .h5".ljust(JUST)
-            + "\t --> \t"
-            + str(round(te - ts, 4))
-            + " s"
-        )
+        ts = time.time()
+        source_ids = np.array([])
+        with h5py.File(filename, "r") as f:
+            ids = np.array(f[list(f.keys())[0]])
+            source_ids = list(map(int, np.concatenate((source_ids, ids), axis=0)))
+        te = time.time()
+        if tm:
+            print(
+                "read source_ids from .h5".ljust(JUST)
+                + "\t --> \t"
+                + str(round(te - ts, 4))
+                + " s"
+            )
 
-    verbose = kwargs.get("verbose", False)
-    if verbose:
-        print(f"{len(source_ids)} total source ids")
+        verbose = kwargs.get("verbose", False)
+        if verbose:
+            print(f"{len(source_ids)} total source ids")
 
-    if not write_results:
-        # get raw features
-        get_features(
-            source_ids=source_ids[start:end],
-            features_catalog=features_catalog,
-            verbose=verbose,
-            limit_per_query=limit_per_query,
-            impute_missing_features=impute_missing_features,
-            self_impute=self_impute,
-            projection=projection,
-        )
+        if write_results:
+            get_features_loop(
+                get_features,
+                source_ids=source_ids[start:end],
+                features_catalog=features_catalog,
+                verbose=verbose,
+                whole_field=whole_field,
+                field=field,
+                ccd=ccd_quad[0],
+                quad=ccd_quad[1],
+                limit_per_query=limit_per_query,
+                max_sources=max_sources,
+                impute_missing_features=impute_missing_features,
+                self_impute=self_impute,
+                restart=restart,
+                write_csv=write_csv,
+                projection=projection,
+                suffix=suffix,
+                save=True,
+            )
 
-    else:
-        get_features_loop(
-            get_features,
-            source_ids=source_ids[start:end],
-            features_catalog=features_catalog,
-            verbose=verbose,
-            whole_field=whole_field,
-            field=field,
-            ccd=ccd,
-            quad=quad,
-            limit_per_query=limit_per_query,
-            max_sources=max_sources,
-            impute_missing_features=impute_missing_features,
-            self_impute=self_impute,
-            restart=restart,
-            write_csv=write_csv,
-            projection=projection,
-            suffix=suffix,
-            save=True,
-        )
+        else:
+            # get raw features
+            get_features(
+                source_ids=source_ids[start:end],
+                features_catalog=features_catalog,
+                verbose=verbose,
+                limit_per_query=limit_per_query,
+                impute_missing_features=impute_missing_features,
+                self_impute=self_impute,
+                projection=projection,
+            )
 
 
 if __name__ == "__main__":
