@@ -383,10 +383,6 @@ if __name__ == "__main__":
     DEFAULT_SKIP = 0
     DEFAULT_VERBOSE = 2
 
-    # pass Fritz token through secrets.json or as a command line argument
-    with open(os.path.join(BASE_DIR, 'secrets.json'), 'r') as f:
-        secrets = json.load(f)
-
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--catalog",
@@ -406,29 +402,22 @@ if __name__ == "__main__":
         default=None,
         help="relative directory path to save output files to",
     )
-
     parser.add_argument(
         "--field", type=int, default=DEFAULT_FIELD, help="field number (default 301)"
-    )
-    parser.add_argument(
-        "--ccd", type=int, default=DEFAULT_CCD, help="ccd number (default 4)"
-    )
-    parser.add_argument(
-        "--quad", type=int, default=DEFAULT_QUAD, help="quad number (default 3)"
     )
     parser.add_argument(
         "--ccd-range",
         type=int,
         nargs='+',
         default=DEFAULT_CCD_RANGE,
-        help="ccd range, two ints between 1 and 16 (default range is [1,16])",
+        help="ccd range; single int or list of two ints between 1 and 16 (default range is [1,16])",
     )
     parser.add_argument(
         "--quad-range",
         type=int,
         nargs='+',
         default=DEFAULT_QUAD_RANGE,
-        help="quad range, two ints between 1 and 4 (default range is [1,4])",
+        help="quad range; single int or list of two ints between 1 and 4 (default range is [1,4])",
     )
     parser.add_argument(
         "--minobs",
@@ -478,9 +467,13 @@ if __name__ == "__main__":
 
     if (args.multi_quads) | (args.whole_field):
         if args.whole_field:
-            print('Saving single file for entire field across ccd/quadrant range.')
+            print(
+                f'Saving single file for entire field ({args.field}) across ccd/quadrant range.'
+            )
         else:
-            print('Saving multiple files for each ccd/quadrant pair.')
+            print(
+                f'Saving multiple files for ccd/quadrant pairs in range {args.ccd_range}, {args.quad_range}.'
+            )
         get_ids_loop(
             get_field_ids,
             catalog=args.catalog,
@@ -497,15 +490,25 @@ if __name__ == "__main__":
         )
 
     else:
+        # Handle different types of input for ccd/quad_range
+        if type(args.ccd_range) == list:
+            ccd = args.ccd_range[0]
+        else:
+            ccd = args.ccd_range
+        if type(args.quad_range) == list:
+            quad = args.quad_range[0]
+        else:
+            quad = args.quad_range
         print(
-            f'Saving up to {args.limit} results for single ccd/quadrant pair, skipping {args.skip} rows.'
+            f'Saving up to {args.limit} results for single ccd/quadrant pair ({ccd},{quad}), skipping {args.skip} rows...'
         )
+
         data = get_field_ids(
             catalog=args.catalog,
             kowalski_instance=kowalski_instance,
             field=args.field,
-            ccd=args.ccd,
-            quad=args.quad,
+            ccd=ccd,
+            quad=quad,
             minobs=args.minobs,
             skip=args.skip,
             limit=args.limit,
