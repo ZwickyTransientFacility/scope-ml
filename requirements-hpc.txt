@@ -1,2 +1,2 @@
+cupy-cuda110 # version number depends on your cluster's CUDA version, default is 11.0
 cuvarbase
-cupy-cuda110 #version number depends on your cluster's CUDA version, default is 11.0
