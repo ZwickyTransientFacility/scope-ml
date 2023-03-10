@@ -4,3 +4,6 @@
 [submodule "scope-phenomenology"]
 	path = scope-phenomenology
 	url = https://github.com/bfhealy/scope-phenomenology.git
+[submodule "gce"]
+	path = gce
+	url = https://github.com/mikekatz04/gce.git
