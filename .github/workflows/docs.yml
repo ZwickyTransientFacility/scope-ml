@@ -56,8 +56,8 @@ jobs:
       if: github.event_name == 'push' && github.repository_owner == 'ZwickyTransientFacility'
       uses: JamesIves/github-pages-deploy-action@releases/v4
       with:
-        FOLDER: doc/_build/html
-        REPOSITORY_NAME: ZwickyTransientFacility/scope-docs
-        BRANCH: master
-        SINGLE_COMMIT: true
-        SSH: true
+        folder: doc/_build/html
+        repository-name: ZwickyTransientFacility/scope-docs
+        branch: master
+        single-commit: true
+        ssh-key: true
