@@ -231,9 +231,9 @@ def run(**kwargs):
     field: int
         Field number.
     ccd_range: int, list
-        CCD range, single int or list of two ints between 1 and 16 (default range is [1,16])
+        CCD range; single int or list of two ints between 1 and 16 (default range is [1,16])
     quad_range: int, list
-        Quadrant range, single int or list of two ints between 1 and 4 (default range is [1,4])
+        Quadrant range; single int or list of two ints between 1 and 4 (default range is [1,4])
     limit_per_query: int
         Number of sources to query at a time.
     max_sources: int

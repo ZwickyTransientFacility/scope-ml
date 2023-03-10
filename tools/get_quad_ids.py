@@ -410,14 +410,14 @@ if __name__ == "__main__":
         type=int,
         nargs='+',
         default=DEFAULT_CCD_RANGE,
-        help="ccd range, single int or list of two ints between 1 and 16 (default range is [1,16])",
+        help="ccd range; single int or list of two ints between 1 and 16 (default range is [1,16])",
     )
     parser.add_argument(
         "--quad-range",
         type=int,
         nargs='+',
         default=DEFAULT_QUAD_RANGE,
-        help="quad range, single int or list of two ints between 1 and 4 (default range is [1,4])",
+        help="quad range; single int or list of two ints between 1 and 4 (default range is [1,4])",
     )
     parser.add_argument(
         "--minobs",
