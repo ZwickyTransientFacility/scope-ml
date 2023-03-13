@@ -21,6 +21,7 @@ from datetime import datetime
 from tools.featureGeneration import lcstats, periodsearch, alertstats, external_xmatch
 import warnings
 from cesium.featurize import time_series, featurize_single_ts
+import json
 
 
 BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
@@ -564,22 +565,22 @@ def generate_features(
             if '_id' in col:
                 feature_df[col] = feature_df[col].astype("Int64")
 
-        utcnow = datetime.utcnow()
-        end_dt = utcnow.strftime("%Y-%m-%d %H:%M:%S")
-
-        # Add metadata
-        feature_df.attrs['scope_code_version'] = code_version
-        feature_df.attrs['feature_generation_start_dateTime_utc'] = start_dt
-        feature_df.attrs['feature_generation_end_dateTime_utc'] = end_dt
-        feature_df.attrs['ZTF_source_catalog'] = source_catalog
-        feature_df.attrs['ZTF_alerts_catalog'] = alerts_catalog
-        feature_df.attrs['Gaia_catalog'] = gaia_catalog
-
     else:
         # If baseline is still zero, then no light curves met the selection criteria
         # Generate an empty DF instead so this field/ccd/quad is treated as done
         print('No light curves meet selection criteria.')
         feature_df = pd.DataFrame()
+
+    utcnow = datetime.utcnow()
+    end_dt = utcnow.strftime("%Y-%m-%d %H:%M:%S")
+
+    # Add metadata
+    feature_df.attrs['scope_code_version'] = code_version
+    feature_df.attrs['feature_generation_start_dateTime_utc'] = start_dt
+    feature_df.attrs['feature_generation_end_dateTime_utc'] = end_dt
+    feature_df.attrs['ZTF_source_catalog'] = source_catalog
+    feature_df.attrs['ZTF_alerts_catalog'] = alerts_catalog
+    feature_df.attrs['Gaia_catalog'] = gaia_catalog
 
     # Write results
     if not doNotSave:
@@ -588,9 +589,38 @@ def generate_features(
         dirpath = BASE_DIR / dirname / f"field_{field}"
         os.makedirs(dirpath, exist_ok=True)
 
+        source_count = len(feature_df)
+        meta_dct = {}
+        meta_dct["(field, ccd, quad)"] = {
+            f"({field}, {ccd}, {quad})": {
+                "minobs": min_n_lc_points,
+                "start_time_utc": start_dt,
+                "end_time_utc": end_dt,
+                "ZTF_source_catalog": source_catalog,
+                "ZTF_alerts_catalog": alerts_catalog,
+                "Gaia_catalog": gaia_catalog,
+                "total": source_count,
+            }
+        }
+
+        meta_filename = BASE_DIR / dirname / "meta.json"
+
+        if os.path.exists(meta_filename):
+            with open(meta_filename, 'r') as f:
+                dct = json.load(f)
+                dct["(field, ccd, quad)"].update(meta_dct["(field, ccd, quad)"])
+                meta_dct = dct
+
+        with open(meta_filename, 'w') as f:
+            try:
+                json.dump(meta_dct, f)
+            except Exception as e:
+                print("error dumping to json, message: ", e)
+
         filepath = dirpath / filename
         write_parquet(feature_df, str(filepath))
-        print(f"Wrote features for {len(feature_df)} sources.")
+        print(f"Wrote features for {source_count} sources.")
+
     else:
         print(f"Generated features for {len(feature_df)} sources.")
 
