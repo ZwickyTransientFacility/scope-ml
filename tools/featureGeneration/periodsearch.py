@@ -1,6 +1,7 @@
 import numpy as np
 from scope import utils
 import fast_histogram
+import warnings
 
 
 def find_periods(
@@ -346,7 +347,7 @@ def find_periods(
 
             for ii, stat in enumerate(data_out):
                 if np.isnan(stat.significance):
-                    raise ValueError(
+                    warnings.warn(
                         "Oops... significance  is nan... something went wrong"
                     )
 
@@ -470,7 +471,7 @@ def find_periods(
                     period = periods[np.argmax(stat.data)]
 
                 if np.isnan(significance):
-                    raise ValueError(
+                    warnings.warn(
                         "Oops... significance  is nan... something went wrong"
                     )
 
