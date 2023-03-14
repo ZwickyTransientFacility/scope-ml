@@ -1325,8 +1325,15 @@ feature_stats:
     mean: 0.01834675346206806
     std: 0.021816145036886694
 
-# Below, specify external catalogs and features to include in generated feature lists:
+# Below, specify algorithms, external catalogs and features to include in generated feature lists:
 feature_generation:
+  period_algorithms:
+    CPU:
+      - LS
+    GPU:
+      - ECE
+      - EAOV
+      - ELS
   cesium_features:
     # Some features on this list are already computed by lcstats - these are commented below
     #

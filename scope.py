@@ -1429,7 +1429,7 @@ class Scope:
             n_sources = 3
 
             _ = generate_features.generate_features(
-                period_algorithm='LS',
+                period_algorithms=['LS'],
                 doCPU=True,
                 field=test_field,
                 ccd=test_ccd,

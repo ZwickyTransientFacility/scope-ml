@@ -62,6 +62,7 @@ gaia_catalog = config['kowalski']['collections']['gaia']
 dmdt_ints = config['feature_generation']['dmdt_ints']
 ext_catalog_info = config['feature_generation']['external_catalog_features']
 cesium_feature_list = config['feature_generation']['cesium_features']
+period_algorithms = config['feature_generation']['period_algorithms']
 
 kowalski_instances = {'kowalski': kowalski, 'gloria': gloria, 'melman': melman}
 
@@ -223,7 +224,7 @@ def generate_features(
     xmatch_radius_arcsec: float = 2.0,
     kowalski_instances: dict = kowalski_instances,
     limit: int = 10000,
-    period_algorithm: str = 'LS',
+    period_algorithms: list = ['LS'],
     period_batch_size: int = 1,
     doCPU: bool = False,
     doGPU: bool = False,
@@ -444,84 +445,95 @@ def generate_features(
             freqs_to_remove = None
 
         # Continue with periodsearch/periodfind
+        period_dict = {}
+        significance_dict = {}
+        pdot_dict = {}
         if doCPU or doGPU:
             if doCPU and doGPU:
                 raise KeyError('Please set only one of -doCPU or -doGPU.')
-            periods, significances, pdots = periodsearch.find_periods(
-                period_algorithm,
-                tme_collection,
-                freqs,
-                batch_size=period_batch_size,
-                doGPU=doGPU,
-                doCPU=doCPU,
-                doSaveMemory=False,
-                doRemoveTerrestrial=doRemoveTerrestrial,
-                doUsePDot=False,
-                doSingleTimeSegment=False,
-                freqs_to_remove=freqs_to_remove,
-                phase_bins=20,
-                mag_bins=10,
-                doParallel=doParallel,
-                Ncore=Ncore,
-            )
+            for algorithm in period_algorithms:
+                print(f'Running {algorithm} algorithm...')
+                periods, significances, pdots = periodsearch.find_periods(
+                    algorithm,
+                    tme_collection,
+                    freqs,
+                    batch_size=period_batch_size,
+                    doGPU=doGPU,
+                    doCPU=doCPU,
+                    doSaveMemory=False,
+                    doRemoveTerrestrial=doRemoveTerrestrial,
+                    doUsePDot=False,
+                    doSingleTimeSegment=False,
+                    freqs_to_remove=freqs_to_remove,
+                    phase_bins=20,
+                    mag_bins=10,
+                    doParallel=doParallel,
+                    Ncore=Ncore,
+                )
 
+                period_dict[algorithm] = periods
+                significance_dict[algorithm] = significances
+                pdot_dict[algorithm] = pdots
         else:
             warnings.warn("Skipping period finding; setting all periods to 1.0 d.")
             # Default periods 1.0 d
-            periods = np.ones(len(tme_collection))
-            significances = np.ones(len(tme_collection))
-            pdots = np.ones(len(tme_collection))
+            period_algorithms = ['Ones']
+            period_dict['Ones'] = np.ones(len(tme_collection))
+            significance_dict['Ones'] = np.ones(len(tme_collection))
+            pdot_dict['Ones'] = np.ones(len(tme_collection))
 
-        print('Computing Fourier stats...')
-        count = 0
-        for idx, _id in enumerate(keep_id_list):
-            count += 1
-            if (idx + 1) % limit == 0:
-                print(f"{count} done")
-            if count == len(keep_id_list):
-                print(f"{count} sources meeting min_n_lc_points requirement done")
+        print(f'Computing Fourier stats for {len(period_dict)} algorithms...')
+        for algorithm in period_algorithms:
+            print(f'- Algorithm: {algorithm}')
+            count = 0
+            for idx, _id in enumerate(keep_id_list):
+                count += 1
+                if (idx + 1) % limit == 0:
+                    print(f"{count} done")
+                if count == len(keep_id_list):
+                    print(f"{count} sources meeting min_n_lc_points requirement done")
 
-            period = periods[idx]
-            significance = significances[idx]
-            pdot = pdots[idx]
-            tt, mm, ee = tme_collection[idx]
+                period = period_dict[algorithm][idx]
+                significance = significance_dict[algorithm][idx]
+                pdot = pdot_dict[algorithm][idx]
+                tt, mm, ee = tme_collection[idx]
 
-            # Compute Fourier stats
-            (
-                f1_power,
-                f1_BIC,
-                f1_a,
-                f1_b,
-                f1_amp,
-                f1_phi0,
-                f1_relamp1,
-                f1_relphi1,
-                f1_relamp2,
-                f1_relphi2,
-                f1_relamp3,
-                f1_relphi3,
-                f1_relamp4,
-                f1_relphi4,
-            ) = lcstats.calc_fourier_stats(tt, mm, ee, period)
+                # Compute Fourier stats
+                (
+                    f1_power,
+                    f1_BIC,
+                    f1_a,
+                    f1_b,
+                    f1_amp,
+                    f1_phi0,
+                    f1_relamp1,
+                    f1_relphi1,
+                    f1_relamp2,
+                    f1_relphi2,
+                    f1_relamp3,
+                    f1_relphi3,
+                    f1_relamp4,
+                    f1_relphi4,
+                ) = lcstats.calc_fourier_stats(tt, mm, ee, period)
 
-            feature_dict[_id]['f1_power'] = f1_power
-            feature_dict[_id]['f1_BIC'] = f1_BIC
-            feature_dict[_id]['f1_a'] = f1_a
-            feature_dict[_id]['f1_b'] = f1_b
-            feature_dict[_id]['f1_amp'] = f1_amp
-            feature_dict[_id]['f1_phi0'] = f1_phi0
-            feature_dict[_id]['f1_relamp1'] = f1_relamp1
-            feature_dict[_id]['f1_relphi1'] = f1_relphi1
-            feature_dict[_id]['f1_relamp2'] = f1_relamp2
-            feature_dict[_id]['f1_relphi2'] = f1_relphi2
-            feature_dict[_id]['f1_relamp3'] = f1_relamp3
-            feature_dict[_id]['f1_relphi3'] = f1_relphi3
-            feature_dict[_id]['f1_relamp4'] = f1_relamp4
-            feature_dict[_id]['f1_relphi4'] = f1_relphi4
+                feature_dict[_id][f'f1_power_{algorithm}'] = f1_power
+                feature_dict[_id][f'f1_BIC_{algorithm}'] = f1_BIC
+                feature_dict[_id][f'f1_a_{algorithm}'] = f1_a
+                feature_dict[_id][f'f1_b_{algorithm}'] = f1_b
+                feature_dict[_id][f'f1_amp_{algorithm}'] = f1_amp
+                feature_dict[_id][f'f1_phi0_{algorithm}'] = f1_phi0
+                feature_dict[_id][f'f1_relamp1_{algorithm}'] = f1_relamp1
+                feature_dict[_id][f'f1_relphi1_{algorithm}'] = f1_relphi1
+                feature_dict[_id][f'f1_relamp2_{algorithm}'] = f1_relamp2
+                feature_dict[_id][f'f1_relphi2_{algorithm}'] = f1_relphi2
+                feature_dict[_id][f'f1_relamp3_{algorithm}'] = f1_relamp3
+                feature_dict[_id][f'f1_relphi3_{algorithm}'] = f1_relphi3
+                feature_dict[_id][f'f1_relamp4_{algorithm}'] = f1_relamp4
+                feature_dict[_id][f'f1_relphi4_{algorithm}'] = f1_relphi4
 
-            feature_dict[_id]['period'] = period
-            feature_dict[_id]['significance'] = significance
-            feature_dict[_id]['pdot'] = pdot
+                feature_dict[_id][f'period_{algorithm}'] = period
+                feature_dict[_id][f'significance_{algorithm}'] = significance
+                feature_dict[_id][f'pdot_{algorithm}'] = pdot
 
         print('Computing dmdt histograms...')
         count = 0
@@ -664,13 +676,12 @@ if __name__ == "__main__":
         default=10000,
         help="sources per query limit for large Kowalski queries",
     )
-
     parser.add_argument(
-        "--period_algorithm",
-        default='LS',
-        help="algorithm in periodsearch.py to use for period-finding",
+        "--period_algorithms",
+        nargs='+',
+        default=period_algorithms,
+        help="algorithms in periodsearch.py to use for period-finding",
     )
-
     parser.add_argument(
         "--period_batch_size",
         type=int,
@@ -778,6 +789,12 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    if type(args.period_algorithms) == dict:
+        if args.doCPU:
+            args.period_algorithms = args.period_algorithms['CPU']
+        elif args.doGPU:
+            args.period_algorithms = args.period_algorithms['GPU']
+
     # call generate_features
     generate_features(
         source_catalog=args.source_catalog,
@@ -786,7 +803,7 @@ if __name__ == "__main__":
         bright_star_query_radius_arcsec=args.bright_star_query_radius_arcsec,
         xmatch_radius_arcsec=args.xmatch_radius_arcsec,
         limit=args.query_size_limit,
-        period_algorithm=args.period_algorithm,
+        period_algorithms=args.period_algorithms,
         period_batch_size=args.period_batch_size,
         doCPU=args.doCPU,
         doGPU=args.doGPU,
