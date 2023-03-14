@@ -184,6 +184,7 @@ def get_cone_ids(
     max_distance: float = 2.0,
     distance_units: str = "arcsec",
     limit_per_query: int = 1000,
+    get_coords: bool = False,
 ) -> pd.DataFrame:
     """Cone search ZTF ID for a set of given positions
 
@@ -195,6 +196,7 @@ def get_cone_ids(
     :param max_distance: float
     :param distance_units: arcsec | arcmin | deg | rad
     :param limit_per_query: max number of sources in a query (int)
+    :param get_coords: flag to get radec_geojson coordinates from Kowalski (bool)
 
     :return: DataFrame with ZTF ids paired with input obj_ids
     """
@@ -218,6 +220,10 @@ def get_cone_ids(
 
         radec = [(selected_ra[i], selected_dec[i]) for i in range(len(selected_obj_id))]
 
+        projection = {"_id": 1}
+        if get_coords:
+            projection.update({"coordinates.radec_geojson.coordinates": 1})
+
         query = {
             "query_type": "cone_search",
             "query": {
@@ -229,9 +235,7 @@ def get_cone_ids(
                 "catalogs": {
                     catalog: {
                         "filter": {},
-                        "projection": {
-                            "_id": 1,
-                        },
+                        "projection": projection,
                     }
                 },
             },
