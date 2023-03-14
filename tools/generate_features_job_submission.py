@@ -55,6 +55,18 @@ def parse_commandline():
         default=False,
         help="If set, loop to initiate instances until out of jobs (hard on Kowalski)",
     )
+    parser.add_argument(
+        "--runParallel",
+        action="store_true",
+        default=False,
+        help="If set, run jobs in parallel using slurm. Otherwise, run in series on a single instance.",
+    )
+    parser.add_argument(
+        "--user",
+        type=str,
+        default="bhealy",
+        help="HPC username",
+    )
 
     args = parser.parse_args()
 
@@ -87,7 +99,7 @@ def filter_completed(df, resultsDir, filename):
     return df
 
 
-def run_job(df, quadrant_index, resultsDir, filename):
+def run_job(df, quadrant_index, resultsDir, filename, runParallel=False):
 
     row = df.iloc[quadrant_index]
     field, ccd, quadrant = int(row["field"]), int(row["ccd"]), int(row["quadrant"])
@@ -98,9 +110,14 @@ def run_job(df, quadrant_index, resultsDir, filename):
     filepath = os.path.join(resultsDir, filename)
 
     if not os.path.isfile(filepath):
-        jobstr = jobline.replace("$PBS_ARRAYID", "%d" % row["job_number"])
-        print(jobstr)
-        os.system(jobstr)
+        if runParallel:
+            sbatchstr = f"sbatch --export=QID={row['job_number'].values[0]} {qsubfile}"
+            print(sbatchstr)
+            os.system(sbatchstr)
+        else:
+            jobstr = jobline.replace("$QID", "%d" % row["job_number"])
+            print(jobstr)
+            os.system(jobstr)
 
 
 if __name__ == '__main__':
@@ -142,13 +159,21 @@ if __name__ == '__main__':
             # Limit number of parallel jobs to 100 for Kowalski stability
             if counter < args.max_instances:
                 quadrant_index = np.random.randint(0, njobs, size=1)
-                run_job(df, quadrant_index, resultsDir, filename)
+                run_job(
+                    df,
+                    quadrant_index,
+                    resultsDir,
+                    filename,
+                    runParallel=args.runParallel,
+                )
 
                 counter = counter + 1
-                print(counter)
+                print(f"Instances available: {args.max_instances - counter}")
 
             else:
                 # Wait between status checks
+                os.system(f"squeue -u {args.user}")
+                print(f"Waiting {args.wait_time_minutes} minutes until next check...")
                 time.sleep(args.wait_time_minutes * 60)
                 df = filter_completed(df, resultsDir, filename)
                 njobs = len(df)
@@ -160,5 +185,17 @@ if __name__ == '__main__':
                 counter -= diff_njobs
 
     elif args.doSubmitLoop:
-        for quadrant_index in range(njobs):
-            run_job(df, quadrant_index, resultsDir, filename)
+        confirm = input(
+            "Warning: setting --doSubmitLoop ignores limits on number of jobs to submit. Continue? (yes/no): "
+        )
+        if confirm in ['yes', 'Yes', 'YES']:
+            for quadrant_index in range(njobs):
+                run_job(
+                    df,
+                    quadrant_index,
+                    resultsDir,
+                    filename,
+                    runParallel=args.runParallel,
+                )
+        else:
+            print('Canceled loop submission.')
