@@ -163,13 +163,6 @@ if __name__ == "__main__":
         default=10000,
         help="sources per query limit for large Kowalski queries",
     )
-
-    parser.add_argument(
-        "--period_algorithm",
-        default='LS',
-        help="algorithm in periodsearch.py to use for period-finding",
-    )
-
     parser.add_argument(
         "--period_batch_size",
         type=int,
@@ -180,13 +173,13 @@ if __name__ == "__main__":
         "--doCPU",
         action='store_true',
         default=False,
-        help="if set, run period-finding algorithm on CPU",
+        help="if set, run period-finding algorithms on CPU",
     )
     parser.add_argument(
         "--doGPU",
         action='store_true',
         default=False,
-        help="if set, use GPU-accelerated period algorithm",
+        help="if set, use GPU-accelerated period algorithms",
     )
     parser.add_argument(
         "--samples_per_peak",
@@ -329,7 +322,6 @@ if __name__ == "__main__":
     bright_star_query_radius_arcsec = args.bright_star_query_radius_arcsec
     xmatch_radius_arcsec = args.xmatch_radius_arcsec
     limit = args.query_size_limit
-    period_algorithm = args.period_algorithm
     period_batch_size = args.period_batch_size
     doCPU = args.doCPU
     doGPU = args.doGPU
@@ -417,7 +409,7 @@ if __name__ == "__main__":
     # fid.write('source %s/setup.sh\n' % BASE_DIR)
     if args.doQuadrantFile:
         fid.write(
-            '%s/generate_features.py --source_catalog %s --alerts_catalog %s --gaia_catalog %s --bright_star_query_radius_arcsec %s --xmatch_radius_arcsec %s --limit %s --period_algorithm %s --period_batch_size %s --samples_per_peak %s --Ncore %s --min_n_lc_points %s --min_cadence_minutes %s --dirname %s --filename %s --doQuadrantFile --quadrant_file %s --quadrant_index $PBS_ARRAYID %s %s\n'
+            '%s/generate_features.py --source_catalog %s --alerts_catalog %s --gaia_catalog %s --bright_star_query_radius_arcsec %s --xmatch_radius_arcsec %s --limit %s --period_batch_size %s --samples_per_peak %s --Ncore %s --min_n_lc_points %s --min_cadence_minutes %s --dirname %s --filename %s --doQuadrantFile --quadrant_file %s --quadrant_index $QID %s %s\n'
             % (
                 BASE_DIR / 'tools',
                 source_catalog,
@@ -426,7 +418,6 @@ if __name__ == "__main__":
                 bright_star_query_radius_arcsec,
                 xmatch_radius_arcsec,
                 limit,
-                period_algorithm,
                 period_batch_size,
                 samples_per_peak,
                 Ncore,
@@ -441,7 +432,7 @@ if __name__ == "__main__":
         )
     else:
         fid.write(
-            '%s/generate_features.py --source_catalog %s --alerts_catalog %s --gaia_catalog %s --bright_star_query_radius_arcsec %s --xmatch_radius_arcsec %s --limit %s --period_algorithm %s --period_batch_size %s --samples_per_peak %s --Ncore %s --field %s --ccd %s --quad %s --min_n_lc_points %s --min_cadence_minutes %s --dirname %s --filename %s %s %s\n'
+            '%s/generate_features.py --source_catalog %s --alerts_catalog %s --gaia_catalog %s --bright_star_query_radius_arcsec %s --xmatch_radius_arcsec %s --limit %s --period_batch_size %s --samples_per_peak %s --Ncore %s --field %s --ccd %s --quad %s --min_n_lc_points %s --min_cadence_minutes %s --dirname %s --filename %s %s %s\n'
             % (
                 BASE_DIR / 'tools',
                 source_catalog,
@@ -450,7 +441,6 @@ if __name__ == "__main__":
                 bright_star_query_radius_arcsec,
                 xmatch_radius_arcsec,
                 limit,
-                period_algorithm,
                 period_batch_size,
                 samples_per_peak,
                 Ncore,
