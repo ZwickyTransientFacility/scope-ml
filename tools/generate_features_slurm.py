@@ -166,7 +166,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--period_batch_size",
         type=int,
-        default=1,
+        default=1000,
         help="batch size for GPU-accelerated period algorithms",
     )
     parser.add_argument(
