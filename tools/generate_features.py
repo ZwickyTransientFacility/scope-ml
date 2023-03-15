@@ -225,7 +225,7 @@ def generate_features(
     kowalski_instances: dict = kowalski_instances,
     limit: int = 10000,
     period_algorithms: dict = period_algorithms,
-    period_batch_size: int = 1,
+    period_batch_size: int = 1000,
     doCPU: bool = False,
     doGPU: bool = False,
     samples_per_peak: int = 10,
@@ -458,29 +458,58 @@ def generate_features(
         if doCPU or doGPU:
             if doCPU and doGPU:
                 raise KeyError('Please set only one of -doCPU or -doGPU.')
-            for algorithm in period_algorithms:
-                print(f'Running {algorithm} algorithm...')
-                periods, significances, pdots = periodsearch.find_periods(
-                    algorithm,
-                    tme_collection,
-                    freqs,
-                    batch_size=period_batch_size,
-                    doGPU=doGPU,
-                    doCPU=doCPU,
-                    doSaveMemory=False,
-                    doRemoveTerrestrial=doRemoveTerrestrial,
-                    doUsePDot=False,
-                    doSingleTimeSegment=False,
-                    freqs_to_remove=freqs_to_remove,
-                    phase_bins=20,
-                    mag_bins=10,
-                    doParallel=doParallel,
-                    Ncore=Ncore,
-                )
 
-                period_dict[algorithm] = periods
-                significance_dict[algorithm] = significances
-                pdot_dict[algorithm] = pdots
+            n_sources = len(feature_dict)
+            if n_sources % period_batch_size != 0:
+                n_iterations = n_sources // period_batch_size + 1
+            else:
+                n_iterations = n_sources // period_batch_size
+
+            for algorithm in period_algorithms:
+                # Iterate over period batches and algorithms
+                all_periods = np.array([])
+                all_significances = np.array([])
+                all_pdots = np.array([])
+
+                print(
+                    f'Running period algorithms for {len(feature_dict)} sources in batches of {period_batch_size}...'
+                )
+                print(f'Running {algorithm} algorithm:')
+
+                for i in range(0, n_iterations):
+                    print(f"Iteration {i+1} of {n_iterations}...")
+                    periods, significances, pdots = periodsearch.find_periods(
+                        algorithm,
+                        tme_collection[
+                            i
+                            * period_batch_size : min(
+                                n_sources, (i + 1) * period_batch_size
+                            )
+                        ],
+                        freqs,
+                        batch_size=period_batch_size,
+                        doGPU=doGPU,
+                        doCPU=doCPU,
+                        doSaveMemory=False,
+                        doRemoveTerrestrial=doRemoveTerrestrial,
+                        doUsePDot=False,
+                        doSingleTimeSegment=False,
+                        freqs_to_remove=freqs_to_remove,
+                        phase_bins=20,
+                        mag_bins=10,
+                        doParallel=doParallel,
+                        Ncore=Ncore,
+                    )
+
+                    all_periods = np.concatenate([all_periods, periods])
+                    all_significances = np.concatenate(
+                        [all_significances, significances]
+                    )
+                    all_pdots = np.concatenate([all_pdots, pdots])
+
+                period_dict[algorithm] = all_periods
+                significance_dict[algorithm] = all_significances
+                pdot_dict[algorithm] = all_pdots
         else:
             warnings.warn("Skipping period finding; setting all periods to 1.0 d.")
             # Default periods 1.0 d
@@ -692,7 +721,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--period_batch_size",
         type=int,
-        default=1,
+        default=1000,
         help="batch size for GPU-accelerated period algorithms",
     )
     parser.add_argument(
