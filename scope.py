@@ -1412,7 +1412,7 @@ class Scope:
 
         return final_toPost
 
-    def test(self, cpu_gpu="CPU"):
+    def test(self, doGPU=False):
         """Test different workflows
 
         :return:
@@ -1428,13 +1428,9 @@ class Scope:
             test_feature_filename = 'testFeatures'
             n_sources = 3
 
-            cpu_bool = True
-            if cpu_gpu in ["GPU", "gpu"]:
-                cpu_bool = False
-
             _ = generate_features.generate_features(
-                doCPU=cpu_bool,
-                doGPU=not cpu_bool,
+                doCPU=not doGPU,
+                doGPU=doGPU,
                 field=test_field,
                 ccd=test_ccd,
                 quad=test_quad,
