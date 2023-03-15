@@ -224,7 +224,7 @@ def generate_features(
     xmatch_radius_arcsec: float = 2.0,
     kowalski_instances: dict = kowalski_instances,
     limit: int = 10000,
-    period_algorithms: list = ['LS'],
+    period_algorithms: dict = period_algorithms,
     period_batch_size: int = 1,
     doCPU: bool = False,
     doGPU: bool = False,
@@ -252,6 +252,13 @@ def generate_features(
     code_version = scope.__version__
     utcnow = datetime.utcnow()
     start_dt = utcnow.strftime("%Y-%m-%d %H:%M:%S")
+
+    # Select period algorithms from config based on CPU or GPU specification
+    if type(period_algorithms) == dict:
+        if doCPU:
+            period_algorithms = period_algorithms['CPU']
+        elif doGPU:
+            period_algorithms = period_algorithms['GPU']
 
     # Code supporting parallelization across fields/ccds/quads
     slurmDir = os.path.join(str(BASE_DIR / dirname), 'slurm')
@@ -680,7 +687,7 @@ if __name__ == "__main__":
         "--period_algorithms",
         nargs='+',
         default=period_algorithms,
-        help="algorithms in periodsearch.py to use for period-finding",
+        help="to override config, list algorithms to use for period-finding with periodsearch.py",
     )
     parser.add_argument(
         "--period_batch_size",
@@ -788,12 +795,6 @@ if __name__ == "__main__":
     parser.add_argument("--quadrant_index", default=0, type=int)
 
     args = parser.parse_args()
-
-    if type(args.period_algorithms) == dict:
-        if args.doCPU:
-            args.period_algorithms = args.period_algorithms['CPU']
-        elif args.doGPU:
-            args.period_algorithms = args.period_algorithms['GPU']
 
     # call generate_features
     generate_features(

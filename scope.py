@@ -1412,7 +1412,7 @@ class Scope:
 
         return final_toPost
 
-    def test(self):
+    def test(self, doGPU=False):
         """Test different workflows
 
         :return:
@@ -1429,8 +1429,8 @@ class Scope:
             n_sources = 3
 
             _ = generate_features.generate_features(
-                period_algorithms=['LS'],
-                doCPU=True,
+                doCPU=not doGPU,
+                doGPU=doGPU,
                 field=test_field,
                 ccd=test_ccd,
                 quad=test_quad,
