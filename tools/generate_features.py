@@ -466,7 +466,7 @@ def generate_features(
                 n_iterations = n_sources // period_batch_size
 
             for algorithm in period_algorithms:
-                # Interate over both period batches and algorithms
+                # Iterate over period batches and algorithms
                 all_periods = np.array([])
                 all_significances = np.array([])
                 all_pdots = np.array([])
