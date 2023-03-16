@@ -302,6 +302,8 @@ def get_field_ids(
         Along with limit this can be used to loop over a quad in chunks
     limit : int
         How many of the selected rows to return. Default is 10000
+    get_coords: bool
+            If True, return dictionary linking ids and object geojson coordinates
     Returns
     -------
     ids : list
@@ -320,7 +322,7 @@ def get_field_ids(
         "quad": {"$eq": quad},
     }
     if minobs > 0:
-        filter["n"] = {"$gt": minobs}
+        filter["nobs"] = {"$gt": minobs}
 
     projection = {"_id": 1}
     if get_coords:

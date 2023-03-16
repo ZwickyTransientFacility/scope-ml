@@ -708,6 +708,23 @@ def exclude_radius(Tycho_B, Tycho_V):
     return radius
 
 
+def split_dict(d, n):
+    keys = list(d.keys())
+    n_sources = len(d)
+    if n_sources % n != 0:
+        n_split_sources = n_sources // n + 1
+    else:
+        n_split_sources = n_sources // n
+
+    for i in range(0, n):
+        yield {
+            k: d[k]
+            for k in keys[
+                i * n_split_sources : min(((i + 1) * n_split_sources), len(d))
+            ]
+        }
+
+
 """ Datasets """
 
 

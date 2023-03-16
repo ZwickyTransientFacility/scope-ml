@@ -11,6 +11,7 @@ from scope.utils import (
     exclude_radius,
     removeHighCadence,
     write_parquet,
+    split_dict,
 )
 import numpy as np
 from penquins import Kowalski
@@ -74,6 +75,7 @@ def drop_close_bright_stars(
     query_radius_arcsec: float = 300.0,
     xmatch_radius_arcsec: float = 2.0,
     limit: int = 10000,
+    Ncore: int = 1,
 ):
     """
     Use Gaia to identify and drop sources that are too close to bright stars
@@ -86,6 +88,7 @@ def drop_close_bright_stars(
     :param xmatch_radius_arcsec: size of cone within which to match a queried source with an input source.
         If any sources from the query fall within this cone, the closest one will be matched to the input source and dropped from further bright-star considerations (float)
     :param limit: batch size of kowalski_instance queries (int)
+    :param Ncore: number of cores for parallel querying (int)
 
     :return id_dct_keep: dictionary containing subset of input sources far enough away from bright stars
     """
@@ -114,37 +117,76 @@ def drop_close_bright_stars(
 
         # Need to add 180 -> no negative RAs
         radec_geojson[0, :] += 180.0
+        radec_dict = dict(zip(id_slice, radec_geojson.transpose().tolist()))
 
-        # Get Gaia EDR3 ID, G mag, BP-RP, and coordinates
-        query = {
-            "query_type": "cone_search",
-            "query": {
-                "object_coordinates": {
-                    "radec": dict(zip(id_slice, radec_geojson.transpose().tolist())),
-                    "cone_search_radius": query_radius_arcsec,
-                    "cone_search_unit": 'arcsec',
-                },
-                "catalogs": {
-                    catalog: {
-                        # Select sources brighter than G magnitude 13:
-                        # -Conversion to Tycho mags only good for G < 13
-                        # -Need for exclusion radius only for stars with B <~ 13
-                        # -For most stars, if G > 13, B > 13
-                        "filter": {"phot_g_mean_mag": {"$lt": 13.0}},
-                        "projection": {
-                            "phot_g_mean_mag": 1,
-                            "bp_rp": 1,
-                            "coordinates.radec_geojson.coordinates": 1,
+        if Ncore > 1:
+            # Split dictionary for parallel querying
+            radec_split_list = [lst for lst in split_dict(radec_dict, Ncore)]
+            queries = [
+                {
+                    "query_type": "cone_search",
+                    "query": {
+                        "object_coordinates": {
+                            "radec": dct,
+                            "cone_search_radius": query_radius_arcsec,
+                            "cone_search_unit": 'arcsec',
                         },
-                    }
-                },
-                "filter": {},
-            },
-        }
+                        "catalogs": {
+                            catalog: {
+                                # Select sources brighter than G magnitude 13:
+                                # -Conversion to Tycho mags only good for G < 13
+                                # -Need for exclusion radius only for stars with B <~ 13
+                                # -For most stars, if G > 13, B > 13
+                                "filter": {"phot_g_mean_mag": {"$lt": 13.0}},
+                                "projection": {
+                                    "phot_g_mean_mag": 1,
+                                    "bp_rp": 1,
+                                    "coordinates.radec_geojson.coordinates": 1,
+                                },
+                            }
+                        },
+                        "filter": {},
+                    },
+                }
+                for dct in radec_split_list
+            ]
 
-        q = kowalski_instance.query(query)
-        gaia_results = q['data'][catalog]
-        gaia_results_dct.update(gaia_results)
+            q = kowalski_instance.batch_query(queries, n_treads=8)
+            for batch_result in q:
+                gaia_results = batch_result['data'][catalog]
+                gaia_results_dct.update(gaia_results)
+        else:
+            # Get Gaia EDR3 ID, G mag, BP-RP, and coordinates
+            query = {
+                "query_type": "cone_search",
+                "query": {
+                    "object_coordinates": {
+                        # "radec": dict(zip(id_slice, radec_geojson.transpose().tolist())),
+                        "radec": radec_dict,
+                        "cone_search_radius": query_radius_arcsec,
+                        "cone_search_unit": 'arcsec',
+                    },
+                    "catalogs": {
+                        catalog: {
+                            # Select sources brighter than G magnitude 13:
+                            # -Conversion to Tycho mags only good for G < 13
+                            # -Need for exclusion radius only for stars with B <~ 13
+                            # -For most stars, if G > 13, B > 13
+                            "filter": {"phot_g_mean_mag": {"$lt": 13.0}},
+                            "projection": {
+                                "phot_g_mean_mag": 1,
+                                "bp_rp": 1,
+                                "coordinates.radec_geojson.coordinates": 1,
+                            },
+                        }
+                    },
+                    "filter": {},
+                },
+            }
+
+            q = kowalski_instance.query(query)
+            gaia_results = q['data'][catalog]
+            gaia_results_dct.update(gaia_results)
 
     print('Identifying sources too close to bright stars...')
     # Loop over each id to compare with query results
@@ -284,7 +326,7 @@ def generate_features(
         field=field,
         ccd_range=ccd,
         quad_range=quad,
-        minobs=0,
+        minobs=min_n_lc_points,
         save=False,
         get_coords=True,
         stop_early=stop_early,
@@ -298,6 +340,7 @@ def generate_features(
         query_radius_arcsec=bright_star_query_radius_arcsec,
         xmatch_radius_arcsec=xmatch_radius_arcsec,
         limit=limit,
+        Ncore=Ncore,
     )
 
     print('Getting lightcurves...')

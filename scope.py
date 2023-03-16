@@ -1439,6 +1439,8 @@ class Scope:
                 limit=n_sources,
                 doCesium=True,
                 stop_early=True,
+                Ncore=1,
+                min_n_lc_points=50,
             )
 
             path_gen_features = (
@@ -1461,7 +1463,7 @@ class Scope:
             print()
             _, lst = get_quad_ids.get_ids_loop(
                 get_quad_ids.get_field_ids,
-                catalog=self.config['kowalski']['collections']['features'],
+                catalog="ZTF_sources_20210401",
                 field=298,
                 ccd_range=3,
                 quad_range=4,
