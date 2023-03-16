@@ -119,34 +119,6 @@ def drop_close_bright_stars(
         radec_geojson[0, :] += 180.0
         radec_dict = dict(zip(id_slice, radec_geojson.transpose().tolist()))
 
-        # Get Gaia EDR3 ID, G mag, BP-RP, and coordinates
-        query = {
-            "query_type": "cone_search",
-            "query": {
-                "object_coordinates": {
-                    # "radec": dict(zip(id_slice, radec_geojson.transpose().tolist())),
-                    "radec": radec_dict,
-                    "cone_search_radius": query_radius_arcsec,
-                    "cone_search_unit": 'arcsec',
-                },
-                "catalogs": {
-                    catalog: {
-                        # Select sources brighter than G magnitude 13:
-                        # -Conversion to Tycho mags only good for G < 13
-                        # -Need for exclusion radius only for stars with B <~ 13
-                        # -For most stars, if G > 13, B > 13
-                        "filter": {"phot_g_mean_mag": {"$lt": 13.0}},
-                        "projection": {
-                            "phot_g_mean_mag": 1,
-                            "bp_rp": 1,
-                            "coordinates.radec_geojson.coordinates": 1,
-                        },
-                    }
-                },
-                "filter": {},
-            },
-        }
-
         if Ncore > 1:
             # Split dictionary for parallel querying
             radec_split_list = [lst for lst in split_dict(radec_dict, Ncore)]
@@ -179,12 +151,39 @@ def drop_close_bright_stars(
                 for dct in radec_split_list
             ]
 
-        if Ncore > 1:
             q = kowalski_instance.batch_query(queries, n_treads=8)
             for batch_result in q:
                 gaia_results = batch_result['data'][catalog]
                 gaia_results_dct.update(gaia_results)
         else:
+            # Get Gaia EDR3 ID, G mag, BP-RP, and coordinates
+            query = {
+                "query_type": "cone_search",
+                "query": {
+                    "object_coordinates": {
+                        # "radec": dict(zip(id_slice, radec_geojson.transpose().tolist())),
+                        "radec": radec_dict,
+                        "cone_search_radius": query_radius_arcsec,
+                        "cone_search_unit": 'arcsec',
+                    },
+                    "catalogs": {
+                        catalog: {
+                            # Select sources brighter than G magnitude 13:
+                            # -Conversion to Tycho mags only good for G < 13
+                            # -Need for exclusion radius only for stars with B <~ 13
+                            # -For most stars, if G > 13, B > 13
+                            "filter": {"phot_g_mean_mag": {"$lt": 13.0}},
+                            "projection": {
+                                "phot_g_mean_mag": 1,
+                                "bp_rp": 1,
+                                "coordinates.radec_geojson.coordinates": 1,
+                            },
+                        }
+                    },
+                    "filter": {},
+                },
+            }
+
             q = kowalski_instance.query(query)
             gaia_results = q['data'][catalog]
             gaia_results_dct.update(gaia_results)

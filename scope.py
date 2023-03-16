@@ -1439,6 +1439,7 @@ class Scope:
                 limit=n_sources,
                 doCesium=True,
                 stop_early=True,
+                Ncore=1,
             )
 
             path_gen_features = (
