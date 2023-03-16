@@ -1440,6 +1440,7 @@ class Scope:
                 doCesium=True,
                 stop_early=True,
                 Ncore=1,
+                min_n_lc_points=50,
             )
 
             path_gen_features = (
