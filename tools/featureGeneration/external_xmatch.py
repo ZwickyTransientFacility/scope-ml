@@ -108,11 +108,9 @@ def xmatch(
 
     id_dct_external = id_dct.copy()
     print('Iterating through results and assigning xmatch features to sources...')
-    print(len(ext_results_dct))
     for catalog in catalog_info.keys():
         cat_results = ext_results_dct[catalog]
-        print(len(cat_results))
-        print(cat_results.keys())
+
         for id in id_dct_external.keys():
             ext_values = cat_results[str(id)]
 
