@@ -96,6 +96,8 @@ def drop_close_bright_stars(
     ids = [x for x in id_dct]
     id_dct_keep = id_dct.copy()
 
+    limit *= Ncore
+
     n_sources = len(id_dct)
     if n_sources % limit != 0:
         n_iterations = n_sources // limit + 1
@@ -349,6 +351,7 @@ def generate_features(
         ids=[x for x in feature_gen_source_list.keys()],
         catalog=source_catalog,
         limit_per_query=limit,
+        Ncore=Ncore,
     )
 
     feature_dict = feature_gen_source_list.copy()
@@ -633,6 +636,7 @@ def generate_features(
             kowalski_instance=kowalski_instances['kowalski'],
             radius_arcsec=xmatch_radius_arcsec,
             limit=limit,
+            Ncore=Ncore,
         )
         for _id in feature_dict.keys():
             feature_dict[_id]['n_ztf_alerts'] = alert_stats_dct[_id]['n_ztf_alerts']
@@ -647,6 +651,7 @@ def generate_features(
             catalog_info=ext_catalog_info,
             radius_arcsec=xmatch_radius_arcsec,
             limit=limit,
+            Ncore=Ncore,
         )
         feature_df = pd.DataFrame.from_dict(feature_dict, orient='index')
 
