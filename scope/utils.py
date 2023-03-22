@@ -13,6 +13,11 @@ __all__ = [
     "read_parquet",
     "write_parquet",
     "impute_features",
+    "removeHighCadence",
+    "TychoBVfromGaia",
+    "exclude_radius",
+    "split_dict",
+    "sort_lightcurve",
 ]
 
 from astropy.io import fits
@@ -723,6 +728,15 @@ def split_dict(d, n):
                 i * n_split_sources : min(((i + 1) * n_split_sources), len(d))
             ]
         }
+
+
+def sort_lightcurve(t, m, e):
+    sort_indices = np.argsort(t)
+    t = t[sort_indices]
+    m = m[sort_indices]
+    e = e[sort_indices]
+
+    return t, m, e
 
 
 """ Datasets """
