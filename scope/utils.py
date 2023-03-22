@@ -13,6 +13,11 @@ __all__ = [
     "read_parquet",
     "write_parquet",
     "impute_features",
+    "removeHighCadence",
+    "TychoBVfromGaia",
+    "exclude_radius",
+    "split_dict",
+    "sort_lightcurve",
 ]
 
 from astropy.io import fits
