@@ -12,6 +12,7 @@ from scope.utils import (
     removeHighCadence,
     write_parquet,
     split_dict,
+    sort_lightcurve,
 )
 import numpy as np
 from penquins import Kowalski
@@ -375,6 +376,9 @@ def generate_features(
         try:
             tme_arr = np.array(tme)
             t, m, e = tme_arr.transpose()
+
+            # Ensure light curves are monotonically increasing in time
+            t, m, e = sort_lightcurve(t, m, e)
 
             # Remove all but the first of each group of high-cadence points
             tt, mm, ee = removeHighCadence(t, m, e, cadence_minutes=min_cadence_minutes)

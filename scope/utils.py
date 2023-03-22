@@ -725,6 +725,15 @@ def split_dict(d, n):
         }
 
 
+def sort_lightcurve(t, m, e):
+    sort_indices = np.argsort(t)
+    t = t[sort_indices]
+    m = m[sort_indices]
+    e = e[sort_indices]
+
+    return t, m, e
+
+
 """ Datasets """
 
 
