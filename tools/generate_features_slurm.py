@@ -206,7 +206,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--Ncore",
-        default=8,
+        default=10,
         type=int,
         help="number of cores for parallel period finding",
     )
@@ -271,16 +271,58 @@ if __name__ == "__main__":
         help="job name",
     )
     parser.add_argument(
-        "--queue_type",
+        "--cluster_name",
         type=str,
-        default='p100',
-        help="p100 or k80",
+        default='Expanse',
+        help="Name of HPC cluster",
+    )
+    parser.add_argument(
+        "--partition_type",
+        type=str,
+        default='gpu-shared',
+        help="Partition name to request",
+    )
+    parser.add_argument(
+        "--nodes",
+        type=int,
+        default=1,
+        help="Number of nodes to request",
+    )
+    parser.add_argument(
+        "--gpus",
+        type=int,
+        default=1,
+        help="Number of GPUs to request",
+    )
+    parser.add_argument(
+        "--memory_GB",
+        type=int,
+        default=180,
+        help="Memory allocation to request",
+    )
+    parser.add_argument(
+        "--time",
+        type=str,
+        default='48:00:00',
+        help="Walltime for instance",
     )
     parser.add_argument(
         "--mail_user",
         type=str,
         default='healyb@umn.edu',
         help="contact email address",
+    )
+    parser.add_argument(
+        "--account_name",
+        type=str,
+        default='umn131',
+        help="Name of account with current HPC allocation",
+    )
+    parser.add_argument(
+        "--python_env_name",
+        type=str,
+        default='scope-env',
+        help="Name of python environment to activate",
     )
     parser.add_argument(
         "--kowalski_instance_name",
@@ -300,13 +342,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--max_instances",
         type=int,
-        default=100,
+        default=20,
         help="Max number of instances to run in parallel",
     )
     parser.add_argument(
         "--wait_time_minutes",
         type=float,
-        default=10.0,
+        default=5.0,
         help="Time to wait between job status checks",
     )
 
@@ -321,7 +363,7 @@ if __name__ == "__main__":
     gaia_catalog = args.gaia_catalog
     bright_star_query_radius_arcsec = args.bright_star_query_radius_arcsec
     xmatch_radius_arcsec = args.xmatch_radius_arcsec
-    limit = args.query_size_limit
+    query_size_limit = args.query_size_limit
     period_batch_size = args.period_batch_size
     doCPU = args.doCPU
     doGPU = args.doGPU
@@ -388,28 +430,31 @@ if __name__ == "__main__":
                     job_number += 1
         fid.close()
 
+    # Main script to run feature generation
     fid = open(os.path.join(slurmDir, 'slurm.sub'), 'w')
     fid.write('#!/bin/bash\n')
     fid.write(f'#SBATCH --job-name={args.job_name}.job\n')
-    fid.write(f'#SBATCH --output=logs/{args.job_name}_%A_%a.out\n')
-    fid.write(f'#SBATCH --error=logs/{args.job_name}_%A_%a.err\n')
-    fid.write('#SBATCH -p gpu-shared\n')
-    if args.queue_type == "p100":
-        fid.write('#SBATCH --gres=gpu:p100:1 --mem=8GB\n')
-    elif args.queue_type == "k80":
-        fid.write('#SBATCH --gres=gpu:k80:1 --mem=8GB\n')
-    else:
-        print('queue_type must be p100 or k80')
-        exit(0)
-    fid.write('#SBATCH --time=2:00:00\n')
+    fid.write(f'#SBATCH --output=../logs/{args.job_name}_%A_%a.out\n')
+    fid.write(f'#SBATCH --error=../logs/{args.job_name}_%A_%a.err\n')
+    fid.write(f'#SBATCH -p {args.partition_type}\n')
+    fid.write(f'#SBATCH --nodes {args.nodes}\n')
+    fid.write(f'#SBATCH --ntasks-per-node {args.Ncore}\n')
+    fid.write(f'#SBATCH --gpus {args.gpus}\n')
+    fid.write(f'#SBATCH --mem {args.memory_GB}G\n')
+    fid.write(f'#SBATCH --time={args.time}\n')
     fid.write('#SBATCH --mail-type=ALL\n')
     fid.write(f'#SBATCH --mail-user={args.mail_user}\n')
-    fid.write('#SBATCH -A umn130\n')
-    # Not sure if below line is necessary - commented for now
-    # fid.write('source %s/setup.sh\n' % BASE_DIR)
+    fid.write(f'#SBATCH -A {args.account_name}\n')
+
+    fid.write('module purge\n')
+    if args.cluster_name in ['Expanse', 'expanse', 'EXPANSE']:
+        fid.write('module add gpu\n')
+        fid.write('module add cuda\n')
+    fid.write(f'source activate {args.python_env_name}\n')
+
     if args.doQuadrantFile:
         fid.write(
-            '%s/generate_features.py --source_catalog %s --alerts_catalog %s --gaia_catalog %s --bright_star_query_radius_arcsec %s --xmatch_radius_arcsec %s --limit %s --period_batch_size %s --samples_per_peak %s --Ncore %s --min_n_lc_points %s --min_cadence_minutes %s --dirname %s --filename %s --doQuadrantFile --quadrant_file %s --quadrant_index $QID %s %s\n'
+            '%s/generate_features.py --source_catalog %s --alerts_catalog %s --gaia_catalog %s --bright_star_query_radius_arcsec %s --xmatch_radius_arcsec %s --query_size_limit %s --period_batch_size %s --samples_per_peak %s --Ncore %s --min_n_lc_points %s --min_cadence_minutes %s --dirname %s --filename %s --doQuadrantFile --quadrant_file %s --quadrant_index $QID %s %s\n'
             % (
                 BASE_DIR / 'tools',
                 source_catalog,
@@ -417,7 +462,7 @@ if __name__ == "__main__":
                 gaia_catalog,
                 bright_star_query_radius_arcsec,
                 xmatch_radius_arcsec,
-                limit,
+                query_size_limit,
                 period_batch_size,
                 samples_per_peak,
                 Ncore,
@@ -432,7 +477,7 @@ if __name__ == "__main__":
         )
     else:
         fid.write(
-            '%s/generate_features.py --source_catalog %s --alerts_catalog %s --gaia_catalog %s --bright_star_query_radius_arcsec %s --xmatch_radius_arcsec %s --limit %s --period_batch_size %s --samples_per_peak %s --Ncore %s --field %s --ccd %s --quad %s --min_n_lc_points %s --min_cadence_minutes %s --dirname %s --filename %s %s %s\n'
+            '%s/generate_features.py --source_catalog %s --alerts_catalog %s --gaia_catalog %s --bright_star_query_radius_arcsec %s --xmatch_radius_arcsec %s --query_size_limit %s --period_batch_size %s --samples_per_peak %s --Ncore %s --field %s --ccd %s --quad %s --min_n_lc_points %s --min_cadence_minutes %s --dirname %s --filename %s %s %s\n'
             % (
                 BASE_DIR / 'tools',
                 source_catalog,
@@ -440,7 +485,7 @@ if __name__ == "__main__":
                 gaia_catalog,
                 bright_star_query_radius_arcsec,
                 xmatch_radius_arcsec,
-                limit,
+                query_size_limit,
                 period_batch_size,
                 samples_per_peak,
                 Ncore,
@@ -457,40 +502,25 @@ if __name__ == "__main__":
         )
     fid.close()
 
+    # Secondary script to manage job submission using generate_features_job_submission.py
+    # (Python code can also be run interactively)
     fid = open(os.path.join(slurmDir, 'slurm_submission.sub'), 'w')
     fid.write('#!/bin/bash\n')
-    fid.write(f'#SBATCH --job-name={args.job_name}.job\n')
-    fid.write(f'#SBATCH --output=logs/{args.job_name}_%A_%a.out\n')
-    fid.write(f'#SBATCH --error=logs/{args.job_name}_%A_%a.err\n')
-    if "HOSTNAME" in os.environ:
-        if "cori" in os.environ["HOSTNAME"]:
-            fid.write('#SBATCH -C gpu -N 1\n')
-            fid.write('#SBATCH -G 1 --mem=8GB\n')
-            fid.write('#SBATCH -A m3619\n')
-    else:
-        fid.write('#SBATCH -p gpu-shared\n')
-        fid.write('#SBATCH -A umn130\n')
-        if args.queue_type == "p100":
-            fid.write('#SBATCH --gres=gpu:p100:1 --mem=8GB\n')
-        elif args.queue_type == "k80":
-            fid.write('#SBATCH --gres=gpu:k80:1 --mem=8GB\n')
-        else:
-            print('queue_type must be p100 or k80')
-            exit(0)
-    fid.write('#SBATCH --time=2:00:00\n')
+    fid.write(f'#SBATCH --job-name={args.job_name}_submit.job\n')
+    fid.write(f'#SBATCH --output=../logs/{args.job_name}_submit_%A_%a.out\n')
+    fid.write(f'#SBATCH --error=../logs/{args.job_name}_submit_%A_%a.err\n')
+    fid.write('#SBATCH -p shared\n')
+    fid.write('#SBATCH --mem 16G\n')
+    fid.write(f'#SBATCH -A {args.account_name}\n')
+    fid.write(f'#SBATCH --time={args.time}\n')
     fid.write('#SBATCH --mail-type=ALL\n')
     fid.write(f'#SBATCH --mail-user={args.mail_user}\n')
+
     fid.write('module purge\n')
-    if "HOSTNAME" in os.environ:
-        if "cori" in os.environ["HOSTNAME"]:
-            fid.write('module load esslurm\n')
-            fid.write('module unload PrgEnv-intel\n')
-            fid.write('module load PrgEnv-gnu\n')
-            fid.write('module load cuda/10.1.243\n')
-    # Not sure if below line is necessary - commented for now
-    # fid.write('source %s/setup.sh\n' % BASE_DIR)
+    fid.write(f'source activate {args.python_env_name}\n')
+
     fid.write(
-        f'%s/{args.job_name}_job_submission.py --outputDir %s --filename %s --doSubmit --max_instances %s --wait_time_minutes %s\n'
+        '%s/generate_features_job_submission.py --outputDir %s --filename %s --doSubmit --max_instances %s --wait_time_minutes %s\n'
         % (
             BASE_DIR / 'tools',
             dirpath,
