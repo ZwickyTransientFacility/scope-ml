@@ -292,6 +292,43 @@ def generate_features(
     quadrant_file: str = 'slurm.dat',
     quadrant_index: int = 0,
 ):
+    """
+    Generate features for ZTF light curves
+
+    :param source_catalog*: name of Kowalski catalog containing ZTF sources (str)
+    :param alerts_catalog*: name of Kowalski catalog containing ZTF alerts (str)
+    :param gaia_catalog*: name of Kowalski catalog containing Gaia data (str)
+    :param bright_star_query_radius_arcsec: maximum angular distance from ZTF sources to query nearby bright stars in Gaia (float)
+    :param xmatch_radius_arcsec: maximum angular distance from ZTF sources to match external catalog sources (float)
+    :param kowalski_instances*: dictionary containing {names of Kowalski instances : authenticated penquins.Kowalski objects} (dict)
+    :param limit: maximum number of sources to process in batch queries / statistics calculations (int)
+    :param period_algorithms*: dictionary containing names of period algorithms to run. Normally specified in config - if specified here, should be a (list)
+    :param period_batch_size: maximum number of sources to simultaneously perform period finding (int)
+    :param doCPU: flag to run config-specified CPU period algorithms (bool)
+    :param doGPU: flag to run config-specified GPU period algorithms (bool)
+    :param samples_per_peak: number of samples per periodogram peak (int)
+    :param doLongPeriod: run period-finding on frequencies up to 48 Hz [default 480 Hz] (bool)
+    :param doRemoveTerrestrial: remove terrestrial frequencies from period-finding analysis (bool)
+    :param doParallel: flag to run some period-finding algorithms in parallel (bool)
+    :param Ncore: number of CPU cores to parallelize queries (int)
+    :param field: ZTF field to run (int)
+    :param ccd: ZTF ccd to run (int)
+    :param quad: ZTF quadrant to run (int)
+    :param min_n_lc_points: minimum number of points required to generate features for a light curve (int)
+    :param min_cadence_minutes: minimum cadence between light curve points. Higher-cadence data are dropped except for the first point in the sequence (float)
+    :param dirname: name of generated feature directory (str)
+    :param filename: prefix of each feature filename (str)
+    :param doCesium: flag to compute config-specified cesium features in addition to default list (bool)
+    :param doNotSave: flag to avoid saving generated features (bool)
+    :param stop_early: flag to stop feature generation before entire quadrant is run. Pair with --limit to run small-scale tests (bool)
+    :param doQuadrantFile: flag to use a generated file containing [jobID, field, ccd, quad] columns instead of specifying --field, --ccd and --quad (bool)
+    :param quadrant_file: name of quadrant file in the generated_features/slurm directory or equivalent (str)
+    :param quadrant_index: number of job in quadrant file to run (int)
+
+    :return feature_df: dataframe containing generated features
+
+    * - specified in config.yaml
+    """
 
     # Get code version and current date/time for metadata
     code_version = scope.__version__

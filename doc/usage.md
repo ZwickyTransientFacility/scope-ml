@@ -147,7 +147,83 @@ The fields associated with each key are `fritz_label` (containing the associated
 ```
 
 ## Generating features (work in progress)
-We are actively adapting code from [ztfperiodic](https://github.com/mcoughlin/ztfperiodic) and other sources to calculate basic and Fourier stats for light curves. This will allow new features to be generated using SCoPe, both locally and using GPU cluster resources. Currently, the basic stats are calculated via `tools/featureGeneration/lcstats.py`, and a host of period-finding algorithms are available in `tools/featureGeneration/periodsearch.py`. Only the CPU-based algorithms have been tested so far, and among those there is not yet support for `AOV_cython`. For the `AOV` algorithm to work, run `source build.sh` in the `tools/featureGeneration/pyaov/` directory, then copy the `aov.cpython-36m-darwin.so` file to `lib/python3.10/site-packages/` or equivalent within your environment.
+We are actively adapting code from [ztfperiodic](https://github.com/mcoughlin/ztfperiodic) and other sources to calculate basic and Fourier stats for light curves. This will allow new features to be generated using SCoPe, both locally and using GPU cluster resources. The feature generation script is contained within `tools/generate_features.py`.
+
+Currently, the basic stats are calculated via `tools/featureGeneration/lcstats.py`, and a host of period-finding algorithms are available in `tools/featureGeneration/periodsearch.py`. Among the CPU-based period-finding algorithms, there is not yet support for `AOV_cython`. For the `AOV` algorithm to work, run `source build.sh` in the `tools/featureGeneration/pyaov/` directory, then copy the newly created `.so` file (`aov.cpython-310-darwin.so` or similar) to `lib/python3.10/site-packages/` or equivalent within your environment.
+
+inputs:
+1. --source_catalog* : name of Kowalski catalog containing ZTF sources (str)
+2. --alerts_catalog* : name of Kowalski catalog containing ZTF alerts (str)
+3. --gaia_catalog* : name of Kowalski catalog containing Gaia data (str)
+4. --bright_star_query_radius_arcsec : maximum angular distance from ZTF sources to query nearby bright stars in Gaia (float)
+5. --xmatch_radius_arcsec : maximum angular distance from ZTF sources to match external catalog sources (float)
+6. --kowalski_instances* : dictionary containing {names of Kowalski instances : authenticated penquins.Kowalski objects} (dict)
+7. --limit : maximum number of sources to process in batch queries / statistics calculations (int)
+8. --period_algorithms* : dictionary containing names of period algorithms to run. Normally specified in config - if specified here, should be a (list)
+9. --period_batch_size : maximum number of sources to simultaneously perform period finding (int)
+10. --doCPU : flag to run config-specified CPU period algorithms (bool)
+11. --doGPU : flag to run config-specified GPU period algorithms (bool)
+12. --samples_per_peak : number of samples per periodogram peak (int)
+13. --doLongPeriod : run period-finding on frequencies up to 48 Hz [default 480 Hz] (bool)
+14. --doRemoveTerrestrial : remove terrestrial frequencies from period-finding analysis (bool)
+15. --doParallel : flag to run some period-finding algorithms in parallel (bool)
+16. --Ncore : number of CPU cores to parallelize queries (int)
+17. --field : ZTF field to run (int)
+18. --ccd : ZTF ccd to run (int)
+19. --quad : ZTF quadrant to run (int)
+20. --min_n_lc_points : minimum number of points required to generate features for a light curve (int)
+21. --min_cadence_minutes : minimum cadence between light curve points. Higher-cadence data are dropped except for the first point in the sequence (float)
+22. --dirname : name of generated feature directory (str)
+23. --filename : prefix of each feature filename (str)
+24. --doCesium : flag to compute config-specified cesium features in addition to default list (bool)
+25. --doNotSave : flag to avoid saving generated features (bool)
+26. --stop_early : flag to stop feature generation before entire quadrant is run. Pair with --limit to run small-scale tests (bool)
+27. --doQuadrantFile : flag to use a generated file containing [jobID, field, ccd, quad] columns instead of specifying --field, --ccd and --quad (bool)
+28. --quadrant_file : name of quadrant file in the generated_features/slurm directory or equivalent (str)
+29. --quadrant_index : number of job in quadrant file to run (int)
+
+output:
+feature_df : dataframe containing generated features
+
+\* - specified in config.yaml
+
+### Example usage
+The following is an example of running the feature generation script locally:
+
+```
+./generate_features.py --field 301 --ccd 2 --quad 4 --source_catalog ZTF_sources_20230109 --alerts_catalog ZTF_alerts --gaia_catalog Gaia_EDR3 --bright_star_query_radius_arcsec 300.0 --xmatch_radius_arcsec 2.0 --query_size_limit 10000 --period_batch_size 1000 --samples_per_peak 10 --Ncore 4 --min_n_lc_points 50 --min_cadence_minutes 30.0 --dirname generated_features --filename gen_features --doCPU --doRemoveTerrestrial --doCesium
+```
+
+Setting `--doCPU` will run the config-specified CPU period algorithms on each source. Setting `--doGPU` instead will do likewise with the specified GPU algorithms. If neither of these keywords is set, the code will assign a value of `1.0` to each period and compute Fourier statistics using that number.
+
+Below is an example run the script using a job/quadrant file (containing [job id, field, ccd, quad] columns) instead of specifying field/ccd/quad directly:
+
+```
+/home/bhealy/scope/tools/generate_features.py --source_catalog ZTF_sources_20230109 --alerts_catalog ZTF_alerts --gaia_catalog Gaia_EDR3 --bright_star_query_radius_arcsec 300.0 --xmatch_radius_arcsec 2.0 --query_size_limit 10000 --period_batch_size 1000 --samples_per_peak 10 --Ncore 20 --min_n_lc_points 50 --min_cadence_minutes 30.0 --dirname generated_features_DR15 --filename gen_features --doGPU --doRemoveTerrestrial --doCesium --doQuadrantFile --quadrant_file slurm.dat --quadrant_index 5738
+```
+
+### Slurm scripts
+For large-scale feature generation, `generate_features.py` is intended to be run on a high-performance computing cluster. Often these clusters require jobs to be submitted using a utility like `slurm` (Simple Linux Utility for Resource Management) to generate scripts. These scripts contain information about the type, amount and duration of computing resources to allocate to the user.
+
+Scope's `generate_features_slurm.py` code creates two slurm scripts: (1) runs single instance of `generate_features.py`, and (2) runs the `generate_features_job_submission.py` which submits multiple jobs in parallel, periodically checking to see if additional jobs can be started. See below for more information about these components of feature generation.
+
+`generate_features_slurm.py` can receive all of the arguments used by `generate_features.py`. These arguments are passed to the instances of feature generation begun by running slurm script (1). There are also additional arguments specific to cluster resource management:
+
+inputs:
+1. --job_name : name of submitted jobs (str)
+2. --cluster_name : name of HPC cluster (str)
+3. --partition_type : cluster partition to use (str)
+4. --nodes : number of nodes to request (int)
+5. --gpus : number of GPUs to request (int)
+6. --memory_GB : amount of memory to request in GB (int)
+7. --time : amount of time before instance times out (str)
+8. --mail_user: user's email address for job updates (str)
+9. --account_name : name of account having HPC allocation (str)
+10. --python_env_name : name of Python environment to activate before running `generate_features.py` (str)
+11. --kowalski_instance_name : name of Kowalski instance containing ZTF source catalog (str)
+12. --generateQuadrantFile : flag to map fields/ccds/quads containing sources to job numbers, save file (bool)
+13. --max_instances : maximum number of HPC instances to run in parallel (int)
+14. --wait_time_minutes : amount of time to wait between status checks in minutes (float)
 
 
 ## Scope Download Classification
