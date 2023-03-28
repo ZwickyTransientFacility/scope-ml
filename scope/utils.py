@@ -13,6 +13,11 @@ __all__ = [
     "read_parquet",
     "write_parquet",
     "impute_features",
+    "removeHighCadence",
+    "TychoBVfromGaia",
+    "exclude_radius",
+    "split_dict",
+    "sort_lightcurve",
 ]
 
 from astropy.io import fits
@@ -706,6 +711,32 @@ def exclude_radius(Tycho_B, Tycho_V):
         # For nearby stars fainter than 13th Tycho-B mag, do not need to exclude
         radius = 0.0
     return radius
+
+
+def split_dict(d, n):
+    keys = list(d.keys())
+    n_sources = len(d)
+    if n_sources % n != 0:
+        n_split_sources = n_sources // n + 1
+    else:
+        n_split_sources = n_sources // n
+
+    for i in range(0, n):
+        yield {
+            k: d[k]
+            for k in keys[
+                i * n_split_sources : min(((i + 1) * n_split_sources), len(d))
+            ]
+        }
+
+
+def sort_lightcurve(t, m, e):
+    sort_indices = np.argsort(t)
+    t = t[sort_indices]
+    m = m[sort_indices]
+    e = e[sort_indices]
+
+    return t, m, e
 
 
 """ Datasets """

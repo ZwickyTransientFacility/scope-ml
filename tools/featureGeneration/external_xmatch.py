@@ -1,6 +1,7 @@
 import numpy as np
 from penquins import Kowalski
 from astropy.coordinates import SkyCoord
+from scope.utils import split_dict
 
 
 def xmatch(
@@ -9,6 +10,7 @@ def xmatch(
     catalog_info: dict,
     radius_arcsec: float = 2.0,
     limit: int = 10000,
+    Ncore: int = 1,
 ):
     """
     Batch cross-match external catalogs by position
@@ -21,6 +23,7 @@ def xmatch(
 
     :return id_dct_external: id_dct updated with external xmatch values
     """
+    limit *= Ncore
 
     n_sources = len(id_dct)
     if n_sources % limit != 0:
@@ -28,6 +31,8 @@ def xmatch(
     else:
         n_iterations = n_sources // limit
     ext_results_dct = {}
+    for c in catalog_info.keys():
+        ext_results_dct[c] = {}
 
     print('Querying crossmatch catalogs in batches...')
     for i in range(0, n_iterations):
@@ -42,6 +47,7 @@ def xmatch(
 
         # Need to add 180 -> no negative RAs
         radec_geojson[0, :] += 180.0
+        radec_dict = dict(zip(id_slice, radec_geojson.transpose().tolist()))
 
         # Store desired external features for later
         cat_projection_names = {}
@@ -56,23 +62,49 @@ def xmatch(
             for x in catalog_info.keys()
         ]
 
-        # Get external catalog data
-        query = {
-            "query_type": "cone_search",
-            "query": {
-                "object_coordinates": {
-                    "radec": dict(zip(id_slice, radec_geojson.transpose().tolist())),
-                    "cone_search_radius": radius_arcsec,
-                    "cone_search_unit": 'arcsec',
-                },
-                "catalogs": catalog_info,
-                "filter": {},
-            },
-        }
-        q = kowalski_instance.query(query)
+        if Ncore > 1:
+            # Split dictionary for parallel querying
+            radec_split_list = [lst for lst in split_dict(radec_dict, Ncore)]
 
-        ext_results = q['data']
-        ext_results_dct.update(ext_results)
+            queries = [
+                {
+                    "query_type": "cone_search",
+                    "query": {
+                        "object_coordinates": {
+                            "radec": dct,
+                            "cone_search_radius": radius_arcsec,
+                            "cone_search_unit": 'arcsec',
+                        },
+                        "catalogs": catalog_info,
+                        "filter": {},
+                    },
+                }
+                for dct in radec_split_list
+            ]
+            q = kowalski_instance.batch_query(queries, n_treads=Ncore)
+            for batch_result in q:
+                ext_results = batch_result['data']
+                for c in catalog_info.keys():
+                    ext_results_dct[c].update(ext_results[c])
+
+        else:
+            # Get external catalog data
+            query = {
+                "query_type": "cone_search",
+                "query": {
+                    "object_coordinates": {
+                        "radec": radec_dict,
+                        "cone_search_radius": radius_arcsec,
+                        "cone_search_unit": 'arcsec',
+                    },
+                    "catalogs": catalog_info,
+                    "filter": {},
+                },
+            }
+            q = kowalski_instance.query(query)
+
+            ext_results = q['data']
+            ext_results_dct.update(ext_results)
 
     id_dct_external = id_dct.copy()
     print('Iterating through results and assigning xmatch features to sources...')

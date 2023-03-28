@@ -1412,7 +1412,7 @@ class Scope:
 
         return final_toPost
 
-    def test(self):
+    def test(self, doGPU=False):
         """Test different workflows
 
         :return:
@@ -1429,8 +1429,8 @@ class Scope:
             n_sources = 3
 
             _ = generate_features.generate_features(
-                period_algorithm='LS',
-                doCPU=True,
+                doCPU=not doGPU,
+                doGPU=doGPU,
                 field=test_field,
                 ccd=test_ccd,
                 quad=test_quad,
@@ -1439,6 +1439,8 @@ class Scope:
                 limit=n_sources,
                 doCesium=True,
                 stop_early=True,
+                Ncore=1,
+                min_n_lc_points=50,
             )
 
             path_gen_features = (
@@ -1461,7 +1463,7 @@ class Scope:
             print()
             _, lst = get_quad_ids.get_ids_loop(
                 get_quad_ids.get_field_ids,
-                catalog=self.config['kowalski']['collections']['features'],
+                catalog="ZTF_sources_20210401",
                 field=298,
                 ccd_range=3,
                 quad_range=4,

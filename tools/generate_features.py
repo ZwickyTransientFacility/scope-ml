@@ -11,6 +11,8 @@ from scope.utils import (
     exclude_radius,
     removeHighCadence,
     write_parquet,
+    split_dict,
+    sort_lightcurve,
 )
 import numpy as np
 from penquins import Kowalski
@@ -62,6 +64,7 @@ gaia_catalog = config['kowalski']['collections']['gaia']
 dmdt_ints = config['feature_generation']['dmdt_ints']
 ext_catalog_info = config['feature_generation']['external_catalog_features']
 cesium_feature_list = config['feature_generation']['cesium_features']
+period_algorithms = config['feature_generation']['period_algorithms']
 
 kowalski_instances = {'kowalski': kowalski, 'gloria': gloria, 'melman': melman}
 
@@ -73,6 +76,7 @@ def drop_close_bright_stars(
     query_radius_arcsec: float = 300.0,
     xmatch_radius_arcsec: float = 2.0,
     limit: int = 10000,
+    Ncore: int = 1,
 ):
     """
     Use Gaia to identify and drop sources that are too close to bright stars
@@ -85,12 +89,15 @@ def drop_close_bright_stars(
     :param xmatch_radius_arcsec: size of cone within which to match a queried source with an input source.
         If any sources from the query fall within this cone, the closest one will be matched to the input source and dropped from further bright-star considerations (float)
     :param limit: batch size of kowalski_instance queries (int)
+    :param Ncore: number of cores for parallel querying (int)
 
     :return id_dct_keep: dictionary containing subset of input sources far enough away from bright stars
     """
 
     ids = [x for x in id_dct]
     id_dct_keep = id_dct.copy()
+
+    limit *= Ncore
 
     n_sources = len(id_dct)
     if n_sources % limit != 0:
@@ -113,37 +120,76 @@ def drop_close_bright_stars(
 
         # Need to add 180 -> no negative RAs
         radec_geojson[0, :] += 180.0
+        radec_dict = dict(zip(id_slice, radec_geojson.transpose().tolist()))
 
-        # Get Gaia EDR3 ID, G mag, BP-RP, and coordinates
-        query = {
-            "query_type": "cone_search",
-            "query": {
-                "object_coordinates": {
-                    "radec": dict(zip(id_slice, radec_geojson.transpose().tolist())),
-                    "cone_search_radius": query_radius_arcsec,
-                    "cone_search_unit": 'arcsec',
-                },
-                "catalogs": {
-                    catalog: {
-                        # Select sources brighter than G magnitude 13:
-                        # -Conversion to Tycho mags only good for G < 13
-                        # -Need for exclusion radius only for stars with B <~ 13
-                        # -For most stars, if G > 13, B > 13
-                        "filter": {"phot_g_mean_mag": {"$lt": 13.0}},
-                        "projection": {
-                            "phot_g_mean_mag": 1,
-                            "bp_rp": 1,
-                            "coordinates.radec_geojson.coordinates": 1,
+        if Ncore > 1:
+            # Split dictionary for parallel querying
+            radec_split_list = [lst for lst in split_dict(radec_dict, Ncore)]
+            queries = [
+                {
+                    "query_type": "cone_search",
+                    "query": {
+                        "object_coordinates": {
+                            "radec": dct,
+                            "cone_search_radius": query_radius_arcsec,
+                            "cone_search_unit": 'arcsec',
                         },
-                    }
-                },
-                "filter": {},
-            },
-        }
+                        "catalogs": {
+                            catalog: {
+                                # Select sources brighter than G magnitude 13:
+                                # -Conversion to Tycho mags only good for G < 13
+                                # -Need for exclusion radius only for stars with B <~ 13
+                                # -For most stars, if G > 13, B > 13
+                                "filter": {"phot_g_mean_mag": {"$lt": 13.0}},
+                                "projection": {
+                                    "phot_g_mean_mag": 1,
+                                    "bp_rp": 1,
+                                    "coordinates.radec_geojson.coordinates": 1,
+                                },
+                            }
+                        },
+                        "filter": {},
+                    },
+                }
+                for dct in radec_split_list
+            ]
 
-        q = kowalski_instance.query(query)
-        gaia_results = q['data'][catalog]
-        gaia_results_dct.update(gaia_results)
+            q = kowalski_instance.batch_query(queries, n_treads=8)
+            for batch_result in q:
+                gaia_results = batch_result['data'][catalog]
+                gaia_results_dct.update(gaia_results)
+        else:
+            # Get Gaia EDR3 ID, G mag, BP-RP, and coordinates
+            query = {
+                "query_type": "cone_search",
+                "query": {
+                    "object_coordinates": {
+                        # "radec": dict(zip(id_slice, radec_geojson.transpose().tolist())),
+                        "radec": radec_dict,
+                        "cone_search_radius": query_radius_arcsec,
+                        "cone_search_unit": 'arcsec',
+                    },
+                    "catalogs": {
+                        catalog: {
+                            # Select sources brighter than G magnitude 13:
+                            # -Conversion to Tycho mags only good for G < 13
+                            # -Need for exclusion radius only for stars with B <~ 13
+                            # -For most stars, if G > 13, B > 13
+                            "filter": {"phot_g_mean_mag": {"$lt": 13.0}},
+                            "projection": {
+                                "phot_g_mean_mag": 1,
+                                "bp_rp": 1,
+                                "coordinates.radec_geojson.coordinates": 1,
+                            },
+                        }
+                    },
+                    "filter": {},
+                },
+            }
+
+            q = kowalski_instance.query(query)
+            gaia_results = q['data'][catalog]
+            gaia_results_dct.update(gaia_results)
 
     print('Identifying sources too close to bright stars...')
     # Loop over each id to compare with query results
@@ -223,8 +269,8 @@ def generate_features(
     xmatch_radius_arcsec: float = 2.0,
     kowalski_instances: dict = kowalski_instances,
     limit: int = 10000,
-    period_algorithm: str = 'LS',
-    period_batch_size: int = 1,
+    period_algorithms: dict = period_algorithms,
+    period_batch_size: int = 1000,
     doCPU: bool = False,
     doGPU: bool = False,
     samples_per_peak: int = 10,
@@ -246,11 +292,55 @@ def generate_features(
     quadrant_file: str = 'slurm.dat',
     quadrant_index: int = 0,
 ):
+    """
+    Generate features for ZTF light curves
+
+    :param source_catalog*: name of Kowalski catalog containing ZTF sources (str)
+    :param alerts_catalog*: name of Kowalski catalog containing ZTF alerts (str)
+    :param gaia_catalog*: name of Kowalski catalog containing Gaia data (str)
+    :param bright_star_query_radius_arcsec: maximum angular distance from ZTF sources to query nearby bright stars in Gaia (float)
+    :param xmatch_radius_arcsec: maximum angular distance from ZTF sources to match external catalog sources (float)
+    :param kowalski_instances*: dictionary containing {names of Kowalski instances : authenticated penquins.Kowalski objects} (dict)
+    :param limit: maximum number of sources to process in batch queries / statistics calculations (int)
+    :param period_algorithms*: dictionary containing names of period algorithms to run. Normally specified in config - if specified here, should be a (list)
+    :param period_batch_size: maximum number of sources to simultaneously perform period finding (int)
+    :param doCPU: flag to run config-specified CPU period algorithms (bool)
+    :param doGPU: flag to run config-specified GPU period algorithms (bool)
+    :param samples_per_peak: number of samples per periodogram peak (int)
+    :param doLongPeriod: run period-finding on frequencies up to 48 Hz [default 480 Hz] (bool)
+    :param doRemoveTerrestrial: remove terrestrial frequencies from period-finding analysis (bool)
+    :param doParallel: flag to run some period-finding algorithms in parallel (bool)
+    :param Ncore: number of CPU cores to parallelize queries (int)
+    :param field: ZTF field to run (int)
+    :param ccd: ZTF ccd to run (int)
+    :param quad: ZTF quadrant to run (int)
+    :param min_n_lc_points: minimum number of points required to generate features for a light curve (int)
+    :param min_cadence_minutes: minimum cadence between light curve points. Higher-cadence data are dropped except for the first point in the sequence (float)
+    :param dirname: name of generated feature directory (str)
+    :param filename: prefix of each feature filename (str)
+    :param doCesium: flag to compute config-specified cesium features in addition to default list (bool)
+    :param doNotSave: flag to avoid saving generated features (bool)
+    :param stop_early: flag to stop feature generation before entire quadrant is run. Pair with --limit to run small-scale tests (bool)
+    :param doQuadrantFile: flag to use a generated file containing [jobID, field, ccd, quad] columns instead of specifying --field, --ccd and --quad (bool)
+    :param quadrant_file: name of quadrant file in the generated_features/slurm directory or equivalent (str)
+    :param quadrant_index: number of job in quadrant file to run (int)
+
+    :return feature_df: dataframe containing generated features
+
+    * - specified in config.yaml
+    """
 
     # Get code version and current date/time for metadata
     code_version = scope.__version__
     utcnow = datetime.utcnow()
     start_dt = utcnow.strftime("%Y-%m-%d %H:%M:%S")
+
+    # Select period algorithms from config based on CPU or GPU specification
+    if type(period_algorithms) == dict:
+        if doCPU:
+            period_algorithms = period_algorithms['CPU']
+        elif doGPU:
+            period_algorithms = period_algorithms['GPU']
 
     # Code supporting parallelization across fields/ccds/quads
     slurmDir = os.path.join(str(BASE_DIR / dirname), 'slurm')
@@ -276,7 +366,7 @@ def generate_features(
         field=field,
         ccd_range=ccd,
         quad_range=quad,
-        minobs=0,
+        minobs=min_n_lc_points,
         save=False,
         get_coords=True,
         stop_early=stop_early,
@@ -290,6 +380,7 @@ def generate_features(
         query_radius_arcsec=bright_star_query_radius_arcsec,
         xmatch_radius_arcsec=xmatch_radius_arcsec,
         limit=limit,
+        Ncore=Ncore,
     )
 
     print('Getting lightcurves...')
@@ -298,6 +389,7 @@ def generate_features(
         ids=[x for x in feature_gen_source_list.keys()],
         catalog=source_catalog,
         limit_per_query=limit,
+        Ncore=Ncore,
     )
 
     feature_dict = feature_gen_source_list.copy()
@@ -321,6 +413,9 @@ def generate_features(
         try:
             tme_arr = np.array(tme)
             t, m, e = tme_arr.transpose()
+
+            # Ensure light curves are monotonically increasing in time
+            t, m, e = sort_lightcurve(t, m, e)
 
             # Remove all but the first of each group of high-cadence points
             tt, mm, ee = removeHighCadence(t, m, e, cadence_minutes=min_cadence_minutes)
@@ -444,84 +539,124 @@ def generate_features(
             freqs_to_remove = None
 
         # Continue with periodsearch/periodfind
+        period_dict = {}
+        significance_dict = {}
+        pdot_dict = {}
         if doCPU or doGPU:
             if doCPU and doGPU:
                 raise KeyError('Please set only one of -doCPU or -doGPU.')
-            periods, significances, pdots = periodsearch.find_periods(
-                period_algorithm,
-                tme_collection,
-                freqs,
-                batch_size=period_batch_size,
-                doGPU=doGPU,
-                doCPU=doCPU,
-                doSaveMemory=False,
-                doRemoveTerrestrial=doRemoveTerrestrial,
-                doUsePDot=False,
-                doSingleTimeSegment=False,
-                freqs_to_remove=freqs_to_remove,
-                phase_bins=20,
-                mag_bins=10,
-                doParallel=doParallel,
-                Ncore=Ncore,
-            )
 
+            n_sources = len(feature_dict)
+            if n_sources % period_batch_size != 0:
+                n_iterations = n_sources // period_batch_size + 1
+            else:
+                n_iterations = n_sources // period_batch_size
+
+            for algorithm in period_algorithms:
+                # Iterate over period batches and algorithms
+                all_periods = np.array([])
+                all_significances = np.array([])
+                all_pdots = np.array([])
+
+                print(
+                    f'Running period algorithms for {len(feature_dict)} sources in batches of {period_batch_size}...'
+                )
+                print(f'Running {algorithm} algorithm:')
+
+                for i in range(0, n_iterations):
+                    print(f"Iteration {i+1} of {n_iterations}...")
+                    periods, significances, pdots = periodsearch.find_periods(
+                        algorithm,
+                        tme_collection[
+                            i
+                            * period_batch_size : min(
+                                n_sources, (i + 1) * period_batch_size
+                            )
+                        ],
+                        freqs,
+                        batch_size=period_batch_size,
+                        doGPU=doGPU,
+                        doCPU=doCPU,
+                        doSaveMemory=False,
+                        doRemoveTerrestrial=doRemoveTerrestrial,
+                        doUsePDot=False,
+                        doSingleTimeSegment=False,
+                        freqs_to_remove=freqs_to_remove,
+                        phase_bins=20,
+                        mag_bins=10,
+                        doParallel=doParallel,
+                        Ncore=Ncore,
+                    )
+
+                    all_periods = np.concatenate([all_periods, periods])
+                    all_significances = np.concatenate(
+                        [all_significances, significances]
+                    )
+                    all_pdots = np.concatenate([all_pdots, pdots])
+
+                period_dict[algorithm] = all_periods
+                significance_dict[algorithm] = all_significances
+                pdot_dict[algorithm] = all_pdots
         else:
             warnings.warn("Skipping period finding; setting all periods to 1.0 d.")
             # Default periods 1.0 d
-            periods = np.ones(len(tme_collection))
-            significances = np.ones(len(tme_collection))
-            pdots = np.ones(len(tme_collection))
+            period_algorithms = ['Ones']
+            period_dict['Ones'] = np.ones(len(tme_collection))
+            significance_dict['Ones'] = np.ones(len(tme_collection))
+            pdot_dict['Ones'] = np.ones(len(tme_collection))
 
-        print('Computing Fourier stats...')
-        count = 0
-        for idx, _id in enumerate(keep_id_list):
-            count += 1
-            if (idx + 1) % limit == 0:
-                print(f"{count} done")
-            if count == len(keep_id_list):
-                print(f"{count} sources meeting min_n_lc_points requirement done")
+        print(f'Computing Fourier stats for {len(period_dict)} algorithms...')
+        for algorithm in period_algorithms:
+            print(f'- Algorithm: {algorithm}')
+            count = 0
+            for idx, _id in enumerate(keep_id_list):
+                count += 1
+                if (idx + 1) % limit == 0:
+                    print(f"{count} done")
+                if count == len(keep_id_list):
+                    print(f"{count} sources meeting min_n_lc_points requirement done")
 
-            period = periods[idx]
-            significance = significances[idx]
-            pdot = pdots[idx]
-            tt, mm, ee = tme_collection[idx]
+                period = period_dict[algorithm][idx]
+                significance = significance_dict[algorithm][idx]
+                pdot = pdot_dict[algorithm][idx]
+                tt, mm, ee = tme_collection[idx]
 
-            # Compute Fourier stats
-            (
-                f1_power,
-                f1_BIC,
-                f1_a,
-                f1_b,
-                f1_amp,
-                f1_phi0,
-                f1_relamp1,
-                f1_relphi1,
-                f1_relamp2,
-                f1_relphi2,
-                f1_relamp3,
-                f1_relphi3,
-                f1_relamp4,
-                f1_relphi4,
-            ) = lcstats.calc_fourier_stats(tt, mm, ee, period)
+                # Compute Fourier stats
+                (
+                    f1_power,
+                    f1_BIC,
+                    f1_a,
+                    f1_b,
+                    f1_amp,
+                    f1_phi0,
+                    f1_relamp1,
+                    f1_relphi1,
+                    f1_relamp2,
+                    f1_relphi2,
+                    f1_relamp3,
+                    f1_relphi3,
+                    f1_relamp4,
+                    f1_relphi4,
+                ) = lcstats.calc_fourier_stats(tt, mm, ee, period)
 
-            feature_dict[_id]['f1_power'] = f1_power
-            feature_dict[_id]['f1_BIC'] = f1_BIC
-            feature_dict[_id]['f1_a'] = f1_a
-            feature_dict[_id]['f1_b'] = f1_b
-            feature_dict[_id]['f1_amp'] = f1_amp
-            feature_dict[_id]['f1_phi0'] = f1_phi0
-            feature_dict[_id]['f1_relamp1'] = f1_relamp1
-            feature_dict[_id]['f1_relphi1'] = f1_relphi1
-            feature_dict[_id]['f1_relamp2'] = f1_relamp2
-            feature_dict[_id]['f1_relphi2'] = f1_relphi2
-            feature_dict[_id]['f1_relamp3'] = f1_relamp3
-            feature_dict[_id]['f1_relphi3'] = f1_relphi3
-            feature_dict[_id]['f1_relamp4'] = f1_relamp4
-            feature_dict[_id]['f1_relphi4'] = f1_relphi4
+                feature_dict[_id][f'f1_power_{algorithm}'] = f1_power
+                feature_dict[_id][f'f1_BIC_{algorithm}'] = f1_BIC
+                feature_dict[_id][f'f1_a_{algorithm}'] = f1_a
+                feature_dict[_id][f'f1_b_{algorithm}'] = f1_b
+                feature_dict[_id][f'f1_amp_{algorithm}'] = f1_amp
+                feature_dict[_id][f'f1_phi0_{algorithm}'] = f1_phi0
+                feature_dict[_id][f'f1_relamp1_{algorithm}'] = f1_relamp1
+                feature_dict[_id][f'f1_relphi1_{algorithm}'] = f1_relphi1
+                feature_dict[_id][f'f1_relamp2_{algorithm}'] = f1_relamp2
+                feature_dict[_id][f'f1_relphi2_{algorithm}'] = f1_relphi2
+                feature_dict[_id][f'f1_relamp3_{algorithm}'] = f1_relamp3
+                feature_dict[_id][f'f1_relphi3_{algorithm}'] = f1_relphi3
+                feature_dict[_id][f'f1_relamp4_{algorithm}'] = f1_relamp4
+                feature_dict[_id][f'f1_relphi4_{algorithm}'] = f1_relphi4
 
-            feature_dict[_id]['period'] = period
-            feature_dict[_id]['significance'] = significance
-            feature_dict[_id]['pdot'] = pdot
+                feature_dict[_id][f'period_{algorithm}'] = period
+                feature_dict[_id][f'significance_{algorithm}'] = significance
+                feature_dict[_id][f'pdot_{algorithm}'] = pdot
 
         print('Computing dmdt histograms...')
         count = 0
@@ -542,6 +677,7 @@ def generate_features(
             kowalski_instance=kowalski_instances['kowalski'],
             radius_arcsec=xmatch_radius_arcsec,
             limit=limit,
+            Ncore=Ncore,
         )
         for _id in feature_dict.keys():
             feature_dict[_id]['n_ztf_alerts'] = alert_stats_dct[_id]['n_ztf_alerts']
@@ -556,6 +692,7 @@ def generate_features(
             catalog_info=ext_catalog_info,
             radius_arcsec=xmatch_radius_arcsec,
             limit=limit,
+            Ncore=Ncore,
         )
         feature_df = pd.DataFrame.from_dict(feature_dict, orient='index')
 
@@ -664,17 +801,16 @@ if __name__ == "__main__":
         default=10000,
         help="sources per query limit for large Kowalski queries",
     )
-
     parser.add_argument(
-        "--period_algorithm",
-        default='LS',
-        help="algorithm in periodsearch.py to use for period-finding",
+        "--period_algorithms",
+        nargs='+',
+        default=period_algorithms,
+        help="to override config, list algorithms to use for period-finding with periodsearch.py",
     )
-
     parser.add_argument(
         "--period_batch_size",
         type=int,
-        default=1,
+        default=1000,
         help="batch size for GPU-accelerated period algorithms",
     )
     parser.add_argument(
@@ -786,7 +922,7 @@ if __name__ == "__main__":
         bright_star_query_radius_arcsec=args.bright_star_query_radius_arcsec,
         xmatch_radius_arcsec=args.xmatch_radius_arcsec,
         limit=args.query_size_limit,
-        period_algorithm=args.period_algorithm,
+        period_algorithms=args.period_algorithms,
         period_batch_size=args.period_batch_size,
         doCPU=args.doCPU,
         doGPU=args.doGPU,
