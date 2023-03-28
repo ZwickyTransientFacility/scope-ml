@@ -11,7 +11,6 @@ from scope.utils import (
     exclude_radius,
     removeHighCadence,
     write_parquet,
-    split_dict,
     sort_lightcurve,
 )
 import numpy as np
@@ -95,128 +94,88 @@ def drop_close_bright_stars(
     """
 
     ids = [x for x in id_dct]
+    coords = np.array(
+        [x['radec_geojson']['coordinates'] for x in id_dct.values()]
+    ).transpose()
+    sources_ra = coords[0] + 180.0
+    sources_dec = coords[1]
+
+    min_ra = np.min(sources_ra) - query_radius_arcsec / 3600.0
+    max_ra = np.max(sources_ra) + query_radius_arcsec / 3600.0
+    min_dec = np.min(sources_dec) - query_radius_arcsec / 3600.0
+    max_dec = np.max(sources_dec) + query_radius_arcsec / 3600.0
+
+    ctr_ra = np.mean([min_ra, max_ra])
+    ctr_dec = np.mean([min_dec, max_dec])
+
+    max_cone_radius = np.max([max_dec - ctr_dec, max_ra - ctr_ra]) * 3600 * np.sqrt(2)
+
     id_dct_keep = id_dct.copy()
 
     limit *= Ncore
 
-    n_sources = len(id_dct)
-    if n_sources % limit != 0:
-        n_iterations = n_sources // limit + 1
-    else:
-        n_iterations = n_sources // limit
-
     gaia_results_dct = {}
 
-    print(f'Querying {catalog} catalog in batches...')
-    for i in range(0, n_iterations):
-        print(f"Iteration {i+1} of {n_iterations}...")
-        id_slice = [x for x in id_dct.keys()][
-            i * limit : min(n_sources, (i + 1) * limit)
-        ]
-
-        radec_geojson = np.array(
-            [id_dct[x]['radec_geojson']['coordinates'] for x in id_slice]
-        ).transpose()
-
-        # Need to add 180 -> no negative RAs
-        radec_geojson[0, :] += 180.0
-        radec_dict = dict(zip(id_slice, radec_geojson.transpose().tolist()))
-
-        if Ncore > 1:
-            # Split dictionary for parallel querying
-            radec_split_list = [lst for lst in split_dict(radec_dict, Ncore)]
-            queries = [
-                {
-                    "query_type": "cone_search",
-                    "query": {
-                        "object_coordinates": {
-                            "radec": dct,
-                            "cone_search_radius": query_radius_arcsec,
-                            "cone_search_unit": 'arcsec',
-                        },
-                        "catalogs": {
-                            catalog: {
-                                # Select sources brighter than G magnitude 13:
-                                # -Conversion to Tycho mags only good for G < 13
-                                # -Need for exclusion radius only for stars with B <~ 13
-                                # -For most stars, if G > 13, B > 13
-                                "filter": {"phot_g_mean_mag": {"$lt": 13.0}},
-                                "projection": {
-                                    "phot_g_mean_mag": 1,
-                                    "bp_rp": 1,
-                                    "coordinates.radec_geojson.coordinates": 1,
-                                },
-                            }
-                        },
-                        "filter": {},
+    query = {
+        "query_type": "cone_search",
+        "query": {
+            "object_coordinates": {
+                "radec": {'quad': [ctr_ra, ctr_dec]},
+                "cone_search_radius": max_cone_radius,
+                "cone_search_unit": 'arcsec',
+            },
+            "catalogs": {
+                catalog: {
+                    # Select sources brighter than G magnitude 13:
+                    # -Conversion to Tycho mags only good for G < 13
+                    # -Need for exclusion radius only for stars with B <~ 13
+                    # -For most stars, if G > 13, B > 13
+                    "filter": {"phot_g_mean_mag": {"$lt": 13.0}},
+                    "projection": {
+                        "phot_g_mean_mag": 1,
+                        "bp_rp": 1,
+                        "coordinates.radec_geojson.coordinates": 1,
                     },
                 }
-                for dct in radec_split_list
-            ]
+            },
+            "filter": {},
+        },
+    }
 
-            q = kowalski_instance.batch_query(queries, n_treads=8)
-            for batch_result in q:
-                gaia_results = batch_result['data'][catalog]
-                gaia_results_dct.update(gaia_results)
-        else:
-            # Get Gaia EDR3 ID, G mag, BP-RP, and coordinates
-            query = {
-                "query_type": "cone_search",
-                "query": {
-                    "object_coordinates": {
-                        # "radec": dict(zip(id_slice, radec_geojson.transpose().tolist())),
-                        "radec": radec_dict,
-                        "cone_search_radius": query_radius_arcsec,
-                        "cone_search_unit": 'arcsec',
-                    },
-                    "catalogs": {
-                        catalog: {
-                            # Select sources brighter than G magnitude 13:
-                            # -Conversion to Tycho mags only good for G < 13
-                            # -Need for exclusion radius only for stars with B <~ 13
-                            # -For most stars, if G > 13, B > 13
-                            "filter": {"phot_g_mean_mag": {"$lt": 13.0}},
-                            "projection": {
-                                "phot_g_mean_mag": 1,
-                                "bp_rp": 1,
-                                "coordinates.radec_geojson.coordinates": 1,
-                            },
-                        }
-                    },
-                    "filter": {},
-                },
-            }
+    q = kowalski_instance.query(query)
 
-            q = kowalski_instance.query(query)
-            gaia_results = q['data'][catalog]
-            gaia_results_dct.update(gaia_results)
+    gaia_results = q.get('data')
+    gaia_results_dct.update(gaia_results['Gaia_EDR3'])
 
     print('Identifying sources too close to bright stars...')
+
     # Loop over each id to compare with query results
     count = 0
-    for id in ids:
-        count += 1
-        if count % limit == 0:
-            print(f"{count} done")
-        if count == len(ids):
-            print(f"{count} done")
+    query_result = gaia_results_dct['quad']
 
-        val = id_dct[id]
+    if len(query_result) > 0:
+        coords = np.array(
+            [x['coordinates']['radec_geojson']['coordinates'] for x in query_result]
+        )
+        coords[:, 0] += 180.0
 
-        ra_geojson, dec_geojson = val['radec_geojson']['coordinates']
+        for id in ids:
+            # Reset bright source dictionary for each iteration
+            single_result = query_result.copy()
 
-        single_result = gaia_results_dct[str(id)]
-        if len(single_result) > 0:
-            coords = np.array(
-                [
-                    x['coordinates']['radec_geojson']['coordinates']
-                    for x in single_result
-                ]
-            )
-            coords[:, 0] += 180.0
-
-            # SkyCoord object for query results
+            # New SkyCoord object for query results
             Coords = SkyCoord(coords, unit=['deg', 'deg'])
+
+            count += 1
+            if count % limit == 0:
+                print(f"{count} done")
+            if count == len(ids):
+                print(f"{count} done")
+
+            val = id_dct[id]
+
+            ra_geojson, dec_geojson = val['radec_geojson']['coordinates']
+
             # SkyCoord object for input source
             coord = SkyCoord(ra_geojson + 180.0, dec_geojson, unit=['deg', 'deg'])
 
@@ -256,6 +215,9 @@ def drop_close_bright_stars(
                         # If there is a bright star that's too close, drop from returned dict
                         id_dct_keep.pop(id)
                         break
+
+    else:
+        id_dct_keep = id_dct
 
     print(f"Dropped {len(id_dct) - len(id_dct_keep)} sources.")
     return id_dct_keep
@@ -356,6 +318,7 @@ def generate_features(
         field, ccd, quad = int(row["field"]), int(row["ccd"]), int(row["quadrant"])
 
     print(f'Running field {field}, CCD {ccd}, Quadrant {quad}...')
+    limit *= Ncore
 
     print('Getting IDs...')
     _, lst = get_ids_loop(
