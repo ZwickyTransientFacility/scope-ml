@@ -86,8 +86,6 @@ def drop_close_bright_stars(
         Default is 300 corresponding with approximate maximum from A. Drake's exclusion radius (float)
     :param xmatch_radius_arcsec: size of cone within which to match a queried source with an input source.
         If any sources from the query fall within this cone, the closest one will be matched to the input source and dropped from further bright-star considerations (float)
-    :param limit: batch size of kowalski_instance queries (int)
-    :param Ncore: number of cores for parallel querying (int)
 
     :return id_dct_keep: dictionary containing subset of input sources far enough away from bright stars
     """
@@ -110,8 +108,6 @@ def drop_close_bright_stars(
     max_cone_radius = np.max([max_dec - ctr_dec, max_ra - ctr_ra]) * 3600 * np.sqrt(2)
 
     id_dct_keep = id_dct.copy()
-
-    limit *= Ncore
 
     gaia_results_dct = {}
 
@@ -149,7 +145,6 @@ def drop_close_bright_stars(
     print('Identifying sources too close to bright stars...')
 
     # Loop over each id to compare with query results
-    count = 0
     query_result = np.array(gaia_results_dct['quad'])
 
     if len(query_result) > 0:
@@ -174,12 +169,6 @@ def drop_close_bright_stars(
             single_result = query_result.copy()
 
             Coords = np.copy(Query_Coords)
-
-            count += 1
-            if count % limit == 0:
-                print(f"{count} done")
-            if count == len(ids):
-                print(f"{count} done")
 
             val = id_dct[id]
             ra_geojson, dec_geojson = val['radec_geojson']['coordinates']
@@ -333,7 +322,6 @@ def generate_features(
         field, ccd, quad = int(row["field"]), int(row["ccd"]), int(row["quadrant"])
 
     print(f'Running field {field}, CCD {ccd}, Quadrant {quad}...')
-    limit *= Ncore
 
     print('Getting IDs...')
     _, lst = get_ids_loop(
