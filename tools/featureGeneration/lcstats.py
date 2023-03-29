@@ -253,7 +253,9 @@ def make_f(p):
     return f
 
 
-def calc_basic_stats(t, mag, err):
+def calc_basic_stats(ids, tme):
+
+    t, mag, err = tme
 
     N = np.size(mag)
 
@@ -282,30 +284,32 @@ def calc_basic_stats(t, mag, err):
     AD = anderson(mag / err)[0]
     SW = shapiro(mag / err)[0]
 
-    return np.r_[
-        N,
-        median,
-        wmean,
-        chi2red,
-        RoMS,
-        wstd,
-        NormPeaktoPeakamp,
-        NormExcessVar,
-        medianAbsDev,
-        iqr,
-        i60r,
-        i70r,
-        i80r,
-        i90r,
-        skew,
-        smallkurt,
-        invNeumann,
-        WelchI,
-        StetsonJ,
-        StetsonK,
-        AD,
-        SW,
-    ]
+    return {
+        ids: np.r_[
+            N,
+            median,
+            wmean,
+            chi2red,
+            RoMS,
+            wstd,
+            NormPeaktoPeakamp,
+            NormExcessVar,
+            medianAbsDev,
+            iqr,
+            i60r,
+            i70r,
+            i80r,
+            i90r,
+            skew,
+            smallkurt,
+            invNeumann,
+            WelchI,
+            StetsonJ,
+            StetsonK,
+            AD,
+            SW,
+        ]
+    }
 
 
 def calc_stats(t, mag, err, p):
