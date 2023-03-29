@@ -348,14 +348,15 @@ def generate_features(
     print('Getting lightcurves...')
     # For small source lists, shrink LC query limit until batching occurs
     lc_limit = limit
-    while lc_limit > len(feature_gen_source_list):
-        lc_limit //= 10
+    if Ncore > 1:
+        while lc_limit > len(feature_gen_source_list):
+            lc_limit //= 10
 
     lcs = get_lightcurves_via_ids(
         kowalski_instance=kowalski_instances['melman'],
         ids=[x for x in feature_gen_source_list.keys()],
         catalog=source_catalog,
-        limit_per_query=limit,
+        limit_per_query=lc_limit,
         Ncore=Ncore,
     )
 
