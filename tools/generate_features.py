@@ -23,6 +23,7 @@ from tools.featureGeneration import lcstats, periodsearch, alertstats, external_
 import warnings
 from cesium.featurize import time_series, featurize_single_ts
 import json
+from joblib import Parallel, delayed
 
 BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
 
@@ -366,6 +367,7 @@ def generate_features(
     baseline = 0
     keep_id_list = []
     tme_collection = []
+    tme_dict = {}
     for idx, lc in enumerate(lcs):
         count += 1
         if (idx + 1) % limit == 0:
@@ -402,6 +404,8 @@ def generate_features(
 
                 new_tme_arr = np.array([tt, mm, ee])
                 tme_collection += [new_tme_arr]
+                tme_dict[_id] = {}
+                tme_dict[_id]['tme'] = new_tme_arr
 
                 # Add basic info
                 feature_dict[_id]['ra'] = (
@@ -415,55 +419,6 @@ def generate_features(
                 feature_dict[_id]['ccd'] = ccd
                 feature_dict[_id]['quad'] = quad
                 feature_dict[_id]['filter'] = flt
-
-                # Begin generating features - start with basic stats
-                (
-                    N,
-                    median,
-                    wmean,
-                    chi2red,
-                    RoMS,
-                    wstd,
-                    NormPeaktoPeakamp,
-                    NormExcessVar,
-                    medianAbsDev,
-                    iqr,
-                    i60r,
-                    i70r,
-                    i80r,
-                    i90r,
-                    skew,
-                    smallkurt,
-                    invNeumann,
-                    WelchI,
-                    StetsonJ,
-                    StetsonK,
-                    AD,
-                    SW,
-                ) = lcstats.calc_basic_stats(tt, mm, ee)
-
-                feature_dict[_id]['n'] = N
-                feature_dict[_id]['median'] = median
-                feature_dict[_id]['wmean'] = wmean
-                feature_dict[_id]['chi2red'] = chi2red
-                feature_dict[_id]['roms'] = RoMS
-                feature_dict[_id]['wstd'] = wstd
-                feature_dict[_id]['norm_peak_to_peak_amp'] = NormPeaktoPeakamp
-                feature_dict[_id]['norm_excess_var'] = NormExcessVar
-                feature_dict[_id]['median_abs_dev'] = medianAbsDev
-                feature_dict[_id]['iqr'] = iqr
-                feature_dict[_id]['i60r'] = i60r
-                feature_dict[_id]['i70r'] = i70r
-                feature_dict[_id]['i80r'] = i80r
-                feature_dict[_id]['i90r'] = i90r
-                feature_dict[_id]['skew'] = skew
-                feature_dict[_id]['smallkurt'] = smallkurt
-                feature_dict[_id]['inv_vonneumannratio'] = invNeumann
-                feature_dict[_id]['welch_i'] = WelchI
-                feature_dict[_id]['stetson_j'] = StetsonJ
-                feature_dict[_id]['stetson_k'] = StetsonK
-                feature_dict[_id]['ad'] = AD
-                feature_dict[_id]['sw'] = SW
 
                 if doCesium:
                     cesium_features = featurize_single_ts(
@@ -479,6 +434,38 @@ def generate_features(
 
         except ValueError:
             feature_dict.pop(_id)
+
+    basicStats = Parallel(n_jobs=Ncore)(
+        delayed(lcstats.calc_basic_stats)(id, vals['tme'])
+        for id, vals in tme_dict.items()
+    )
+
+    for statline in basicStats:
+        _id = [x for x in statline.keys()][0]
+        statvals = [x for x in statline.values()][0]
+
+        feature_dict[_id]['n'] = statvals[0]
+        feature_dict[_id]['median'] = statvals[1]
+        feature_dict[_id]['wmean'] = statvals[2]
+        feature_dict[_id]['chi2red'] = statvals[3]
+        feature_dict[_id]['roms'] = statvals[4]
+        feature_dict[_id]['wstd'] = statvals[5]
+        feature_dict[_id]['norm_peak_to_peak_amp'] = statvals[6]
+        feature_dict[_id]['norm_excess_var'] = statvals[7]
+        feature_dict[_id]['median_abs_dev'] = statvals[8]
+        feature_dict[_id]['iqr'] = statvals[9]
+        feature_dict[_id]['i60r'] = statvals[10]
+        feature_dict[_id]['i70r'] = statvals[11]
+        feature_dict[_id]['i80r'] = statvals[12]
+        feature_dict[_id]['i90r'] = statvals[13]
+        feature_dict[_id]['skew'] = statvals[14]
+        feature_dict[_id]['smallkurt'] = statvals[15]
+        feature_dict[_id]['inv_vonneumannratio'] = statvals[16]
+        feature_dict[_id]['welch_i'] = statvals[17]
+        feature_dict[_id]['stetson_j'] = statvals[18]
+        feature_dict[_id]['stetson_k'] = statvals[19]
+        feature_dict[_id]['ad'] = statvals[20]
+        feature_dict[_id]['sw'] = statvals[21]
 
     if baseline > 0:
         # Define frequency grid using largest LC time baseline
