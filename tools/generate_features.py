@@ -73,8 +73,6 @@ def drop_close_bright_stars(
     catalog: str = gaia_catalog,
     query_radius_arcsec: float = 300.0,
     xmatch_radius_arcsec: float = 2.0,
-    limit: int = 10000,
-    Ncore: int = 1,
 ):
     """
     Use Gaia to identify and drop sources that are too close to bright stars
@@ -345,11 +343,14 @@ def generate_features(
         catalog=gaia_catalog,
         query_radius_arcsec=bright_star_query_radius_arcsec,
         xmatch_radius_arcsec=xmatch_radius_arcsec,
-        limit=limit,
-        Ncore=Ncore,
     )
 
     print('Getting lightcurves...')
+    # For small source lists, shrink LC query limit until batching occurs
+    lc_limit = limit
+    while lc_limit > len(feature_gen_source_list):
+        lc_limit //= 10
+
     lcs = get_lightcurves_via_ids(
         kowalski_instance=kowalski_instances['melman'],
         ids=[x for x in feature_gen_source_list.keys()],
