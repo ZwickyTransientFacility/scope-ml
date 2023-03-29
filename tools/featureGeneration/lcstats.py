@@ -253,7 +253,9 @@ def make_f(p):
     return f
 
 
-def calc_basic_stats(t, mag, err):
+def calc_basic_stats(id, tme):
+
+    t, mag, err = tme
 
     N = np.size(mag)
 
@@ -282,30 +284,32 @@ def calc_basic_stats(t, mag, err):
     AD = anderson(mag / err)[0]
     SW = shapiro(mag / err)[0]
 
-    return np.r_[
-        N,
-        median,
-        wmean,
-        chi2red,
-        RoMS,
-        wstd,
-        NormPeaktoPeakamp,
-        NormExcessVar,
-        medianAbsDev,
-        iqr,
-        i60r,
-        i70r,
-        i80r,
-        i90r,
-        skew,
-        smallkurt,
-        invNeumann,
-        WelchI,
-        StetsonJ,
-        StetsonK,
-        AD,
-        SW,
-    ]
+    return {
+        id: np.r_[
+            N,
+            median,
+            wmean,
+            chi2red,
+            RoMS,
+            wstd,
+            NormPeaktoPeakamp,
+            NormExcessVar,
+            medianAbsDev,
+            iqr,
+            i60r,
+            i70r,
+            i80r,
+            i90r,
+            skew,
+            smallkurt,
+            invNeumann,
+            WelchI,
+            StetsonJ,
+            StetsonK,
+            AD,
+            SW,
+        ]
+    }
 
 
 def calc_stats(t, mag, err, p):
@@ -428,7 +432,9 @@ def calc_stats(t, mag, err, p):
     ]
 
 
-def calc_fourier_stats(t, mag, err, p):
+def calc_fourier_stats(id, tme, p):
+
+    t, mag, err = tme
 
     (
         f1_power,
@@ -499,22 +505,24 @@ def calc_fourier_stats(t, mag, err, p):
         )
 
     # return all
-    return np.r_[
-        f1_power,
-        f1_BIC,
-        f1_a,
-        f1_b,
-        f1_amp,
-        f1_phi0,
-        f1_relamp1,
-        f1_relphi1,
-        f1_relamp2,
-        f1_relphi2,
-        f1_relamp3,
-        f1_relphi3,
-        f1_relamp4,
-        f1_relphi5,
-    ]
+    return {
+        id: np.r_[
+            f1_power,
+            f1_BIC,
+            f1_a,
+            f1_b,
+            f1_amp,
+            f1_phi0,
+            f1_relamp1,
+            f1_relphi1,
+            f1_relamp2,
+            f1_relphi2,
+            f1_relamp3,
+            f1_relphi3,
+            f1_relamp4,
+            f1_relphi5,
+        ]
+    }
 
 
 def calc_fourier_stats_sidereal(t, mag, err, p):
@@ -545,10 +553,12 @@ def pwd_for(a):
     return np.array([a[j] - a[i] for i in range(len(a)) for j in range(i + 1, len(a))])
 
 
-def compute_dmdt(jd, mag, dmdt_ints):
+def compute_dmdt(id, tme, dmdt_ints):
     """
     Compute dmdt histograms from time and magnitude inputs
     """
+    jd, mag, _ = tme
+
     jd_diff = pwd_for(jd)
     mag_diff = pwd_for(mag)
 
@@ -567,4 +577,4 @@ def compute_dmdt(jd, mag, dmdt_ints):
     else:
         dmdt = np.zeros_like(dmdt)
 
-    return dmdt
+    return {id: dmdt}
