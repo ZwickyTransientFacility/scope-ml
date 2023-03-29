@@ -559,78 +559,67 @@ def generate_features(
             significance_dict['Ones'] = np.ones(len(tme_collection))
             pdot_dict['Ones'] = np.ones(len(tme_collection))
 
-        print(f'Computing Fourier stats for {len(period_dict)} algorithms...')
         for algorithm in period_algorithms:
-            print(f'- Algorithm: {algorithm}')
-            count = 0
             for idx, _id in enumerate(keep_id_list):
-                count += 1
-                if (idx + 1) % limit == 0:
-                    print(f"{count} done")
-                if count == len(keep_id_list):
-                    print(f"{count} sources meeting min_n_lc_points requirement done")
 
                 period = period_dict[algorithm][idx]
                 significance = significance_dict[algorithm][idx]
                 pdot = pdot_dict[algorithm][idx]
-                tt, mm, ee = tme_collection[idx]
 
-                # Compute Fourier stats
-                (
-                    f1_power,
-                    f1_BIC,
-                    f1_a,
-                    f1_b,
-                    f1_amp,
-                    f1_phi0,
-                    f1_relamp1,
-                    f1_relphi1,
-                    f1_relamp2,
-                    f1_relphi2,
-                    f1_relamp3,
-                    f1_relphi3,
-                    f1_relamp4,
-                    f1_relphi4,
-                ) = lcstats.calc_fourier_stats(tt, mm, ee, period)
-
-                feature_dict[_id][f'f1_power_{algorithm}'] = f1_power
-                feature_dict[_id][f'f1_BIC_{algorithm}'] = f1_BIC
-                feature_dict[_id][f'f1_a_{algorithm}'] = f1_a
-                feature_dict[_id][f'f1_b_{algorithm}'] = f1_b
-                feature_dict[_id][f'f1_amp_{algorithm}'] = f1_amp
-                feature_dict[_id][f'f1_phi0_{algorithm}'] = f1_phi0
-                feature_dict[_id][f'f1_relamp1_{algorithm}'] = f1_relamp1
-                feature_dict[_id][f'f1_relphi1_{algorithm}'] = f1_relphi1
-                feature_dict[_id][f'f1_relamp2_{algorithm}'] = f1_relamp2
-                feature_dict[_id][f'f1_relphi2_{algorithm}'] = f1_relphi2
-                feature_dict[_id][f'f1_relamp3_{algorithm}'] = f1_relamp3
-                feature_dict[_id][f'f1_relphi3_{algorithm}'] = f1_relphi3
-                feature_dict[_id][f'f1_relamp4_{algorithm}'] = f1_relamp4
-                feature_dict[_id][f'f1_relphi4_{algorithm}'] = f1_relphi4
+                tme_dict[_id][f'period_{algorithm}'] = period
+                tme_dict[_id][f'significance_{algorithm}'] = significance
+                tme_dict[_id][f'pdot_{algorithm}'] = pdot
 
                 feature_dict[_id][f'period_{algorithm}'] = period
                 feature_dict[_id][f'significance_{algorithm}'] = significance
                 feature_dict[_id][f'pdot_{algorithm}'] = pdot
 
-        print('Computing dmdt histograms...')
-        count = 0
-        for idx, _id in enumerate(keep_id_list):
-            count += 1
-            if (idx + 1) % limit == 0:
-                print(f"{count} done")
-            if count == len(keep_id_list):
-                print(f"{count} done")
+        print(f'Computing Fourier stats for {len(period_dict)} algorithms...')
+        for algorithm in period_algorithms:
+            print(f'- Algorithm: {algorithm}')
+            fourierStats = Parallel(n_jobs=Ncore)(
+                delayed(lcstats.calc_fourier_stats)(
+                    id, vals['tme'], vals[f'period_{algorithm}']
+                )
+                for id, vals in tme_dict.items()
+            )
 
-            tt, mm, _ = tme_collection[idx]
-            dmdt = lcstats.compute_dmdt(tt, mm, dmdt_ints)
-            feature_dict[_id]['dmdt'] = dmdt.tolist()
+            for statline in fourierStats:
+                _id = [x for x in statline.keys()][0]
+                statvals = [x for x in statline.values()][0]
+
+                feature_dict[_id][f'f1_power_{algorithm}'] = statvals[0]
+                feature_dict[_id][f'f1_BIC_{algorithm}'] = statvals[1]
+                feature_dict[_id][f'f1_a_{algorithm}'] = statvals[2]
+                feature_dict[_id][f'f1_b_{algorithm}'] = statvals[3]
+                feature_dict[_id][f'f1_amp_{algorithm}'] = statvals[4]
+                feature_dict[_id][f'f1_phi0_{algorithm}'] = statvals[5]
+                feature_dict[_id][f'f1_relamp1_{algorithm}'] = statvals[6]
+                feature_dict[_id][f'f1_relphi1_{algorithm}'] = statvals[7]
+                feature_dict[_id][f'f1_relamp2_{algorithm}'] = statvals[8]
+                feature_dict[_id][f'f1_relphi2_{algorithm}'] = statvals[9]
+                feature_dict[_id][f'f1_relamp3_{algorithm}'] = statvals[10]
+                feature_dict[_id][f'f1_relphi3_{algorithm}'] = statvals[11]
+                feature_dict[_id][f'f1_relamp4_{algorithm}'] = statvals[12]
+                feature_dict[_id][f'f1_relphi4_{algorithm}'] = statvals[13]
+
+        print('Computing dmdt histograms...')
+        dmdt = Parallel(n_jobs=Ncore)(
+            delayed(lcstats.compute_dmdt)(id, vals['tme'], dmdt_ints)
+            for id, vals in tme_dict.items()
+        )
+
+        for dmdtline in dmdt:
+            _id = [x for x in dmdtline.keys()][0]
+            dmdtvals = [x for x in dmdtline.values()][0]
+            feature_dict[_id]['dmdt'] = dmdtvals.tolist()
 
         # Get ZTF alert stats
         alert_stats_dct = alertstats.get_ztf_alert_stats(
             feature_dict,
             kowalski_instance=kowalski_instances['kowalski'],
             radius_arcsec=xmatch_radius_arcsec,
-            limit=limit,
+            limit=limit * Ncore,
             Ncore=Ncore,
         )
         for _id in feature_dict.keys():
@@ -645,7 +634,7 @@ def generate_features(
             kowalski_instances['gloria'],
             catalog_info=ext_catalog_info,
             radius_arcsec=xmatch_radius_arcsec,
-            limit=limit,
+            limit=limit * Ncore,
             Ncore=Ncore,
         )
         feature_df = pd.DataFrame.from_dict(feature_dict, orient='index')
