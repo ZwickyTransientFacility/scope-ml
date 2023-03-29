@@ -140,7 +140,7 @@ def drop_close_bright_stars(
     q = kowalski_instance.query(query)
 
     gaia_results = q.get('data')
-    gaia_results_dct.update(gaia_results['Gaia_EDR3'])
+    gaia_results_dct.update(gaia_results[catalog])
 
     print('Identifying sources too close to bright stars...')
 
@@ -173,7 +173,7 @@ def drop_close_bright_stars(
             val = id_dct[id]
             ra_geojson, dec_geojson = val['radec_geojson']['coordinates']
 
-            # Compute separations in radians, convert to arcsec
+            # Compute separations in radians and convert, using 1 rad = 206265 arcsec
             # ~10x faster than SkyCoord.separation() if lon/lat is calculated out of loop
             all_separations = angular_separation(lon1[i], lat1[i], lon2, lat2) * 206265
             within_range = all_separations < query_radius_arcsec
