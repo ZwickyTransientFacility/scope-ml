@@ -253,7 +253,7 @@ def make_f(p):
     return f
 
 
-def calc_basic_stats(ids, tme):
+def calc_basic_stats(id, tme):
 
     t, mag, err = tme
 
@@ -285,7 +285,7 @@ def calc_basic_stats(ids, tme):
     SW = shapiro(mag / err)[0]
 
     return {
-        ids: np.r_[
+        id: np.r_[
             N,
             median,
             wmean,
