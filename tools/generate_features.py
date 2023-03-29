@@ -11,20 +11,18 @@ from scope.utils import (
     exclude_radius,
     removeHighCadence,
     write_parquet,
-    split_dict,
     sort_lightcurve,
 )
 import numpy as np
 from penquins import Kowalski
 import pandas as pd
-from astropy.coordinates import SkyCoord
+from astropy.coordinates import SkyCoord, angular_separation
 import astropy.units as u
 from datetime import datetime
 from tools.featureGeneration import lcstats, periodsearch, alertstats, external_xmatch
 import warnings
 from cesium.featurize import time_series, featurize_single_ts
 import json
-
 
 BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
 
@@ -88,174 +86,142 @@ def drop_close_bright_stars(
         Default is 300 corresponding with approximate maximum from A. Drake's exclusion radius (float)
     :param xmatch_radius_arcsec: size of cone within which to match a queried source with an input source.
         If any sources from the query fall within this cone, the closest one will be matched to the input source and dropped from further bright-star considerations (float)
-    :param limit: batch size of kowalski_instance queries (int)
-    :param Ncore: number of cores for parallel querying (int)
 
     :return id_dct_keep: dictionary containing subset of input sources far enough away from bright stars
     """
 
     ids = [x for x in id_dct]
+    coords = np.array(
+        [x['radec_geojson']['coordinates'] for x in id_dct.values()]
+    ).transpose()
+    sources_ra = coords[0] + 180.0
+    sources_dec = coords[1]
+
+    min_ra = np.min(sources_ra) - query_radius_arcsec / 3600.0
+    max_ra = np.max(sources_ra) + query_radius_arcsec / 3600.0
+    min_dec = np.min(sources_dec) - query_radius_arcsec / 3600.0
+    max_dec = np.max(sources_dec) + query_radius_arcsec / 3600.0
+
+    ctr_ra = np.mean([min_ra, max_ra])
+    ctr_dec = np.mean([min_dec, max_dec])
+
+    max_cone_radius = np.max([max_dec - ctr_dec, max_ra - ctr_ra]) * 3600 * np.sqrt(2)
+
     id_dct_keep = id_dct.copy()
-
-    limit *= Ncore
-
-    n_sources = len(id_dct)
-    if n_sources % limit != 0:
-        n_iterations = n_sources // limit + 1
-    else:
-        n_iterations = n_sources // limit
 
     gaia_results_dct = {}
 
-    print(f'Querying {catalog} catalog in batches...')
-    for i in range(0, n_iterations):
-        print(f"Iteration {i+1} of {n_iterations}...")
-        id_slice = [x for x in id_dct.keys()][
-            i * limit : min(n_sources, (i + 1) * limit)
-        ]
-
-        radec_geojson = np.array(
-            [id_dct[x]['radec_geojson']['coordinates'] for x in id_slice]
-        ).transpose()
-
-        # Need to add 180 -> no negative RAs
-        radec_geojson[0, :] += 180.0
-        radec_dict = dict(zip(id_slice, radec_geojson.transpose().tolist()))
-
-        if Ncore > 1:
-            # Split dictionary for parallel querying
-            radec_split_list = [lst for lst in split_dict(radec_dict, Ncore)]
-            queries = [
-                {
-                    "query_type": "cone_search",
-                    "query": {
-                        "object_coordinates": {
-                            "radec": dct,
-                            "cone_search_radius": query_radius_arcsec,
-                            "cone_search_unit": 'arcsec',
-                        },
-                        "catalogs": {
-                            catalog: {
-                                # Select sources brighter than G magnitude 13:
-                                # -Conversion to Tycho mags only good for G < 13
-                                # -Need for exclusion radius only for stars with B <~ 13
-                                # -For most stars, if G > 13, B > 13
-                                "filter": {"phot_g_mean_mag": {"$lt": 13.0}},
-                                "projection": {
-                                    "phot_g_mean_mag": 1,
-                                    "bp_rp": 1,
-                                    "coordinates.radec_geojson.coordinates": 1,
-                                },
-                            }
-                        },
-                        "filter": {},
+    query = {
+        "query_type": "cone_search",
+        "query": {
+            "object_coordinates": {
+                "radec": {'quad': [ctr_ra, ctr_dec]},
+                "cone_search_radius": max_cone_radius,
+                "cone_search_unit": 'arcsec',
+            },
+            "catalogs": {
+                catalog: {
+                    # Select sources brighter than G magnitude 13:
+                    # -Conversion to Tycho mags only good for G < 13
+                    # -Need for exclusion radius only for stars with B <~ 13
+                    # -For most stars, if G > 13, B > 13
+                    "filter": {"phot_g_mean_mag": {"$lt": 13.0}},
+                    "projection": {
+                        "phot_g_mean_mag": 1,
+                        "bp_rp": 1,
+                        "coordinates.radec_geojson.coordinates": 1,
                     },
                 }
-                for dct in radec_split_list
-            ]
+            },
+            "filter": {},
+        },
+    }
 
-            q = kowalski_instance.batch_query(queries, n_treads=8)
-            for batch_result in q:
-                gaia_results = batch_result['data'][catalog]
-                gaia_results_dct.update(gaia_results)
-        else:
-            # Get Gaia EDR3 ID, G mag, BP-RP, and coordinates
-            query = {
-                "query_type": "cone_search",
-                "query": {
-                    "object_coordinates": {
-                        # "radec": dict(zip(id_slice, radec_geojson.transpose().tolist())),
-                        "radec": radec_dict,
-                        "cone_search_radius": query_radius_arcsec,
-                        "cone_search_unit": 'arcsec',
-                    },
-                    "catalogs": {
-                        catalog: {
-                            # Select sources brighter than G magnitude 13:
-                            # -Conversion to Tycho mags only good for G < 13
-                            # -Need for exclusion radius only for stars with B <~ 13
-                            # -For most stars, if G > 13, B > 13
-                            "filter": {"phot_g_mean_mag": {"$lt": 13.0}},
-                            "projection": {
-                                "phot_g_mean_mag": 1,
-                                "bp_rp": 1,
-                                "coordinates.radec_geojson.coordinates": 1,
-                            },
-                        }
-                    },
-                    "filter": {},
-                },
-            }
+    q = kowalski_instance.query(query)
 
-            q = kowalski_instance.query(query)
-            gaia_results = q['data'][catalog]
-            gaia_results_dct.update(gaia_results)
+    gaia_results = q.get('data')
+    gaia_results_dct.update(gaia_results[catalog])
 
     print('Identifying sources too close to bright stars...')
+
     # Loop over each id to compare with query results
-    count = 0
-    for id in ids:
-        count += 1
-        if count % limit == 0:
-            print(f"{count} done")
-        if count == len(ids):
-            print(f"{count} done")
+    query_result = np.array(gaia_results_dct['quad'])
 
-        val = id_dct[id]
+    if len(query_result) > 0:
+        source_coords = np.array(
+            [x['radec_geojson']['coordinates'] for x in id_dct.values()]
+        )
+        source_coords[:, 0] += 180.0
+        Source_Coords = SkyCoord(source_coords, unit=[u.deg, u.deg])
+        lon1 = Source_Coords.spherical.lon.to(u.rad).value
+        lat1 = Source_Coords.spherical.lat.to(u.rad).value
 
-        ra_geojson, dec_geojson = val['radec_geojson']['coordinates']
+        query_coords = np.array(
+            [x['coordinates']['radec_geojson']['coordinates'] for x in query_result]
+        )
+        query_coords[:, 0] += 180.0
+        Query_Coords = SkyCoord(query_coords, unit=[u.deg, u.deg])
+        lon2 = Query_Coords.spherical.lon.to(u.rad).value
+        lat2 = Query_Coords.spherical.lat.to(u.rad).value
 
-        single_result = gaia_results_dct[str(id)]
-        if len(single_result) > 0:
-            coords = np.array(
-                [
-                    x['coordinates']['radec_geojson']['coordinates']
-                    for x in single_result
-                ]
-            )
-            coords[:, 0] += 180.0
+        for i, id in enumerate(ids):
+            # Reset bright source dictionary for each iteration
+            single_result = query_result.copy()
 
-            # SkyCoord object for query results
-            Coords = SkyCoord(coords, unit=['deg', 'deg'])
-            # SkyCoord object for input source
-            coord = SkyCoord(ra_geojson + 180.0, dec_geojson, unit=['deg', 'deg'])
+            Coords = np.copy(Query_Coords)
 
-            all_separations = Coords.separation(coord)
-            # Identify closest source to input
-            drop_source = np.argmin(all_separations)
+            val = id_dct[id]
+            ra_geojson, dec_geojson = val['radec_geojson']['coordinates']
 
-            # If closest source is within specified radius, treat it as the input source and drop it from further consideration
-            xmatch_source = {}
-            if all_separations[drop_source] < xmatch_radius_arcsec * u.arcsec:
-                xmatch_source = single_result.pop(drop_source)
-                Coords = np.delete(Coords, drop_source)
+            # Compute separations in radians and convert, using 1 rad = 206265 arcsec
+            # ~10x faster than SkyCoord.separation() if lon/lat is calculated out of loop
+            all_separations = angular_separation(lon1[i], lat1[i], lon2, lat2) * 206265
+            within_range = all_separations < query_radius_arcsec
 
-            # If possible, use all-Gaia coordinates for next step
-            if len(xmatch_source) > 0:
-                xmatch_ra, xmatch_dec = xmatch_source['coordinates']['radec_geojson'][
-                    'coordinates'
-                ]
-                xmatch_ra += 180.0
-                xmatch_coord = SkyCoord(xmatch_ra, xmatch_dec, unit=['deg', 'deg'])
-            else:
-                xmatch_coord = SkyCoord(
-                    ra_geojson + 180.0, dec_geojson, unit=['deg', 'deg']
-                )
+            if np.sum(within_range) > 0:
+                all_separations = all_separations[within_range]
+                Coords = Coords[within_range]
+                single_result = query_result[within_range].tolist()
 
-            # Use mapping from Gaia -> Tycho to set exclusion radius for each source
-            for idx, source in enumerate(single_result):
-                try:
-                    B, V = TychoBVfromGaia(source['phot_g_mean_mag'], source['bp_rp'])
-                    excl_radius = exclude_radius(B, V)
-                except KeyError:
-                    # Not all Gaia sources have BP-RP
-                    excl_radius = 0.0
-                if excl_radius > 0.0:
-                    sep = xmatch_coord.separation(Coords[idx])
-                    if excl_radius * u.arcsec > sep.to(u.arcsec):
-                        # If there is a bright star that's too close, drop from returned dict
-                        id_dct_keep.pop(id)
-                        break
+                # Identify closest source to input
+                drop_source = np.argmin(all_separations)
+
+                # If closest source is within specified radius, treat it as the input source and drop it from further consideration
+                xmatch_source = {}
+                if all_separations[drop_source] < xmatch_radius_arcsec:
+                    xmatch_source = single_result.pop(drop_source)
+                    Coords = np.delete(Coords, drop_source)
+
+                # If possible, use all-Gaia coordinates for next step
+                if len(xmatch_source) > 0:
+                    xmatch_ra, xmatch_dec = xmatch_source['coordinates'][
+                        'radec_geojson'
+                    ]['coordinates']
+                    xmatch_ra += 180.0
+                    xmatch_coord = SkyCoord(xmatch_ra, xmatch_dec, unit=['deg', 'deg'])
+                else:
+                    xmatch_coord = SkyCoord(
+                        ra_geojson + 180.0, dec_geojson, unit=['deg', 'deg']
+                    )
+
+                # Use mapping from Gaia -> Tycho to set exclusion radius for each source
+                for idx, source in enumerate(single_result):
+                    try:
+                        B, V = TychoBVfromGaia(
+                            source['phot_g_mean_mag'], source['bp_rp']
+                        )
+                        excl_radius = exclude_radius(B, V)
+                    except KeyError:
+                        # Not all Gaia sources have BP-RP
+                        excl_radius = 0.0
+                    if excl_radius > 0.0:
+                        sep = xmatch_coord.separation(Coords[idx])
+                        if excl_radius * u.arcsec > sep.to(u.arcsec):
+                            # If there is a bright star that's too close, drop from returned dict
+                            id_dct_keep.pop(id)
+                            break
+    else:
+        id_dct_keep = id_dct
 
     print(f"Dropped {len(id_dct) - len(id_dct_keep)} sources.")
     return id_dct_keep
