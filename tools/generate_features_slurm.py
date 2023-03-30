@@ -304,7 +304,13 @@ if __name__ == "__main__":
         "--memory_GB",
         type=int,
         default=180,
-        help="Memory allocation to request",
+        help="Memory allocation to request for computing",
+    )
+    parser.add_argument(
+        "--submit_memory_GB",
+        type=int,
+        default=16,
+        help="Memory allocation to request for job submission",
     )
     parser.add_argument(
         "--time",
@@ -522,7 +528,7 @@ if __name__ == "__main__":
     fid.write(f'#SBATCH --output=../logs/{args.job_name}_submit_%A_%a.out\n')
     fid.write(f'#SBATCH --error=../logs/{args.job_name}_submit_%A_%a.err\n')
     fid.write(f'#SBATCH -p {args.submit_partition_type}\n')
-    fid.write('#SBATCH --mem 16G\n')
+    fid.write(f'#SBATCH --mem {args.submit_memory_GB}G\n')
     fid.write(f'#SBATCH -A {args.account_name}\n')
     fid.write(f'#SBATCH --time={args.time}\n')
     fid.write('#SBATCH --mail-type=ALL\n')
