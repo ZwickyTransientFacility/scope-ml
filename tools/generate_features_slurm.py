@@ -280,7 +280,13 @@ if __name__ == "__main__":
         "--partition_type",
         type=str,
         default='gpu-shared',
-        help="Partition name to request",
+        help="Partition name to request for computing",
+    )
+    parser.add_argument(
+        "--submit_partition_type",
+        type=str,
+        default='shared',
+        help="Partition name to request for job submission",
     )
     parser.add_argument(
         "--nodes",
@@ -350,6 +356,12 @@ if __name__ == "__main__":
         type=float,
         default=5.0,
         help="Time to wait between job status checks",
+    )
+    parser.add_argument(
+        "--runParallel",
+        action="store_true",
+        default=False,
+        help="If set, run jobs in parallel using slurm. Otherwise, run in series on a single instance.",
     )
 
     args = parser.parse_args()
@@ -446,11 +458,11 @@ if __name__ == "__main__":
     fid.write(f'#SBATCH --mail-user={args.mail_user}\n')
     fid.write(f'#SBATCH -A {args.account_name}\n')
 
-    fid.write('module purge\n')
     if args.cluster_name in ['Expanse', 'expanse', 'EXPANSE']:
+        fid.write('module purge\n')
         fid.write('module add gpu\n')
         fid.write('module add cuda\n')
-    fid.write(f'source activate {args.python_env_name}\n')
+        fid.write(f'source activate {args.python_env_name}\n')
 
     if args.doQuadrantFile:
         fid.write(
@@ -509,24 +521,38 @@ if __name__ == "__main__":
     fid.write(f'#SBATCH --job-name={args.job_name}_submit.job\n')
     fid.write(f'#SBATCH --output=../logs/{args.job_name}_submit_%A_%a.out\n')
     fid.write(f'#SBATCH --error=../logs/{args.job_name}_submit_%A_%a.err\n')
-    fid.write('#SBATCH -p shared\n')
+    fid.write(f'#SBATCH -p {args.submit_partition_type}\n')
     fid.write('#SBATCH --mem 16G\n')
     fid.write(f'#SBATCH -A {args.account_name}\n')
     fid.write(f'#SBATCH --time={args.time}\n')
     fid.write('#SBATCH --mail-type=ALL\n')
     fid.write(f'#SBATCH --mail-user={args.mail_user}\n')
 
-    fid.write('module purge\n')
-    fid.write(f'source activate {args.python_env_name}\n')
+    if args.cluster_name in ['Expanse', 'expanse', 'EXPANSE']:
+        fid.write('module purge\n')
+        fid.write('module add slurm\n')
+        fid.write(f'source activate {args.python_env_name}\n')
 
-    fid.write(
-        '%s/generate_features_job_submission.py --outputDir %s --filename %s --doSubmit --max_instances %s --wait_time_minutes %s\n'
-        % (
-            BASE_DIR / 'tools',
-            dirpath,
-            filename,
-            args.max_instances,
-            args.wait_time_minutes,
+    if args.runParallel:
+        fid.write(
+            '%s/generate_features_job_submission.py --dirname %s --filename %s --doSubmit --runParallel --max_instances %s --wait_time_minutes %s\n'
+            % (
+                BASE_DIR / 'tools',
+                dirpath,
+                filename,
+                args.max_instances,
+                args.wait_time_minutes,
+            )
         )
-    )
+    else:
+        fid.write(
+            '%s/generate_features_job_submission.py --dirname %s --filename %s --doSubmit --max_instances %s --wait_time_minutes %s\n'
+            % (
+                BASE_DIR / 'tools',
+                dirpath,
+                filename,
+                args.max_instances,
+                args.wait_time_minutes,
+            )
+        )
     fid.close()
