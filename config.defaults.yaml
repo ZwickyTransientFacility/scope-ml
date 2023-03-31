@@ -1,11 +1,14 @@
 kowalski:
-  host: gloria.caltech.edu
+  hosts:
+  # Add/remove Kowalski host names and a corresponding token below
+    kowalski:
+      token:
+    gloria:
+      token:
+    melman:
+      token:
   port: 443
   protocol: https
-  token:
-  # For users who have more than one token for Kowalski
-  # instances, use the field below for the second token
-  alt_token:
   timeout: 300
   collections:
     gaia: Gaia_EDR3

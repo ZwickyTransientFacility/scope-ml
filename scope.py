@@ -95,22 +95,38 @@ class Scope:
                 pathlib.Path(__file__).parent.absolute() / "config.yaml"
             )
 
-            # use token specified as env var (if exists)
-            kowalski_token_env = os.environ.get("KOWALSKI_TOKEN")
-            kowalski_alt_token_env = os.environ.get("KOWALSKI_ALT_TOKEN")
-            if (kowalski_token_env is not None) & (kowalski_alt_token_env is not None):
-                self.config["kowalski"]["token"] = kowalski_token_env
-                self.config["kowalski"]["alt_token"] = kowalski_alt_token_env
+            # use tokens specified as env vars (if exist)
+            kowalski_token_env = os.environ.get("KOWALSKI_INSTANCE_TOKEN")
+            gloria_token_env = os.environ.get("GLORIA_INSTANCE_TOKEN")
+            melman_token_env = os.environ.get("MELMAN_INSTANCE_TOKEN")
+            if kowalski_token_env is not None:
+                self.config["kowalski"]["hosts"]["kowalski"][
+                    "token"
+                ] = kowalski_token_env
+            if gloria_token_env is not None:
+                self.config["kowalski"]["hosts"]["gloria"]["token"] = gloria_token_env
+            if melman_token_env is not None:
+                self.config["kowalski"]["hosts"]["melman"]["token"] = melman_token_env
+
+            hosts = [
+                x
+                for x in self.config['kowalski']['hosts']
+                if self.config['kowalski']['hosts'][x]['token'] is not None
+            ]
+            instances = {
+                host: {
+                    'protocol': self.config['kowalski']['protocol'],
+                    'port': self.config['kowalski']['port'],
+                    'host': f'{host}.caltech.edu',
+                    'token': self.config['kowalski']['hosts'][host]['token'],
+                }
+                for host in hosts
+            }
 
         # try setting up K connection if token is available
-        if self.config["kowalski"]["token"] is not None:
+        if len(instances) > 0:
             with status("Setting up Kowalski connection"):
-                self.kowalski = Kowalski(
-                    token=self.config["kowalski"]["token"],
-                    protocol=self.config["kowalski"]["protocol"],
-                    host=self.config["kowalski"]["host"],
-                    port=self.config["kowalski"]["port"],
-                )
+                self.kowalski = Kowalski(timeout=300, instances=instances)
         else:
             self.kowalski = None
             # raise ConnectionError("Could not connect to Kowalski.")

@@ -10,26 +10,46 @@ import pathlib
 import yaml
 
 BASE_DIR = os.path.dirname(__file__)
-# Set up Kowalski instance connection
-# Use Kowalski_Instances class here once approved
+
 config_path = pathlib.Path(__file__).parent.parent.absolute() / "config.yaml"
 with open(config_path) as config_yaml:
     config = yaml.load(config_yaml, Loader=yaml.FullLoader)
 
-# use token specified as env var (if exists)
-kowalski_token_env = os.environ.get("KOWALSKI_TOKEN")
-kowalski_alt_token_env = os.environ.get("KOWALSKI_ALT_TOKEN")
-if (kowalski_token_env is not None) & (kowalski_alt_token_env is not None):
-    config["kowalski"]["token"] = kowalski_token_env
-    config["kowalski"]["alt_token"] = kowalski_alt_token_env
+# use tokens specified as env vars (if exist)
+kowalski_token_env = os.environ.get("KOWALSKI_INSTANCE_TOKEN")
+gloria_token_env = os.environ.get("GLORIA_INSTANCE_TOKEN")
+melman_token_env = os.environ.get("MELMAN_INSTANCE_TOKEN")
 
-kowalski_instance = Kowalski(**config['kowalski'], verbose=False)
+# Set up Kowalski instance connection
+if kowalski_token_env is not None:
+    config["kowalski"]["hosts"]["kowalski"]["token"] = kowalski_token_env
+if gloria_token_env is not None:
+    config["kowalski"]["hosts"]["gloria"]["token"] = gloria_token_env
+if melman_token_env is not None:
+    config["kowalski"]["hosts"]["melman"]["token"] = melman_token_env
+
+hosts = [
+    x
+    for x in config['kowalski']['hosts']
+    if config['kowalski']['hosts'][x]['token'] is not None
+]
+instances = {
+    host: {
+        'protocol': config['kowalski']['protocol'],
+        'port': config['kowalski']['port'],
+        'host': f'{host}.caltech.edu',
+        'token': config['kowalski']['hosts'][host]['token'],
+    }
+    for host in hosts
+}
+
+kowalski_instances = Kowalski(timeout=300, instances=instances)
 
 
 def get_ids_loop(
     func,
     catalog,
-    kowalski_instance=kowalski_instance,
+    kowalski_instances=kowalski_instances,
     field=296,
     ccd_range=[1, 16],
     quad_range=[1, 4],
@@ -51,8 +71,8 @@ def get_ids_loop(
             Function for getting ids for a specific quad of a CCD for a particular ZTF field.
         catalog : str
             Catalog containing ids, CCD, quad, and light curves
-        kowalski_instance:
-            Authenticated instance of kowalski, gloria or melman. Defaults to config-specified info.
+        kowalski_instances:
+            Authenticated instances of kowalski. Defaults to config-specified info.
         field : int
             ZTF field number
         ccd_range : int
@@ -124,7 +144,7 @@ def get_ids_loop(
             while True:
                 data = func(
                     catalog,
-                    kowalski_instance=kowalski_instance,
+                    kowalski_instances=kowalski_instances,
                     field=field,
                     ccd=ccd,
                     quad=quad,
@@ -180,7 +200,7 @@ def get_cone_ids(
     ra_list: list,
     dec_list: list,
     catalog: str = 'ZTF_source_features_DR5',
-    kowalski_instance=kowalski_instance,
+    kowalski_instances=kowalski_instances,
     max_distance: float = 2.0,
     distance_units: str = "arcsec",
     limit_per_query: int = 1000,
@@ -192,7 +212,7 @@ def get_cone_ids(
     :param ra_list: RA in deg (list of float)
     :param dec_list: Dec in deg (list of float)
     :param catalog: catalog to query
-    :kowalski_instance: Authenticated instance of kowalski, gloria or melman. Defaults to config-specified info.
+    :kowalski_instances: Authenticated instances of kowalski. Defaults to config-specified info.
     :param max_distance: float
     :param distance_units: arcsec | arcmin | deg | rad
     :param limit_per_query: max number of sources in a query (int)
@@ -240,9 +260,14 @@ def get_cone_ids(
                 },
             },
         }
-        response = kowalski_instance.query(query=query)
+        response = kowalski_instances.query(query=query)
 
-        temp_data = response.get("data").get(catalog)
+        # Todo: don't assume zeroth key will be the only key
+        # (source catalogs will exist on multiple instances)
+        instance = [x for x in response.keys()][0]
+        response = response[instance]
+
+        temp_data = response.get('data').get(catalog)
 
         if temp_data is None:
             print(response)
@@ -271,7 +296,7 @@ def get_cone_ids(
 
 def get_field_ids(
     catalog,
-    kowalski_instance=kowalski_instance,
+    kowalski_instances=kowalski_instances,
     field=301,
     ccd=4,
     quad=3,
@@ -287,8 +312,8 @@ def get_field_ids(
     ----------
     catalog : str
         Catalog containing ids, CCD, quad, and light curves
-    kowalski_instance:
-        Authenticated instance of kowalski, gloria or melman. Defaults to config-specified info.
+    kowalski_instances:
+        Authenticated instances of kowalski. Defaults to config-specified info.
     field : int
         ZTF field number
     ccd : int
@@ -338,7 +363,21 @@ def get_field_ids(
         "kwargs": {"limit": limit, "skip": skip},
     }
 
-    r = kowalski_instance.query(q)
+    r = kowalski_instances.query(q)
+
+    # for name in responses.keys():
+    #         if len(responses[name]) > 0:
+    #             response_list = responses[name]
+    #             for response in response_list:
+    #                 if response.get("status", "error") == "success":
+    # get data, e.g. response.get("data").get(catalog)
+    # if data is not None:
+    # append data
+
+    # Todo: don't assume zeroth key will be the only key
+    # (source catalogs will exist on multiple instances)
+    instance = [x for x in r.keys()][0]
+    r = r[instance]
     data = r.get('data')
     ids = [data[i]['_id'] for i in range(len(data))]
     if get_coords:
@@ -483,7 +522,7 @@ if __name__ == "__main__":
         get_ids_loop(
             get_field_ids,
             catalog=args.catalog,
-            kowalski_instance=kowalski_instance,
+            kowalski_instances=kowalski_instances,
             field=args.field,
             ccd_range=args.ccd_range,
             quad_range=args.quad_range,
@@ -511,7 +550,7 @@ if __name__ == "__main__":
 
         data = get_field_ids(
             catalog=args.catalog,
-            kowalski_instance=kowalski_instance,
+            kowalski_instances=kowalski_instances,
             field=args.field,
             ccd=ccd,
             quad=quad,

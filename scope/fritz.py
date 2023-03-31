@@ -134,7 +134,7 @@ def radec_to_iau_name(ra: float, dec: float, prefix: str = "ZTFJ"):
 
 
 def get_lightcurves_via_coords(
-    kowalski_instance,
+    kowalski_instances,
     ra,
     dec,
     radius=2.0,
@@ -143,7 +143,7 @@ def get_lightcurves_via_coords(
 ):
 
     query = {"query_type": "info", "query": {"command": "catalog_names"}}
-    available_catalog_names = kowalski_instance.query(query=query).get("data")
+    available_catalog_names = kowalski_instances.query(query=query).get("data")
     # expose only the ZTF light curves for now
     available_catalogs = [
         catalog for catalog in available_catalog_names if "ZTF_sources" in catalog
@@ -175,7 +175,7 @@ def get_lightcurves_via_coords(
         },
     }
 
-    response = kowalski_instance.query(query=query)
+    response = kowalski_instances.query(query=query)
     if response.get("status", "error") == "success":
         light_curve_ids = [
             item["_id"] for item in response.get("data")[catalog]["query_coords"]
@@ -186,12 +186,12 @@ def get_lightcurves_via_coords(
             print("Found %d lightcurves" % len(light_curve_ids))
 
     return get_lightcurves_via_ids(
-        kowalski_instance, light_curve_ids, catalog, program_id_selector
+        kowalski_instances, light_curve_ids, catalog, program_id_selector
     )
 
 
 def get_lightcurves_via_ids(
-    kowalski_instance,
+    kowalski_instances,
     ids,
     catalog,
     program_id_selector=list([1, 2, 3]),
@@ -204,129 +204,58 @@ def get_lightcurves_via_ids(
     Nsources = len(ids)
 
     while True:
-        if Ncore > 1:
-            Nqueries = int(np.ceil(Nsources / limit_per_query))
-            queries = [
-                {
-                    "query_type": "aggregate",
-                    "query": {
-                        "catalog": catalog,
-                        "pipeline": [
-                            {
-                                "$match": {
-                                    "_id": {
-                                        "$in": ids[
-                                            i
-                                            * limit_per_query : (i + 1)
-                                            * limit_per_query
-                                        ]
-                                    }
-                                }
-                            },
-                            {
-                                "$project": {
-                                    "_id": 1,
-                                    "ra": 1,
-                                    "dec": 1,
-                                    "filter": 1,
-                                    "meanmag": 1,
-                                    "vonneumannratio": 1,
-                                    "refchi": 1,
-                                    "refmag": 1,
-                                    "refmagerr": 1,
-                                    "iqr": 1,
-                                    "data": {
-                                        "$filter": {
-                                            "input": "$data",
-                                            "as": "item",
-                                            "cond": {
-                                                "$in": [
-                                                    "$$item.programid",
-                                                    program_id_selector,
-                                                ]
-                                            },
-                                        }
-                                    },
-                                }
-                            },
-                        ],
-                    },
-                }
-                for i in range(itr, itr + min(Nqueries, Ncore))
-            ]
-            responses = kowalski_instance.batch_query(queries, n_treads=Ncore)
-            Nsources -= len(queries) * limit_per_query
+        Nqueries = int(np.ceil(Nsources / limit_per_query))
 
-            for response in responses:
-                if response.get("status", "error") == "success":
-                    light_curves = response.get("data")
-                    lcs += light_curves
-
-            if Nsources <= 0:
-                print(f'{len(ids)} done')
-                break
-            itr += len(queries)
-            if (itr * limit_per_query) % limit_per_query == 0:
-                print(itr * limit_per_query, "done")
-
-        else:
-            Nqueries = 1
-            query = {
-                "query_type": "aggregate",
+        queries = [
+            {
+                "query_type": "find",
                 "query": {
                     "catalog": catalog,
-                    "pipeline": [
-                        {
-                            "$match": {
-                                "_id": {
-                                    "$in": ids[
-                                        itr
-                                        * limit_per_query : (itr + 1)
-                                        * limit_per_query
-                                    ]
-                                }
-                            }
+                    "filter": {
+                        "_id": {
+                            "$in": ids[i * limit_per_query : (i + 1) * limit_per_query]
                         },
-                        {
-                            "$project": {
-                                "_id": 1,
-                                "ra": 1,
-                                "dec": 1,
-                                "filter": 1,
-                                "meanmag": 1,
-                                "vonneumannratio": 1,
-                                "refchi": 1,
-                                "refmag": 1,
-                                "refmagerr": 1,
-                                "iqr": 1,
-                                "data": {
-                                    "$filter": {
-                                        "input": "$data",
-                                        "as": "item",
-                                        "cond": {
-                                            "$in": [
-                                                "$$item.programid",
-                                                program_id_selector,
-                                            ]
-                                        },
-                                    }
-                                },
-                            }
+                        "data.programid": {
+                            "$in": program_id_selector,
                         },
-                    ],
+                    },
+                    "projection": {
+                        "_id": 1,
+                        "ra": 1,
+                        "dec": 1,
+                        "filter": 1,
+                        "meanmag": 1,
+                        "vonneumannratio": 1,
+                        "refchi": 1,
+                        "refmag": 1,
+                        "refmagerr": 1,
+                        "iqr": 1,
+                        "data": 1,
+                    },
                 },
             }
-            response = kowalski_instance.query(query=query)
-            if response.get("status", "error") == "success":
-                light_curves = response.get("data")
-                lcs += light_curves
+            for i in range(itr, itr + min(Nqueries, Ncore))
+        ]
 
-            if ((itr + 1) * limit_per_query) >= len(ids):
-                print(f'{len(ids)} done')
-                break
-            itr += 1
-            if (itr * limit_per_query) % limit_per_query == 0:
-                print(itr * limit_per_query, "done")
+        responses = kowalski_instances.query(
+            queries=queries, use_batch_query=True, max_n_threads=Ncore
+        )
+        Nsources -= len(queries) * limit_per_query
+
+        for name in responses.keys():
+            if len(responses[name]) > 0:
+                response_list = responses[name]
+                for response in response_list:
+                    if response.get("status", "error") == "success":
+                        light_curves = response.get("data")
+                        lcs += light_curves
+
+        if Nsources <= 0:
+            print(f'{len(ids)} done')
+            break
+        itr += len(queries)
+        if (itr * limit_per_query) % limit_per_query == 0:
+            print(itr * limit_per_query, "done")
 
     return lcs
 
@@ -366,7 +295,7 @@ def make_photometry(light_curves: list, drop_flagged: bool = False):
 
 
 def save_newsource(
-    kowalski_instance,
+    kowalski_instances,
     group_ids,
     ra,
     dec,
@@ -379,7 +308,7 @@ def save_newsource(
 ):
 
     # get the lightcurves
-    light_curves = get_lightcurves_via_coords(kowalski_instance, ra, dec, radius)
+    light_curves = get_lightcurves_via_coords(kowalski_instances, ra, dec, radius)
 
     # generate position-based name if obj_id not set
     newsource = False

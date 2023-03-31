@@ -25,21 +25,35 @@ with open(config_path) as config_yaml:
 feature_names = config['features']['ontological']
 dtype_dict = {key: feature_names[key]['dtype'] for key in feature_names}
 
-# use token specified as env var (if exists)
-kowalski_token_env = os.environ.get("KOWALSKI_TOKEN")
-kowalski_alt_token_env = os.environ.get("KOWALSKI_ALT_TOKEN")
-if (kowalski_token_env is not None) & (kowalski_alt_token_env is not None):
-    config["kowalski"]["token"] = kowalski_token_env
-    config["kowalski"]["alt_token"] = kowalski_alt_token_env
+# use tokens specified as env vars (if exist)
+kowalski_token_env = os.environ.get("KOWALSKI_INSTANCE_TOKEN")
+gloria_token_env = os.environ.get("GLORIA_INSTANCE_TOKEN")
+melman_token_env = os.environ.get("MELMAN_INSTANCE_TOKEN")
 
-# Use new penquins KowalskiInstances class here once approved
-kowalski_instance = Kowalski(
-    token=config["kowalski"]["token"],
-    protocol=config["kowalski"]["protocol"],
-    host=config["kowalski"]["host"],
-    port=config["kowalski"]["port"],
-    timeout=TIMEOUT,
-)
+# Set up Kowalski instance connection
+if kowalski_token_env is not None:
+    config["kowalski"]["hosts"]["kowalski"]["token"] = kowalski_token_env
+if gloria_token_env is not None:
+    config["kowalski"]["hosts"]["gloria"]["token"] = gloria_token_env
+if melman_token_env is not None:
+    config["kowalski"]["hosts"]["melman"]["token"] = melman_token_env
+
+hosts = [
+    x
+    for x in config['kowalski']['hosts']
+    if config['kowalski']['hosts'][x]['token'] is not None
+]
+instances = {
+    host: {
+        'protocol': config['kowalski']['protocol'],
+        'port': config['kowalski']['port'],
+        'host': f'{host}.caltech.edu',
+        'token': config['kowalski']['hosts'][host]['token'],
+    }
+    for host in hosts
+}
+
+kowalski_instances = Kowalski(timeout=300, instances=instances)
 
 
 def get_features_loop(
@@ -171,7 +185,13 @@ def get_features(
                 "projection": projection,
             },
         }
-        response = kowalski_instance.query(query=query)
+        response = kowalski_instances.query(query=query)
+
+        # Todo: don't assume zeroth key will be the only key
+        # (source catalogs will exist on multiple instances)
+        instance = [x for x in response.keys()][0]
+        response = response[instance]
+
         source_data = response.get("data")
 
         if source_data is None:
