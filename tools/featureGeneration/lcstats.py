@@ -59,8 +59,6 @@ def calc_Stetson(mag, err, N, wmean):
     # stetsonJ
     stetsonJ = np.sum(np.sign(P) * np.sqrt(np.abs(P)))
 
-    # stetsonJ time
-
     # stetsonK
     stetsonK = np.sum(abs(d)) / N
     stetsonK /= np.sqrt(1.0 / N * np.sum(d**2))
@@ -114,7 +112,6 @@ def make_s(t, *pars):
 
 def sawtooth_decomposition(t, y, dy, p):
 
-    # N = np.size(y)
     x = np.mod(t, p) / p
 
     A_est = np.diff(np.percentile(y, (2.5, 97.5)))[0]
@@ -125,7 +122,7 @@ def sawtooth_decomposition(t, y, dy, p):
     offset = np.median(y)
 
     init = np.array([A_est, fi_est_1, width_1, offset, fi_est_2, width_2])
-    popt, pcov = curve_fit(make_s, x, y, init, sigma=dy, maxfev=5000)
+    popt, _ = curve_fit(make_s, x, y, init, sigma=dy, maxfev=5000)
 
     print(make_s(x, *popt))
 
@@ -141,9 +138,9 @@ def fourier_decomposition(t, y, dy, p, maxNterms=5, relative_output=False):
     pars = np.zeros((maxNterms + 2, (maxNterms + 1) * 2))  # fill in later
 
     init = np.array([np.median(y), 0.000001])  # the initial values for the minimiser
-    # print(t,y,dy,init)
-    for i, Nterms in enumerate(np.arange(maxNterms + 1.0, dtype=int)):
-        popt, pcov = curve_fit(
+
+    for i in range(maxNterms + 1):
+        popt, _ = curve_fit(
             make_f(p),  # function
             t,
             y,  # t,dy
@@ -196,7 +193,6 @@ def AB2AmpPhi(input_arr):
     arr[2::2] /= arr[0]  # normalise amplitudes
 
     # report phase shift
-
     maxk = int(np.size(input_arr) / 2)
     for k in range(2, maxk + 1, 1):
         arr[k * 2 - 1] = (arr[k * 2 - 1] / k - arr[1]) / (2.0 * np.pi / k) % 1
@@ -222,26 +218,16 @@ def make_f(p):
 
         """
 
-        # print(pars)
-
         y = pars[0] + pars[1] * (t - np.min(t))
         ns = np.arange(1, (len(pars) - 2) / 2 + 1, 1, dtype=int)
         if len(ns) == 0:
             return y
 
-        # phi = np.repeat(np.atleast_2d(2*np.pi*t/p), len(ns), axis=0)
-        # ns = np.repeat(np.atleast_2d(ns), len(t), axis=0).T
-        # vals1 = np.repeat(np.atleast_2d(pars[2::2]), len(t), axis=0).T
-        # vals2 = np.repeat(np.atleast_2d(pars[3::2]), len(t), axis=0).T
-
-        # yvals1 = vals1 * np.cos(ns * phi)
-        # yvals2 = vals2 * np.sin(ns * phi)
-
-        # y = y + yvals1.sum(axis=0) + yvals2.sum(axis=0)
-
         pars = np.array(pars)
+
         # a offset a[0], and slope
         y = pars[0] + pars[1] * (t - np.min(t))
+
         # fourier components, loops from 1 to ?
         for n in np.arange(1, (len(pars) - 2) / 2 + 1, 1, dtype=int):
             phi = 2 * np.pi * t / p
@@ -532,7 +518,7 @@ def calc_fourier_stats_sidereal(t, mag, err, p):
     periods = np.abs(tsid / ((tsid / p) + jjs))
 
     periodic_stat_all, periodic_stat_bics = [], []
-    for ii, period in enumerate(periods):
+    for period in periods:
         periodic_stat = calc_fourier_stats(t, mag, err, period)
 
         periodic_stat_all.append(periodic_stat)
