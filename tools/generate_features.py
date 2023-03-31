@@ -531,15 +531,13 @@ def generate_features(
                         batch_size=period_batch_size,
                         doGPU=doGPU,
                         doCPU=doCPU,
-                        doSaveMemory=False,
                         doRemoveTerrestrial=doRemoveTerrestrial,
                         doUsePDot=False,
                         doSingleTimeSegment=False,
                         freqs_to_remove=freqs_to_remove,
                         phase_bins=20,
                         mag_bins=10,
-                        doParallel=doParallel,
-                        Ncore=Ncore,
+                        # Ncore=Ncore, # CPU parallelization to be added
                     )
 
                     all_periods = np.concatenate([all_periods, periods])
