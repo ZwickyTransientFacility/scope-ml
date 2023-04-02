@@ -26,31 +26,6 @@ import json
 
 class XGB(AbstractClassifier):
     """Baseline model with a statically-defined architecture"""
-    def __init__(
-        self,
-        **kwargs,
-    )
-
-
-#    def call(self, inputs, **kwargs):
-#        features_input = inputs.get("features")
-#        dtrain = xgb.DMatrix(X_train, label=y_train)
-#        dtest = xgb.DMatrix(X_test, label=y_test)
-#
-#        return features_input, dtrain, dtest
-#
-    def summary(self, **kwargs):
-
-        model = xgb.train(
-            params,
-            dtrain,
-            num_boost_round=num_boost_round,
-            evals=[(dtest, "Test")],
-            early_stopping_rounds=10
-        )
-        return model.summary()
-
-
     
     def setup(
         self,
@@ -61,11 +36,18 @@ class XGB(AbstractClassifier):
         'colsample_bytree': 0.7,
         'objective': 'binary:logistic',
         'eval_metric': 'auc',
+        'early_stopping_rounds': 10,
+        'num_boost_round': 999,
+        X_train,
+        X_test,
+        
         **kwargs,
     ):
       #  removed for now:
       #  'gpu_id': 0,
       #  'tree_method': 'gpu_hist',
+
+    evals = {'dtrain': X_train, 'dtest': X_test}
 
     params = {'max_depth': max_depth,
     'min_child_weight': min_child_weight,
@@ -76,26 +58,22 @@ class XGB(AbstractClassifier):
   #  'gpu_id': gpu_id,
   #  'tree_method': tree_method,
     'eval_metric': eval_metric,
+    'early_stopping_rounds': early_stopping_rounds,
+    'num_boost_round': num_boost_round
     }
     
     self.meta['params'] = params
+    self.meta['evals'] = evals
 
-    self.model.compile(
-        params =self.meta["params"],
-        train = self.dtrain,
-        test = self.dtest,
-        )
 
-    def train(self,X_train, **kwargs):
-        dtrain = xgb.DMatrix(X_train, label=y_train)
+    def train(self,X_train, X_test, **kwargs):
 
-        return dtrain
+        self.model = xgb.train(self,params,evals, **kwargs)
+        
+        final_train = xgb.DMatrix(dtrain, label=y_train)
+        final_test = xgb.DMatrix(dtest, label=y_test)
 
-    def test(self, X_test, **kwargs);
-    
-        dtest = xgb.DMatrix(X_test, label=y_test)
-
-        return dtest
+        return final_train, final_test
 
               
     def evaluate(self, test_dataset, **kwargs):
