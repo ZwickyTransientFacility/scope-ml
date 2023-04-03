@@ -693,18 +693,31 @@ class Scope:
             # XGB-specific code
 
             # Only want to use features specified in config (see line 540)
+            
+            #I added the argument in loc that it has to be a member of 'features' below:
             # Uncomment below - currently commented to pass linting
-            # X_train = ds.df_ds.loc[indexes['train']]
-            # y_train = ds.target.loc[indexes['train']]
+            X_train = ds.df_ds.loc[indexes['train']][features]
+            y_train = ds.target.loc[indexes['train']][features]
 
-            # X_val = ds.df_ds.loc[indexes['val']]
-            # y_val = ds.target.loc[indexes['val']]
+            X_val = ds.df_ds.loc[indexes['val']][features]
+            y_val = ds.target.loc[indexes['val']][features]
 
-            # X_test = ds.df_ds.loc[indexes['test']]
-            # y_test = ds.target.loc[indexes['test']]
+            X_test = ds.df_ds.loc[indexes['test']][features]
+            y_test = ds.target.loc[indexes['test']][features]
 
             # Add code to train XGB algorithm
-            XGB()
+            #XGB()
+                classifier.train(
+                    X_train,
+                    y_train,
+                    X_val,
+                    y_val,
+                    steps_per_epoch["train"],
+                    steps_per_epoch["val"],
+                    epochs=epochs,
+                    class_weight=class_weight,
+                    verbose=verbose,
+                )
 
         if verbose:
             print("Evaluating on test set:")
