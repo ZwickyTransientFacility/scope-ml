@@ -499,6 +499,7 @@ class Scope:
         self,
         tag: str,
         path_dataset: Union[str, pathlib.Path],
+        algorithm: str = 'DNN',
         gpu: Optional[int] = None,
         verbose: bool = False,
         job_type: str = 'train',
@@ -509,6 +510,7 @@ class Scope:
 
         :param tag: classifier designation, refers to "class" in config.taxonomy
         :param path_dataset: local path to .parquet, .h5 or .csv file with the dataset
+        :param algorithm: name of ML algorithm to use
         :param gpu: GPU id to use, zero-based. check tf.config.list_physical_devices('GPU') for available devices
         :param verbose:
         :param kwargs: refer to utils.DNN.setup and utils.Dataset.make
@@ -529,6 +531,7 @@ class Scope:
         from wandb.keras import WandbCallback
 
         from scope.nn import DNN
+        from scope.xgb import XGB
         from scope.utils import Dataset
 
         train_config = self.config["training"]["classes"][tag]
@@ -586,101 +589,122 @@ class Scope:
             float_convert_types=float_convert_types,
         )
 
-        # set up and train model
-        dense_branch = kwargs.get("dense_branch", True)
-        conv_branch = kwargs.get("conv_branch", True)
-        loss = kwargs.get("loss", "binary_crossentropy")
-        optimizer = kwargs.get("optimizer", "adam")
-        lr = float(kwargs.get("lr", 3e-4))
-        momentum = float(kwargs.get("momentum", 0.9))
-        monitor = kwargs.get("monitor", "val_loss")
-        patience = int(kwargs.get("patience", 20))
-        callbacks = kwargs.get("callbacks", ("reduce_lr_on_plateau", "early_stopping"))
-        run_eagerly = kwargs.get("run_eagerly", False)
-        pre_trained_model = kwargs.get("pre_trained_model")
-        save = kwargs.get("save", False)
-        weights_only = kwargs.get("weights_only", False)
+        if algorithm in ['DNN', 'NN', 'dnn', 'nn']:
 
-        # parse boolean args
-        dense_branch = forgiving_true(dense_branch)
-        conv_branch = forgiving_true(conv_branch)
-        run_eagerly = forgiving_true(run_eagerly)
-        save = forgiving_true(save)
-
-        classifier = DNN(name=tag)
-
-        if pre_trained_model is not None:
-            classifier.load(pre_trained_model, weights_only=weights_only)
-            model_input = classifier.model.input
-            training_set_inputs = datasets['train'].element_spec[0]
-            # Compare input shapes with model inputs
-            print(
-                'Comparing shapes of input features with inputs for existing model...'
+            # set up and train model
+            dense_branch = kwargs.get("dense_branch", True)
+            conv_branch = kwargs.get("conv_branch", True)
+            loss = kwargs.get("loss", "binary_crossentropy")
+            optimizer = kwargs.get("optimizer", "adam")
+            lr = float(kwargs.get("lr", 3e-4))
+            momentum = float(kwargs.get("momentum", 0.9))
+            monitor = kwargs.get("monitor", "val_loss")
+            patience = int(kwargs.get("patience", 20))
+            callbacks = kwargs.get(
+                "callbacks", ("reduce_lr_on_plateau", "early_stopping")
             )
-            for inpt in model_input:
-                inpt_name = inpt.name
-                inpt_shape = inpt.shape
-                inpt_shape.assert_is_compatible_with(
-                    training_set_inputs[inpt_name].shape
+            run_eagerly = kwargs.get("run_eagerly", False)
+            pre_trained_model = kwargs.get("pre_trained_model")
+            save = kwargs.get("save", False)
+            weights_only = kwargs.get("weights_only", False)
+
+            # parse boolean args
+            dense_branch = forgiving_true(dense_branch)
+            conv_branch = forgiving_true(conv_branch)
+            run_eagerly = forgiving_true(run_eagerly)
+            save = forgiving_true(save)
+
+            classifier = DNN(name=tag)
+
+            if pre_trained_model is not None:
+                classifier.load(pre_trained_model, weights_only=weights_only)
+                model_input = classifier.model.input
+                training_set_inputs = datasets['train'].element_spec[0]
+                # Compare input shapes with model inputs
+                print(
+                    'Comparing shapes of input features with inputs for existing model...'
                 )
-            print('Input shapes are consistent.')
-            classifier.set_callbacks(callbacks, tag, **kwargs)
+                for inpt in model_input:
+                    inpt_name = inpt.name
+                    inpt_shape = inpt.shape
+                    inpt_shape.assert_is_compatible_with(
+                        training_set_inputs[inpt_name].shape
+                    )
+                print('Input shapes are consistent.')
+                classifier.set_callbacks(callbacks, tag, **kwargs)
 
-        else:
-            classifier.setup(
-                dense_branch=dense_branch,
-                features_input_shape=(len(features),),
-                conv_branch=conv_branch,
-                dmdt_input_shape=(26, 26, 1),
-                loss=loss,
-                optimizer=optimizer,
-                learning_rate=lr,
-                momentum=momentum,
-                monitor=monitor,
-                patience=patience,
-                callbacks=callbacks,
-                run_eagerly=run_eagerly,
-            )
+            else:
+                classifier.setup(
+                    dense_branch=dense_branch,
+                    features_input_shape=(len(features),),
+                    conv_branch=conv_branch,
+                    dmdt_input_shape=(26, 26, 1),
+                    loss=loss,
+                    optimizer=optimizer,
+                    learning_rate=lr,
+                    momentum=momentum,
+                    monitor=monitor,
+                    patience=patience,
+                    callbacks=callbacks,
+                    run_eagerly=run_eagerly,
+                )
 
-        if verbose:
-            print(classifier.model.summary())
+            if verbose:
+                print(classifier.model.summary())
 
-        time_tag = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+            time_tag = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
 
-        if not kwargs.get("test", False):
-            wandb.login(key=self.config["wandb"]["token"])
-            wandb.init(
-                job_type=job_type,
-                project=self.config["wandb"]["project"],
-                tags=[tag],
-                group=group,
-                name=f"{tag}-{time_tag}",
-                config={
-                    "tag": tag,
-                    "label": label,
-                    "dataset": pathlib.Path(path_dataset).name,
-                    "scale_features": scale_features,
-                    "learning_rate": lr,
-                    "epochs": epochs,
-                    "patience": patience,
-                    "random_state": random_state,
-                    "batch_size": batch_size,
-                    "architecture": "scope-net",
-                    "dense_branch": dense_branch,
-                    "conv_branch": conv_branch,
-                },
-            )
-            classifier.meta["callbacks"].append(WandbCallback())
+            if not kwargs.get("test", False):
+                wandb.login(key=self.config["wandb"]["token"])
+                wandb.init(
+                    job_type=job_type,
+                    project=self.config["wandb"]["project"],
+                    tags=[tag],
+                    group=group,
+                    name=f"{tag}-{time_tag}",
+                    config={
+                        "tag": tag,
+                        "label": label,
+                        "dataset": pathlib.Path(path_dataset).name,
+                        "scale_features": scale_features,
+                        "learning_rate": lr,
+                        "epochs": epochs,
+                        "patience": patience,
+                        "random_state": random_state,
+                        "batch_size": batch_size,
+                        "architecture": "scope-net",
+                        "dense_branch": dense_branch,
+                        "conv_branch": conv_branch,
+                    },
+                )
+                classifier.meta["callbacks"].append(WandbCallback())
 
-        classifier.train(
-            datasets["train"],
-            datasets["val"],
-            steps_per_epoch["train"],
-            steps_per_epoch["val"],
-            epochs=epochs,
-            class_weight=class_weight,
-            verbose=verbose,
-        )
+                classifier.train(
+                    datasets["train"],
+                    datasets["val"],
+                    steps_per_epoch["train"],
+                    steps_per_epoch["val"],
+                    epochs=epochs,
+                    class_weight=class_weight,
+                    verbose=verbose,
+                )
+
+        elif algorithm in ['XGB', 'xgb', 'XGBoost', 'xgboost', 'XGBOOST']:
+            # XGB-specific code
+
+            # Only want to use features specified in config (see line 540)
+            # Uncomment below - currently commented to pass linting
+            # X_train = ds.df_ds.loc[indexes['train']]
+            # y_train = ds.target.loc[indexes['train']]
+
+            # X_val = ds.df_ds.loc[indexes['val']]
+            # y_val = ds.target.loc[indexes['val']]
+
+            # X_test = ds.df_ds.loc[indexes['test']]
+            # y_test = ds.target.loc[indexes['test']]
+
+            # Add code to train XGB algorithm
+            XGB()
 
         if verbose:
             print("Evaluating on test set:")
