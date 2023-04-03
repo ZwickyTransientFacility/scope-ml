@@ -1,4 +1,4 @@
-## Flaring variables (flaring)
+## Flaring variables (fla)
 
 The phenomelogical classification of ``flaring`` is any kind of outbursting source, where a variable star (or binary system) dramatically increases in brightness for minutes to hours before returning to quiescence. Most flare stars are red dwarfs, while RS Canum Venaticorum variables (RS CVn) are also known to flare due to a companion star in the binary system. Other possible sources of flaring include dwarf novae, which arise from accretion disk activity in a cataclysmic variable star.
 

@@ -1,4 +1,4 @@
-## Periodic Variables (periodic)
+## Periodic Variables (pnp)
 Periodic Variables are objects that exhibit repeating sequences of values over a fixed length of time, known as the period.
 Many astrophysical objects exhibit periodic behavior, including eclipsing binaries, pulsators, etc.
 
