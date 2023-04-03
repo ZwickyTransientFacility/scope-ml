@@ -192,10 +192,10 @@ docs:
       title: Beta Lyrae
     bogus_1:
       coordinates: [328.1595911, 69.6487077]
-      title: Bogus "flaring" from saturation ghosts
+      title: Bogus ``flaring'' from saturation ghosts
     bogus_2:
       coordinates: [209.584254, 40.4601446]
-      title: Bogus "flaring" from a different artifact
+      title: Bogus ``flaring'' from a different artifact
     delta_scuti:
       coordinates: [279.9154053, 60.7140833]
       period: 0.064050575
