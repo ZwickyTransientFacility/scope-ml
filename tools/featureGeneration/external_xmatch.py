@@ -65,6 +65,10 @@ def xmatch(
         # Split dictionary for parallel querying
         radec_split_list = [lst for lst in split_dict(radec_dict, Ncore)]
 
+        # Only keep non-empty dictionaries
+        # (Needed for small lists of sources compared to Ncore)
+        radec_split_list = [x for x in radec_split_list if len(x) > 0]
+
         queries = [
             {
                 "query_type": "cone_search",

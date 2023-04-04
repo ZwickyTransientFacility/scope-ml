@@ -27,6 +27,8 @@ def get_ztf_alert_stats(
 
     ids = [x for x in id_dct]
 
+    print('ids', len(ids))
+
     n_sources = len(id_dct)
     if n_sources % limit != 0:
         n_iterations = n_sources // limit + 1
@@ -45,12 +47,28 @@ def get_ztf_alert_stats(
             [id_dct[x]['radec_geojson']['coordinates'] for x in id_slice]
         ).transpose()
 
+        print('radec_geojson', len(radec_geojson))
+        print(radec_geojson.shape)
+        print(radec_geojson)
+
         # Need to add 180 -> no negative RAs
         radec_geojson[0, :] += 180.0
         radec_dict = dict(zip(id_slice, radec_geojson.transpose().tolist()))
 
+        print('radec_dict', len(radec_dict))
+        print(radec_dict)
+        print()
+
         # Split dictionary for parallel querying
         radec_split_list = [lst for lst in split_dict(radec_dict, Ncore)]
+
+        # Only keep non-empty dictionaries
+        # (Needed for small lists of sources compared to Ncore)
+        radec_split_list = [x for x in radec_split_list if len(x) > 0]
+
+        print('radec_split_list', radec_split_list)
+        print(len(radec_split_list))
+        print()
 
         queries = [
             {
@@ -72,6 +90,9 @@ def get_ztf_alert_stats(
             }
             for dct in radec_split_list
         ]
+        print()
+        print(queries)
+        print(len(queries))
 
         responses = kowalski_instances.query(
             queries=queries, use_batch_query=True, max_n_threads=Ncore
