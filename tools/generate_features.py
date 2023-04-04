@@ -362,6 +362,7 @@ def generate_features(
         catalog=source_catalog,
         limit_per_query=lc_limit,
         Ncore=Ncore,
+        get_basic_data=True,
     )
 
     feature_dict = feature_gen_source_list.copy()
@@ -378,6 +379,7 @@ def generate_features(
             print(f"{count} done")
         if count == len(lcs):
             print(f"{count} done")
+
         _id = lc['_id']
         lc_unflagged = [x for x in lc['data'] if x['catflags'] == 0]
         flt = lc['filter']
