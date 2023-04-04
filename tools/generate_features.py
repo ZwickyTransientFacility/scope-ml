@@ -247,7 +247,6 @@ def generate_features(
     samples_per_peak: int = 10,
     doLongPeriod: bool = False,
     doRemoveTerrestrial: bool = False,
-    doParallel: bool = False,
     Ncore: int = 8,
     field: int = 296,
     ccd: int = 1,
@@ -280,7 +279,6 @@ def generate_features(
     :param samples_per_peak: number of samples per periodogram peak (int)
     :param doLongPeriod: run period-finding on frequencies up to 48 Hz [default 480 Hz] (bool)
     :param doRemoveTerrestrial: remove terrestrial frequencies from period-finding analysis (bool)
-    :param doParallel: flag to run some period-finding algorithms in parallel (bool)
     :param Ncore: number of CPU cores to parallelize queries (int)
     :param field: ZTF field to run (int)
     :param ccd: ZTF ccd to run (int)
@@ -537,15 +535,13 @@ def generate_features(
                         batch_size=period_batch_size,
                         doGPU=doGPU,
                         doCPU=doCPU,
-                        doSaveMemory=False,
                         doRemoveTerrestrial=doRemoveTerrestrial,
                         doUsePDot=False,
                         doSingleTimeSegment=False,
                         freqs_to_remove=freqs_to_remove,
                         phase_bins=20,
                         mag_bins=10,
-                        doParallel=doParallel,
-                        Ncore=Ncore,
+                        # Ncore=Ncore, # CPU parallelization to be added
                     )
 
                     all_periods = np.concatenate([all_periods, periods])
@@ -792,12 +788,6 @@ if __name__ == "__main__":
         help="if set, remove terrestrial frequencies from period analysis",
     )
     parser.add_argument(
-        "--doParallel",
-        action="store_true",
-        default=False,
-        help="If set, parallelize period finding",
-    )
-    parser.add_argument(
         "--Ncore",
         default=8,
         type=int,
@@ -878,7 +868,6 @@ if __name__ == "__main__":
         samples_per_peak=args.samples_per_peak,
         doLongPeriod=args.doLongPeriod,
         doRemoveTerrestrial=args.doRemoveTerrestrial,
-        doParallel=args.doParallel,
         Ncore=args.Ncore,
         field=args.field,
         ccd=args.ccd,

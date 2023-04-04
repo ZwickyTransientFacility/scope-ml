@@ -1,4 +1,4 @@
-## Classical Cepheids (cep)
+## Classical Cepheids (ceph)
 Classical Cepheids are young, bright (100-10,000 solar luminosities) supergiant stars that pulsate with periods of 1 to 100 days (typically several days). They are located in the main instability strip in the H-R diagram. Cepheids follow a famous pulsation period-luminosity relation, allowing the absolute magnitude of a Cepheid, and thus its distance, to be inferred from the pulsation period. Thus, Cepheids are used to measure distances to nearby galaxies.
 
 ### Classification and numbers

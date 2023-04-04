@@ -202,12 +202,6 @@ if __name__ == "__main__":
         help="if set, remove terrestrial frequencies from period analysis",
     )
     parser.add_argument(
-        "--doParallel",
-        action="store_true",
-        default=False,
-        help="If set, parallelize period finding",
-    )
-    parser.add_argument(
         "--Ncore",
         default=10,
         type=int,
@@ -385,7 +379,6 @@ if __name__ == "__main__":
     samples_per_peak = args.samples_per_peak
     doLongPeriod = args.doLongPeriod
     doRemoveTerrestrial = args.doRemoveTerrestrial
-    doParallel = args.doParallel
     Ncore = args.Ncore
     field = args.field
     ccd = args.ccd
@@ -408,8 +401,6 @@ if __name__ == "__main__":
         extra_flags.append("--doLongPeriod")
     if args.doRemoveTerrestrial:
         extra_flags.append("--doRemoveTerrestrial")
-    if args.doParallel:
-        extra_flags.append("--doParallel")
     if args.doCesium:
         extra_flags.append("--doCesium")
     if args.doNotSave:
