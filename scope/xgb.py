@@ -33,10 +33,10 @@ class XGB(AbstractClassifier):
             'colsample_bytree': colsample_bytree,
             'objective': objective,
             'eval_metric': eval_metric,
-            'early_stopping_rounds': early_stopping_rounds,
-            'num_boost_round': num_boost_round,
         }
 
+        self.meta['early_stopping_rounds'] = early_stopping_rounds
+        self.meta['num_boost_round'] = num_boost_round
         self.meta['params'] = params
 
     def train(self, X_train, y_train, X_val, y_val, X_test, y_test, **kwargs):
@@ -45,14 +45,25 @@ class XGB(AbstractClassifier):
         dval = xgb.DMatrix(X_val, label=y_val)
         dtest = xgb.DMatrix(X_test, label=y_test)
 
-        evals = [(dval, 'dval'), (dtest, 'dtest')]
+        # Evaluate on train and val sets only
+        evals = [(dtrain, 'dtrain'), (dval, 'dval'), (dtest, 'dtest')]
 
         self.meta['evals'] = evals
 
-        self.model = xgb.train(self.params, dtrain, self.meta['evals'], **kwargs)
+        self.model = xgb.train(
+            self.meta['params'],
+            dtrain,
+            num_boost_round=self.meta['num_boost_round'],
+            evals=self.meta['evals'],
+            early_stopping_rounds=self.meta['early_stopping_rounds'],
+            **kwargs,
+        )
 
     def evaluate(self, test_dataset, **kwargs):
-        return self.model.evaluate(test_dataset, **kwargs)
+        # Relocate X_test and y_test to this method (instead of test_dataset)
+        # Then use self.model.eval() to return the evaluation (takes dtest and name arguments like in training)
+        pass
+        # return self.model.evaluate(test_dataset, **kwargs)
 
     def predict(self, x, **kwargs):
         return self.model.predict(x, **kwargs)
@@ -68,6 +79,7 @@ class XGB(AbstractClassifier):
     ):
         # Customize this based on how model is saved in notebook
         # .h5 format is preferable
+        # Replace code below with XGB-specific saving
 
         if output_format not in ("h5",):
             raise ValueError("unknown output format")

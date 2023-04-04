@@ -590,6 +590,7 @@ class Scope:
         )
 
         if algorithm in ['DNN', 'NN', 'dnn', 'nn']:
+            algorithm = 'DNN'
 
             # set up and train model
             dense_branch = kwargs.get("dense_branch", True)
@@ -690,38 +691,39 @@ class Scope:
                 )
 
         elif algorithm in ['XGB', 'xgb', 'XGBoost', 'xgboost', 'XGBOOST']:
-            # XGB-specific code
+            algorithm = 'XGB'
 
-            # Only want to use features specified in config (see line 540)
-            
-            #I added the argument in loc that it has to be a member of 'features' below:
-            # Uncomment below - currently commented to pass linting
+            # XGB-specific code
             X_train = ds.df_ds.loc[indexes['train']][features]
-            y_train = ds.target.loc[indexes['train']][features]
+            y_train = ds.target[indexes['train']]
 
             X_val = ds.df_ds.loc[indexes['val']][features]
-            y_val = ds.target.loc[indexes['val']][features]
+            y_val = ds.target[indexes['val']]
 
             X_test = ds.df_ds.loc[indexes['test']][features]
-            y_test = ds.target.loc[indexes['test']][features]
+            y_test = ds.target[indexes['test']]
 
             # Add code to train XGB algorithm
-            #XGB()
-                classifier.train(
-                    X_train,
-                    y_train,
-                    X_val,
-                    y_val,
-                    steps_per_epoch["train"],
-                    steps_per_epoch["val"],
-                    epochs=epochs,
-                    class_weight=class_weight,
-                    verbose=verbose,
-                )
+            classifier = XGB(name=tag)
+            # Setup classifier
+            classifier.setup()
+            # Run training
+            classifier.train(
+                X_train,
+                y_train,
+                X_val,
+                y_val,
+                X_test,
+                y_test,
+            )
 
         if verbose:
             print("Evaluating on test set:")
-        stats = classifier.evaluate(datasets["test"], verbose=verbose)
+        if algorithm == 'XGB':
+            pass
+            # Replace above pass with call to classifier.evaluate here, specifically for XGB
+        else:
+            stats = classifier.evaluate(datasets["test"], verbose=verbose)
         if verbose:
             print(stats)
 
