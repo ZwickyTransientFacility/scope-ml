@@ -185,18 +185,16 @@ def get_features(
                 "projection": projection,
             },
         }
-        response = kowalski_instances.query(query=query)
+        responses = kowalski_instances.query(query=query)
 
-        # Todo: don't assume zeroth key will be the only key
-        # (source catalogs will exist on multiple instances)
-        instance = [x for x in response.keys()][0]
-        response = response[instance]
-
-        source_data = response.get("data")
-
-        if source_data is None:
-            print(response)
-            raise ValueError(f"No data found for source ids {source_ids}")
+        for name in responses.keys():
+            if len(responses[name]) > 0:
+                response = responses[name]
+                if response.get("status", "error") == "success":
+                    source_data = response.get("data")
+                    if source_data is None:
+                        print(response)
+                        raise ValueError(f"No data found for source ids {source_ids}")
 
         df_temp = pd.DataFrame(source_data)
         if projection == {}:

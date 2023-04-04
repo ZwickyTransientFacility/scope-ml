@@ -78,9 +78,13 @@ def check_quads_for_sources(
             },
             "kwargs": {"limit": 1},
         }
-        rsp = kowalski_instances.query(q)
-        # Todo: handle response with new penquins
-        data = rsp['data']
+        responses = kowalski_instances.query(q)
+
+        for name in responses.keys():
+            if len(responses[name]) > 0:
+                response = responses[name]
+                if response.get("status", "error") == "success":
+                    data = response.get("data")
 
         if len(data) > 0:
             has_sources[idx] = True
@@ -108,9 +112,13 @@ def check_quads_for_sources(
                         },
                         "kwargs": {"limit": 1},
                     }
-                    rsp = kowalski_instances.query(q)
-                    # Todo: handle response with new penquins
-                    data = rsp['data']
+                    responses = kowalski_instances.query(q)
+
+                    for name in responses.keys():
+                        if len(responses[name]) > 0:
+                            response = responses[name]
+                            if response.get("status", "error") == "success":
+                                data = response.get("data")
 
                     if len(data) > 0:
                         quads += [quadrant]

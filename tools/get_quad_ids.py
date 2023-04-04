@@ -260,20 +260,18 @@ def get_cone_ids(
                 },
             },
         }
-        response = kowalski_instances.query(query=query)
+        responses = kowalski_instances.query(query=query)
 
-        # Todo: don't assume zeroth key will be the only key
-        # (source catalogs will exist on multiple instances)
-        instance = [x for x in response.keys()][0]
-        response = response[instance]
-
-        temp_data = response.get('data').get(catalog)
-
-        if temp_data is None:
-            print(response)
-            raise ValueError(f"No data found for obj_ids {selected_obj_id}")
-
-        data.update(temp_data)
+        for name in responses.keys():
+            if len(responses[name]) > 0:
+                response = responses[name]
+                if response.get("status", "error") == "success":
+                    temp_data = response.get("data").get(catalog)
+                    if temp_data is not None:
+                        data.update(temp_data)
+                    else:
+                        print(response)
+                        raise ValueError(f"No data found for obj_ids {selected_obj_id}")
 
         if ((id + 1) * limit_per_query) >= len(obj_id_list):
             print(f'{len(obj_id_list)} done')
@@ -363,23 +361,16 @@ def get_field_ids(
         "kwargs": {"limit": limit, "skip": skip},
     }
 
-    r = kowalski_instances.query(q)
+    responses = kowalski_instances.query(q)
 
-    # for name in responses.keys():
-    #         if len(responses[name]) > 0:
-    #             response_list = responses[name]
-    #             for response in response_list:
-    #                 if response.get("status", "error") == "success":
-    # get data, e.g. response.get("data").get(catalog)
-    # if data is not None:
-    # append data
+    for name in responses.keys():
+        if len(responses[name]) > 0:
+            response = responses[name]
+            if response.get("status", "error") == "success":
+                data = response.get("data")
+                if data is not None:
+                    ids = [data[i]['_id'] for i in range(len(data))]
 
-    # Todo: don't assume zeroth key will be the only key
-    # (source catalogs will exist on multiple instances)
-    instance = [x for x in r.keys()][0]
-    r = r[instance]
-    data = r.get('data')
-    ids = [data[i]['_id'] for i in range(len(data))]
     if get_coords:
         coords = [data[i]['coordinates'] for i in range(len(data))]
 
