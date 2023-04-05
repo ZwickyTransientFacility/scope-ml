@@ -19,6 +19,7 @@ class XGB(AbstractClassifier):
         eval_metric='auc',
         early_stopping_rounds=10,
         num_boost_round=999,
+        # ADD A UNIQUE name = given by user
         # **kwargs,
     ):
         #  removed for now:
@@ -39,37 +40,56 @@ class XGB(AbstractClassifier):
         self.meta['num_boost_round'] = num_boost_round
         self.meta['params'] = params
 
-    def train(self, X_train, y_train, X_val, y_val, X_test, y_test, **kwargs):
+
+    def train(self, X_train, y_train, X_val, y_val, **kwargs):
 
         dtrain = xgb.DMatrix(X_train, label=y_train)
         dval = xgb.DMatrix(X_val, label=y_val)
-        dtest = xgb.DMatrix(X_test, label=y_test)
 
-        # Evaluate on train and val sets only
-        evals = [(dtrain, 'dtrain'), (dval, 'dval'), (dtest, 'dtest')]
+        #evals = [(dval, 'dval'), (dtest, 'dtest')]
+        #Evaluate on train and val sets only:
+        evals = [(dtrain, 'dtrain'), dval, 'dval')]
 
         self.meta['evals'] = evals
 
         self.model = xgb.train(
-            self.meta['params'],
+            self.params,
             dtrain,
-            num_boost_round=self.meta['num_boost_round'],
             evals=self.meta['evals'],
+            num_boost_round=self.meta['num_boost_round'],
             early_stopping_rounds=self.meta['early_stopping_rounds'],
             **kwargs,
         )
+        
+        #SAVE somehow:
+        #We need to name each run a different thing:
+        #self.name = xgb_run_{'input by user'}
 
-    def evaluate(self, test_dataset, **kwargs):
-        # Relocate X_test and y_test to this method (instead of test_dataset)
-        # Then use self.model.eval() to return the evaluation (takes dtest and name arguments like in training)
-        pass
-        # return self.model.evaluate(test_dataset, **kwargs)
+    def evaluate(self, X_test, y_test,**kwargs):
+        
+        dtest = xgb.DMatrix(X_test, label=y_test)
+        
+        test_dataset = [(dtest,'dtest')]
+        self.meta['test_dataset'] = test_dataset
+        
+        #We don't really need a return, since it's object-oriented:
+        #return self.model.evaluate(test_dataset, **kwargs)
 
-    def predict(self, x, **kwargs):
-        return self.model.predict(x, **kwargs)
-
-    def load(self, path_model, **kwargs):
-        self.model.load_weights(path_model, **kwargs)
+        #Is it a problem to have both train and evaluate refer to self.model?
+        #That is, will the evaluate function's self.model overwrite the train function's self.model?
+        self.model = xgb.evaluate(
+            self.params,
+            dtest,
+            self.meta['evals'],
+            **kwargs,
+        )
+#I originally included predict and load because nn.py does,
+               #but I don't know that xgb.py needs them for now
+  #  def predict(self, x, **kwargs):
+    #    return self.model.predict(x, **kwargs)
+#
+  #  def load(self, path_model, **kwargs):
+     #   self.model.load_weights(path_model, **kwargs)
 
     def save(
         self,
@@ -79,7 +99,17 @@ class XGB(AbstractClassifier):
     ):
         # Customize this based on how model is saved in notebook
         # .h5 format is preferable
-        # Replace code below with XGB-specific saving
+
+        #
+
+        #Current method is a json file, added to throughout the notebook by the write function
+        #Basically:
+        best_fit = self.model
+        with open(new_h5_format_file, "w") as outfile:
+            json.dump(best_fit, outfile)
+        # I really need to read how to create an h5 format, this is just the first notes for the evening!!
+
+        #
 
         if output_format not in ("h5",):
             raise ValueError("unknown output format")
@@ -87,6 +117,8 @@ class XGB(AbstractClassifier):
         path = pathlib.Path(output_path)
         if not path.exists():
             path.mkdir(parents=True, exist_ok=True)
+
+        
 
         output_name = self.name if not tag else f"{self.name}.{tag}"
         if not output_name.endswith('.h5'):
