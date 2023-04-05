@@ -1340,6 +1340,10 @@ feature_generation:
       - ECE
       - EAOV
       - ELS
+  fields_to_run:
+    # If this list is populated, generate_features_job_submission.py will only run on the specified fields.
+    - 296
+    - 297
   cesium_features:
     # Some features on this list are already computed by lcstats - these are commented below
     #

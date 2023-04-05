@@ -5,9 +5,17 @@ import time
 import argparse
 import pandas as pd
 import numpy as np
+import yaml
 
 
 BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
+
+# Read config file
+config_path = pathlib.Path(__file__).parent.parent.absolute() / "config.yaml"
+with open(config_path) as config_yaml:
+    config = yaml.load(config_yaml, Loader=yaml.FullLoader)
+
+fields_to_run = config['feature_generation']['fields_to_run']
 
 
 def parse_commandline():
@@ -40,13 +48,13 @@ def parse_commandline():
     parser.add_argument(
         "--max_instances",
         type=int,
-        default=100,
+        default=20,
         help="Max number of instances to run in parallel",
     )
     parser.add_argument(
         "--wait_time_minutes",
         type=float,
-        default=10.0,
+        default=5.0,
         help="Time to wait between job status checks",
     )
     parser.add_argument(
@@ -92,6 +100,7 @@ def filter_completed(df, resultsDir, filename):
         else:
             print(filepath)
     df = df.iloc[tbd]
+    df.reset_index(inplace=True, drop=True)
 
     end_time = time.time()
     print('Checking completed jobs took %.2f seconds' % (end_time - start_time))
@@ -147,7 +156,15 @@ if __name__ == '__main__':
 
     df_original = pd.read_csv(quadrantfile, header=None, delimiter=' ', names=names)
     pd.set_option('display.max_columns', None)
-    df = filter_completed(df_original, resultsDir, filename)
+
+    if fields_to_run is not None:
+        print(f"Running fields {fields_to_run}.")
+        field_mask = np.isin(df_original['field'], fields_to_run)
+        df_filtered = df_original[field_mask].reset_index(drop=True)
+    else:
+        df_filtered = df_original
+
+    df = filter_completed(df_filtered, resultsDir, filename)
     njobs = len(df)
     print('%d jobs remaining...' % njobs)
 
@@ -155,34 +172,56 @@ if __name__ == '__main__':
         counter = 0
         status_njobs = njobs
         diff_njobs = 0
+        size = args.max_instances
+        final_round = False
         while njobs > 0:
-            # Limit number of parallel jobs to 100 for Kowalski stability
+            # Limit number of parallel jobs for Kowalski stability
             if counter < args.max_instances:
-                quadrant_index = np.random.randint(0, njobs, size=1)
-                run_job(
-                    df,
-                    quadrant_index,
-                    resultsDir,
-                    filename,
-                    runParallel=args.runParallel,
-                )
+                # Avoid choosing same index multiple times in one round of jobs
+                rng = np.random.default_rng()
+                quadrant_indices = rng.choice(njobs, size=size, replace=False)
 
-                counter = counter + 1
+                for quadrant_index in quadrant_indices:
+                    run_job(
+                        df,
+                        quadrant_index,
+                        resultsDir,
+                        filename,
+                        runParallel=args.runParallel,
+                    )
+                    counter += 1
+
                 print(f"Instances available: {args.max_instances - counter}")
 
+                if final_round:
+                    print('The final jobs in the run have been queued - breaking loop.')
+                    print(
+                        'Run "squeue -u <username>" to check status of remaining jobs.'
+                    )
+                    break
             else:
                 # Wait between status checks
                 os.system(f"squeue -u {args.user}")
                 print(f"Waiting {args.wait_time_minutes} minutes until next check...")
                 time.sleep(args.wait_time_minutes * 60)
+
+                # Filter completed runs, redefine njobs
                 df = filter_completed(df, resultsDir, filename)
                 njobs = len(df)
-
                 print('%d jobs remaining...' % njobs)
+
+                # Compute difference in njobs to count available instances
                 diff_njobs = status_njobs - njobs
                 status_njobs = njobs
+
                 # Decrease counter if jobs have finished
                 counter -= diff_njobs
+
+                # Define size of the next quadrant_indices array
+                size = np.min([args.max_instances - counter, njobs])
+                # Signal to stop looping when the last set of jobs is queued
+                if size == njobs:
+                    final_round = True
 
     elif args.doSubmitLoop:
         confirm = input(
