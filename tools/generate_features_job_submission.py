@@ -120,7 +120,7 @@ def run_job(df, quadrant_index, resultsDir, filename, runParallel=False):
 
     if not os.path.isfile(filepath):
         if runParallel:
-            sbatchstr = f"sbatch --export=QID={row['job_number'].values[0]} {qsubfile}"
+            sbatchstr = f"sbatch --export=QID={row['job_number']} {qsubfile}"
             print(sbatchstr)
             os.system(sbatchstr)
         else:
