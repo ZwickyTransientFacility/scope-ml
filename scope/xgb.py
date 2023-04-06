@@ -71,13 +71,9 @@ class XGB(AbstractClassifier):
         
         test_dataset = [(dtest,'dtest')]
         self.meta['test_dataset'] = test_dataset
-        
-        #We don't really need a return, since it's object-oriented:
-        #return self.model.evaluate(test_dataset, **kwargs)
 
-        #Is it a problem to have both train and evaluate refer to self.model?
-        #That is, will the evaluate function's self.model overwrite the train function's self.model?
-        self.model = xgb.evaluate(
+#New method: save stats separately so as not to overwrite self.model:
+        stats = classifier.evaluate(
             self.params,
             dtest,
             self.meta['evals'],
@@ -93,6 +89,7 @@ class XGB(AbstractClassifier):
 
     def save(
         self,
+        stats,
         tag: str,
         output_path: str = "./",
         output_format: str = "h5",
