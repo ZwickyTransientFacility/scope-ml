@@ -1,23 +1,14 @@
 import pathlib
 from .models import AbstractClassifier
 import xgboost as xgb
+from sklearn.metrics import confusion_matrix
 from sklearn.metrics import (
-    # accuracy_score,
-    confusion_matrix,
-    # matthews_corrcoef,
-    # mean_absolute_error,
+    roc_curve,
+    auc,
+    precision_recall_curve,
 )
-
-# from sklearn.metrics import f1_score, ConfusionMatrixDisplay
-# from sklearn.metrics import (
-#     roc_curve,
-#     auc,
-#     precision_recall_curve,
-#     classification_report,
-#     average_precision_score,
-# )
 import matplotlib.pyplot as plt
-from scope.utils import make_confusion_matrix
+from scope.utils import make_confusion_matrix, plot_roc, plot_pr
 import seaborn as sns
 import numpy as np
 
@@ -79,6 +70,7 @@ class XGB(AbstractClassifier):
     def predict(self, X, **kwargs):
         d = xgb.DMatrix(X)
         y_pred = self.model.predict(d)
+        self.meta['y_pred'] = y_pred
 
         return y_pred
 
@@ -89,6 +81,7 @@ class XGB(AbstractClassifier):
 
         # Generate confusion matrix
         self.meta['cm'] = confusion_matrix(y_test, y_pred)
+        self.meta['y_test'] = y_test
 
         return self.model.eval(dtest, 'dtest', **kwargs)
 
@@ -122,6 +115,8 @@ class XGB(AbstractClassifier):
                 path.mkdir(parents=True, exist_ok=True)
             impvars = tag + '_impvars.pdf'
             cmpdf = tag + '_cm.pdf'
+            recallpdf = tag + '_recall.pdf'
+            rocpdf = tag + '_roc.pdf'
 
             max_num_features = kwargs.get('max_num_features', 8)
 
@@ -129,8 +124,8 @@ class XGB(AbstractClassifier):
                 self.model, max_num_features=max_num_features, grid=False
             )
             plt.title(tag + ' Feature Importance')
-            plt.tight_layout()
-            plt.savefig(path / impvars)
+            plt.savefig(path / impvars, bbox_inches='tight')
+            plt.close()
 
             if self.meta['cm'] is not None:
                 cname = tag.split('.')[0]
@@ -143,5 +138,22 @@ class XGB(AbstractClassifier):
                 )
                 sns.set_context('talk')
                 plt.title(cname)
-                plt.tight_layout()
-                plt.savefig(path / cmpdf)
+                plt.savefig(path / cmpdf, bbox_inches='tight')
+                plt.close()
+
+            y_test = self.meta.get('y_test', None)
+            y_pred = self.meta.get('y_pred', None)
+
+            if (y_test is not None) & (y_pred is not None):
+
+                fpr, tpr, _ = roc_curve(y_test, y_pred)
+                roc_auc = auc(fpr, tpr)
+                precision, recall, _ = precision_recall_curve(y_test, y_pred)
+
+                plot_roc(fpr, tpr, roc_auc)
+                plt.savefig(path / rocpdf, bbox_inches='tight')
+                plt.close()
+
+                plot_pr(recall, precision)
+                plt.savefig(path / recallpdf, bbox_inches='tight')
+                plt.close()

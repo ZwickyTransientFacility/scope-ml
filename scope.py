@@ -537,6 +537,11 @@ class Scope:
 
         train_config = self.config["training"]["classes"][tag]
 
+        if algorithm in ['DNN', 'NN', 'dnn', 'nn']:
+            algorithm = 'dnn'
+        elif algorithm in ['XGB', 'xgb', 'XGBoost', 'xgboost', 'XGBOOST']:
+            algorithm = 'xgb'
+
         all_features = self.config["features"][train_config["features"]]
         features = [
             key for key in all_features if forgiving_true(all_features[key]["include"])
@@ -547,6 +552,7 @@ class Scope:
             path_dataset=path_dataset,
             features=features,
             verbose=verbose,
+            algorithm=algorithm,
             **kwargs,
         )
 
@@ -625,8 +631,7 @@ class Scope:
 
         time_tag = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
 
-        if algorithm in ['DNN', 'NN', 'dnn', 'nn']:
-            algorithm = 'dnn'
+        if algorithm == 'dnn':
 
             classifier = DNN(name=tag)
 
@@ -701,8 +706,7 @@ class Scope:
                     verbose=verbose,
                 )
 
-        elif algorithm in ['XGB', 'xgb', 'XGBoost', 'xgboost', 'XGBOOST']:
-            algorithm = 'xgb'
+        elif algorithm == 'xgb':
 
             # XGB-specific code
             X_train = ds.df_ds.loc[indexes['train']][features]
@@ -826,10 +830,10 @@ class Scope:
         :return:
 
         :examples:  ./scope.py create_training_script --filename='train_dnn.sh' --algorithm='dnn' --min_count=1000 \
-                    --path_dataset='tools/fritzDownload/merged_classifications_features.parquet' --add_keywords='--save --plot --group groupname'
+                    --path_dataset='tools/fritzDownload/merged_classifications_features.parquet' --add_keywords='--save --plot --group=groupname'
 
                     ./scope.py create_training_script --filename='train_xgb.sh' --algorithm='xgb' --min_count=100 \
-                    --add_keywords='--save --plot --batch_size=32 --group groupname'
+                    --add_keywords='--save --plot --batch_size=32 --group=groupname'
         """
         path = str(pathlib.Path(__file__).parent.absolute() / filename)
 

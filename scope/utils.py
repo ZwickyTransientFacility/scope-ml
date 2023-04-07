@@ -865,6 +865,27 @@ def make_confusion_matrix(
         plt.title(title)
 
 
+def plot_roc(fpr, tpr, roc_auc):
+    plt.plot(fpr, tpr)
+    plt.plot([0, 1], [0, 1], 'k--')
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title('ROC curve (area = %0.6f)' % roc_auc)
+    plt.legend(loc="lower right")
+
+
+def plot_pr(recall, precision):
+    plt.step(recall, precision, color='b', alpha=0.2, where='post')
+    plt.fill_between(recall, precision, step='post', alpha=0.2, color='b')
+    plt.xlabel('Recall')
+    plt.ylabel('Precision')
+    plt.ylim([0.0, 1.05])
+    plt.xlim([0.0, 1.0])
+    plt.title('Precision-Recall')
+
+
 """ Datasets """
 
 
@@ -875,6 +896,7 @@ class Dataset(object):
         path_dataset: Union[str, pathlib.Path],
         features: tuple,
         verbose: bool = False,
+        algorithm: str = 'dnn',
         **kwargs,
     ):
         """Load parquet, hdf5 or csv file with the dataset containing both data and labels
@@ -889,6 +911,11 @@ class Dataset(object):
         self.features = features
         self.verbose = verbose
         self.target = None
+
+        if algorithm in ['DNN', 'NN', 'dnn', 'nn']:
+            self.algorithm = 'dnn'
+        elif algorithm in ['XGB', 'xgb', 'XGBoost', 'xgboost', 'XGBOOST']:
+            self.algorithm = 'xgb'
 
         if self.verbose:
             log(f"Loading {self.path_dataset}...")
@@ -919,7 +946,7 @@ class Dataset(object):
         self.df_ds = impute_features(self.df_ds, self_impute=True)
 
         dmdt = []
-        if self.verbose:
+        if (self.verbose) & (self.algorithm == 'dnn'):
             print("Moving dmdt's to a dedicated numpy array...")
             iterator = tqdm(self.df_ds.itertuples(), total=len(self.df_ds))
         else:
