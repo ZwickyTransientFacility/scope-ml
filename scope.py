@@ -804,7 +804,8 @@ class Scope:
 
     def create_training_script(
         self,
-        filename: str = 'train_dnn.sh',
+        filename: str = 'train_script.sh',
+        algorithm: str = 'dnn',
         min_count: int = 100,
         path_dataset: str = None,
         pre_trained_group_name: str = None,
@@ -815,6 +816,7 @@ class Scope:
         Create training shell script from classes in config file meeting minimum count requirement
 
         :param filename: filename of shell script (must not currently exist) (str)
+        :param algorithm: name of algorithm to use for training (str)
         :param min_count: minimum number of positive examples to include in script (int)
         :param path_dataset: local path to .parquet, .h5 or .csv file with the dataset, if not provided in config.yaml (str)
         :param pre_trained_group_name: name of group containing pre-trained models within models directory (str)
@@ -823,11 +825,11 @@ class Scope:
 
         :return:
 
-        :examples:  ./scope.py create_training_script --filename='train_dnn.sh' --min_count=1000 \
-                    --path_dataset='tools/fritzDownload/merged_classifications_features.parquet' --add_keywords='--save'
+        :examples:  ./scope.py create_training_script --filename='train_dnn.sh' --algorithm='dnn' --min_count=1000 \
+                    --path_dataset='tools/fritzDownload/merged_classifications_features.parquet' --add_keywords='--save --plot --group groupname'
 
-                    ./scope.py create_training_script --filename='train_dnn.sh' --min_count=100 \
-                    --add_keywords='--save --batch_size=32'
+                    ./scope.py create_training_script --filename='train_xgb.sh' --algorithm='xgb' --min_count=100 \
+                    --add_keywords='--save --plot --batch_size=32 --group groupname'
         """
         path = str(pathlib.Path(__file__).parent.absolute() / filename)
 
@@ -871,7 +873,7 @@ class Scope:
             if pre_trained_group_name is not None:
                 group_path = (
                     pathlib.Path(__file__).parent.absolute()
-                    / 'models'
+                    / f'models_{algorithm}'
                     / pre_trained_group_name
                 )
                 gen = os.walk(group_path)
@@ -895,12 +897,12 @@ class Scope:
                         ).name
 
                         script.writelines(
-                            f'./scope.py train --tag {tag} --path_dataset {path_dataset} --pre_trained_model models/{pre_trained_group_name}/{tag}/{most_recent_file} --verbose {add_keywords} \n'
+                            f'./scope.py train --tag {tag} --algorithm {algorithm} --path_dataset {path_dataset} --pre_trained_model models/{pre_trained_group_name}/{tag}/{most_recent_file} --verbose {add_keywords} \n'
                         )
 
                     elif train_all:
                         script.writelines(
-                            f'./scope.py train --tag {tag} --path_dataset {path_dataset} --verbose {add_keywords} \n'
+                            f'./scope.py train --tag {tag} --algorithm {algorithm} --path_dataset {path_dataset} --verbose {add_keywords} \n'
                         )
 
                 script.write('# Ontological\n')
@@ -912,26 +914,26 @@ class Scope:
                         ).name
 
                         script.writelines(
-                            f'./scope.py train --tag {tag} --path_dataset {path_dataset} --pre_trained_model models/{pre_trained_group_name}/{tag}/{most_recent_file} --verbose {add_keywords} \n'
+                            f'./scope.py train --tag {tag} --algorithm {algorithm} --path_dataset {path_dataset} --pre_trained_model models/{pre_trained_group_name}/{tag}/{most_recent_file} --verbose {add_keywords} \n'
                         )
 
                     elif train_all:
                         script.writelines(
-                            f'./scope.py train --tag {tag} --path_dataset {path_dataset} --verbose {add_keywords} \n'
+                            f'./scope.py train --tag {tag} --algorithm {algorithm} --path_dataset {path_dataset} --verbose {add_keywords} \n'
                         )
 
             else:
                 script.write('# Phenomenological\n')
                 script.writelines(
                     [
-                        f'./scope.py train --tag {tag} --path_dataset {path_dataset} --verbose {add_keywords} \n'
+                        f'./scope.py train --tag {tag} --algorithm {algorithm} --path_dataset {path_dataset} --verbose {add_keywords} \n'
                         for tag in phenom_tags
                     ]
                 )
                 script.write('# Ontological\n')
                 script.writelines(
                     [
-                        f'./scope.py train --tag {tag} --path_dataset {path_dataset} --verbose {add_keywords} \n'
+                        f'./scope.py train --tag {tag} --algorithm {algorithm} --path_dataset {path_dataset} --verbose {add_keywords} \n'
                         for tag in ontol_tags
                     ]
                 )
