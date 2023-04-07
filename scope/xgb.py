@@ -1,8 +1,25 @@
 import pathlib
 from .models import AbstractClassifier
 import xgboost as xgb
+from sklearn.metrics import (
+    # accuracy_score,
+    confusion_matrix,
+    # matthews_corrcoef,
+    # mean_absolute_error,
+)
 
-# Removed unused imports for now
+# from sklearn.metrics import f1_score, ConfusionMatrixDisplay
+# from sklearn.metrics import (
+#     roc_curve,
+#     auc,
+#     precision_recall_curve,
+#     classification_report,
+#     average_precision_score,
+# )
+import matplotlib.pyplot as plt
+from scope.utils import make_confusion_matrix
+import seaborn as sns
+import numpy as np
 
 
 class XGB(AbstractClassifier):
@@ -40,84 +57,91 @@ class XGB(AbstractClassifier):
         self.meta['num_boost_round'] = num_boost_round
         self.meta['params'] = params
 
-
     def train(self, X_train, y_train, X_val, y_val, **kwargs):
 
         dtrain = xgb.DMatrix(X_train, label=y_train)
         dval = xgb.DMatrix(X_val, label=y_val)
 
-        #evals = [(dval, 'dval'), (dtest, 'dtest')]
-        #Evaluate on train and val sets only:
-        evals = [(dtrain, 'dtrain'), dval, 'dval')]
+        # Evaluate on train and val sets
+        evals = [(dtrain, 'dtrain'), (dval, 'dval')]
 
         self.meta['evals'] = evals
 
         self.model = xgb.train(
-            self.params,
+            self.meta['params'],
             dtrain,
-            evals=self.meta['evals'],
             num_boost_round=self.meta['num_boost_round'],
+            evals=self.meta['evals'],
             early_stopping_rounds=self.meta['early_stopping_rounds'],
             **kwargs,
         )
-        
-        #SAVE somehow:
-        #We need to name each run a different thing:
-        #self.name = xgb_run_{'input by user'}
 
-    def evaluate(self, X_test, y_test,**kwargs):
-        
+    def predict(self, X, **kwargs):
+        d = xgb.DMatrix(X)
+        y_pred = self.model.predict(d)
+
+        return y_pred
+
+    def evaluate(self, X_test, y_test, **kwargs):
         dtest = xgb.DMatrix(X_test, label=y_test)
-        
-        test_dataset = [(dtest,'dtest')]
-        self.meta['test_dataset'] = test_dataset
 
-#New method: save stats separately so as not to overwrite self.model:
-        stats = classifier.evaluate(
-            self.params,
-            dtest,
-            self.meta['evals'],
-            **kwargs,
-        )
-#I originally included predict and load because nn.py does,
-               #but I don't know that xgb.py needs them for now
-  #  def predict(self, x, **kwargs):
-    #    return self.model.predict(x, **kwargs)
-#
-  #  def load(self, path_model, **kwargs):
-     #   self.model.load_weights(path_model, **kwargs)
+        y_pred = np.around(self.predict(X_test))
+
+        # Generate confusion matrix
+        self.meta['cm'] = confusion_matrix(y_test, y_pred)
+
+        return self.model.eval(dtest, 'dtest', **kwargs)
+
+    def load(self, path_model, **kwargs):
+        self.model.load_weights(path_model, **kwargs)
 
     def save(
         self,
-        stats,
         tag: str,
         output_path: str = "./",
-        output_format: str = "h5",
+        output_format: str = "json",
+        plot: bool = False,
+        **kwargs,
     ):
-        # Customize this based on how model is saved in notebook
-        # .h5 format is preferable
-
-        #
-
-        #Current method is a json file, added to throughout the notebook by the write function
-        #Basically:
-        best_fit = self.model
-        with open(new_h5_format_file, "w") as outfile:
-            json.dump(best_fit, outfile)
-        # I really need to read how to create an h5 format, this is just the first notes for the evening!!
-
-        #
-
-        if output_format not in ("h5",):
+        if output_format not in ["json"]:
             raise ValueError("unknown output format")
 
         path = pathlib.Path(output_path)
         if not path.exists():
             path.mkdir(parents=True, exist_ok=True)
 
-        
+        output_name = self.name if not tag else tag
+        if not output_name.endswith('.json'):
+            output_name += '.json'
+        self.model.save_model(path / output_name)
 
-        output_name = self.name if not tag else f"{self.name}.{tag}"
-        if not output_name.endswith('.h5'):
-            output_name += '.h5'
-        self.model.save(path / output_name, save_format=output_format)
+        # Save diagnostic plots
+        if plot:
+            path = path / f"{tag}_plots"
+            if not path.exists():
+                path.mkdir(parents=True, exist_ok=True)
+            impvars = tag + '_impvars.pdf'
+            cmpdf = tag + '_cm.pdf'
+
+            max_num_features = kwargs.get('max_num_features', 8)
+
+            _ = xgb.plot_importance(
+                self.model, max_num_features=max_num_features, grid=False
+            )
+            plt.title(tag + ' Feature Importance')
+            plt.tight_layout()
+            plt.savefig(path / impvars)
+
+            if self.meta['cm'] is not None:
+                cname = tag.split('.')[0]
+                make_confusion_matrix(
+                    self.meta['cm'],
+                    figsize=(8, 6),
+                    cbar=False,
+                    percent=False,
+                    categories=['not ' + cname, cname],
+                )
+                sns.set_context('talk')
+                plt.title(cname)
+                plt.tight_layout()
+                plt.savefig(path / cmpdf)
