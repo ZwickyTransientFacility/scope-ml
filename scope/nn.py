@@ -407,6 +407,8 @@ class DNN(AbstractClassifier):
         tag: str,
         output_path: str = "./",
         output_format: str = "h5",
+        plot: bool = False,
+        **kwargs,
     ):
 
         if output_format not in ("h5",):
@@ -416,7 +418,11 @@ class DNN(AbstractClassifier):
         if not path.exists():
             path.mkdir(parents=True, exist_ok=True)
 
-        output_name = self.name if not tag else f"{self.name}.{tag}"
+        output_name = self.name if not tag else tag
         if not output_name.endswith('.h5'):
             output_name += '.h5'
         self.model.save(path / output_name, save_format=output_format)
+
+        # Todo: add diagnostic plots for DNN
+        if plot:
+            pass

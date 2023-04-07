@@ -26,6 +26,7 @@ from scope.utils import (
 )
 from scope.fritz import radec_to_iau_name
 import json
+import shutil
 
 
 @contextmanager
@@ -499,6 +500,7 @@ class Scope:
         self,
         tag: str,
         path_dataset: Union[str, pathlib.Path],
+        algorithm: str = 'DNN',
         gpu: Optional[int] = None,
         verbose: bool = False,
         job_type: str = 'train',
@@ -509,6 +511,7 @@ class Scope:
 
         :param tag: classifier designation, refers to "class" in config.taxonomy
         :param path_dataset: local path to .parquet, .h5 or .csv file with the dataset
+        :param algorithm: name of ML algorithm to use
         :param gpu: GPU id to use, zero-based. check tf.config.list_physical_devices('GPU') for available devices
         :param verbose:
         :param kwargs: refer to utils.DNN.setup and utils.Dataset.make
@@ -529,9 +532,17 @@ class Scope:
         from wandb.keras import WandbCallback
 
         from scope.nn import DNN
+        from scope.xgb import XGB
         from scope.utils import Dataset
 
         train_config = self.config["training"]["classes"][tag]
+
+        if algorithm in ['DNN', 'NN', 'dnn', 'nn']:
+            algorithm = 'dnn'
+        elif algorithm in ['XGB', 'xgb', 'XGBoost', 'xgboost', 'XGBOOST']:
+            algorithm = 'xgb'
+        else:
+            raise ValueError('Current supported algorithms are DNN and XGB.')
 
         all_features = self.config["features"][train_config["features"]]
         features = [
@@ -543,6 +554,7 @@ class Scope:
             path_dataset=path_dataset,
             features=features,
             verbose=verbose,
+            algorithm=algorithm,
             **kwargs,
         )
 
@@ -599,7 +611,28 @@ class Scope:
         run_eagerly = kwargs.get("run_eagerly", False)
         pre_trained_model = kwargs.get("pre_trained_model")
         save = kwargs.get("save", False)
+        plot = kwargs.get("plot", False)
         weights_only = kwargs.get("weights_only", False)
+
+        # xgb-specific arguments (descriptions adapted from https://xgboost.readthedocs.io/en/stable/parameter.html and https://xgboost.readthedocs.io/en/stable/python/python_api.html)
+        # max_depth: maximum depth of a tree
+        max_depth = kwargs.get("xgb_max_depth", 6)
+        # min_child_weight: minimum sum of instance weight (hessian) needed in a child
+        min_child_weight = kwargs.get("xgb_min_child_weight", 1)
+        # eta: Step size shrinkage used in update to prevent overfitting
+        eta = kwargs.get("xgb_eta", 0.1)
+        # subsample: Subsample ratio of the training instances (setting to 0.5 means XGBoost would randomly sample half of the training data prior to growing trees)
+        subsample = kwargs.get("xgb_subsample", 0.7)
+        # colsample_bytree: subsample ratio of columns when constructing each tree.
+        colsample_bytree = kwargs.get("xgb_colsample_bytree", 0.7)
+        # objective: name of learning objective
+        objective = kwargs.get("xgb_objective", "binary:logistic")
+        # eval_metric: Evaluation metrics for validation data
+        eval_metric = kwargs.get("xgb_eval_metric", "auc")
+        # early_stopping_rounds: Validation metric needs to improve at least once in every early_stopping_rounds round(s) to continue training
+        early_stopping_rounds = kwargs.get("xgb_early_stopping_rounds", 10)
+        # num_boost_round: Number of boosting iterations
+        num_boost_round = kwargs.get("xgb_num_boost_round", 999)
 
         # parse boolean args
         dense_branch = forgiving_true(dense_branch)
@@ -607,139 +640,187 @@ class Scope:
         run_eagerly = forgiving_true(run_eagerly)
         save = forgiving_true(save)
 
-        classifier = DNN(name=tag)
-
-        if pre_trained_model is not None:
-            classifier.load(pre_trained_model, weights_only=weights_only)
-            model_input = classifier.model.input
-            training_set_inputs = datasets['train'].element_spec[0]
-            # Compare input shapes with model inputs
-            print(
-                'Comparing shapes of input features with inputs for existing model...'
-            )
-            for inpt in model_input:
-                inpt_name = inpt.name
-                inpt_shape = inpt.shape
-                inpt_shape.assert_is_compatible_with(
-                    training_set_inputs[inpt_name].shape
-                )
-            print('Input shapes are consistent.')
-            classifier.set_callbacks(callbacks, tag, **kwargs)
-
-        else:
-            classifier.setup(
-                dense_branch=dense_branch,
-                features_input_shape=(len(features),),
-                conv_branch=conv_branch,
-                dmdt_input_shape=(26, 26, 1),
-                loss=loss,
-                optimizer=optimizer,
-                learning_rate=lr,
-                momentum=momentum,
-                monitor=monitor,
-                patience=patience,
-                callbacks=callbacks,
-                run_eagerly=run_eagerly,
-            )
-
-        if verbose:
-            print(classifier.model.summary())
-
         time_tag = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
 
-        if not kwargs.get("test", False):
-            wandb.login(key=self.config["wandb"]["token"])
-            wandb.init(
-                job_type=job_type,
-                project=self.config["wandb"]["project"],
-                tags=[tag],
-                group=group,
-                name=f"{tag}-{time_tag}",
-                config={
-                    "tag": tag,
-                    "label": label,
-                    "dataset": pathlib.Path(path_dataset).name,
-                    "scale_features": scale_features,
-                    "learning_rate": lr,
-                    "epochs": epochs,
-                    "patience": patience,
-                    "random_state": random_state,
-                    "batch_size": batch_size,
-                    "architecture": "scope-net",
-                    "dense_branch": dense_branch,
-                    "conv_branch": conv_branch,
-                },
-            )
-            classifier.meta["callbacks"].append(WandbCallback())
+        if algorithm == 'dnn':
 
-        classifier.train(
-            datasets["train"],
-            datasets["val"],
-            steps_per_epoch["train"],
-            steps_per_epoch["val"],
-            epochs=epochs,
-            class_weight=class_weight,
-            verbose=verbose,
-        )
+            classifier = DNN(name=tag)
+
+            if pre_trained_model is not None:
+                classifier.load(pre_trained_model, weights_only=weights_only)
+                model_input = classifier.model.input
+                training_set_inputs = datasets['train'].element_spec[0]
+                # Compare input shapes with model inputs
+                print(
+                    'Comparing shapes of input features with inputs for existing model...'
+                )
+                for inpt in model_input:
+                    inpt_name = inpt.name
+                    inpt_shape = inpt.shape
+                    inpt_shape.assert_is_compatible_with(
+                        training_set_inputs[inpt_name].shape
+                    )
+                print('Input shapes are consistent.')
+                classifier.set_callbacks(callbacks, tag, **kwargs)
+
+            else:
+                classifier.setup(
+                    dense_branch=dense_branch,
+                    features_input_shape=(len(features),),
+                    conv_branch=conv_branch,
+                    dmdt_input_shape=(26, 26, 1),
+                    loss=loss,
+                    optimizer=optimizer,
+                    learning_rate=lr,
+                    momentum=momentum,
+                    monitor=monitor,
+                    patience=patience,
+                    callbacks=callbacks,
+                    run_eagerly=run_eagerly,
+                )
+
+            if verbose:
+                print(classifier.model.summary())
+
+            if not kwargs.get("test", False):
+                wandb.login(key=self.config["wandb"]["token"])
+                wandb.init(
+                    job_type=job_type,
+                    project=self.config["wandb"]["project"],
+                    tags=[tag],
+                    group=group,
+                    name=f"{tag}-{time_tag}",
+                    config={
+                        "tag": tag,
+                        "label": label,
+                        "dataset": pathlib.Path(path_dataset).name,
+                        "scale_features": scale_features,
+                        "learning_rate": lr,
+                        "epochs": epochs,
+                        "patience": patience,
+                        "random_state": random_state,
+                        "batch_size": batch_size,
+                        "architecture": "scope-net",
+                        "dense_branch": dense_branch,
+                        "conv_branch": conv_branch,
+                    },
+                )
+                classifier.meta["callbacks"].append(WandbCallback())
+
+                classifier.train(
+                    datasets["train"],
+                    datasets["val"],
+                    steps_per_epoch["train"],
+                    steps_per_epoch["val"],
+                    epochs=epochs,
+                    class_weight=class_weight,
+                    verbose=verbose,
+                )
+
+        elif algorithm == 'xgb':
+
+            # XGB-specific code
+            X_train = ds.df_ds.loc[indexes['train']][features]
+            y_train = ds.target[indexes['train']]
+
+            X_val = ds.df_ds.loc[indexes['val']][features]
+            y_val = ds.target[indexes['val']]
+
+            X_test = ds.df_ds.loc[indexes['test']][features]
+            y_test = ds.target[indexes['test']]
+
+            # Add code to train XGB algorithm
+            classifier = XGB(name=tag)
+            classifier.setup(
+                max_depth=max_depth,
+                min_child_weight=min_child_weight,
+                eta=eta,
+                subsample=subsample,
+                colsample_bytree=colsample_bytree,
+                objective=objective,
+                eval_metric=eval_metric,
+                early_stopping_rounds=early_stopping_rounds,
+                num_boost_round=num_boost_round,
+            )
+            classifier.train(
+                X_train,
+                y_train,
+                X_val,
+                y_val,
+            )
 
         if verbose:
             print("Evaluating on test set:")
-        stats = classifier.evaluate(datasets["test"], verbose=verbose)
+        # Todo: there should not need to be this algorithm-based split in the call to classifier.evaluate()
+        if algorithm == 'xgb':
+            stats = classifier.evaluate(X_test, y_test)
+        else:
+            stats = classifier.evaluate(datasets["test"], verbose=verbose)
         if verbose:
             print(stats)
 
-        param_names = (
-            "loss",
-            "tp",
-            "fp",
-            "tn",
-            "fn",
-            "accuracy",
-            "precision",
-            "recall",
-            "auc",
-        )
-        if not kwargs.get("test", False):
-            # log model performance on the test set
-            for param, value in zip(param_names, stats):
-                wandb.run.summary[f"test_{param}"] = value
-            p, r = wandb.run.summary["test_precision"], wandb.run.summary["test_recall"]
-            wandb.run.summary["test_f1"] = 2 * p * r / (p + r)
-
-        if datasets["dropped_samples"] is not None:
-            # log model performance on the dropped samples
-            if verbose:
-                print("Evaluating on samples dropped from the training set:")
-            stats = classifier.evaluate(datasets["dropped_samples"], verbose=verbose)
-            if verbose:
-                print(stats)
-
+        if algorithm == 'DNN':
+            param_names = (
+                "loss",
+                "tp",
+                "fp",
+                "tn",
+                "fn",
+                "accuracy",
+                "precision",
+                "recall",
+                "auc",
+            )
             if not kwargs.get("test", False):
+                # log model performance on the test set
                 for param, value in zip(param_names, stats):
-                    wandb.run.summary[f"dropped_samples_{param}"] = value
+                    wandb.run.summary[f"test_{param}"] = value
                 p, r = (
-                    wandb.run.summary["dropped_samples_precision"],
-                    wandb.run.summary["dropped_samples_recall"],
+                    wandb.run.summary["test_precision"],
+                    wandb.run.summary["test_recall"],
                 )
-                wandb.run.summary["dropped_samples_f1"] = 2 * p * r / (p + r)
+                wandb.run.summary["test_f1"] = 2 * p * r / (p + r)
+
+            if datasets["dropped_samples"] is not None:
+                # log model performance on the dropped samples
+                if verbose:
+                    print("Evaluating on samples dropped from the training set:")
+                stats = classifier.evaluate(
+                    datasets["dropped_samples"], verbose=verbose
+                )
+                if verbose:
+                    print(stats)
+
+                if not kwargs.get("test", False):
+                    for param, value in zip(param_names, stats):
+                        wandb.run.summary[f"dropped_samples_{param}"] = value
+                    p, r = (
+                        wandb.run.summary["dropped_samples_precision"],
+                        wandb.run.summary["dropped_samples_recall"],
+                    )
+                    wandb.run.summary["dropped_samples_f1"] = 2 * p * r / (p + r)
 
         if save:
             output_path = str(
-                pathlib.Path(__file__).parent.absolute() / "models" / group / tag
+                pathlib.Path(__file__).parent.absolute()
+                / f"models_{algorithm}"
+                / group
+                / tag
             )
             if verbose:
                 print(f"Saving model to {output_path}")
             classifier.save(
                 output_path=output_path,
-                output_format="h5",
-                tag=time_tag,
+                tag=f"{tag}.{time_tag}",
+                plot=plot,
             )
 
             return time_tag
 
     def create_training_script(
         self,
-        filename: str = 'train_dnn.sh',
+        filename: str = 'train_script.sh',
+        algorithm: str = 'dnn',
         min_count: int = 100,
         path_dataset: str = None,
         pre_trained_group_name: str = None,
@@ -750,6 +831,7 @@ class Scope:
         Create training shell script from classes in config file meeting minimum count requirement
 
         :param filename: filename of shell script (must not currently exist) (str)
+        :param algorithm: name of algorithm to use for training (str)
         :param min_count: minimum number of positive examples to include in script (int)
         :param path_dataset: local path to .parquet, .h5 or .csv file with the dataset, if not provided in config.yaml (str)
         :param pre_trained_group_name: name of group containing pre-trained models within models directory (str)
@@ -758,11 +840,11 @@ class Scope:
 
         :return:
 
-        :examples:  ./scope.py create_training_script --filename='train_dnn.sh' --min_count=1000 \
-                    --path_dataset='tools/fritzDownload/merged_classifications_features.parquet' --add_keywords='--save'
+        :examples:  ./scope.py create_training_script --filename='train_dnn.sh' --algorithm='dnn' --min_count=1000 \
+                    --path_dataset='tools/fritzDownload/merged_classifications_features.parquet' --add_keywords='--save --plot --group=groupname'
 
-                    ./scope.py create_training_script --filename='train_dnn.sh' --min_count=100 \
-                    --add_keywords='--save --batch_size=32'
+                    ./scope.py create_training_script --filename='train_xgb.sh' --algorithm='xgb' --min_count=100 \
+                    --add_keywords='--save --plot --batch_size=32 --group=groupname'
         """
         path = str(pathlib.Path(__file__).parent.absolute() / filename)
 
@@ -806,7 +888,7 @@ class Scope:
             if pre_trained_group_name is not None:
                 group_path = (
                     pathlib.Path(__file__).parent.absolute()
-                    / 'models'
+                    / f'models_{algorithm}'
                     / pre_trained_group_name
                 )
                 gen = os.walk(group_path)
@@ -830,12 +912,12 @@ class Scope:
                         ).name
 
                         script.writelines(
-                            f'./scope.py train --tag {tag} --path_dataset {path_dataset} --pre_trained_model models/{pre_trained_group_name}/{tag}/{most_recent_file} --verbose {add_keywords} \n'
+                            f'./scope.py train --tag {tag} --algorithm {algorithm} --path_dataset {path_dataset} --pre_trained_model models/{pre_trained_group_name}/{tag}/{most_recent_file} --verbose {add_keywords} \n'
                         )
 
                     elif train_all:
                         script.writelines(
-                            f'./scope.py train --tag {tag} --path_dataset {path_dataset} --verbose {add_keywords} \n'
+                            f'./scope.py train --tag {tag} --algorithm {algorithm} --path_dataset {path_dataset} --verbose {add_keywords} \n'
                         )
 
                 script.write('# Ontological\n')
@@ -847,26 +929,26 @@ class Scope:
                         ).name
 
                         script.writelines(
-                            f'./scope.py train --tag {tag} --path_dataset {path_dataset} --pre_trained_model models/{pre_trained_group_name}/{tag}/{most_recent_file} --verbose {add_keywords} \n'
+                            f'./scope.py train --tag {tag} --algorithm {algorithm} --path_dataset {path_dataset} --pre_trained_model models/{pre_trained_group_name}/{tag}/{most_recent_file} --verbose {add_keywords} \n'
                         )
 
                     elif train_all:
                         script.writelines(
-                            f'./scope.py train --tag {tag} --path_dataset {path_dataset} --verbose {add_keywords} \n'
+                            f'./scope.py train --tag {tag} --algorithm {algorithm} --path_dataset {path_dataset} --verbose {add_keywords} \n'
                         )
 
             else:
                 script.write('# Phenomenological\n')
                 script.writelines(
                     [
-                        f'./scope.py train --tag {tag} --path_dataset {path_dataset} --verbose {add_keywords} \n'
+                        f'./scope.py train --tag {tag} --algorithm {algorithm} --path_dataset {path_dataset} --verbose {add_keywords} \n'
                         for tag in phenom_tags
                     ]
                 )
                 script.write('# Ontological\n')
                 script.writelines(
                     [
-                        f'./scope.py train --tag {tag} --path_dataset {path_dataset} --verbose {add_keywords} \n'
+                        f'./scope.py train --tag {tag} --algorithm {algorithm} --path_dataset {path_dataset} --verbose {add_keywords} \n'
                         for tag in ontol_tags
                     ]
                 )
@@ -912,6 +994,7 @@ class Scope:
             )
 
             if algorithm in ['dnn', 'DNN', 'nn', 'NN']:
+                algorithm = 'dnn'
                 script.write('echo "dnn inference"\n')
                 # Select most recent model for each tag
                 for tag in model_tags:
@@ -920,10 +1003,11 @@ class Scope:
                         [file for file in tag_file_gen], key=os.path.getctime
                     ).name
                     script.write(
-                        f'echo -n "{tag} ..." && python tools/inference.py --path-model=models/{group_name}/{tag}/{most_recent_file} --model-class={tag} --field=$1 --whole-field --flag_ids --scale_features={scale_features} {addtl_args} && echo "done"\n'
+                        f'echo -n "{tag} ..." && python tools/inference.py --path-model=models_{algorithm}/{group_name}/{tag}/{most_recent_file} --model-class={tag} --field=$1 --whole-field --flag_ids --scale_features={scale_features} {addtl_args} && echo "done"\n'
                     )
 
-            elif algorithm in ['xgb', 'XGB', 'xgboost', 'XGBOOST', 'XGBoost']:
+            elif algorithm in ['XGB', 'xgb', 'XGBoost', 'xgboost', 'XGBOOST']:
+                algorithm = 'xgb'
                 script.write('echo "xgb inference"\n')
                 for tag in model_tags:
                     tag_file_gen = (group_path / tag).glob('*.h5')
@@ -931,11 +1015,11 @@ class Scope:
                         [file for file in tag_file_gen], key=os.path.getctime
                     ).name
                     script.write(
-                        f'echo -n "{tag} ..." && python tools/inference.py --path-model=models/{group_name}/{tag}/{most_recent_file} --model-class={tag} --xgb_model --field=$1 --whole-field --flag_ids {addtl_args} && echo "done"\n'
+                        f'echo -n "{tag} ..." && python tools/inference.py --path-model=models_{algorithm}/{group_name}/{tag}/{most_recent_file} --model-class={tag} --xgb_model --field=$1 --whole-field --flag_ids {addtl_args} && echo "done"\n'
                     )
 
             else:
-                raise ValueError('algorithm must be DNN or XGB')
+                raise ValueError('algorithm must be dnn or xgb')
 
     def consolidate_inference_results(
         self,
@@ -1157,9 +1241,9 @@ class Scope:
         AL_directory_path = str(base_path / f'{al_directory}_{algorithm}' / al_filename)
         os.makedirs(AL_directory_path, exist_ok=True)
 
-        if algorithm in ['dnn', 'DNN']:
+        if algorithm in ['DNN', 'NN', 'dnn', 'nn']:
             algorithm = 'dnn'
-        elif algorithm in ['xgb', 'XGB']:
+        elif algorithm in ['XGB', 'xgb', 'XGBoost', 'xgboost', 'XGBOOST']:
             algorithm = 'xgb'
         else:
             raise ValueError('Algorithm must be either dnn or xgb.')
@@ -1286,7 +1370,7 @@ class Scope:
             preds_df = preds_df.set_index('obj_id').drop(list(intersec)).reset_index()
 
         # Use trained model names to establish classes to train
-        gen = os.walk(base_path / 'models' / group)
+        gen = os.walk(base_path / f'models_{algorithm}' / group)
         model_tags = [tag[1] for tag in gen]
         model_tags = model_tags[0]
         model_tags = np.array(model_tags)
@@ -1534,24 +1618,34 @@ class Scope:
                 df_mock = pd.DataFrame.from_records(entries)
                 df_mock.to_csv(path_mock / dataset, index=False)
 
-                tag = "vnv"
-                time_tag = self.train(
-                    tag=tag,
-                    path_dataset=path_mock / dataset,
-                    batch_size=32,
-                    epochs=3,
-                    verbose=True,
-                    save=True,
-                    test=True,
-                )
-                path_model = (
-                    pathlib.Path(__file__).parent.absolute()
-                    / "models"
-                    / group_mock
-                    / tag
-                    / f"{tag}.{time_tag}.h5"
-                )
+                algorithms = ['xgb', 'dnn']
+                model_paths = []
+                for algorithm in algorithms:
+                    tag = "vnv"
+                    if algorithm == 'xgb':
+                        extension = 'json'
+                    elif algorithm == 'dnn':
+                        extension = 'h5'
+                    time_tag = self.train(
+                        tag=tag,
+                        path_dataset=path_mock / dataset,
+                        batch_size=32,
+                        epochs=3,
+                        verbose=True,
+                        save=True,
+                        test=True,
+                        algorithm=algorithm,
+                    )
+                    path_model = (
+                        pathlib.Path(__file__).parent.absolute()
+                        / f"models_{algorithm}"
+                        / group_mock
+                        / tag
+                        / f"{tag}.{time_tag}.{extension}"
+                    )
+                    model_paths += [path_model]
 
+            # Only testing DNN inference for now; XGB to be added
             with status("Test inference"):
                 print()
                 _, preds_filename = inference.run(
@@ -1584,6 +1678,10 @@ class Scope:
             (preds_filename).unlink()
             (preds_filename.parent / 'meta.json').unlink()
             os.rmdir(preds_filename.parent)
+
+            # Remove trained model artifacts, but keep models_xgb and models_dnn directories
+            for path in model_paths:
+                shutil.rmtree(path.parent.parent)
 
 
 if __name__ == "__main__":

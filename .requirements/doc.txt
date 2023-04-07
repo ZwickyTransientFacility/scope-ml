@@ -16,3 +16,4 @@ pyarrow>=9.0.0
 numba
 cesium
 xgboost
+seaborn
