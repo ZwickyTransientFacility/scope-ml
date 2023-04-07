@@ -873,7 +873,6 @@ def plot_roc(fpr, tpr, roc_auc):
     plt.xlabel('False Positive Rate')
     plt.ylabel('True Positive Rate')
     plt.title('ROC curve (area = %0.6f)' % roc_auc)
-    plt.legend(loc="lower right")
 
 
 def plot_pr(recall, precision):
