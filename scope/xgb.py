@@ -36,8 +36,7 @@ class XGB(AbstractClassifier):
         eval_metric='auc',
         early_stopping_rounds=10,
         num_boost_round=999,
-        # ADD A UNIQUE name = given by user
-        # **kwargs,
+        **kwargs,
     ):
         #  removed for now:
         #  'gpu_id': 0,
@@ -57,8 +56,9 @@ class XGB(AbstractClassifier):
         self.meta['num_boost_round'] = num_boost_round
         self.meta['params'] = params
 
-    def train(self, X_train, y_train, X_val, y_val, **kwargs):
+        self.model = xgb.Booster(params=params)
 
+    def train(self, X_train, y_train, X_val, y_val, **kwargs):
         dtrain = xgb.DMatrix(X_train, label=y_train)
         dval = xgb.DMatrix(X_val, label=y_val)
 
@@ -93,7 +93,7 @@ class XGB(AbstractClassifier):
         return self.model.eval(dtest, 'dtest', **kwargs)
 
     def load(self, path_model, **kwargs):
-        self.model.load_weights(path_model, **kwargs)
+        self.load_model(path_model, **kwargs)
 
     def save(
         self,

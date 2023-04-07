@@ -606,6 +606,17 @@ class Scope:
         plot = kwargs.get("plot", False)
         weights_only = kwargs.get("weights_only", False)
 
+        # xgb-specific arguments
+        max_depth = kwargs.get("xgb_max_depth", 6)
+        min_child_weight = kwargs.get("xgb_min_child_weight", 1)
+        eta = kwargs.get("xgb_eta", 0.1)
+        subsample = kwargs.get("xgb_subsample", 0.7)
+        colsample_bytree = kwargs.get("xgb_colsample_bytree", 0.7)
+        objective = kwargs.get("xgb_objective", "binary:logistic")
+        eval_metric = kwargs.get("xgb_eval_metric", "auc")
+        early_stopping_rounds = kwargs.get("xgb_early_stopping_rounds", 10)
+        num_boost_round = kwargs.get("xgb_num_boost_round", 999)
+
         # parse boolean args
         dense_branch = forgiving_true(dense_branch)
         conv_branch = forgiving_true(conv_branch)
@@ -705,7 +716,17 @@ class Scope:
 
             # Add code to train XGB algorithm
             classifier = XGB(name=tag)
-            classifier.setup()
+            classifier.setup(
+                max_depth=max_depth,
+                min_child_weight=min_child_weight,
+                eta=eta,
+                subsample=subsample,
+                colsample_bytree=colsample_bytree,
+                objective=objective,
+                eval_metric=eval_metric,
+                early_stopping_rounds=early_stopping_rounds,
+                num_boost_round=num_boost_round,
+            )
             classifier.train(
                 X_train,
                 y_train,
@@ -1332,7 +1353,7 @@ class Scope:
             preds_df = preds_df.set_index('obj_id').drop(list(intersec)).reset_index()
 
         # Use trained model names to establish classes to train
-        gen = os.walk(base_path / 'models' / group)
+        gen = os.walk(base_path / f'models_{algorithm}' / group)
         model_tags = [tag[1] for tag in gen]
         model_tags = model_tags[0]
         model_tags = np.array(model_tags)
