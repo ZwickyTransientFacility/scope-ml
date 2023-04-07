@@ -915,6 +915,8 @@ class Dataset(object):
             self.algorithm = 'dnn'
         elif algorithm in ['XGB', 'xgb', 'XGBoost', 'xgboost', 'XGBOOST']:
             self.algorithm = 'xgb'
+        else:
+            raise ValueError('Current supported algorithms are DNN and XGB.')
 
         if self.verbose:
             log(f"Loading {self.path_dataset}...")

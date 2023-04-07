@@ -541,6 +541,8 @@ class Scope:
             algorithm = 'dnn'
         elif algorithm in ['XGB', 'xgb', 'XGBoost', 'xgboost', 'XGBOOST']:
             algorithm = 'xgb'
+        else:
+            raise ValueError('Current supported algorithms are DNN and XGB.')
 
         all_features = self.config["features"][train_config["features"]]
         features = [
@@ -612,15 +614,24 @@ class Scope:
         plot = kwargs.get("plot", False)
         weights_only = kwargs.get("weights_only", False)
 
-        # xgb-specific arguments
+        # xgb-specific arguments (descriptions adapted from https://xgboost.readthedocs.io/en/stable/parameter.html and https://xgboost.readthedocs.io/en/stable/python/python_api.html)
+        # max_depth: maximum depth of a tree
         max_depth = kwargs.get("xgb_max_depth", 6)
+        # min_child_weight: minimum sum of instance weight (hessian) needed in a child
         min_child_weight = kwargs.get("xgb_min_child_weight", 1)
+        # eta: Step size shrinkage used in update to prevent overfitting
         eta = kwargs.get("xgb_eta", 0.1)
+        # subsample: Subsample ratio of the training instances (setting to 0.5 means XGBoost would randomly sample half of the training data prior to growing trees)
         subsample = kwargs.get("xgb_subsample", 0.7)
+        # colsample_bytree: subsample ratio of columns when constructing each tree.
         colsample_bytree = kwargs.get("xgb_colsample_bytree", 0.7)
+        # objective: name of learning objective
         objective = kwargs.get("xgb_objective", "binary:logistic")
+        # eval_metric: Evaluation metrics for validation data
         eval_metric = kwargs.get("xgb_eval_metric", "auc")
+        # early_stopping_rounds: Validation metric needs to improve at least once in every early_stopping_rounds round(s) to continue training
         early_stopping_rounds = kwargs.get("xgb_early_stopping_rounds", 10)
+        # num_boost_round: Number of boosting iterations
         num_boost_round = kwargs.get("xgb_num_boost_round", 999)
 
         # parse boolean args
