@@ -4,7 +4,6 @@ import fire
 import numpy as np
 import pandas as pd
 import pathlib
-import xgboost as xgb
 import warnings
 from typing import Union
 import yaml
@@ -22,6 +21,7 @@ from scope.utils import (
     impute_features,
     get_feature_stats,
 )
+from scope.xgb import XGB
 from datetime import datetime
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
@@ -62,6 +62,10 @@ else:
 
 
 def clean_dataset_xgb(df):
+    # Deprecated
+    warnings.warn(
+        "clean_dataset_xgb is deprecated and will be removed in a future commit."
+    )
     assert isinstance(df, pd.DataFrame), "df needs to be a pd.DataFrame"
     df.dropna(inplace=True)
     indices_to_keep = ~df.isin([np.nan, np.inf, -np.inf]).any(1)
@@ -87,6 +91,7 @@ def clean_data(
     quad,
     flag_ids=False,
     whole_field=False,
+    algorithm='dnn',
 ):
     '''
     Impute missing values in features data
@@ -112,7 +117,7 @@ def clean_data(
     if not whole_field:
         filename = (
             BASE_DIR
-            + "/../preds/field_"
+            + f"/../preds_{algorithm}/field_"
             + str(field)
             + "/ccd_"
             + str(ccd).zfill(2)
@@ -122,7 +127,10 @@ def clean_data(
         )
     else:
         filename = (
-            BASE_DIR + "/../preds/field_" + str(field) + f"/field_{field}_flagged.json"
+            BASE_DIR
+            + f"/../preds_{algorithm}/field_"
+            + str(field)
+            + f"/field_{field}_flagged.json"
         )
     for feature in (
         features_df[feature_names]
@@ -148,60 +156,6 @@ def clean_data(
             except Exception as e:
                 print("error dumping flagged to json, message: ", e)
     return features_df
-
-
-# Previous model - delete when DNN is re-trained
-# def make_model(**kwargs):
-#     features_input = tf.keras.Input(
-#         shape=kwargs.get("features_input_shape", (40,)), name="features"
-#     )
-#     dmdt_input = tf.keras.Input(
-#         shape=kwargs.get("dmdt_input_shape", (26, 26, 1)), name="dmdt"
-#     )
-#
-#     # dense branch to digest features
-#     x_dense = tf.keras.layers.Dropout(0.2)(features_input)
-#     x_dense = tf.keras.layers.Dense(256, activation='relu', name='dense_fc_1')(x_dense)
-#     x_dense = tf.keras.layers.Dropout(0.25)(x_dense)
-#     x_dense = tf.keras.layers.Dense(32, activation='relu', name='dense_fc_2')(x_dense)
-#
-#     # CNN branch to digest dmdt
-#     x_conv = tf.keras.layers.Dropout(0.2)(dmdt_input)
-#     x_conv = tf.keras.layers.SeparableConv2D(
-#         16, (3, 3), activation='relu', name='conv_conv_1'
-#     )(x_conv)
-#     # x_conv = tf.keras.layers.Dropout(0.25)(x_conv)
-#     x_conv = tf.keras.layers.SeparableConv2D(
-#         16, (3, 3), activation='relu', name='conv_conv_2'
-#     )(x_conv)
-#     x_conv = tf.keras.layers.Dropout(0.25)(x_conv)
-#     x_conv = tf.keras.layers.MaxPooling2D(pool_size=(2, 2))(x_conv)
-#
-#     x_conv = tf.keras.layers.SeparableConv2D(
-#         32, (3, 3), activation='relu', name='conv_conv_3'
-#     )(x_conv)
-#     # x_conv = tf.keras.layers.Dropout(0.25)(x_conv)
-#     x_conv = tf.keras.layers.SeparableConv2D(
-#         32, (3, 3), activation='relu', name='conv_conv_4'
-#     )(x_conv)
-#     x_conv = tf.keras.layers.Dropout(0.25)(x_conv)
-#     # x_conv = tf.keras.layers.MaxPooling2D(pool_size=(2, 2))(x_conv)
-#
-#     x_conv = tf.keras.layers.GlobalAveragePooling2D()(x_conv)
-#
-#     # concatenate
-#     x = tf.keras.layers.concatenate([x_dense, x_conv])
-#     x = tf.keras.layers.Dropout(0.4)(x)
-#
-#     # one more dense layer?
-#     x = tf.keras.layers.Dense(16, activation='relu', name='fc_1')(x)
-#
-#     # Logistic regression to output the final score
-#     x = tf.keras.layers.Dense(1, activation='sigmoid', name='score')(x)
-#
-#     m = tf.keras.Model(inputs=[features_input, dmdt_input], outputs=x)
-#
-#     return m
 
 
 def run(
@@ -272,6 +226,11 @@ def run(
     scale_features = kwargs.get("scale_features", "min_max")
     trainingSet = kwargs.get("trainingSet", "use_config")
 
+    if xgbst:
+        algorithm = 'xgb'
+    else:
+        algorithm = 'dnn'
+
     # default file location for source ids
     if whole_field:
         default_source_file = (
@@ -324,7 +283,12 @@ def run(
 
     # Load pre-trained model
     ts = time.time()
-    model = tf.keras.models.load_model(path_model)
+    if algorithm == 'dnn':
+        model = tf.keras.models.load_model(path_model)
+    elif algorithm == 'xgb':
+        model = XGB(name=model_class)
+        model.setup()
+        model.load(path_model)
     te = time.time()
     if tm:
         print(
@@ -371,21 +335,19 @@ def run(
             warnings.warn('Could not find existing metadata')
             features_metadata = {}
 
-        if not xgbst:
+        train_config = config["training"]["classes"][model_class]
+        all_features = config["features"][train_config["features"]]
+        feature_names = [
+            key for key in all_features if forgiving_true(all_features[key]["include"])
+        ]
+
+        if algorithm != 'xgb':
             dmdt = np.expand_dims(
                 np.array([d for d in features['dmdt'].apply(list).values]), axis=-1
             )
 
             if verbose:
                 print("Features:\n", features)
-
-            train_config = config["training"]["classes"][model_class]
-            all_features = config["features"][train_config["features"]]
-            feature_names = [
-                key
-                for key in all_features
-                if forgiving_true(all_features[key]["include"])
-            ]
 
             # Impute missing data and flag source ids containing missing values
             make_missing_dict(source_ids)
@@ -397,6 +359,7 @@ def run(
                 quad,
                 flag_ids,
                 whole_field,
+                algorithm=algorithm,
             )
 
             # Get feature stats using training set for scaling consistency
@@ -486,8 +449,10 @@ def run(
             preds_df.reset_index(inplace=True, drop=True)
         else:
             # xgboost inferencing
-            train_config = path_model[-7]
-            feature_names = config["inference"]["xgb"][train_config]
+            # Do not use dmdt as a feature for this algorithm
+            if 'dmdt' in feature_names:
+                feature_names.pop('dmdt')
+
             features = clean_data(
                 features,
                 feature_names,
@@ -496,29 +461,30 @@ def run(
                 quad,
                 flag_ids,
                 whole_field,
+                algorithm=algorithm,
             )
-            model = xgb.XGBRegressor()
-            model.load_model(path_model)
 
             ts = time.time()
             scores = model.predict(features[feature_names])
-            features[model_class + '_xgb' + train_config] = scores
+            features[model_class + '_xgb'] = scores
             te = time.time()
             if tm:
                 print(
-                    "dnn inference (model.predict())".ljust(JUST)
+                    "xgb inference (model.predict())".ljust(JUST)
                     + "\t --> \t"
                     + str(round(te - ts, 4))
                     + " s"
                 )
-            preds_df = features[["_id", model_class + '_xgb' + train_config]].round(2)
+            preds_df = features[["_id", model_class + '_xgb']].round(2)
             preds_df.reset_index(inplace=True, drop=True)
 
         preds_collection += [preds_df]
 
     preds_df = pd.concat(preds_collection, axis=0)
     preds_df.reset_index(drop=True, inplace=True)
-    out_dir = os.path.join(os.path.dirname(__file__), f"{BASE_DIR}/../preds/")
+    out_dir = os.path.join(
+        os.path.dirname(__file__), f"{BASE_DIR}/../preds_{algorithm}/"
+    )
 
     if not whole_field:
         default_outfile = (
@@ -577,24 +543,14 @@ def run(
         os.makedirs(os.path.dirname(meta_filename), exist_ok=True)
         dct = {}
         dct["field"] = field
-        if xgbst:
-            dct["xgb_models"] = [path_model]
-        else:
-            dct["dnn_models"] = [path_model]
+        dct[f"{algorithm}_models"] = [path_model]
         dct["total"] = source_id_count
     else:
         with open(meta_filename, 'r') as f:
             dct = json.load(f)
-            if xgbst:
-                if "xgb_models" in dct.keys():
-                    dct["xgb_models"] += [path_model]
-                else:
-                    dct["xgb_models"] = [path_model]
-            else:
-                if "dnn_models" in dct.keys():
-                    dct["dnn_models"] += [path_model]
-                else:
-                    dct["dnn_models"] = [path_model]
+            if f"{algorithm}_models" in dct.keys():
+                dct[f"{algorithm}_models"] += [path_model]
+
     with open(meta_filename, "w") as f:
         try:
             json.dump(dct, f)  # dump dictionary to a json file

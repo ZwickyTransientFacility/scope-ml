@@ -86,7 +86,7 @@ class XGB(AbstractClassifier):
         return self.model.eval(dtest, 'dtest', **kwargs)
 
     def load(self, path_model, **kwargs):
-        self.load_model(path_model, **kwargs)
+        self.model.load_model(path_model, **kwargs)
 
     def save(
         self,
