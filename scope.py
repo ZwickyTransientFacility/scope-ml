@@ -977,7 +977,11 @@ class Scope:
         """
 
         path = str(pathlib.Path(__file__).parent.absolute() / filename)
-        group_path = pathlib.Path(__file__).parent.absolute() / 'models' / group_name
+        group_path = (
+            pathlib.Path(__file__).parent.absolute()
+            / f'models_{algorithm}'
+            / group_name
+        )
 
         addtl_args = ''
         if write_csv:
@@ -1010,7 +1014,7 @@ class Scope:
                 algorithm = 'xgb'
                 script.write('echo "xgb inference"\n')
                 for tag in model_tags:
-                    tag_file_gen = (group_path / tag).glob('*.h5')
+                    tag_file_gen = (group_path / tag).glob('*.json')
                     most_recent_file = max(
                         [file for file in tag_file_gen], key=os.path.getctime
                     ).name

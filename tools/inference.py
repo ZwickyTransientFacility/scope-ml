@@ -340,68 +340,72 @@ def run(
         feature_names = [
             key for key in all_features if forgiving_true(all_features[key]["include"])
         ]
+        # Do not use dmdt as a feature for xgb algorithm
+        if algorithm == 'xgb':
+            if 'dmdt' in feature_names:
+                feature_names.pop('dmdt')
 
-        if algorithm != 'xgb':
+        if verbose:
+            print("Features:\n", features)
+
+        # Impute missing data and flag source ids containing missing values
+        make_missing_dict(source_ids)
+        features = clean_data(
+            features,
+            feature_names,
+            field,
+            ccd,
+            quad,
+            flag_ids,
+            whole_field,
+            algorithm=algorithm,
+        )
+
+        # Get feature stats using training set for scaling consistency
+        if type(trainingSet) == str:
+            if (trainingSet == 'use_config') & (len(TRAINING_SET) > 0):
+                trainingSet = TRAINING_SET
+            else:
+                raise ValueError('Unable to find config-specified training set.')
+        if feature_stats is None:
+            feature_stats = get_feature_stats(trainingSet, feature_names)
+        elif feature_stats == 'config':
+            feature_stats = config.get("feature_stats", None)
+
+        if verbose:
+            print("Computed feature stats:\n", feature_stats)
+
+        # scale features
+        ts = time.time()
+
+        for feature in feature_names:
+            stats = feature_stats.get(feature)
+            if (stats is not None) and (stats["std"] != 0):
+                if scale_features == "median_std":
+                    features[feature] = (features[feature] - stats["median"]) / stats[
+                        "std"
+                    ]
+                elif scale_features == "min_max":
+                    features[feature] = (features[feature] - stats["min"]) / (
+                        stats["max"] - stats["min"]
+                    )
+                else:
+                    raise ValueError(
+                        'Currently supported scaling methods are min_max and median_std.'
+                    )
+        te = time.time()
+        if tm:
+            print(
+                "min max scaling".ljust(JUST)
+                + "\t --> \t"
+                + str(round(te - ts, 4))
+                + " s"
+            )
+
+        if algorithm == 'dnn':
             dmdt = np.expand_dims(
                 np.array([d for d in features['dmdt'].apply(list).values]), axis=-1
             )
-
-            if verbose:
-                print("Features:\n", features)
-
-            # Impute missing data and flag source ids containing missing values
-            make_missing_dict(source_ids)
-            features = clean_data(
-                features,
-                feature_names,
-                field,
-                ccd,
-                quad,
-                flag_ids,
-                whole_field,
-                algorithm=algorithm,
-            )
-
-            # Get feature stats using training set for scaling consistency
-            if type(trainingSet) == str:
-                if (trainingSet == 'use_config') & (len(TRAINING_SET) > 0):
-                    trainingSet = TRAINING_SET
-                else:
-                    raise ValueError('Unable to find config-specified training set.')
-            if feature_stats is None:
-                feature_stats = get_feature_stats(trainingSet, feature_names)
-            elif feature_stats == 'config':
-                feature_stats = config.get("feature_stats", None)
-
-            if verbose:
-                print("Computed feature stats:\n", feature_stats)
-
-            # scale features
-            ts = time.time()
-
-            for feature in feature_names:
-                stats = feature_stats.get(feature)
-                if (stats is not None) and (stats["std"] != 0):
-                    if scale_features == "median_std":
-                        features[feature] = (
-                            features[feature] - stats["median"]
-                        ) / stats["std"]
-                    elif scale_features == "min_max":
-                        features[feature] = (features[feature] - stats["min"]) / (
-                            stats["max"] - stats["min"]
-                        )
-                    else:
-                        raise ValueError(
-                            'Currently supported scaling methods are min_max and median_std.'
-                        )
-            te = time.time()
-            if tm:
-                print(
-                    "min max scaling".ljust(JUST)
-                    + "\t --> \t"
-                    + str(round(te - ts, 4))
-                    + " s"
-                )
 
             ts = time.time()
             # Convert float64 to float32 to satisfy tensorflow requirements
@@ -432,26 +436,8 @@ def run(
                     + str(round(te - ts, 4))
                     + " s"
                 )
-            features['Gaia_EDR3___id'] = (
-                features['Gaia_EDR3___id'].fillna(0).astype(int)
-            )
-            features['AllWISE___id'] = features['AllWISE___id'].fillna(0).astype(int)
-            features['PS1_DR1___id'] = features['PS1_DR1___id'].fillna(0).astype(int)
-            preds_df = features[
-                [
-                    "_id",
-                    "Gaia_EDR3___id",
-                    "AllWISE___id",
-                    "PS1_DR1___id",
-                    model_class + '_dnn',
-                ]
-            ].round(2)
-            preds_df.reset_index(inplace=True, drop=True)
         else:
             # xgboost inferencing
-            # Do not use dmdt as a feature for this algorithm
-            if 'dmdt' in feature_names:
-                feature_names.pop('dmdt')
 
             features = clean_data(
                 features,
@@ -475,8 +461,22 @@ def run(
                     + str(round(te - ts, 4))
                     + " s"
                 )
-            preds_df = features[["_id", model_class + '_xgb']].round(2)
-            preds_df.reset_index(inplace=True, drop=True)
+            preds_df = features[["_id", model_class + '_xgb']]
+            # preds_df.reset_index(inplace=True, drop=True)
+
+        features['Gaia_EDR3___id'] = features['Gaia_EDR3___id'].fillna(0).astype(int)
+        features['AllWISE___id'] = features['AllWISE___id'].fillna(0).astype(int)
+        features['PS1_DR1___id'] = features['PS1_DR1___id'].fillna(0).astype(int)
+        preds_df = features[
+            [
+                "_id",
+                "Gaia_EDR3___id",
+                "AllWISE___id",
+                "PS1_DR1___id",
+                model_class + f'_{algorithm}',
+            ]
+        ].round(2)
+        preds_df.reset_index(inplace=True, drop=True)
 
         preds_collection += [preds_df]
 
