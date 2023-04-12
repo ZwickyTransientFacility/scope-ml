@@ -86,7 +86,11 @@ class XGB(AbstractClassifier):
         return self.model.eval(dtest, 'dtest', **kwargs)
 
     def load(self, path_model, **kwargs):
-        self.model.load_model(path_model, **kwargs)
+        try:
+            self.model.load_model(path_model, **kwargs)
+        except Exception as e:
+            print('Failure during model loading:')
+            print(e)
 
     def save(
         self,
