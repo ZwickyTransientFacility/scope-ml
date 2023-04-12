@@ -9,8 +9,8 @@ kowalski:
   timeout: 300
   collections:
     gaia: Gaia_EDR3
-    # Current sources are from DR15 (on melman)
-    sources: ZTF_sources_20230109
+    # Current sources are from DR16 (on melman)
+    sources: ZTF_sources_20230309
     # Current features generated from DR5 (on gloria)
     features: ZTF_source_features_DR5
     # Current classifications are from DR5 (on gloria)
