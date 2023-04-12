@@ -238,7 +238,7 @@ if __name__ == "__main__":
         "--filename",
         type=str,
         default='gen_features',
-        help="if set, run on all quads for specified field/ccds",
+        help="Filename prefix for generated features",
     )
     parser.add_argument(
         "--doCesium",
