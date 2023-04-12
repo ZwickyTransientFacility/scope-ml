@@ -977,7 +977,11 @@ class Scope:
         """
 
         path = str(pathlib.Path(__file__).parent.absolute() / filename)
-        group_path = pathlib.Path(__file__).parent.absolute() / 'models' / group_name
+        group_path = (
+            pathlib.Path(__file__).parent.absolute()
+            / f'models_{algorithm}'
+            / group_name
+        )
 
         addtl_args = ''
         if write_csv:
@@ -1010,7 +1014,7 @@ class Scope:
                 algorithm = 'xgb'
                 script.write('echo "xgb inference"\n')
                 for tag in model_tags:
-                    tag_file_gen = (group_path / tag).glob('*.h5')
+                    tag_file_gen = (group_path / tag).glob('*.json')
                     most_recent_file = max(
                         [file for file in tag_file_gen], key=os.path.getctime
                     ).name
@@ -1234,19 +1238,19 @@ class Scope:
                     ./scope.py select_al_sample --fields=[296,297] --group='experiment' --min_class_examples=500 --select_top_n --include_all_highprob_labels --probability_threshold=0.7 --exclude_training_sources --read_consolidation_results
         """
         base_path = pathlib.Path(__file__).parent.absolute()
-        preds_path = base_path / 'preds'
-
-        # Strip extension from filename if provided
-        al_filename = al_filename.split('.')[0]
-        AL_directory_path = str(base_path / f'{al_directory}_{algorithm}' / al_filename)
-        os.makedirs(AL_directory_path, exist_ok=True)
-
         if algorithm in ['DNN', 'NN', 'dnn', 'nn']:
             algorithm = 'dnn'
         elif algorithm in ['XGB', 'xgb', 'XGBoost', 'xgboost', 'XGBOOST']:
             algorithm = 'xgb'
         else:
             raise ValueError('Algorithm must be either dnn or xgb.')
+
+        preds_path = base_path / f'preds_{algorithm}'
+
+        # Strip extension from filename if provided
+        al_filename = al_filename.split('.')[0]
+        AL_directory_path = str(base_path / f'{al_directory}_{algorithm}' / al_filename)
+        os.makedirs(AL_directory_path, exist_ok=True)
 
         df_coll = []
         df_coll_allRows = []
@@ -1645,21 +1649,36 @@ class Scope:
                     )
                     model_paths += [path_model]
 
+            print('model_paths', model_paths)
+
             # Only testing DNN inference for now; XGB to be added
             with status("Test inference"):
                 print()
-                _, preds_filename = inference.run(
-                    str(path_model),
+                print(model_paths[1])
+                _, preds_filename_dnn = inference.run(
+                    str(model_paths[1]),
                     tag,
                     field=0,
                     whole_field=True,
                     trainingSet=df_mock,
+                    algorithm='dnn',
+                )
+                print(model_paths[0])
+                _, preds_filename_xgb = inference.run(
+                    str(model_paths[0]),
+                    tag,
+                    field=0,
+                    whole_field=True,
+                    trainingSet=df_mock,
+                    xgb_model=True,
                 )
 
             with status("Test select_al_sample"):
                 print()
                 _ = self.select_al_sample(
-                    [0], probability_threshold=0.0, doNotSave=True
+                    [0],
+                    probability_threshold=0.0,
+                    doNotSave=True,
                 )
                 _ = self.select_al_sample(
                     [0],
@@ -1669,15 +1688,33 @@ class Scope:
                     probability_threshold=0.0,
                     doNotSave=True,
                 )
+                _ = self.select_al_sample(
+                    [0],
+                    probability_threshold=0.0,
+                    doNotSave=True,
+                    algorithm='xgb',
+                )
+                _ = self.select_al_sample(
+                    [0],
+                    select_top_n=True,
+                    include_all_highprob_labels=True,
+                    min_class_examples=3,
+                    probability_threshold=0.0,
+                    doNotSave=True,
+                    algorithm='xgb',
+                )
 
         finally:
             # clean up after thyself
             (path_mock / dataset).unlink()
             (testpath_features / 'field_0_iter_0.parquet').unlink()
             os.rmdir(testpath_features)
-            (preds_filename).unlink()
-            (preds_filename.parent / 'meta.json').unlink()
-            os.rmdir(preds_filename.parent)
+            (preds_filename_dnn).unlink()
+            (preds_filename_xgb).unlink()
+            (preds_filename_dnn.parent / 'meta.json').unlink()
+            (preds_filename_xgb.parent / 'meta.json').unlink()
+            os.rmdir(preds_filename_dnn.parent)
+            os.rmdir(preds_filename_xgb.parent)
 
             # Remove trained model artifacts, but keep models_xgb and models_dnn directories
             for path in model_paths:
