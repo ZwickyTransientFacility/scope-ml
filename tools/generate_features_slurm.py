@@ -187,10 +187,10 @@ if __name__ == "__main__":
         type=int,
     )
     parser.add_argument(
-        "--doLongPeriod",
+        "--doScaleMinPeriod",
         action='store_true',
         default=False,
-        help="if set, optimize frequency grid for long periods",
+        help="if set, scale min period by min_cadence_minutes",
     )
     parser.add_argument(
         "--doRemoveTerrestrial",
@@ -380,7 +380,7 @@ if __name__ == "__main__":
     doCPU = args.doCPU
     doGPU = args.doGPU
     samples_per_peak = args.samples_per_peak
-    doLongPeriod = args.doLongPeriod
+    doScaleMinPeriod = args.doScaleMinPeriod
     doRemoveTerrestrial = args.doRemoveTerrestrial
     Ncore = args.Ncore
     field = args.field
@@ -400,8 +400,8 @@ if __name__ == "__main__":
         cpu_gpu_flag = "--doGPU"
 
     extra_flags = []
-    if args.doLongPeriod:
-        extra_flags.append("--doLongPeriod")
+    if args.doScaleMinPeriod:
+        extra_flags.append("--doScaleMinPeriod")
     if args.doRemoveTerrestrial:
         extra_flags.append("--doRemoveTerrestrial")
     if args.doCesium:
