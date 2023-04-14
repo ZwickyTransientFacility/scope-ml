@@ -239,7 +239,7 @@ def generate_features(
     doCPU: bool = False,
     doGPU: bool = False,
     samples_per_peak: int = 10,
-    doLongPeriod: bool = False,
+    doScaleMinPeriod: bool = False,
     doRemoveTerrestrial: bool = False,
     Ncore: int = 8,
     field: int = 296,
@@ -271,7 +271,7 @@ def generate_features(
     :param doCPU: flag to run config-specified CPU period algorithms (bool)
     :param doGPU: flag to run config-specified GPU period algorithms (bool)
     :param samples_per_peak: number of samples per periodogram peak (int)
-    :param doLongPeriod: run period-finding on frequencies up to 48 Hz [default 480 Hz] (bool)
+    :param doScaleMinPeriod: for period finding, scale min period based on min_cadence_minutes [otherwise, min P = 3 min] (bool)
     :param doRemoveTerrestrial: remove terrestrial frequencies from period-finding analysis (bool)
     :param Ncore: number of CPU cores to parallelize queries (int)
     :param field: ZTF field to run (int)
@@ -467,8 +467,10 @@ def generate_features(
 
     if baseline > 0:
         # Define frequency grid using largest LC time baseline
-        if doLongPeriod:
-            fmin, fmax = 2 / baseline, 48
+        if doScaleMinPeriod:
+            fmin, fmax = 2 / baseline, 1 / (
+                2 * args.min_cadence_minutes / 1440
+            )  # Nyquist frequency given minimum cadence converted to days
         else:
             fmin, fmax = 2 / baseline, 480
 
@@ -770,10 +772,10 @@ if __name__ == "__main__":
         type=int,
     )
     parser.add_argument(
-        "--doLongPeriod",
+        "--doScaleMinPeriod",
         action='store_true',
         default=False,
-        help="if set, optimize frequency grid for long periods",
+        help="if set, scale min period using min_cadence_minutes",
     )
     parser.add_argument(
         "--doRemoveTerrestrial",
@@ -860,7 +862,7 @@ if __name__ == "__main__":
         doCPU=args.doCPU,
         doGPU=args.doGPU,
         samples_per_peak=args.samples_per_peak,
-        doLongPeriod=args.doLongPeriod,
+        doScaleMinPeriod=args.doScaleMinPeriod,
         doRemoveTerrestrial=args.doRemoveTerrestrial,
         Ncore=args.Ncore,
         field=args.field,
