@@ -164,7 +164,7 @@ inputs:
 10. --doCPU : flag to run config-specified CPU period algorithms (bool)
 11. --doGPU : flag to run config-specified GPU period algorithms (bool)
 12. --samples_per_peak : number of samples per periodogram peak (int)
-13. --doLongPeriod : run period-finding on frequencies up to 48 Hz [default 480 Hz] (bool)
+13. --doScaleMinPeriod : for period finding, scale min period based on min_cadence_minutes [otherwise, min P = 3 min] (bool)
 14. --doRemoveTerrestrial : remove terrestrial frequencies from period-finding analysis (bool)
 15. --Ncore : number of CPU cores to parallelize queries (int)
 16. --field : ZTF field to run (int)
