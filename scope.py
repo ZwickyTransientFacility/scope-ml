@@ -1529,6 +1529,8 @@ class Scope:
                 stop_early=True,
                 Ncore=1,
                 min_n_lc_points=50,
+                doRemoveTerrestrial=True,
+                doScaleMinPeriod=True,
             )
 
             path_gen_features = (

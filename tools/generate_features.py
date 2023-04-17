@@ -469,7 +469,7 @@ def generate_features(
         # Define frequency grid using largest LC time baseline
         if doScaleMinPeriod:
             fmin, fmax = 2 / baseline, 1 / (
-                2 * args.min_cadence_minutes / 1440
+                2 * min_cadence_minutes / 1440
             )  # Nyquist frequency given minimum cadence converted to days
         else:
             fmin, fmax = 2 / baseline, 480
