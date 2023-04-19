@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from scope.utils import make_confusion_matrix, plot_roc, plot_pr
 import seaborn as sns
 import numpy as np
+import json
 
 
 class XGB(AbstractClassifier):
@@ -47,7 +48,7 @@ class XGB(AbstractClassifier):
         self.meta['num_boost_round'] = num_boost_round
         self.meta['params'] = params
 
-        # self.model = xgb.Booster(params=params)
+        self.model = xgb.Booster(params=params)
 
     def train(self, X_train, y_train, X_val, y_val, **kwargs):
         seed = kwargs.get('seed', 42)
@@ -315,8 +316,20 @@ class XGB(AbstractClassifier):
         return self.model.eval(dtest, 'dtest', **kwargs)
 
     def load(self, path_model, **kwargs):
+        plpath = pathlib.Path(path_model)
+        name = pathlib.Path(plpath.name)
+        parent = plpath.parent
+        filename = name.with_suffix('')
+        cfg_filename = str(filename) + '.params'
+        print(str(parent / cfg_filename))
         try:
             self.model.load_model(path_model, **kwargs)
+            with open(str(parent / cfg_filename), 'r') as f:
+                cfg = json.load(f)
+            cfg = json.dumps(cfg)
+            print(cfg)
+            print(type(cfg))
+            self.model.load_config(cfg)
         except Exception as e:
             print('Failure during model loading:')
             print(e)
@@ -339,7 +352,12 @@ class XGB(AbstractClassifier):
         output_name = self.name if not tag else tag
         if not output_name.endswith('.json'):
             output_name += '.json'
+        config_name = pathlib.Path(output_name).with_suffix('')
+        config_name = str(config_name) + '.params'
         self.model.save_model(path / output_name)
+        cfg = self.model.save_config()
+        with open(path / config_name, 'w') as f:
+            f.write(cfg)
 
         # Save diagnostic plots
         if plot:

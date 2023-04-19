@@ -1722,7 +1722,6 @@ class Scope:
 
             print('model_paths', model_paths)
 
-            # Only testing DNN inference for now; XGB to be added
             with status("Test inference"):
                 print()
                 print(model_paths[1])
@@ -1732,7 +1731,6 @@ class Scope:
                     field=0,
                     whole_field=True,
                     trainingSet=df_mock,
-                    algorithm='dnn',
                 )
                 print(model_paths[0])
                 _, preds_filename_xgb = inference.run(
