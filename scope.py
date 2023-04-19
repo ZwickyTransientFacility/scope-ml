@@ -536,6 +536,7 @@ class Scope:
         from scope.utils import Dataset
 
         train_config = self.config["training"]["classes"][tag]
+        train_config_xgb = self.config["training"]['xgboost']
 
         if algorithm in ['DNN', 'NN', 'dnn', 'nn']:
             algorithm = 'dnn'
@@ -613,26 +614,76 @@ class Scope:
         save = kwargs.get("save", False)
         plot = kwargs.get("plot", False)
         weights_only = kwargs.get("weights_only", False)
+        skip_cv = kwargs.get("skip_cv", False)
 
         # xgb-specific arguments (descriptions adapted from https://xgboost.readthedocs.io/en/stable/parameter.html and https://xgboost.readthedocs.io/en/stable/python/python_api.html)
         # max_depth: maximum depth of a tree
-        max_depth = kwargs.get("xgb_max_depth", 6)
+        max_depth_config = train_config_xgb['gridsearch_params_start_stop_step'].get(
+            'max_depth', [3, 8, 2]
+        )
+        max_depth_start = max_depth_config[0]
+        max_depth_stop = max_depth_config[1]
+        max_depth_step = max_depth_config[2]
+
         # min_child_weight: minimum sum of instance weight (hessian) needed in a child
-        min_child_weight = kwargs.get("xgb_min_child_weight", 1)
-        # eta: Step size shrinkage used in update to prevent overfitting
-        eta = kwargs.get("xgb_eta", 0.1)
+        min_child_weight_config = train_config_xgb[
+            'gridsearch_params_start_stop_step'
+        ].get('min_child_weight', [1, 6, 2])
+        min_child_weight_start = min_child_weight_config[0]
+        min_child_weight_stop = min_child_weight_config[1]
+        min_child_weight_step = min_child_weight_config[2]
+
+        # eta = kwargs.get("xgb_eta", 0.1)
+        eta_list = train_config_xgb['other_training_params'].get(
+            'eta_list', [0.3, 0.2, 0.1, 0.05]
+        )
+
         # subsample: Subsample ratio of the training instances (setting to 0.5 means XGBoost would randomly sample half of the training data prior to growing trees)
-        subsample = kwargs.get("xgb_subsample", 0.7)
+        # subsample = kwargs.get("xgb_subsample", 0.7)
+        subsample_config = train_config_xgb['gridsearch_params_start_stop_step'].get(
+            'subsample', [6, 11, 2]
+        )
+        subsample_start = subsample_config[0]
+        subsample_stop = subsample_config[1]
+        subsample_step = subsample_config[2]
+
         # colsample_bytree: subsample ratio of columns when constructing each tree.
-        colsample_bytree = kwargs.get("xgb_colsample_bytree", 0.7)
+        # colsample_bytree = kwargs.get("xgb_colsample_bytree", 0.7)
+        colsample_bytree_config = train_config_xgb[
+            'gridsearch_params_start_stop_step'
+        ].get('subsample', [6, 11, 2])
+        colsample_bytree_start = colsample_bytree_config[0]
+        colsample_bytree_stop = colsample_bytree_config[1]
+        colsample_bytree_step = colsample_bytree_config[2]
+
+        # seed: random seed
+        seed = train_config_xgb['other_training_params'].get('seed', 42)
+
+        # nfold: number of folds during cross-validation
+        nfold = train_config_xgb['other_training_params'].get('nfold', 5)
+
+        # metrics: evaluation metrics to use during cross-validation
+        metrics = train_config_xgb['other_training_params'].get('metrics', ['auc'])
+
         # objective: name of learning objective
-        objective = kwargs.get("xgb_objective", "binary:logistic")
+        objective = train_config_xgb['other_training_params'].get(
+            "objective", "binary:logistic"
+        )
+
         # eval_metric: Evaluation metrics for validation data
-        eval_metric = kwargs.get("xgb_eval_metric", "auc")
+        eval_metric = train_config_xgb['other_training_params'].get(
+            "eval_metric", "auc"
+        )
+
         # early_stopping_rounds: Validation metric needs to improve at least once in every early_stopping_rounds round(s) to continue training
-        early_stopping_rounds = kwargs.get("xgb_early_stopping_rounds", 10)
+        early_stopping_rounds = train_config_xgb['other_training_params'].get(
+            "early_stopping_rounds", 10
+        )
+
         # num_boost_round: Number of boosting iterations
-        num_boost_round = kwargs.get("xgb_num_boost_round", 999)
+        num_boost_round = train_config_xgb['other_training_params'].get(
+            "num_boost_round", 999
+        )
 
         # parse boolean args
         dense_branch = forgiving_true(dense_branch)
@@ -732,11 +783,11 @@ class Scope:
             # Add code to train XGB algorithm
             classifier = XGB(name=tag)
             classifier.setup(
-                max_depth=max_depth,
-                min_child_weight=min_child_weight,
-                eta=eta,
-                subsample=subsample,
-                colsample_bytree=colsample_bytree,
+                max_depth=max_depth_start,
+                min_child_weight=min_child_weight_start,
+                eta=eta_list[0],
+                subsample=subsample_start / 10.0,
+                colsample_bytree=colsample_bytree_start / 10.0,
                 objective=objective,
                 eval_metric=eval_metric,
                 early_stopping_rounds=early_stopping_rounds,
@@ -747,6 +798,23 @@ class Scope:
                 y_train,
                 X_val,
                 y_val,
+                skip_cv=skip_cv,
+                seed=seed,
+                nfold=nfold,
+                metrics=metrics,
+                max_depth_start=max_depth_start,
+                max_depth_stop=max_depth_stop,
+                max_depth_step=max_depth_step,
+                min_child_weight_start=min_child_weight_start,
+                min_child_weight_stop=min_child_weight_stop,
+                min_child_weight_step=min_child_weight_step,
+                eta_list=eta_list,
+                subsample_start=subsample_start,
+                subsample_stop=subsample_stop,
+                subsample_step=subsample_step,
+                colsample_bytree_start=colsample_bytree_start,
+                colsample_bytree_stop=colsample_bytree_stop,
+                colsample_bytree_step=colsample_bytree_step,
             )
 
         if verbose:
@@ -1641,6 +1709,7 @@ class Scope:
                         save=True,
                         test=True,
                         algorithm=algorithm,
+                        skip_cv=True,
                     )
                     path_model = (
                         pathlib.Path(__file__).parent.absolute()

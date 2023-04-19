@@ -47,12 +47,30 @@ class XGB(AbstractClassifier):
         self.meta['num_boost_round'] = num_boost_round
         self.meta['params'] = params
 
-        self.model = xgb.Booster(params=params)
+        # self.model = xgb.Booster(params=params)
 
     def train(self, X_train, y_train, X_val, y_val, **kwargs):
         seed = kwargs.get('seed', 42)
         nfold = kwargs.get('nfold', 5)
         metrics = kwargs.get('metrics', ['auc'])
+
+        max_depth_start = kwargs.get('max_depth_start', 3)
+        max_depth_stop = kwargs.get('max_depth_stop', 8)
+        max_depth_step = kwargs.get('max_depth_step', 2)
+
+        min_child_weight_start = kwargs.get('min_child_weight_start', 1)
+        min_child_weight_stop = kwargs.get('min_child_weight_stop', 6)
+        min_child_weight_step = kwargs.get('min_child_weight_step', 2)
+
+        eta_list = kwargs.get('eta_list', [0.3, 0.2, 0.1, 0.05])
+
+        subsample_start = kwargs.get('subsample_start', 6)
+        subsample_stop = kwargs.get('subsample_stop', 11)
+        subsample_step = kwargs.get('subsample_step', 2)
+
+        colsample_bytree_start = kwargs.get('colsample_bytree_start', 6)
+        colsample_bytree_stop = kwargs.get('colsample_bytree_stop', 11)
+        colsample_bytree_step = kwargs.get('colsample_bytree_step', 2)
 
         dtrain = xgb.DMatrix(X_train, label=y_train)
         dval = xgb.DMatrix(X_val, label=y_val)
@@ -61,185 +79,204 @@ class XGB(AbstractClassifier):
         evals = [(dtrain, 'dtrain'), (dval, 'dval')]
         self.meta['evals'] = evals
 
-        # Grid search for max_depth and min_child_weight params
-        gridsearch_params = [
-            (max_depth, min_child_weight)
-            for max_depth in range(3, 8, 2)
-            for min_child_weight in range(1, 6, 2)
-        ]
-        # Define initial best params and max AUC
-        best_params = None
-        max_auc = 0.0
+        skip_cv = kwargs.get('skip_cv', True)
+        if not skip_cv:
+            # Grid search for max_depth and min_child_weight params
+            gridsearch_params = [
+                (max_depth, min_child_weight)
+                for max_depth in range(max_depth_start, max_depth_stop, max_depth_step)
+                for min_child_weight in range(
+                    min_child_weight_start, min_child_weight_stop, min_child_weight_step
+                )
+            ]
+            # Define initial best params and max AUC
+            best_params = None
+            max_auc = 0.0
 
-        for max_depth, min_child_weight in gridsearch_params:
+            for max_depth, min_child_weight in gridsearch_params:
+                print(
+                    "CV with max_depth={}, min_child_weight={}".format(
+                        max_depth, min_child_weight
+                    )
+                )
+                # Update our parameters
+                self.meta['params']['max_depth'] = max_depth
+                self.meta['params']['min_child_weight'] = min_child_weight
+                # Run CV
+                cv_results = xgb.cv(
+                    self.meta['params'],
+                    dtrain,
+                    num_boost_round=self.meta['num_boost_round'],
+                    seed=seed,
+                    nfold=nfold,
+                    metrics=metrics,
+                    early_stopping_rounds=self.meta['early_stopping_rounds'],
+                )
+                # Update best AUC
+                mean_auc = cv_results['test-auc-mean'].max()
+                boost_rounds = cv_results['test-auc-mean'].argmax()
+                print("\tAUC {} for {} rounds".format(mean_auc, boost_rounds))
+                if mean_auc > max_auc:
+                    max_auc = mean_auc
+                    best_params = (max_depth, min_child_weight)
             print(
-                "CV with max_depth={}, min_child_weight={}".format(
-                    max_depth, min_child_weight
+                "Best params: {}, {}, AUC: {}".format(
+                    best_params[0], best_params[1], max_auc
                 )
             )
-            # Update our parameters
-            self.meta['params']['max_depth'] = max_depth
-            self.meta['params']['min_child_weight'] = min_child_weight
-            # Run CV
-            cv_results = xgb.cv(
-                self.meta['params'],
-                dtrain,
-                num_boost_round=self.meta['num_boost_round'],
-                seed=seed,
-                nfold=nfold,
-                metrics=metrics,
-                early_stopping_rounds=self.meta['early_stopping_rounds'],
-            )
-            # Update best AUC
-            mean_auc = cv_results['test-auc-mean'].max()
-            boost_rounds = cv_results['test-auc-mean'].argmax()
-            print("\tAUC {} for {} rounds".format(mean_auc, boost_rounds))
-            if mean_auc > max_auc:
-                max_auc = mean_auc
-                best_params = (max_depth, min_child_weight)
-        print(
-            "Best params: {}, {}, AUC: {}".format(
-                best_params[0], best_params[1], max_auc
-            )
-        )
-        self.meta['params']['max_depth'] = best_params[0]
-        self.meta['params']['min_child_weight'] = best_params[1]
+            self.meta['params']['max_depth'] = best_params[0]
+            self.meta['params']['min_child_weight'] = best_params[1]
 
-        # Grid search for subsample and colsample params
-        gridsearch_params = [
-            (subsample, colsample)
-            for subsample in [i / 10.0 for i in range(6, 11, 2)]
-            for colsample in [i / 10.0 for i in range(6, 11, 2)]
-        ]
-        best_params = None
-        max_auc = 0.0
+            # Grid search for subsample and colsample_bytree params
+            gridsearch_params = [
+                (subsample, colsample_bytree)
+                for subsample in [
+                    i / 10.0
+                    for i in range(subsample_start, subsample_stop, subsample_step)
+                ]
+                for colsample_bytree in [
+                    i / 10.0
+                    for i in range(
+                        colsample_bytree_start,
+                        colsample_bytree_stop,
+                        colsample_bytree_step,
+                    )
+                ]
+            ]
+            best_params = None
+            max_auc = 0.0
 
-        # We start by the largest values and go down to the smallest
-        for subsample, colsample in reversed(gridsearch_params):
-            print("CV with subsample={}, colsample={}".format(subsample, colsample))
-            # Update our parameters
-            self.meta['params']['subsample'] = subsample
-            self.meta['params']['colsample_bytree'] = colsample
-            # Run CV
-            cv_results = xgb.cv(
-                self.meta['params'],
-                dtrain,
-                num_boost_round=self.meta['num_boost_round'],
-                seed=seed,
-                nfold=nfold,
-                metrics=metrics,
-                early_stopping_rounds=self.meta['early_stopping_rounds'],
-            )
-            # Update best AUC
-            mean_auc = cv_results['test-auc-mean'].max()
-            boost_rounds = cv_results['test-auc-mean'].argmax()
-            print("\tAUC {} for {} rounds".format(mean_auc, boost_rounds))
-            if mean_auc > max_auc:
-                max_auc = mean_auc
-                best_params = (subsample, colsample)
-        print(
-            "Best params: {}, {}, AUC: {}".format(
-                best_params[0], best_params[1], max_auc
-            )
-        )
-        self.meta['params']['subsample'] = best_params[0]
-        self.meta['params']['colsample_bytree'] = best_params[1]
-
-        best_params = None
-        max_auc = 0.0
-        for eta in [0.3, 0.2, 0.1, 0.05]:
-            print("CV with eta={}".format(eta))
-
-            # We update our parameters
-            self.meta['params']['eta'] = eta
-
-            # Run and time CV
-            cv_results = xgb.cv(
-                self.meta['params'],
-                dtrain,
-                num_boost_round=self.meta['num_boost_round'],
-                seed=seed,
-                nfold=nfold,
-                metrics=metrics,
-                early_stopping_rounds=self.meta['early_stopping_rounds'],
-            )
-
-            # Update best AUC
-            mean_auc = cv_results['test-auc-mean'].max()
-            boost_rounds = cv_results['test-auc-mean'].argmax()
-            print("\tAUC {} for {} rounds".format(mean_auc, boost_rounds))
-            if mean_auc > max_auc:
-                max_auc = mean_auc
-                best_params = eta
-        print("Best params: {}, AUC: {}".format(best_params, max_auc))
-        self.meta['params']['eta'] = best_params
-
-        # max_depth 3, 5, 7
-        # min_child_weight 1, 3, 5
-
-        # Best 7, 1
-
-        max_depth1 = self.meta['params']['max_depth'] - 1
-        max_depth2 = self.meta['params']['max_depth'] + 2
-        if max_depth1 < 1:
-            max_depth1 = 1
-        if max_depth2 > 9:
-            max_depth2 = 9
-
-        min_child_wt1 = self.meta['params']['min_child_weight'] - 1
-        min_child_wt2 = self.meta['params']['min_child_weight'] + 2
-        if min_child_wt1 < 1:
-            min_child_wt1 = 1
-        if min_child_wt2 > 9:
-            min_child_wt2 = 9
-
-        print(max_depth1, max_depth2, min_child_wt1, min_child_wt2)
-        # 6 9 1 3
-
-        # One more CV round for max_depth, min_child_weight params
-        gridsearch_params = [
-            (max_depth, min_child_weight)
-            for max_depth in range(max_depth1, max_depth2, 1)
-            for min_child_weight in range(min_child_wt1, min_child_wt2, 1)
-        ]
-
-        # Define initial best params and max AUC
-        best_params = None
-        max_auc = 0.0
-
-        for max_depth, min_child_weight in gridsearch_params:
+            # We start by the largest values and go down to the smallest
+            for subsample, colsample_bytree in reversed(gridsearch_params):
+                print(
+                    "CV with subsample={}, colsample_bytree={}".format(
+                        subsample, colsample_bytree
+                    )
+                )
+                # Update our parameters
+                self.meta['params']['subsample'] = subsample
+                self.meta['params']['colsample_bytree'] = colsample_bytree
+                # Run CV
+                cv_results = xgb.cv(
+                    self.meta['params'],
+                    dtrain,
+                    num_boost_round=self.meta['num_boost_round'],
+                    seed=seed,
+                    nfold=nfold,
+                    metrics=metrics,
+                    early_stopping_rounds=self.meta['early_stopping_rounds'],
+                )
+                # Update best AUC
+                mean_auc = cv_results['test-auc-mean'].max()
+                boost_rounds = cv_results['test-auc-mean'].argmax()
+                print("\tAUC {} for {} rounds".format(mean_auc, boost_rounds))
+                if mean_auc > max_auc:
+                    max_auc = mean_auc
+                    best_params = (subsample, colsample_bytree)
             print(
-                "CV with max_depth={}, min_child_weight={}".format(
-                    max_depth, min_child_weight
+                "Best params: {}, {}, AUC: {}".format(
+                    best_params[0], best_params[1], max_auc
                 )
             )
-            # Update our parameters
-            self.meta['params']['max_depth'] = max_depth
-            self.meta['params']['min_child_weight'] = min_child_weight
-            # Run CV
-            cv_results = xgb.cv(
-                self.meta['params'],
-                dtrain,
-                num_boost_round=self.meta['num_boost_round'],
-                seed=seed,
-                nfold=nfold,
-                metrics=metrics,
-                early_stopping_rounds=self.meta['early_stopping_rounds'],
+            self.meta['params']['subsample'] = best_params[0]
+            self.meta['params']['colsample_bytree'] = best_params[1]
+
+            best_params = None
+            max_auc = 0.0
+
+            for eta in eta_list:
+                print("CV with eta={}".format(eta))
+
+                # We update our parameters
+                self.meta['params']['eta'] = eta
+
+                # Run and time CV
+                cv_results = xgb.cv(
+                    self.meta['params'],
+                    dtrain,
+                    num_boost_round=self.meta['num_boost_round'],
+                    seed=seed,
+                    nfold=nfold,
+                    metrics=metrics,
+                    early_stopping_rounds=self.meta['early_stopping_rounds'],
+                )
+
+                # Update best AUC
+                mean_auc = cv_results['test-auc-mean'].max()
+                boost_rounds = cv_results['test-auc-mean'].argmax()
+                print("\tAUC {} for {} rounds".format(mean_auc, boost_rounds))
+                if mean_auc > max_auc:
+                    max_auc = mean_auc
+                    best_params = eta
+            print("Best params: {}, AUC: {}".format(best_params, max_auc))
+            self.meta['params']['eta'] = best_params
+
+            max_depth1 = self.meta['params']['max_depth'] - max_depth_step
+            max_depth2 = self.meta['params']['max_depth'] + max_depth_step
+            if max_depth1 < max_depth_start:
+                max_depth1 = max_depth_start
+            if max_depth2 > max_depth_stop - 1:
+                max_depth2 = max_depth_stop - 1
+
+            min_child_wt1 = (
+                self.meta['params']['min_child_weight'] - min_child_weight_step
             )
-            # Update best AUC
-            mean_auc = cv_results['test-auc-mean'].max()
-            boost_rounds = cv_results['test-auc-mean'].argmax()
-            print("\tAUC {} for {} rounds".format(mean_auc, boost_rounds))
-            if mean_auc > max_auc:
-                max_auc = mean_auc
-                best_params = (max_depth, min_child_weight)
-        print(
-            "Best params: {}, {}, AUC: {}".format(
-                best_params[0], best_params[1], max_auc
+            min_child_wt2 = (
+                self.meta['params']['min_child_weight'] + min_child_weight_step
             )
-        )
-        self.meta['params']['max_depth'] = best_params[0]
-        self.meta['params']['min_child_weight'] = best_params[1]
+            if min_child_wt1 < min_child_weight_start:
+                min_child_wt1 = min_child_weight_start
+            if min_child_wt2 > min_child_weight_stop - 1:
+                min_child_wt2 = min_child_weight_stop - 1
+
+            print(
+                f"Running final grid search between max_depth of {max_depth1} and {max_depth2}, min_child_weight of {min_child_wt1} and {min_child_wt2} in steps of 1."
+            )
+
+            # One more CV round for max_depth, min_child_weight params
+            gridsearch_params = [
+                (max_depth, min_child_weight)
+                for max_depth in range(max_depth1, max_depth2, 1)
+                for min_child_weight in range(min_child_wt1, min_child_wt2, 1)
+            ]
+
+            # Define initial best params and max AUC
+            best_params = None
+            max_auc = 0.0
+
+            for max_depth, min_child_weight in gridsearch_params:
+                print(
+                    "CV with max_depth={}, min_child_weight={}".format(
+                        max_depth, min_child_weight
+                    )
+                )
+                # Update our parameters
+                self.meta['params']['max_depth'] = max_depth
+                self.meta['params']['min_child_weight'] = min_child_weight
+                # Run CV
+                cv_results = xgb.cv(
+                    self.meta['params'],
+                    dtrain,
+                    num_boost_round=self.meta['num_boost_round'],
+                    seed=seed,
+                    nfold=nfold,
+                    metrics=metrics,
+                    early_stopping_rounds=self.meta['early_stopping_rounds'],
+                )
+                # Update best AUC
+                mean_auc = cv_results['test-auc-mean'].max()
+                boost_rounds = cv_results['test-auc-mean'].argmax()
+                print("\tAUC {} for {} rounds".format(mean_auc, boost_rounds))
+                if mean_auc > max_auc:
+                    max_auc = mean_auc
+                    best_params = (max_depth, min_child_weight)
+            print(
+                "Best params: {}, {}, AUC: {}".format(
+                    best_params[0], best_params[1], max_auc
+                )
+            )
+            self.meta['params']['max_depth'] = best_params[0]
+            self.meta['params']['min_child_weight'] = best_params[1]
 
         # Train using optimized hyperparameters
         self.model = xgb.train(
@@ -248,7 +285,6 @@ class XGB(AbstractClassifier):
             num_boost_round=self.meta['num_boost_round'],
             evals=self.meta['evals'],
             early_stopping_rounds=self.meta['early_stopping_rounds'],
-            **kwargs,
         )
 
         # One more iteration of training (stop at best iteration)

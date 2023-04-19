@@ -1574,6 +1574,24 @@ feature_generation:
 training:
   # Below, enter path to training set
   dataset: tools/fritzDownload/merged_classifications_features.parquet
+  xgboost:
+    # See scope.py train for descriptions of these parameters
+    gridsearch_params_start_stop_step:
+      max_depth: [3, 8, 2]
+      min_child_weight: [1, 6, 2]
+      # subsample, colsample values get divided by 10
+      # (default values produce .6, .8, 1.0)
+      subsample: [6, 11, 2]
+      colsample_bytree: [6, 11, 2]
+    other_training_params:
+      eta: [0.3, 0.2, 0.1, 0.05]
+      seed: 42
+      nfold: 5
+      metrics: ['auc']
+      objective: 'binary:logistic'
+      eval_metric: 'auc'
+      early_stopping_rounds: 10
+      num_boost_round: 999
   classes:
     # phenomenological classes
     vnv:
