@@ -48,8 +48,6 @@ class XGB(AbstractClassifier):
         self.meta['num_boost_round'] = num_boost_round
         self.meta['params'] = params
 
-        self.model = xgb.Booster(params=params)
-
     def train(self, X_train, y_train, X_val, y_val, **kwargs):
         seed = kwargs.get('seed', 42)
         nfold = kwargs.get('nfold', 5)
@@ -316,19 +314,23 @@ class XGB(AbstractClassifier):
         return self.model.eval(dtest, 'dtest', **kwargs)
 
     def load(self, path_model, **kwargs):
+        self.model = xgb.Booster()
+
         plpath = pathlib.Path(path_model)
         name = pathlib.Path(plpath.name)
         parent = plpath.parent
         filename = name.with_suffix('')
         cfg_filename = str(filename) + '.params'
-        print(str(parent / cfg_filename))
+
         try:
+            # Load .json model file
             self.model.load_model(path_model, **kwargs)
+            # Load .params file
             with open(str(parent / cfg_filename), 'r') as f:
                 cfg = json.load(f)
+            # Convert config dict to str
             cfg = json.dumps(cfg)
-            print(cfg)
-            print(type(cfg))
+            # Load optimal hyperparameters
             self.model.load_config(cfg)
         except Exception as e:
             print('Failure during model loading:')
