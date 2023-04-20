@@ -912,12 +912,12 @@ class Scope:
                         ).name
 
                         script.writelines(
-                            f'./scope.py train --tag {tag} --algorithm {algorithm} --path_dataset {path_dataset} --pre_trained_model models/{pre_trained_group_name}/{tag}/{most_recent_file} --verbose {add_keywords} \n'
+                            f'./scope.py train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --pre_trained_model=models/{pre_trained_group_name}/{tag}/{most_recent_file} --verbose {add_keywords} \n'
                         )
 
                     elif train_all:
                         script.writelines(
-                            f'./scope.py train --tag {tag} --algorithm {algorithm} --path_dataset {path_dataset} --verbose {add_keywords} \n'
+                            f'./scope.py train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --verbose {add_keywords} \n'
                         )
 
                 script.write('# Ontological\n')
@@ -929,26 +929,26 @@ class Scope:
                         ).name
 
                         script.writelines(
-                            f'./scope.py train --tag {tag} --algorithm {algorithm} --path_dataset {path_dataset} --pre_trained_model models/{pre_trained_group_name}/{tag}/{most_recent_file} --verbose {add_keywords} \n'
+                            f'./scope.py train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --pre_trained_model=models/{pre_trained_group_name}/{tag}/{most_recent_file} --verbose {add_keywords} \n'
                         )
 
                     elif train_all:
                         script.writelines(
-                            f'./scope.py train --tag {tag} --algorithm {algorithm} --path_dataset {path_dataset} --verbose {add_keywords} \n'
+                            f'./scope.py train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --verbose {add_keywords} \n'
                         )
 
             else:
                 script.write('# Phenomenological\n')
                 script.writelines(
                     [
-                        f'./scope.py train --tag {tag} --algorithm {algorithm} --path_dataset {path_dataset} --verbose {add_keywords} \n'
+                        f'./scope.py train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --verbose {add_keywords} \n'
                         for tag in phenom_tags
                     ]
                 )
                 script.write('# Ontological\n')
                 script.writelines(
                     [
-                        f'./scope.py train --tag {tag} --algorithm {algorithm} --path_dataset {path_dataset} --verbose {add_keywords} \n'
+                        f'./scope.py train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --verbose {add_keywords} \n'
                         for tag in ontol_tags
                     ]
                 )
