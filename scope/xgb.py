@@ -80,6 +80,7 @@ class XGB(AbstractClassifier):
 
         skip_cv = kwargs.get('skip_cv', True)
         if not skip_cv:
+            print('Running cross-validated hyperparameter grid search...')
             # Grid search for max_depth and min_child_weight params
             gridsearch_params = [
                 (max_depth, min_child_weight)
@@ -276,6 +277,7 @@ class XGB(AbstractClassifier):
             )
             self.meta['params']['max_depth'] = best_params[0]
             self.meta['params']['min_child_weight'] = best_params[1]
+            print('Grid search complete.')
 
         # Train using optimized hyperparameters
         self.model = xgb.train(

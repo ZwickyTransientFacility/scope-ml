@@ -535,7 +535,7 @@ class Scope:
         from scope.xgb import XGB
         from scope.utils import Dataset
 
-        train_config = self.config["training"]["classes"][tag]
+        label_params = self.config["training"]["classes"][tag]
         train_config_xgb = self.config["training"]['xgboost']
 
         if algorithm in ['DNN', 'NN', 'dnn', 'nn']:
@@ -545,7 +545,7 @@ class Scope:
         else:
             raise ValueError('Current supported algorithms are DNN and XGB.')
 
-        all_features = self.config["features"][train_config["features"]]
+        all_features = self.config["features"][label_params["features"]]
         features = [
             key for key in all_features if forgiving_true(all_features[key]["include"])
         ]
@@ -559,28 +559,28 @@ class Scope:
             **kwargs,
         )
 
-        label = train_config["label"]
+        label = label_params["label"]
 
         # values from kwargs override those defined in config. if latter is absent, use reasonable default
-        threshold = kwargs.get("threshold", train_config.get("threshold", 0.5))
-        balance = kwargs.get("balance", train_config.get("balance", None))
+        threshold = kwargs.get("threshold", label_params.get("threshold", 0.5))
+        balance = kwargs.get("balance", label_params.get("balance", None))
         weight_per_class = kwargs.get(
-            "weight_per_class", train_config.get("weight_per_class", False)
+            "weight_per_class", label_params.get("weight_per_class", False)
         )
         scale_features = kwargs.get("scale_features", "min_max")
 
-        test_size = kwargs.get("test_size", train_config.get("test_size", 0.1))
-        val_size = kwargs.get("val_size", train_config.get("val_size", 0.1))
-        random_state = kwargs.get("random_state", train_config.get("random_state", 42))
+        test_size = kwargs.get("test_size", label_params.get("test_size", 0.1))
+        val_size = kwargs.get("val_size", label_params.get("val_size", 0.1))
+        random_state = kwargs.get("random_state", label_params.get("random_state", 42))
         feature_stats = kwargs.get("feature_stats", None)
         if feature_stats == 'config':
             feature_stats = self.config.get("feature_stats", None)
 
-        batch_size = kwargs.get("batch_size", train_config.get("batch_size", 64))
+        batch_size = kwargs.get("batch_size", label_params.get("batch_size", 64))
         shuffle_buffer_size = kwargs.get(
-            "shuffle_buffer_size", train_config.get("shuffle_buffer_size", 512)
+            "shuffle_buffer_size", label_params.get("shuffle_buffer_size", 512)
         )
-        epochs = kwargs.get("epochs", train_config.get("epochs", 100))
+        epochs = kwargs.get("epochs", label_params.get("epochs", 100))
         float_convert_types = kwargs.get("float_convert_types", (64, 32))
 
         datasets, indexes, steps_per_epoch, class_weight = ds.make(
