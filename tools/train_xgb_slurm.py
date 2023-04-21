@@ -141,6 +141,18 @@ if __name__ == "__main__":
         default="bhealy",
         help="HPC username",
     )
+    parser.add_argument(
+        "--max_instances",
+        type=int,
+        default=100,
+        help="Max number of instances to run in parallel",
+    )
+    parser.add_argument(
+        "--wait_time_minutes",
+        type=float,
+        default=5.0,
+        help="Time to wait between job status checks",
+    )
 
     args = parser.parse_args()
 
@@ -206,7 +218,14 @@ if __name__ == "__main__":
         fid.write(f'source activate {args.python_env_name}\n')
 
     fid.write(
-        '%s/train_xgb_job_submission.py --dirname=%s --scriptname=%s --user=%s\n'
-        % (BASE_DIR / 'tools', dirname, scriptname, args.user)
+        '%s/train_xgb_job_submission.py --dirname=%s --scriptname=%s --user=%s --max_instances=%s wait_time_minutes=%s\n'
+        % (
+            BASE_DIR / 'tools',
+            dirname,
+            scriptname,
+            args.user,
+            args.max_instances,
+            args.wait_time_minutes,
+        )
     )
     fid.close()

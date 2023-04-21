@@ -1,15 +1,11 @@
 #!/usr/bin/env python
 import os
 import pathlib
-
-# import time
+import time
 import argparse
-
-# import pandas as pd
-# import numpy as np
 import yaml
 from train_xgb_slurm import parse_training_script
-
+import numpy as np
 
 BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
 
@@ -46,68 +42,36 @@ def parse_commandline():
         default="bhealy",
         help="HPC username",
     )
-    # parser.add_argument(
-    #     "--doSubmit",
-    #     action="store_true",
-    #     default=False,
-    #     help="If set, start jobs with limits specified by --max_instances and --wait_time_minutes",
-    # )
-    # parser.add_argument(
-    #     "--max_instances",
-    #     type=int,
-    #     default=64,
-    #     help="Max number of instances to run in parallel",
-    # )
-    # parser.add_argument(
-    #     "--wait_time_minutes",
-    #     type=float,
-    #     default=5.0,
-    #     help="Time to wait between job status checks",
-    # )
-    # parser.add_argument(
-    #     "--doSubmitLoop",
-    #     action="store_true",
-    #     default=False,
-    #     help="If set, loop to initiate instances until out of jobs (hard on Kowalski)",
-    # )
-    # parser.add_argument(
-    #     "--runParallel",
-    #     action="store_true",
-    #     default=False,
-    #     help="If set, run jobs in parallel using slurm. Otherwise, run in series on a single instance.",
-    # )
+    parser.add_argument(
+        "--max_instances",
+        type=int,
+        default=100,
+        help="Max number of instances to run in parallel",
+    )
+    parser.add_argument(
+        "--wait_time_minutes",
+        type=float,
+        default=5.0,
+        help="Time to wait between job status checks",
+    )
 
     args = parser.parse_args()
     return args
 
 
-# TODO: rework filter_completed by checking for saved models
-# def filter_completed(df, resultsDir, filename):
-# use group for resultsdir
+def filter_completed(tags, group, algorithm='xgb'):
+    tags_remaining = tags.copy()
+    for tag in tags:
+        searchDir = BASE_DIR / f'models_{algorithm}' / group / tag
+        try:
+            has_files = any(searchDir.iterdir())
+        except FileNotFoundError:
+            has_files = False
+        if has_files:
+            tags_remaining.remove(tag)
 
-#     start_time = time.time()
-
-#     tbd = []
-#     for ii, (_, row) in enumerate(df.iterrows()):
-
-#         field, ccd, quadrant = int(row["field"]), int(row["ccd"]), int(row["quadrant"])
-
-#         resultsDir_iter = resultsDir + f"/field_{field}"
-#         filename_iter = filename + f"_field_{field}_ccd_{ccd}_quad_{quadrant}"
-#         filename_iter += '.parquet'
-#         filepath = os.path.join(resultsDir_iter, filename_iter)
-
-#         if not os.path.isfile(filepath):
-#             tbd.append(ii)
-#         else:
-#             print(filepath)
-#     df = df.iloc[tbd]
-#     df.reset_index(inplace=True, drop=True)
-
-#     end_time = time.time()
-#     print('Checking completed jobs took %.2f seconds' % (end_time - start_time))
-
-#     return df
+    print('Models remaining: ', len(tags_remaining))
+    return tags_remaining
 
 
 def run_job(tag):
@@ -134,64 +98,49 @@ if __name__ == '__main__':
     subDir = os.path.join(slurmDir, filetype)
     subfile = os.path.join(subDir, '%s.sub' % filetype)
 
-    # df = filter_completed(df_filtered, resultsDir, filename)
-    # njobs = len(df)
-    # print('%d jobs remaining...' % njobs)
+    tags_remaining = filter_completed(tags, group)
+    njobs = len(tags_remaining)
 
-    # if args.doSubmit:
-    #     counter = 0
-    #     status_njobs = njobs
-    #     diff_njobs = 0
-    #     size = args.max_instances
-    #     final_round = False
-    #     while njobs > 0:
-    #         # Limit number of parallel jobs for Kowalski stability
-    #         if counter < args.max_instances:
-    #             # Avoid choosing same index multiple times in one round of jobs
-    #             rng = np.random.default_rng()
-    #             quadrant_indices = rng.choice(njobs, size=size, replace=False)
+    counter = 0
+    status_njobs = njobs
+    diff_njobs = 0
+    size = args.max_instances
+    final_round = False
+    while njobs > 0:
+        # Limit number of parallel jobs
+        for tag in tags_remaining:
+            if counter < args.max_instances:
+                run_job(tag)
+                counter += 1
 
-    #             for quadrant_index in quadrant_indices:
-    #                 run_job(
-    #                     df,
-    #                     quadrant_index,
-    #                     resultsDir,
-    #                     filename,
-    #                     runParallel=args.runParallel,
-    #                 )
-    #                 counter += 1
+        print(f"Instances available: {args.max_instances - counter}")
+        if counter < args.max_instances:
+            final_round = True
 
-    #             print(f"Instances available: {args.max_instances - counter}")
+        if final_round:
+            print('The final jobs in the run have been queued - breaking loop.')
+            print('Run "squeue -u <username>" to check status of remaining jobs.')
+            break
+        else:
+            # Wait between status checks
+            os.system(f"squeue -u {args.user}")
+            print(f"Waiting {args.wait_time_minutes} minutes until next check...")
+            time.sleep(args.wait_time_minutes * 60)
 
-    #             if final_round:
-    #                 print('The final jobs in the run have been queued - breaking loop.')
-    #                 print(
-    #                     'Run "squeue -u <username>" to check status of remaining jobs.'
-    #                 )
-    #                 break
-    #         else:
-    #             # Wait between status checks
-    #             os.system(f"squeue -u {args.user}")
-    #             print(f"Waiting {args.wait_time_minutes} minutes until next check...")
-    #             time.sleep(args.wait_time_minutes * 60)
+            # Filter completed runs, redefine njobs
+            tags_remaining = filter_completed(tags_remaining, group)
+            njobs = len(tags_remaining)
+            print('%d jobs remaining...' % njobs)
 
-    #             # Filter completed runs, redefine njobs
-    #             df = filter_completed(df, resultsDir, filename)
-    #             njobs = len(df)
-    #             print('%d jobs remaining...' % njobs)
+            # Compute difference in njobs to count available instances
+            diff_njobs = status_njobs - njobs
+            status_njobs = njobs
 
-    #             # Compute difference in njobs to count available instances
-    #             diff_njobs = status_njobs - njobs
-    #             status_njobs = njobs
+            # Decrease counter if jobs have finished
+            counter -= diff_njobs
 
-    #             # Decrease counter if jobs have finished
-    #             counter -= diff_njobs
-
-    #             # Define size of the next quadrant_indices array
-    #             size = np.min([args.max_instances - counter, njobs])
-    #             # Signal to stop looping when the last set of jobs is queued
-    #             if size == njobs:
-    #                 final_round = True
-
-    for tag in tags:
-        run_job(tag)
+            # Define size of the next quadrant_indices array
+            size = np.min([args.max_instances - counter, njobs])
+            # Signal to stop looping when the last set of jobs is queued
+            if size == njobs:
+                final_round = True
