@@ -255,6 +255,7 @@ def generate_features(
     doQuadrantFile: bool = False,
     quadrant_file: str = 'slurm.dat',
     quadrant_index: int = 0,
+    doSpecificIDs: bool = False,
 ):
     """
     Generate features for ZTF light curves
@@ -287,6 +288,7 @@ def generate_features(
     :param doQuadrantFile: flag to use a generated file containing [jobID, field, ccd, quad] columns instead of specifying --field, --ccd and --quad (bool)
     :param quadrant_file: name of quadrant file in the generated_features/slurm directory or equivalent (str)
     :param quadrant_index: number of job in quadrant file to run (int)
+    :param doSpecificIDs: flag to perform feature generation for ztf_id column in config-specified file (bool)
 
     :return feature_df: dataframe containing generated features
 
@@ -305,35 +307,38 @@ def generate_features(
         elif doGPU:
             period_algorithms = period_algorithms['GPU']
 
-    # Code supporting parallelization across fields/ccds/quads
-    slurmDir = os.path.join(str(BASE_DIR / dirname), 'slurm')
-    if doQuadrantFile:
-        names = ["job_number", "field", "ccd", "quadrant"]
-        df_original = pd.read_csv(
-            os.path.join(slurmDir, quadrant_file),
-            header=None,
-            delimiter=' ',
-            names=names,
+    if not doSpecificIDs:
+        # Code supporting parallelization across fields/ccds/quads
+        slurmDir = os.path.join(str(BASE_DIR / dirname), 'slurm')
+        if doQuadrantFile:
+            names = ["job_number", "field", "ccd", "quadrant"]
+            df_original = pd.read_csv(
+                os.path.join(slurmDir, quadrant_file),
+                header=None,
+                delimiter=' ',
+                names=names,
+            )
+            row = df_original.iloc[quadrant_index, :]
+            field, ccd, quad = int(row["field"]), int(row["ccd"]), int(row["quadrant"])
+
+        print(f'Running field {field}, CCD {ccd}, Quadrant {quad}...')
+        print('Getting IDs...')
+        _, lst = get_ids_loop(
+            get_field_ids,
+            catalog=source_catalog,
+            kowalski_instance=kowalski_instances['melman'],
+            limit=limit,
+            field=field,
+            ccd_range=ccd,
+            quad_range=quad,
+            minobs=min_n_lc_points,
+            save=False,
+            get_coords=True,
+            stop_early=stop_early,
         )
-        row = df_original.iloc[quadrant_index, :]
-        field, ccd, quad = int(row["field"]), int(row["ccd"]), int(row["quadrant"])
-
-    print(f'Running field {field}, CCD {ccd}, Quadrant {quad}...')
-
-    print('Getting IDs...')
-    _, lst = get_ids_loop(
-        get_field_ids,
-        catalog=source_catalog,
-        kowalski_instance=kowalski_instances['melman'],
-        limit=limit,
-        field=field,
-        ccd_range=ccd,
-        quad_range=quad,
-        minobs=min_n_lc_points,
-        save=False,
-        get_coords=True,
-        stop_early=stop_early,
-    )
+    else:
+        # Read ztf_id column from csv, hdf5 or parquet file specified in to-be-added config entry
+        pass
 
     # Each index of lst corresponds to a different ccd/quad combo
     feature_gen_source_list = drop_close_bright_stars(
@@ -846,6 +851,12 @@ if __name__ == "__main__":
     parser.add_argument("--doQuadrantFile", action="store_true", default=False)
     parser.add_argument("--quadrant_file", default="slurm.dat")
     parser.add_argument("--quadrant_index", default=0, type=int)
+    parser.add_argument(
+        "--doSpecificIDs",
+        action='store_true',
+        default=False,
+        help="if set, perform feature generation for ztf_id column in config-specified file",
+    )
 
     args = parser.parse_args()
 
