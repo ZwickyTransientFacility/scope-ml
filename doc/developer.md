@@ -178,6 +178,7 @@ conda install pandas
 #### Known issues
 - Across all platforms, we are currently aware of `scope` dependency issues with Python 3.11.
 - Anaconda continues to cause problems with environment setup.
+- Using `pip` to install `healpy` on an arm64 Mac can raise an error upon import. We recommend including `healpy` as a requirement during the creation of your `conda` environment.
 - On Windows machines, `healpy` and `cesium` raise errors upon installation.
    - For `healpy`, see [this](https://healpy.readthedocs.io/en/latest/install.html#installation-on-windows-through-the-windows-subsystem-for-linux) guide for a potential workaround.
    - For `cesium`, try to install from the source (https://cesium-ml.org/docs/install.html#from-source) within `scope`. If you will not be running feature generation, this is not a critical error, but there will be points in the code that fail (e.g. `scope.py test`, `tools/generate_features.py`)
