@@ -287,10 +287,10 @@ class XGB(AbstractClassifier):
                 subsample2 = subsample_stop - 1
 
             colsample_bytree1 = (
-                self.meta['params']['colsample_bytree'] * 10
+                int(self.meta['params']['colsample_bytree'] * 10)
             ) - colsample_bytree_step
             colsample_bytree2 = (
-                self.meta['params']['colsample_bytree'] * 10
+                int(self.meta['params']['colsample_bytree'] * 10)
             ) + colsample_bytree_step
             if colsample_bytree1 < colsample_bytree_start:
                 colsample_bytree1 = colsample_bytree_start
