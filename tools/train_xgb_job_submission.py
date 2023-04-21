@@ -81,7 +81,9 @@ def parse_commandline():
     return args
 
 
+# TODO: rework filter_completed by checking for saved models
 # def filter_completed(df, resultsDir, filename):
+# use group for resultsdir
 
 #     start_time = time.time()
 
@@ -109,9 +111,9 @@ def parse_commandline():
 
 
 def run_job(tag):
-    sbatchstr = f"sbatch --export=QID={tag} {subfile}"
+    sbatchstr = f"sbatch --export=TID={tag} {subfile}"
     print(sbatchstr)
-    # os.system(sbatchstr)
+    os.system(sbatchstr)
 
 
 if __name__ == '__main__':
@@ -131,25 +133,6 @@ if __name__ == '__main__':
 
     subDir = os.path.join(slurmDir, filetype)
     subfile = os.path.join(subDir, '%s.sub' % filetype)
-
-    # lines = [line.rstrip('\n') for line in open(subfile)]
-    # jobline = lines[-1]
-    # joblineSplit = list(filter(None, jobline.split("algorithm")[-1].split(" ")))
-    # algorithm = joblineSplit[0]
-
-    # quadrantfile = os.path.join(subDir, '%s.dat' % filetype)
-
-    # names = ["job_number", "field", "ccd", "quadrant"]
-
-    # df_original = pd.read_csv(quadrantfile, header=None, delimiter=' ', names=names)
-    # pd.set_option('display.max_columns', None)
-
-    # if fields_to_run is not None:
-    #     print(f"Running fields {fields_to_run}.")
-    #     field_mask = np.isin(df_original['field'], fields_to_run)
-    #     df_filtered = df_original[field_mask].reset_index(drop=True)
-    # else:
-    #     df_filtered = df_original
 
     # df = filter_completed(df_filtered, resultsDir, filename)
     # njobs = len(df)
@@ -210,11 +193,5 @@ if __name__ == '__main__':
     #             if size == njobs:
     #                 final_round = True
 
-    confirm = input(
-        "Warning: there is no limit on the number of jobs submitted by this script. Continue? (yes/no): "
-    )
-    if confirm in ['yes', 'Yes', 'YES']:
-        for tag in tags:
-            run_job(tag)
-    else:
-        print('Canceled loop submission.')
+    for tag in tags:
+        run_job(tag)
