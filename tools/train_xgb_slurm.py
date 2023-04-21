@@ -194,7 +194,7 @@ if __name__ == "__main__":
         fid.write(f'source activate {args.python_env_name}\n')
 
     fid.write(
-        str(BASE_DIR / 'scope.py ') + "--tag_index=$TID " + " ".join(line_info) + '\n'
+        str(BASE_DIR / 'scope.py train ') + "--tag=$TID " + " ".join(line_info) + '\n'
     )
     fid.close()
 
