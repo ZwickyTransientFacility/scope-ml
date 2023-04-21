@@ -751,13 +751,20 @@ class Scope:
 
         if verbose:
             print("Evaluating on test set:")
-        # Todo: there should not need to be this algorithm-based split in the call to classifier.evaluate()
+        # TODO: there should not need to be this algorithm-based split in the call to classifier.evaluate()
         if algorithm == 'xgb':
-            stats = classifier.evaluate(X_test, y_test)
+            stats_train = classifier.evaluate(X_train, y_train, name='train')
+            stats_val = classifier.evaluate(X_val, y_val, name='val')
+            stats_test = classifier.evaluate(X_test, y_test, name='test')
         else:
-            stats = classifier.evaluate(datasets["test"], verbose=verbose)
+            stats_train = classifier.evaluate(datasets["train"], verbose=verbose)
+            stats_val = classifier.evaluate(datasets["val"], verbose=verbose)
+            stats_test = classifier.evaluate(datasets["test"], verbose=verbose)
+
+        print('training stats: ', stats_train)
+        print('validation stats: ', stats_val)
         if verbose:
-            print(stats)
+            print('test stats: ', stats_test)
 
         if algorithm == 'DNN':
             param_names = (
@@ -773,7 +780,7 @@ class Scope:
             )
             if not kwargs.get("test", False):
                 # log model performance on the test set
-                for param, value in zip(param_names, stats):
+                for param, value in zip(param_names, stats_test):
                     wandb.run.summary[f"test_{param}"] = value
                 p, r = (
                     wandb.run.summary["test_precision"],
