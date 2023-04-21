@@ -79,13 +79,25 @@ if __name__ == "__main__":
         "--nodes",
         type=int,
         default=1,
-        help="Number of nodes to request",
+        help="Number of nodes to request for computing",
     )
     parser.add_argument(
         "--Ncore",
         default=10,
         type=int,
-        help="number of cores",
+        help="number of cores to request for computing",
+    )
+    parser.add_argument(
+        "--submit_nodes",
+        type=int,
+        default=1,
+        help="Number of nodes to request for job submission",
+    )
+    parser.add_argument(
+        "--submit_Ncore",
+        default=1,
+        type=int,
+        help="number of cores to request for job submission",
     )
     # parser.add_argument(
     #     "--gpus",
@@ -206,6 +218,8 @@ if __name__ == "__main__":
     fid.write(f'#SBATCH --output=../logs/{args.job_name}_submit_%A_%a.out\n')
     fid.write(f'#SBATCH --error=../logs/{args.job_name}_submit_%A_%a.err\n')
     fid.write(f'#SBATCH -p {args.submit_partition_type}\n')
+    fid.write(f'#SBATCH --nodes {args.submit_nodes}\n')
+    fid.write(f'#SBATCH --ntasks-per-node {args.submit_Ncore}\n')
     fid.write(f'#SBATCH --mem {args.submit_memory_GB}G\n')
     fid.write(f'#SBATCH -A {args.account_name}\n')
     fid.write(f'#SBATCH --time={args.time}\n')
@@ -218,7 +232,7 @@ if __name__ == "__main__":
         fid.write(f'source activate {args.python_env_name}\n')
 
     fid.write(
-        '%s/train_xgb_job_submission.py --dirname=%s --scriptname=%s --user=%s --max_instances=%s wait_time_minutes=%s\n'
+        '%s/train_xgb_job_submission.py --dirname=%s --scriptname=%s --user=%s --max_instances=%s --wait_time_minutes=%s\n'
         % (
             BASE_DIR / 'tools',
             dirname,
