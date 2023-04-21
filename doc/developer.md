@@ -167,14 +167,6 @@ Run `./scope.py test` to test your installation. Note that for the test to pass,
 #### Troubleshooting
 Upon encountering installation/testing errors, manually install the package in question using  `conda install xxx` , and remove it from `.requirements/dev.txt`. After that, re-run `pip install -r requirements.txt` to continue.
 
-You may need to install some packages separately, e.g.:
-```bash
-conda install healpy
-conda install numpy
-conda install openblas #to fix the numpy
-conda install pandas
-```
-
 #### Known issues
 - Across all platforms, we are currently aware of `scope` dependency issues with Python 3.11.
 - Anaconda continues to cause problems with environment setup.
