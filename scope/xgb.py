@@ -211,6 +211,7 @@ class XGB(AbstractClassifier):
             print("Best params: {}, AUC: {}".format(best_params, max_auc))
             self.meta['params']['eta'] = best_params
 
+            # One more CV round for max_depth, min_child_weight params
             max_depth1 = self.meta['params']['max_depth'] - max_depth_step
             max_depth2 = self.meta['params']['max_depth'] + max_depth_step
             if max_depth1 < max_depth_start:
@@ -233,7 +234,6 @@ class XGB(AbstractClassifier):
                 f"Running final grid search between max_depth of {max_depth1} and {max_depth2}, min_child_weight of {min_child_wt1} and {min_child_wt2} in steps of 1."
             )
 
-            # One more CV round for max_depth, min_child_weight params
             gridsearch_params = [
                 (max_depth, min_child_weight)
                 for max_depth in range(max_depth1, max_depth2, 1)
@@ -277,6 +277,74 @@ class XGB(AbstractClassifier):
             )
             self.meta['params']['max_depth'] = best_params[0]
             self.meta['params']['min_child_weight'] = best_params[1]
+
+            # One more CV round for subsample, colsample_bytree params
+            subsample1 = self.meta['params']['subsample'] - subsample_step
+            subsample2 = self.meta['params']['subsample'] + subsample_step
+            if subsample1 < subsample_start:
+                subsample1 = subsample_start
+            if subsample2 > subsample_stop - 1:
+                subsample2 = subsample_stop - 1
+
+            colsample_bytree1 = (
+                self.meta['params']['colsample_bytree'] - colsample_bytree_step
+            )
+            colsample_bytree2 = (
+                self.meta['params']['colsample_bytree'] + colsample_bytree_step
+            )
+            if colsample_bytree1 < colsample_bytree_start:
+                colsample_bytree1 = colsample_bytree_start
+            if colsample_bytree2 > colsample_bytree_stop - 1:
+                colsample_bytree2 = colsample_bytree_stop - 1
+
+            print(
+                f"Running final grid search between subsample of {subsample1} and {subsample2}, colsample_bytree of {colsample_bytree1} and {colsample_bytree2} in steps of 1."
+            )
+
+            gridsearch_params = [
+                (subsample, colsample_bytree)
+                for subsample in range(subsample1, subsample2, 1)
+                for colsample_bytree in range(colsample_bytree1, colsample_bytree2, 1)
+            ]
+
+            # Define initial best params and max AUC
+            best_params = None
+            max_auc = 0.0
+
+            for subsample, colsample_bytree in gridsearch_params:
+                print(
+                    "CV with subsample={}, colsample_bytree={}".format(
+                        subsample, colsample_bytree
+                    )
+                )
+                # Update our parameters
+                self.meta['params']['subsample'] = subsample
+                self.meta['params']['colsample_bytree'] = colsample_bytree
+                # Run CV
+                cv_results = xgb.cv(
+                    self.meta['params'],
+                    dtrain,
+                    num_boost_round=self.meta['num_boost_round'],
+                    seed=seed,
+                    nfold=nfold,
+                    metrics=metrics,
+                    early_stopping_rounds=self.meta['early_stopping_rounds'],
+                )
+                # Update best AUC
+                mean_auc = cv_results['test-auc-mean'].max()
+                boost_rounds = cv_results['test-auc-mean'].argmax()
+                print("\tAUC {} for {} rounds".format(mean_auc, boost_rounds))
+                if mean_auc > max_auc:
+                    max_auc = mean_auc
+                    best_params = (subsample, colsample_bytree)
+            print(
+                "Best params: {}, {}, AUC: {}".format(
+                    best_params[0], best_params[1], max_auc
+                )
+            )
+            self.meta['params']['subsample'] = best_params[0]
+            self.meta['params']['colsample_bytree'] = best_params[1]
+
             print('Grid search complete.')
 
         # Train using optimized hyperparameters
