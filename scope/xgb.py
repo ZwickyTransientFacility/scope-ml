@@ -279,19 +279,19 @@ class XGB(AbstractClassifier):
             self.meta['params']['min_child_weight'] = best_params[1]
 
             # One more CV round for subsample, colsample_bytree params
-            subsample1 = self.meta['params']['subsample'] - subsample_step
-            subsample2 = self.meta['params']['subsample'] + subsample_step
+            subsample1 = int(self.meta['params']['subsample'] * 10) - subsample_step
+            subsample2 = int(self.meta['params']['subsample'] * 10) + subsample_step
             if subsample1 < subsample_start:
                 subsample1 = subsample_start
             if subsample2 > subsample_stop - 1:
                 subsample2 = subsample_stop - 1
 
             colsample_bytree1 = (
-                self.meta['params']['colsample_bytree'] - colsample_bytree_step
-            )
+                self.meta['params']['colsample_bytree'] * 10
+            ) - colsample_bytree_step
             colsample_bytree2 = (
-                self.meta['params']['colsample_bytree'] + colsample_bytree_step
-            )
+                self.meta['params']['colsample_bytree'] * 10
+            ) + colsample_bytree_step
             if colsample_bytree1 < colsample_bytree_start:
                 colsample_bytree1 = colsample_bytree_start
             if colsample_bytree2 > colsample_bytree_stop - 1:
@@ -303,8 +303,10 @@ class XGB(AbstractClassifier):
 
             gridsearch_params = [
                 (subsample, colsample_bytree)
-                for subsample in range(subsample1, subsample2, 1)
-                for colsample_bytree in range(colsample_bytree1, colsample_bytree2, 1)
+                for subsample in [i / 10.0 for i in range(subsample1, subsample2, 1)]
+                for colsample_bytree in [
+                    i / 10.0 for i in range(colsample_bytree1, colsample_bytree2, 1)
+                ]
             ]
 
             # Define initial best params and max AUC
