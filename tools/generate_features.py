@@ -81,7 +81,7 @@ def drop_close_bright_stars(
     limit: int = 10000,
     Ncore: int = 8,
     save: bool = False,
-    save_filename: str = 'tools/fritzDownload/merged_classifications_features_dropCloseSources.parquet',
+    save_filename: str = 'tools/fritzDownload/specific_ids_dropCloseSources.json',
 ):
     """
     Use Gaia to identify and drop sources that are too close to bright stars
@@ -363,8 +363,10 @@ def drop_close_bright_stars(
         id_dct_keep = id_dct
 
     if save:
-        save_df = pd.DataFrame.from_records(id_dct_keep)
-        write_parquet(save_df, str(BASE_DIR / save_filename))
+        with open(str(BASE_DIR / save_filename), 'w') as f:
+            json.dump(id_dct_keep, f)
+        # save_df = pd.DataFrame.from_dict(id_dct_keep, orient='index')
+        # write_parquet(save_df, str(BASE_DIR / save_filename))
 
     print(f"Dropped {len(id_dct) - len(id_dct_keep)} sources.")
     return id_dct_keep
@@ -432,7 +434,7 @@ def generate_features(
     quadrant_file: str = 'slurm.dat',
     quadrant_index: int = 0,
     doSpecificIDs: bool = False,
-    doNotRemoveCloseSources: bool = False,
+    skipCloseSources: bool = False,
 ):
     """
     Generate features for ZTF light curves
@@ -466,7 +468,7 @@ def generate_features(
     :param quadrant_file: name of quadrant file in the generated_features/slurm directory or equivalent (str)
     :param quadrant_index: number of job in quadrant file to run (int)
     :param doSpecificIDs: flag to perform feature generation for ztf_id column in config-specified file (bool)
-    :param doNotRemoveCloseSources: flag to skip removal of sources too close to bright stars via Gaia (bool)
+    :param skipCloseSources: flag to skip removal of sources too close to bright stars via Gaia (bool)
 
     :return feature_df: dataframe containing generated features
 
@@ -515,7 +517,7 @@ def generate_features(
             stop_early=stop_early,
         )
 
-        if not doNotRemoveCloseSources:
+        if not skipCloseSources:
             # Each index of lst corresponds to a different ccd/quad combo
             feature_gen_source_list = drop_close_bright_stars(
                 lst[0],
@@ -524,51 +526,64 @@ def generate_features(
                 query_radius_arcsec=bright_star_query_radius_arcsec,
                 xmatch_radius_arcsec=xmatch_radius_arcsec,
             )
+        else:
+            feature_gen_source_list = lst[0]
     else:
-        if not doNotRemoveCloseSources:
+        if not skipCloseSources:
             # Read ztf_id column from csv, hdf5 or parquet file specified in config entry
             fg_sources_config = config['feature_generation']['dataset']
+            fg_sources_path = str(BASE_DIR / fg_sources_config)
+
+            if fg_sources_path.endswith('.parquet'):
+                fg_sources = read_parquet(fg_sources_path)
+            elif fg_sources_path.endswith('.h5'):
+                fg_sources = read_hdf(fg_sources_path)
+            elif fg_sources_path.endswith('.csv'):
+                fg_sources = pd.read_csv(fg_sources_path)
+            else:
+                raise ValueError(
+                    "Sources must be stored in .parquet, .h5 or .csv format."
+                )
+
+            try:
+                ztf_ids = fg_sources['ztf_id'].values.tolist()
+                coordinates = fg_sources['coordinates'].values.tolist()
+
+            except KeyError:
+                raise KeyError(
+                    'Columns "ztf_id" and "coordinates" must be included in source dataset.'
+                )
         else:
             # Load pre-saved dataset if Gaia analysis already complete
-            fg_sources_config = config['feature_generation']['dataset_skipGaia']
+            fg_sources_config = config['feature_generation']['ids_skipGaia']
+            fg_sources_path = str(BASE_DIR / fg_sources_config)
 
-        fg_sources_path = str(BASE_DIR / fg_sources_config)
-
-        if fg_sources_path.endswith('.parquet'):
-            fg_sources = read_parquet(fg_sources_path)
-        elif fg_sources_path.endswith('.h5'):
-            fg_sources = read_hdf(fg_sources_path)
-        elif fg_sources_path.endswith('.csv'):
-            fg_sources = pd.read_csv(fg_sources_path)
-        else:
-            raise ValueError("Sources must be stored in .parquet, .h5 or .csv format.")
-
-        try:
-            ztf_ids = fg_sources['ztf_id'].values.tolist()
-            coordinates = fg_sources['coordinates'].values.tolist()
-        except KeyError:
-            raise KeyError(
-                'Columns "ztf_id" and "coordinates" must be included in source dataset.'
-            )
+            if fg_sources_path.endswith('.json'):
+                with open(fg_sources_path, 'r') as f:
+                    fg_sources = json.load(f)
+            else:
+                raise ValueError("Sources must be stored in .json format.")
 
         n_fg_sources = len(fg_sources)
         if stop_early:
             n_fg_sources = limit
 
-        # Create list with same structure as query results
-        lst = [
-            {
-                ztf_ids[i]: {
-                    'radec_geojson': {
-                        'coordinates': coordinates[i]['radec_geojson']['coordinates']
+        if not skipCloseSources:
+            # Create list with same structure as query results
+            lst = [
+                {
+                    ztf_ids[i]: {
+                        'radec_geojson': {
+                            'coordinates': coordinates[i]['radec_geojson'][
+                                'coordinates'
+                            ].tolist()
+                        }
                     }
+                    for i in range(n_fg_sources)
                 }
-                for i in range(n_fg_sources)
-            }
-        ]
-        print(f'Loaded ZTF IDs for {len(lst[0])} sources.')
+            ]
+            print(f'Loaded ZTF IDs for {len(lst[0])} sources.')
 
-        if not doNotRemoveCloseSources:
             # Each index of lst corresponds to a different ccd/quad combo
             feature_gen_source_list = drop_close_bright_stars(
                 lst[0],
@@ -581,6 +596,11 @@ def generate_features(
                 Ncore=Ncore,
                 save=not doNotSave,
             )
+
+        else:
+            feature_gen_source_list = {
+                int(k): fg_sources[k] for k in list(fg_sources)[:limit]
+            }
 
     print('Getting lightcurves...')
     # For small source lists, shrink LC query limit until batching occurs
@@ -1114,7 +1134,7 @@ if __name__ == "__main__":
         help="if set, perform feature generation for ztf_id column in config-specified file",
     )
     parser.add_argument(
-        "--doNotRemoveCloseSources",
+        "--skipCloseSources",
         action='store_true',
         default=False,
         help="if set, skip removal of sources too close to bright stars via Gaia. May be useful if input data has previously been analyzed in this way.",
@@ -1152,5 +1172,5 @@ if __name__ == "__main__":
         quadrant_file=args.quadrant_file,
         quadrant_index=args.quadrant_index,
         doSpecificIDs=args.doSpecificIDs,
-        doNotRemoveCloseSources=args.doNotRemoveCloseSources,
+        skipCloseSources=args.skipCloseSources,
     )
