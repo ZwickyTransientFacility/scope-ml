@@ -525,8 +525,13 @@ def generate_features(
                 xmatch_radius_arcsec=xmatch_radius_arcsec,
             )
     else:
-        # Read ztf_id column from csv, hdf5 or parquet file specified in config entry
-        fg_sources_config = config['feature_generation']['dataset']
+        if not doNotRemoveCloseSources:
+            # Read ztf_id column from csv, hdf5 or parquet file specified in config entry
+            fg_sources_config = config['feature_generation']['dataset']
+        else:
+            # Load pre-saved dataset if Gaia analysis already complete
+            fg_sources_config = config['feature_generation']['dataset_skipGaia']
+
         fg_sources_path = str(BASE_DIR / fg_sources_config)
 
         if fg_sources_path.endswith('.parquet'):
