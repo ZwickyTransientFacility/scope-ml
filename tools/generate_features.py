@@ -599,13 +599,13 @@ def generate_features(
 
         else:
             feature_gen_source_list = {
-                int(k): fg_sources[k] for k in list(fg_sources)[:limit]
+                int(k): fg_sources[k] for k in list(fg_sources)[:n_fg_sources]
             }
 
     print('Getting lightcurves...')
     # For small source lists, shrink LC query limit until batching occurs
     lc_limit = limit
-    if Ncore > 1:
+    if len(feature_gen_source_list) < limit:
         lc_limit = int(np.ceil(len(feature_gen_source_list) / Ncore))
 
     lcs = get_lightcurves_via_ids(
