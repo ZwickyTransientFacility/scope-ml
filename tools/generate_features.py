@@ -140,12 +140,13 @@ def drop_close_bright_stars(
         },
     }
 
-    q = kowalski_instances.query(query)
-    # Only one key should be returned (Kowalski instance)
-    instance = [x for x in q.keys()][0]
-    q = q[instance]
-    gaia_results = q.get('data')
-    gaia_results_dct.update(gaia_results[catalog])
+    responses = kowalski_instances.query(query)
+    for name in responses.keys():
+        if len(responses[name]) > 0:
+            response = responses[name]
+            if response.get("status", "error") == "success":
+                gaia_results = response.get("data")
+                gaia_results_dct.update(gaia_results[catalog])
 
     print('Identifying sources too close to bright stars...')
 
