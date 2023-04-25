@@ -519,7 +519,7 @@ def generate_features(
 
         if not skipCloseSources:
             # Each index of lst corresponds to a different ccd/quad combo
-            feature_gen_source_list = drop_close_bright_stars(
+            feature_gen_source_dict = drop_close_bright_stars(
                 lst[0],
                 kowalski_instance=kowalski_instances['gloria'],
                 catalog=gaia_catalog,
@@ -527,7 +527,7 @@ def generate_features(
                 xmatch_radius_arcsec=xmatch_radius_arcsec,
             )
         else:
-            feature_gen_source_list = lst[0]
+            feature_gen_source_dict = lst[0]
     else:
         if not skipCloseSources:
             # Read ztf_id column from csv, hdf5 or parquet file specified in config entry
@@ -585,7 +585,7 @@ def generate_features(
             print(f'Loaded ZTF IDs for {len(lst[0])} sources.')
 
             # Each index of lst corresponds to a different ccd/quad combo
-            feature_gen_source_list = drop_close_bright_stars(
+            feature_gen_source_dict = drop_close_bright_stars(
                 lst[0],
                 kowalski_instance=kowalski_instances['gloria'],
                 catalog=gaia_catalog,
@@ -598,25 +598,32 @@ def generate_features(
             )
 
         else:
-            feature_gen_source_list = {
+            feature_gen_source_dict = {
                 int(k): fg_sources[k] for k in list(fg_sources)[:n_fg_sources]
             }
 
     print('Getting lightcurves...')
     # For small source lists, shrink LC query limit until batching occurs
     lc_limit = limit
-    if len(feature_gen_source_list) < limit:
-        lc_limit = int(np.ceil(len(feature_gen_source_list) / Ncore))
+    if len(feature_gen_source_dict) < limit:
+        lc_limit = int(np.ceil(len(feature_gen_source_dict) / Ncore))
+
+    feature_gen_ids = [x for x in feature_gen_source_dict.keys()]
 
     lcs = get_lightcurves_via_ids(
         kowalski_instance=kowalski_instances['melman'],
-        ids=[x for x in feature_gen_source_list.keys()],
+        ids=feature_gen_ids,
         catalog=source_catalog,
         limit_per_query=lc_limit,
         Ncore=Ncore,
     )
 
-    feature_dict = feature_gen_source_list.copy()
+    # Remake feature_gen_source_dict if some light curves are missing
+    lc_ids = [lc['_id'] for lc in lcs]
+    if len(lc_ids) != len(feature_gen_ids):
+        feature_gen_source_dict = {x: feature_gen_source_dict[x] for x in lc_ids}
+
+    feature_dict = feature_gen_source_dict.copy()
     print('Analyzing lightcuves and computing basic features...')
     # Start by dropping flagged points
     count = 0
@@ -665,10 +672,10 @@ def generate_features(
 
                 # Add basic info
                 feature_dict[_id]['ra'] = (
-                    feature_gen_source_list[_id]['radec_geojson']['coordinates'][0]
+                    feature_gen_source_dict[_id]['radec_geojson']['coordinates'][0]
                     + 180.0
                 )
-                feature_dict[_id]['dec'] = feature_gen_source_list[_id][
+                feature_dict[_id]['dec'] = feature_gen_source_dict[_id][
                     'radec_geojson'
                 ]['coordinates'][1]
                 feature_dict[_id]['field'] = field
