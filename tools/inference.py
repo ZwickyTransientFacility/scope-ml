@@ -287,7 +287,6 @@ def run(
         model = tf.keras.models.load_model(path_model)
     elif algorithm == 'xgb':
         model = XGB(name=model_class)
-        model.setup()
         model.load(path_model)
     te = time.time()
     if tm:

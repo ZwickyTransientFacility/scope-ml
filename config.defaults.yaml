@@ -1333,6 +1333,13 @@ feature_stats:
 
 # Below, specify algorithms, external catalogs and features to include in generated feature lists:
 feature_generation:
+  # If --doSpecificIDs is set in generate_features.py, the script will generate features for the below dataset instead of a field/ccd/quad.
+  # Dataset must contain columns named "ztf_id" and "coordinates" with data in the format of these fields on Kowalski
+  # Default dataset is the training set downloadable from Fritz
+  dataset: tools/fritzDownload/merged_classifications_features.parquet
+  # Once generate_features.py is run with --doSpecificIDs, a file will be saved with the default name below.
+  # Set --skipCloseSources to load the file below and skip the idenfication of close sources:
+  ids_skipGaia: tools/fritzDownload/specific_ids_dropCloseSources.json
   period_algorithms:
     CPU:
       - LS
@@ -1574,6 +1581,24 @@ feature_generation:
 training:
   # Below, enter path to training set
   dataset: tools/fritzDownload/merged_classifications_features.parquet
+  xgboost:
+    # See scope.py train for descriptions of these parameters
+    gridsearch_params_start_stop_step:
+      max_depth: [3, 8, 2]
+      min_child_weight: [1, 6, 2]
+      # subsample, colsample values get divided by 10
+      # (default values produce .6, .8, 1.0)
+      subsample: [6, 11, 2]
+      colsample_bytree: [6, 11, 2]
+    other_training_params:
+      eta: [0.3, 0.2, 0.1, 0.05]
+      seed: 42
+      nfold: 5
+      metrics: ['auc']
+      objective: 'binary:logistic'
+      eval_metric: 'auc'
+      early_stopping_rounds: 10
+      num_boost_round: 999
   classes:
     # phenomenological classes
     vnv:
