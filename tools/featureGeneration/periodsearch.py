@@ -55,32 +55,53 @@ def find_periods(
                 batch_size=batch_size,
             )
 
-            topN_significance_indices_ELS = np.argsort(significances_ELS)[::-1][
-                :top_n_periods
-            ]
-            topN_periods_ELS = np.array(
-                periods_best_ELS[topN_significance_indices_ELS]
-            ).tolist()
-            print('topN_periods_ELS', topN_periods_ELS)
+            topN_significance_indices_allSources_ELS = []
+            topN_significance_indices_allSources_ECE = []
 
-            topN_significance_indices_ECE = np.argsort(significances_ECE)[::-1][
-                :top_n_periods
-            ]
-            topN_periods_ECE = np.array(
-                periods_best_ECE[topN_significance_indices_ECE]
-            ).tolist()
-            print('topN_periods_ECE', topN_periods_ECE)
+            for source_periods_ELS in periods_best_ELS:
+                topN_significance_indices_ELS = np.argsort(
+                    source_periods_ELS['data'].flatten()
+                )[::-1][:top_n_periods]
+                topN_significance_indices_allSources_ELS += [
+                    topN_significance_indices_ELS
+                ]
+            #     topN_periods_ELS = np.array(
+            #         freqs[topN_significance_indices_ELS]
+            #     ).tolist()
+            # print('topN_periods_ELS', topN_periods_ELS)
 
-            freqs_EAOV = (
-                1
-                / np.unique(
-                    np.concatenate([topN_periods_ELS, topN_periods_ECE])
-                ).tolist()
+            for source_periods_ECE in periods_best_ECE:
+                topN_significance_indices_ECE = np.argsort(
+                    source_periods_ECE['data'].flatten()
+                )[::-1][:top_n_periods]
+                topN_significance_indices_allSources_ECE += [
+                    topN_significance_indices_ECE
+                ]
+            #     topN_periods_ECE = np.array(
+            #         freqs[topN_significance_indices_ECE]
+            #     ).tolist()
+            # print('topN_periods_ECE', topN_periods_ECE)
+
+            # freqs_EAOV = (
+            #     1
+            #     / np.unique(
+            #         np.concatenate([topN_periods_ELS, topN_periods_ECE])
+            #     ).tolist()
+            # )
+            # print('freqs_EAOV', freqs_EAOV)
+
+            topN_significance_indices_allSources = np.concatenate(
+                [
+                    topN_significance_indices_allSources_ELS,
+                    topN_significance_indices_allSources_ECE,
+                ],
+                axis=1,
             )
-            print('freqs_EAOV', freqs_EAOV)
+            print(topN_significance_indices_allSources)
+
             periods_best, significances, pdots = do_GPU(
-                "EAOV",
-                freqs_EAOV,
+                "EAOV_periodogram",
+                freqs,
                 phase_bins,
                 mag_bins,
                 lightcurves,
@@ -88,6 +109,7 @@ def find_periods(
                 doSingleTimeSegment=doSingleTimeSegment,
                 batch_size=batch_size,
             )
+
         else:
             periods_best, significances, pdots = do_GPU(
                 algorithm,
