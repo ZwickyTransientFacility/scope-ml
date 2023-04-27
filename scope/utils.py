@@ -1173,17 +1173,22 @@ class Dataset(object):
 
         # Shuffle and batch the datasets:
 
-        train_dataset = (
+        train_dataset_repeat = (
             train_dataset.shuffle(shuffle_buffer_size).batch(batch_size).repeat(epochs)
         )
-        val_dataset = val_dataset.batch(batch_size).repeat(epochs)
+        val_dataset_repeat = val_dataset.batch(batch_size).repeat(epochs)
+
+        train_dataset = train_dataset.batch(batch_size)
+        val_dataset = val_dataset.batch(batch_size)
         test_dataset = test_dataset.batch(batch_size)
 
         dropped_samples = dropped_samples.batch(batch_size) if balance else None
 
         datasets = {
             "train": train_dataset,
+            "train_repeat": train_dataset_repeat,
             "val": val_dataset,
+            "val_repeat": val_dataset_repeat,
             "test": test_dataset,
             "dropped_samples": dropped_samples,
         }

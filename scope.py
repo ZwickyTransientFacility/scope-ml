@@ -759,8 +759,8 @@ class Scope:
                 classifier.meta["callbacks"].append(WandbCallback())
 
                 classifier.train(
-                    datasets["train"],
-                    datasets["val"],
+                    datasets["train_repeat"],
+                    datasets["val_repeat"],
                     steps_per_epoch["train"],
                     steps_per_epoch["val"],
                     epochs=epochs,
@@ -818,16 +818,22 @@ class Scope:
             )
 
         if verbose:
-            print("Evaluating on test set:")
+            print("Evaluating on train/val/test sets:")
         # TODO: there should not need to be this algorithm-based split in the call to classifier.evaluate()
         if algorithm == 'xgb':
             stats_train = classifier.evaluate(X_train, y_train, name='train')
             stats_val = classifier.evaluate(X_val, y_val, name='val')
             stats_test = classifier.evaluate(X_test, y_test, name='test')
         else:
-            stats_train = classifier.evaluate(datasets["train"], verbose=verbose)
-            stats_val = classifier.evaluate(datasets["val"], verbose=verbose)
-            stats_test = classifier.evaluate(datasets["test"], verbose=verbose)
+            stats_train = classifier.evaluate(
+                datasets["train"], name='train', verbose=verbose
+            )
+            stats_val = classifier.evaluate(
+                datasets["val"], name='val', verbose=verbose
+            )
+            stats_test = classifier.evaluate(
+                datasets["test"], name='test', verbose=verbose
+            )
 
         print('training stats: ', stats_train)
         print('validation stats: ', stats_val)
