@@ -100,7 +100,6 @@ def find_periods(
             topN_significance_indices_allSources = [
                 np.unique(x) for x in topN_significance_indices_allSources
             ]
-            print(topN_significance_indices_allSources)
 
             periods_best_EAOV, significances_EAOV, pdots_EAOV = do_GPU(
                 "EAOV_periodogram",
@@ -133,7 +132,7 @@ def find_periods(
                 period_best = 1 / freqs[best_EAOV_significance]
                 periods_best[idx] = period_best
                 significances[idx] = best_EAOV_significance
-                pdot_best = pdots[best_EAOV_significance]
+                pdot_best = 0.0
                 pdots[idx] = pdot_best
 
         else:
@@ -470,6 +469,7 @@ def do_GPU(
             significances[ii] = significance
         pdots, significances = pdots.flatten(), significances.flatten()
 
+    print(periods_best, significances, pdots)
     return periods_best, significances, pdots
 
 
