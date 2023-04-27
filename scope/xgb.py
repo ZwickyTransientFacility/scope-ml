@@ -383,7 +383,6 @@ class XGB(AbstractClassifier):
 
         y_pred = np.around(self.predict(X_eval, name=f'_{name}'))
 
-        self.meta[f'X_{name}'] = X_eval
         self.meta[f'y_{name}'] = y_eval
 
         # Generate confusion matrix
