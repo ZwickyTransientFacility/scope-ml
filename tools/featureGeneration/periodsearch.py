@@ -131,7 +131,7 @@ def find_periods(
 
                 period_best = 1 / freqs[best_EAOV_significance]
                 periods_best[idx] = period_best
-                significances[idx] = best_EAOV_significance
+                significances[idx] = source_periods_EAOV['data'][best_EAOV_significance]
                 pdot_best = 0.0
                 pdots[idx] = pdot_best
 
