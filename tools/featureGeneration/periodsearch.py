@@ -97,9 +97,12 @@ def find_periods(
                 ],
                 axis=1,
             )
+            topN_significance_indices_allSources = [
+                np.unique(x) for x in topN_significance_indices_allSources
+            ]
             print(topN_significance_indices_allSources)
 
-            periods_best, significances, pdots = do_GPU(
+            periods_best_EAOV, significances_EAOV, pdots_EAOV = do_GPU(
                 "EAOV_periodogram",
                 freqs,
                 phase_bins,
@@ -109,6 +112,29 @@ def find_periods(
                 doSingleTimeSegment=doSingleTimeSegment,
                 batch_size=batch_size,
             )
+
+            periods_best = np.zeros(len(lightcurves))
+            significances = np.zeros(len(lightcurves))
+            pdots = np.zeros(len(lightcurves))
+
+            for idx, source_periods_EAOV in enumerate(periods_best_EAOV):
+                # Minimum statistic best?
+                significance_indices_EAOV = np.argsort(
+                    source_periods_EAOV['data'].flatten()
+                )  # [::-1]
+
+                LS_CE_significance_indices_EAOV = [
+                    x
+                    for x in significance_indices_EAOV
+                    if x in topN_significance_indices_allSources[idx]
+                ]
+                best_EAOV_significance = LS_CE_significance_indices_EAOV[0]
+
+                period_best = 1 / freqs[best_EAOV_significance]
+                periods_best[idx] = period_best
+                significances[idx] = best_EAOV_significance
+                pdot_best = pdots[best_EAOV_significance]
+                pdots[idx] = pdot_best
 
         else:
             periods_best, significances, pdots = do_GPU(
