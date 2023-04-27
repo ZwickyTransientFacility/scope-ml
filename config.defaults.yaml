@@ -1344,6 +1344,7 @@ feature_generation:
     CPU:
       - LS
     GPU:
+      # - ELS_ECE_EAOV
       - ECE
       - EAOV
       - ELS

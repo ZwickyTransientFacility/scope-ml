@@ -16,6 +16,7 @@ def find_periods(
     freqs_to_remove=None,
     phase_bins=20,
     mag_bins=10,
+    top_n_periods=50,
     # Ncore=4, # todo: parallelize CPU period algorithms
 ):
 
@@ -32,218 +33,72 @@ def find_periods(
     pdots = np.zeros((len(lightcurves),))
     print('Period finding lightcurves...')
     if doGPU:
-
-        if (algorithm == "ECE") or (algorithm == "EAOV") or (algorithm == "ELS"):
-            if algorithm == "ECE":
-                from periodfind.ce import ConditionalEntropy
-
-                ce = ConditionalEntropy(phase_bins, mag_bins)
-            elif algorithm == "EAOV":
-                from periodfind.aov import AOV
-
-                aov = AOV(phase_bins)
-            elif algorithm == "ELS":
-                from periodfind.ls import LombScargle
-
-                ls = LombScargle()
-
-            if doUsePDot:
-                num_pdots = 10
-                max_pdot = 1e-10
-                min_pdot = 1e-12
-                pdots_to_test = -np.logspace(
-                    np.log10(min_pdot), np.log10(max_pdot), num_pdots
-                )
-                pdots_to_test = np.append(0, pdots_to_test)
-            else:
-                pdots_to_test = np.array([0.0])
-
-            if doSingleTimeSegment:
-                tt = np.empty((0, 1))
-                for lightcurve in lightcurves:
-                    tt = np.unique(np.append(tt, lightcurve[0]))
-
-            maxn = -np.inf
-            time_stack, mag_stack = [], []
-            for lightcurve in lightcurves:
-                if doSingleTimeSegment:
-                    xy, x_ind, y_ind = np.intersect1d(
-                        tt, lightcurve[0], return_indices=True
-                    )
-                    mag_array = 999 * np.ones(tt.shape)
-                    magerr_array = 999 * np.ones(tt.shape)
-                    mag_array[x_ind] = lightcurve[1][y_ind]
-                    magerr_array[x_ind] = lightcurve[2][y_ind]
-                    lightcurve = (tt, mag_array, magerr_array)
-                else:
-                    idx = np.argsort(lightcurve[0])
-                    tmin = np.min(lightcurve[0])
-                    lightcurve = (
-                        lightcurve[0][idx] - tmin,
-                        lightcurve[1][idx],
-                        lightcurve[2][idx],
-                    )
-
-                time_stack.append(lightcurve[0].astype(np.float32))
-                lc = lightcurve[1]
-                lc = (lc - np.min(lc)) / (np.max(lc) - np.min(lc))
-                mag_stack.append(lc.astype(np.float32))
-
-                if len(idx) > maxn:
-                    maxn = len(idx)
-
-            print("Number of lightcurves: %d" % len(time_stack))
-            print("Max length of lightcurves: %d" % maxn)
-            print("Batch size: %d" % batch_size)
-            print("Number of frequency bins: %d" % len(freqs))
-            print("Number of phase bins: %d" % phase_bins)
-            print("Number of magnitude bins: %d" % mag_bins)
-
-            periods = (1.0 / freqs).astype(np.float32)
-            pdots_to_test = pdots_to_test.astype(np.float32)
-
-            periods_best = np.zeros((len(lightcurves), 1))
-            significances = np.zeros((len(lightcurves), 1))
-            pdots = np.zeros((len(lightcurves), 1))
-
-            if algorithm == "ECE":
-                data_out = ce.calc(time_stack, mag_stack, periods, pdots_to_test)
-            elif algorithm == "EAOV":
-                data_out = aov.calc(time_stack, mag_stack, periods, pdots_to_test)
-            elif algorithm == "ELS":
-                data_out = ls.calc(time_stack, mag_stack, periods, pdots_to_test)
-
-            for ii, stat in enumerate(data_out):
-                if np.isnan(stat.significance):
-                    warnings.warn(
-                        "Oops... significance  is nan... something went wrong"
-                    )
-
-                periods_best[ii] = stat.params[0]
-                pdots[ii] = stat.params[1]
-                significances[ii] = stat.significance
-            pdots, periods_best, significances = (
-                pdots.flatten(),
-                periods_best.flatten(),
-                significances.flatten(),
+        if algorithm == "ELS_ECE_EAOV":
+            periods_best_ELS, significances_ELS, _ = do_GPU(
+                "ELS_periodogram",
+                freqs,
+                phase_bins,
+                mag_bins,
+                lightcurves,
+                doUsePDot=doUsePDot,
+                doSingleTimeSegment=doSingleTimeSegment,
+                batch_size=batch_size,
+            )
+            periods_best_ECE, significances_ECE, _ = do_GPU(
+                "ECE_periodogram",
+                freqs,
+                phase_bins,
+                mag_bins,
+                lightcurves,
+                doUsePDot=doUsePDot,
+                doSingleTimeSegment=doSingleTimeSegment,
+                batch_size=batch_size,
             )
 
-        elif (
-            (algorithm == "ECE_periodogram")
-            or (algorithm == "EAOV_periodogram")
-            or (algorithm == "ELS_periodogram")
-        ):
-            if algorithm.split("_")[0] == "ECE":
-                from periodfind.ce import ConditionalEntropy
+            topN_significance_indices_ELS = np.argsort(significances_ELS)[::-1][
+                :top_n_periods
+            ]
+            topN_periods_ELS = np.array(
+                periods_best_ELS[topN_significance_indices_ELS]
+            ).tolist()
+            print('topN_periods_ELS', topN_periods_ELS)
 
-                ce = ConditionalEntropy(phase_bins, mag_bins)
-            elif algorithm.split("_")[0] == "EAOV":
-                from periodfind.aov import AOV
+            topN_significance_indices_ECE = np.argsort(significances_ECE)[::-1][
+                :top_n_periods
+            ]
+            topN_periods_ECE = np.array(
+                periods_best_ECE[topN_significance_indices_ECE]
+            ).tolist()
+            print('topN_periods_ECE', topN_periods_ECE)
 
-                aov = AOV(phase_bins)
-            elif algorithm.split("_")[0] == "ELS":
-                from periodfind.ls import LombScargle
-
-                ls = LombScargle()
-
-            if doUsePDot:
-                num_pdots = 10
-                max_pdot = 1e-10
-                min_pdot = 1e-12
-                pdots_to_test = -np.logspace(
-                    np.log10(min_pdot), np.log10(max_pdot), num_pdots
-                )
-                pdots_to_test = np.append(0, pdots_to_test)
-            else:
-                pdots_to_test = np.array([0.0])
-
-            if doSingleTimeSegment:
-                tt = np.empty((0, 1))
-                for lightcurve in lightcurves:
-                    tt = np.unique(np.append(tt, lightcurve[0]))
-
-            maxn = -np.inf
-            time_stack, mag_stack = [], []
-            for lightcurve in lightcurves:
-                if doSingleTimeSegment:
-                    _, x_ind, y_ind = np.intersect1d(
-                        tt, lightcurve[0], return_indices=True
-                    )
-                    mag_array = 999 * np.ones(tt.shape)
-                    magerr_array = 999 * np.ones(tt.shape)
-                    mag_array[x_ind] = lightcurve[1][y_ind]
-                    magerr_array[x_ind] = lightcurve[2][y_ind]
-                    lightcurve = (tt, mag_array, magerr_array)
-                else:
-                    idx = np.argsort(lightcurve[0])
-                    tmin = np.min(lightcurve[0])
-                    lightcurve = (
-                        lightcurve[0][idx] - tmin,
-                        lightcurve[1][idx],
-                        lightcurve[2][idx],
-                    )
-
-                time_stack.append(lightcurve[0].astype(np.float32))
-                lc = lightcurve[1]
-                lc = (lc - np.min(lc)) / (np.max(lc) - np.min(lc))
-                mag_stack.append(lc.astype(np.float32))
-
-                if len(idx) > maxn:
-                    maxn = len(idx)
-
-            print("Number of lightcurves: %d" % len(time_stack))
-            print("Max length of lightcurves: %d" % maxn)
-            print("Batch size: %d" % batch_size)
-            print("Number of frequency bins: %d" % len(freqs))
-            print("Number of phase bins: %d" % phase_bins)
-            print("Number of magnitude bins: %d" % mag_bins)
-
-            periods = (1.0 / freqs).astype(np.float32)
-            pdots_to_test = pdots_to_test.astype(np.float32)
-
-            periods_best = []
-            significances = np.zeros((len(lightcurves), 1))
-            pdots = np.zeros((len(lightcurves), 1))
-
-            if algorithm.split("_")[0] == "ECE":
-                data_out = ce.calc(
-                    time_stack, mag_stack, periods, pdots_to_test, output='periodogram'
-                )
-            elif algorithm.split("_")[0] == "EAOV":
-                data_out = aov.calc(
-                    time_stack, mag_stack, periods, pdots_to_test, output='periodogram'
-                )
-            elif algorithm.split("_")[0] == "ELS":
-                data_out = ls.calc(
-                    time_stack, mag_stack, periods, pdots_to_test, output='periodogram'
-                )
-
-            for ii, stat in enumerate(data_out):
-                if algorithm.split("_")[0] == "ECE":
-                    significance = np.abs(
-                        np.mean(stat.data) - np.min(stat.data)
-                    ) / np.std(stat.data)
-                    period = periods[np.argmin(stat.data)]
-                elif algorithm.split("_")[0] == "EAOV":
-                    significance = np.abs(
-                        np.mean(stat.data) - np.min(stat.data)
-                    ) / np.std(stat.data)
-                    period = periods[np.argmin(stat.data)]
-                elif algorithm.split("_")[0] == "ELS":
-                    significance = np.abs(
-                        np.mean(stat.data) - np.max(stat.data)
-                    ) / np.std(stat.data)
-                    period = periods[np.argmax(stat.data)]
-
-                if np.isnan(significance):
-                    warnings.warn(
-                        "Oops... significance  is nan... something went wrong"
-                    )
-
-                periods_best.append({'period': period, 'data': stat.data})
-                pdots[ii] = pdots_to_test[0]
-                significances[ii] = significance
-            pdots, significances = pdots.flatten(), significances.flatten()
+            freqs_EAOV = (
+                1
+                / np.unique(
+                    np.concatenate([topN_periods_ELS, topN_periods_ECE])
+                ).tolist()
+            )
+            print('freqs_EAOV', freqs_EAOV)
+            periods_best, significances, pdots = do_GPU(
+                "EAOV",
+                freqs_EAOV,
+                phase_bins,
+                mag_bins,
+                lightcurves,
+                doUsePDot=doUsePDot,
+                doSingleTimeSegment=doSingleTimeSegment,
+                batch_size=batch_size,
+            )
+        else:
+            periods_best, significances, pdots = do_GPU(
+                algorithm,
+                freqs,
+                phase_bins,
+                mag_bins,
+                lightcurves,
+                doUsePDot=doUsePDot,
+                doSingleTimeSegment=doSingleTimeSegment,
+                batch_size=batch_size,
+            )
 
     elif doCPU:
 
@@ -348,6 +203,226 @@ def find_periods(
                 significances.append(significance)
 
     return np.array(periods_best), np.array(significances), np.array(pdots)
+
+
+def do_GPU(
+    algorithm,
+    freqs,
+    phase_bins,
+    mag_bins,
+    lightcurves,
+    doUsePDot=False,
+    doSingleTimeSegment=False,
+    batch_size=1,
+):
+
+    if (algorithm == "ECE") or (algorithm == "EAOV") or (algorithm == "ELS"):
+        if algorithm == "ECE":
+            from periodfind.ce import ConditionalEntropy
+
+            ce = ConditionalEntropy(phase_bins, mag_bins)
+        elif algorithm == "EAOV":
+            from periodfind.aov import AOV
+
+            aov = AOV(phase_bins)
+        elif algorithm == "ELS":
+            from periodfind.ls import LombScargle
+
+            ls = LombScargle()
+
+        if doUsePDot:
+            num_pdots = 10
+            max_pdot = 1e-10
+            min_pdot = 1e-12
+            pdots_to_test = -np.logspace(
+                np.log10(min_pdot), np.log10(max_pdot), num_pdots
+            )
+            pdots_to_test = np.append(0, pdots_to_test)
+        else:
+            pdots_to_test = np.array([0.0])
+
+        if doSingleTimeSegment:
+            tt = np.empty((0, 1))
+            for lightcurve in lightcurves:
+                tt = np.unique(np.append(tt, lightcurve[0]))
+
+        maxn = -np.inf
+        time_stack, mag_stack = [], []
+        for lightcurve in lightcurves:
+            if doSingleTimeSegment:
+                xy, x_ind, y_ind = np.intersect1d(
+                    tt, lightcurve[0], return_indices=True
+                )
+                mag_array = 999 * np.ones(tt.shape)
+                magerr_array = 999 * np.ones(tt.shape)
+                mag_array[x_ind] = lightcurve[1][y_ind]
+                magerr_array[x_ind] = lightcurve[2][y_ind]
+                lightcurve = (tt, mag_array, magerr_array)
+            else:
+                idx = np.argsort(lightcurve[0])
+                tmin = np.min(lightcurve[0])
+                lightcurve = (
+                    lightcurve[0][idx] - tmin,
+                    lightcurve[1][idx],
+                    lightcurve[2][idx],
+                )
+
+            time_stack.append(lightcurve[0].astype(np.float32))
+            lc = lightcurve[1]
+            lc = (lc - np.min(lc)) / (np.max(lc) - np.min(lc))
+            mag_stack.append(lc.astype(np.float32))
+
+            if len(idx) > maxn:
+                maxn = len(idx)
+
+        print("Number of lightcurves: %d" % len(time_stack))
+        print("Max length of lightcurves: %d" % maxn)
+        print("Batch size: %d" % batch_size)
+        print("Number of frequency bins: %d" % len(freqs))
+        print("Number of phase bins: %d" % phase_bins)
+        print("Number of magnitude bins: %d" % mag_bins)
+
+        periods = (1.0 / freqs).astype(np.float32)
+        pdots_to_test = pdots_to_test.astype(np.float32)
+
+        periods_best = np.zeros((len(lightcurves), 1))
+        significances = np.zeros((len(lightcurves), 1))
+        pdots = np.zeros((len(lightcurves), 1))
+
+        if algorithm == "ECE":
+            data_out = ce.calc(time_stack, mag_stack, periods, pdots_to_test)
+        elif algorithm == "EAOV":
+            data_out = aov.calc(time_stack, mag_stack, periods, pdots_to_test)
+        elif algorithm == "ELS":
+            data_out = ls.calc(time_stack, mag_stack, periods, pdots_to_test)
+
+        for ii, stat in enumerate(data_out):
+            if np.isnan(stat.significance):
+                warnings.warn("Oops... significance  is nan... something went wrong")
+
+            periods_best[ii] = stat.params[0]
+            pdots[ii] = stat.params[1]
+            significances[ii] = stat.significance
+        pdots, periods_best, significances = (
+            pdots.flatten(),
+            periods_best.flatten(),
+            significances.flatten(),
+        )
+
+    elif (
+        (algorithm == "ECE_periodogram")
+        or (algorithm == "EAOV_periodogram")
+        or (algorithm == "ELS_periodogram")
+    ):
+        if algorithm.split("_")[0] == "ECE":
+            from periodfind.ce import ConditionalEntropy
+
+            ce = ConditionalEntropy(phase_bins, mag_bins)
+        elif algorithm.split("_")[0] == "EAOV":
+            from periodfind.aov import AOV
+
+            aov = AOV(phase_bins)
+        elif algorithm.split("_")[0] == "ELS":
+            from periodfind.ls import LombScargle
+
+            ls = LombScargle()
+
+        if doUsePDot:
+            num_pdots = 10
+            max_pdot = 1e-10
+            min_pdot = 1e-12
+            pdots_to_test = -np.logspace(
+                np.log10(min_pdot), np.log10(max_pdot), num_pdots
+            )
+            pdots_to_test = np.append(0, pdots_to_test)
+        else:
+            pdots_to_test = np.array([0.0])
+
+        if doSingleTimeSegment:
+            tt = np.empty((0, 1))
+            for lightcurve in lightcurves:
+                tt = np.unique(np.append(tt, lightcurve[0]))
+
+        maxn = -np.inf
+        time_stack, mag_stack = [], []
+        for lightcurve in lightcurves:
+            if doSingleTimeSegment:
+                _, x_ind, y_ind = np.intersect1d(tt, lightcurve[0], return_indices=True)
+                mag_array = 999 * np.ones(tt.shape)
+                magerr_array = 999 * np.ones(tt.shape)
+                mag_array[x_ind] = lightcurve[1][y_ind]
+                magerr_array[x_ind] = lightcurve[2][y_ind]
+                lightcurve = (tt, mag_array, magerr_array)
+            else:
+                idx = np.argsort(lightcurve[0])
+                tmin = np.min(lightcurve[0])
+                lightcurve = (
+                    lightcurve[0][idx] - tmin,
+                    lightcurve[1][idx],
+                    lightcurve[2][idx],
+                )
+
+            time_stack.append(lightcurve[0].astype(np.float32))
+            lc = lightcurve[1]
+            lc = (lc - np.min(lc)) / (np.max(lc) - np.min(lc))
+            mag_stack.append(lc.astype(np.float32))
+
+            if len(idx) > maxn:
+                maxn = len(idx)
+
+        print("Number of lightcurves: %d" % len(time_stack))
+        print("Max length of lightcurves: %d" % maxn)
+        print("Batch size: %d" % batch_size)
+        print("Number of frequency bins: %d" % len(freqs))
+        print("Number of phase bins: %d" % phase_bins)
+        print("Number of magnitude bins: %d" % mag_bins)
+
+        periods = (1.0 / freqs).astype(np.float32)
+        pdots_to_test = pdots_to_test.astype(np.float32)
+
+        periods_best = []
+        significances = np.zeros((len(lightcurves), 1))
+        pdots = np.zeros((len(lightcurves), 1))
+
+        if algorithm.split("_")[0] == "ECE":
+            data_out = ce.calc(
+                time_stack, mag_stack, periods, pdots_to_test, output='periodogram'
+            )
+        elif algorithm.split("_")[0] == "EAOV":
+            data_out = aov.calc(
+                time_stack, mag_stack, periods, pdots_to_test, output='periodogram'
+            )
+        elif algorithm.split("_")[0] == "ELS":
+            data_out = ls.calc(
+                time_stack, mag_stack, periods, pdots_to_test, output='periodogram'
+            )
+
+        for ii, stat in enumerate(data_out):
+            if algorithm.split("_")[0] == "ECE":
+                significance = np.abs(np.mean(stat.data) - np.min(stat.data)) / np.std(
+                    stat.data
+                )
+                period = periods[np.argmin(stat.data)]
+            elif algorithm.split("_")[0] == "EAOV":
+                significance = np.abs(np.mean(stat.data) - np.min(stat.data)) / np.std(
+                    stat.data
+                )
+                period = periods[np.argmin(stat.data)]
+            elif algorithm.split("_")[0] == "ELS":
+                significance = np.abs(np.mean(stat.data) - np.max(stat.data)) / np.std(
+                    stat.data
+                )
+                period = periods[np.argmax(stat.data)]
+
+            if np.isnan(significance):
+                warnings.warn("Oops... significance  is nan... something went wrong")
+
+            periods_best.append({'period': period, 'data': stat.data})
+            pdots[ii] = pdots_to_test[0]
+            significances[ii] = significance
+        pdots, significances = pdots.flatten(), significances.flatten()
+
+    return periods_best, significances, pdots
 
 
 def calc_AOV(amhw, data, freqs_to_keep, df):

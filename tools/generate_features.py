@@ -435,6 +435,7 @@ def generate_features(
     quadrant_index: int = 0,
     doSpecificIDs: bool = False,
     skipCloseSources: bool = False,
+    top_n_periods: int = 50,
 ):
     """
     Generate features for ZTF light curves
@@ -469,6 +470,7 @@ def generate_features(
     :param quadrant_index: number of job in quadrant file to run (int)
     :param doSpecificIDs: flag to perform feature generation for ztf_id column in config-specified file (bool)
     :param skipCloseSources: flag to skip removal of sources too close to bright stars via Gaia (bool)
+    :param top_n_periods: number of ELS, ECE periods to pass to EAOV if using ELS_ECE_EAOV algorithm (int)
 
     :return feature_df: dataframe containing generated features
 
@@ -802,6 +804,7 @@ def generate_features(
                         freqs_to_remove=freqs_to_remove,
                         phase_bins=20,
                         mag_bins=10,
+                        top_n_periods=top_n_periods,
                         # Ncore=Ncore, # CPU parallelization to be added
                     )
 
@@ -1146,6 +1149,12 @@ if __name__ == "__main__":
         default=False,
         help="if set, skip removal of sources too close to bright stars via Gaia. May be useful if input data has previously been analyzed in this way.",
     )
+    parser.add_argument(
+        "--top_n_periods",
+        type=int,
+        default=50,
+        help="number of ELS, ECE periods to pass to EAOV if using ELS_ECE_EAOV algorithm",
+    )
 
     args = parser.parse_args()
 
@@ -1180,4 +1189,5 @@ if __name__ == "__main__":
         quadrant_index=args.quadrant_index,
         doSpecificIDs=args.doSpecificIDs,
         skipCloseSources=args.skipCloseSources,
+        top_n_periods=args.top_n_periods,
     )
