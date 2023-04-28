@@ -70,10 +70,13 @@ def find_periods(
             #     ).tolist()
             # print('topN_periods_ELS', topN_periods_ELS)
 
+            # Minimum statistic best for ECE
             for source_periods_ECE in periods_best_ECE:
                 topN_significance_indices_ECE = np.argsort(
                     source_periods_ECE['data'].flatten()
-                )[::-1][:top_n_periods]
+                )[
+                    :top_n_periods
+                ]  # [::-1]
                 topN_significance_indices_allSources_ECE += [
                     topN_significance_indices_ECE
                 ]
@@ -117,10 +120,9 @@ def find_periods(
             pdots = np.zeros(len(lightcurves))
 
             for idx, source_periods_EAOV in enumerate(periods_best_EAOV):
-                # Minimum statistic best?
                 significance_indices_EAOV = np.argsort(
                     source_periods_EAOV['data'].flatten()
-                )  # [::-1]
+                )[::-1]
 
                 LS_CE_significance_indices_EAOV = [
                     x
