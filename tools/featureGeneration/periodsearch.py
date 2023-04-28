@@ -452,10 +452,10 @@ def do_GPU(
                 )
                 period = periods[np.argmin(stat.data)]
             elif algorithm.split("_")[0] == "EAOV":
-                significance = np.abs(np.mean(stat.data) - np.min(stat.data)) / np.std(
+                significance = np.abs(np.max(stat.data) - np.mean(stat.data)) / np.std(
                     stat.data
                 )
-                period = periods[np.argmin(stat.data)]
+                period = periods[np.argmax(stat.data)]
             elif algorithm.split("_")[0] == "ELS":
                 significance = np.abs(np.mean(stat.data) - np.max(stat.data)) / np.std(
                     stat.data
