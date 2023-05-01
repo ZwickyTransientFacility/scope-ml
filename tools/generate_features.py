@@ -795,7 +795,6 @@ def generate_features(
                             )
                         ],
                         freqs,
-                        batch_size=period_batch_size,
                         doGPU=doGPU,
                         doCPU=doCPU,
                         doRemoveTerrestrial=doRemoveTerrestrial,

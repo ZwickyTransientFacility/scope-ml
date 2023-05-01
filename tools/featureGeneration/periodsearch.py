@@ -7,7 +7,6 @@ def find_periods(
     algorithm,
     lightcurves,
     freqs,
-    batch_size=1,
     doGPU=False,
     doCPU=False,
     doRemoveTerrestrial=False,
@@ -34,7 +33,7 @@ def find_periods(
     print('Period finding lightcurves...')
     if doGPU:
         if algorithm == "ELS_ECE_EAOV":
-            periods_best_ELS, significances_ELS, _ = do_GPU(
+            periods_best_ELS, _, _ = do_GPU(
                 "ELS_periodogram",
                 freqs,
                 phase_bins,
@@ -42,9 +41,8 @@ def find_periods(
                 lightcurves,
                 doUsePDot=doUsePDot,
                 doSingleTimeSegment=doSingleTimeSegment,
-                batch_size=batch_size,
             )
-            periods_best_ECE, significances_ECE, _ = do_GPU(
+            periods_best_ECE, _, _ = do_GPU(
                 "ECE_periodogram",
                 freqs,
                 phase_bins,
@@ -52,7 +50,6 @@ def find_periods(
                 lightcurves,
                 doUsePDot=doUsePDot,
                 doSingleTimeSegment=doSingleTimeSegment,
-                batch_size=batch_size,
             )
 
             topN_significance_indices_allSources_ELS = []
@@ -65,10 +62,6 @@ def find_periods(
                 topN_significance_indices_allSources_ELS += [
                     topN_significance_indices_ELS
                 ]
-            #     topN_periods_ELS = np.array(
-            #         freqs[topN_significance_indices_ELS]
-            #     ).tolist()
-            # print('topN_periods_ELS', topN_periods_ELS)
 
             # Minimum statistic best for ECE
             for source_periods_ECE in periods_best_ECE:
@@ -80,10 +73,6 @@ def find_periods(
                 topN_significance_indices_allSources_ECE += [
                     topN_significance_indices_ECE
                 ]
-            #     topN_periods_ECE = np.array(
-            #         freqs[topN_significance_indices_ECE]
-            #     ).tolist()
-            # print('topN_periods_ECE', topN_periods_ECE)
 
             # freqs_EAOV = (
             #     1
@@ -104,7 +93,7 @@ def find_periods(
                 np.unique(x) for x in topN_significance_indices_allSources
             ]
 
-            periods_best_EAOV, significances_EAOV, pdots_EAOV = do_GPU(
+            periods_best_EAOV, _, _ = do_GPU(
                 "EAOV_periodogram",
                 freqs,
                 phase_bins,
@@ -112,7 +101,6 @@ def find_periods(
                 lightcurves,
                 doUsePDot=doUsePDot,
                 doSingleTimeSegment=doSingleTimeSegment,
-                batch_size=batch_size,
             )
 
             periods_best = np.zeros(len(lightcurves))
@@ -146,7 +134,6 @@ def find_periods(
                 lightcurves,
                 doUsePDot=doUsePDot,
                 doSingleTimeSegment=doSingleTimeSegment,
-                batch_size=batch_size,
             )
 
     elif doCPU:
@@ -263,7 +250,6 @@ def do_GPU(
     lightcurves,
     doUsePDot=False,
     doSingleTimeSegment=False,
-    batch_size=1,
 ):
 
     if (algorithm == "ECE") or (algorithm == "EAOV") or (algorithm == "ELS"):
@@ -327,7 +313,6 @@ def do_GPU(
 
         print("Number of lightcurves: %d" % len(time_stack))
         print("Max length of lightcurves: %d" % maxn)
-        print("Batch size: %d" % batch_size)
         print("Number of frequency bins: %d" % len(freqs))
         print("Number of phase bins: %d" % phase_bins)
         print("Number of magnitude bins: %d" % mag_bins)
@@ -422,7 +407,6 @@ def do_GPU(
 
         print("Number of lightcurves: %d" % len(time_stack))
         print("Max length of lightcurves: %d" % maxn)
-        print("Batch size: %d" % batch_size)
         print("Number of frequency bins: %d" % len(freqs))
         print("Number of phase bins: %d" % phase_bins)
         print("Number of magnitude bins: %d" % mag_bins)
@@ -454,7 +438,7 @@ def do_GPU(
                 )
                 period = periods[np.argmin(stat.data)]
             elif algorithm.split("_")[0] == "EAOV":
-                significance = np.abs(np.max(stat.data) - np.mean(stat.data)) / np.std(
+                significance = np.abs(np.mean(stat.data) - np.max(stat.data)) / np.std(
                     stat.data
                 )
                 period = periods[np.argmax(stat.data)]
