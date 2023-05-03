@@ -7,7 +7,6 @@ def find_periods(
     algorithm,
     lightcurves,
     freqs,
-    batch_size=1,
     doGPU=False,
     doCPU=False,
     doRemoveTerrestrial=False,
@@ -94,7 +93,6 @@ def find_periods(
 
             print("Number of lightcurves: %d" % len(time_stack))
             print("Max length of lightcurves: %d" % maxn)
-            print("Batch size: %d" % batch_size)
             print("Number of frequency bins: %d" % len(freqs))
             print("Number of phase bins: %d" % phase_bins)
             print("Number of magnitude bins: %d" % mag_bins)
@@ -193,7 +191,6 @@ def find_periods(
 
             print("Number of lightcurves: %d" % len(time_stack))
             print("Max length of lightcurves: %d" % maxn)
-            print("Batch size: %d" % batch_size)
             print("Number of frequency bins: %d" % len(freqs))
             print("Number of phase bins: %d" % phase_bins)
             print("Number of magnitude bins: %d" % mag_bins)
@@ -226,9 +223,9 @@ def find_periods(
                     period = periods[np.argmin(stat.data)]
                 elif algorithm.split("_")[0] == "EAOV":
                     significance = np.abs(
-                        np.mean(stat.data) - np.min(stat.data)
+                        np.mean(stat.data) - np.max(stat.data)
                     ) / np.std(stat.data)
-                    period = periods[np.argmin(stat.data)]
+                    period = periods[np.argmax(stat.data)]
                 elif algorithm.split("_")[0] == "ELS":
                     significance = np.abs(
                         np.mean(stat.data) - np.max(stat.data)

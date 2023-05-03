@@ -28,6 +28,7 @@ from cesium.featurize import time_series, featurize_single_ts
 import json
 from joblib import Parallel, delayed
 
+
 BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
 
 # setup connection to Kowalski instances
@@ -435,6 +436,7 @@ def generate_features(
     quadrant_index: int = 0,
     doSpecificIDs: bool = False,
     skipCloseSources: bool = False,
+    top_n_periods: int = 50,
 ):
     """
     Generate features for ZTF light curves
@@ -469,6 +471,7 @@ def generate_features(
     :param quadrant_index: number of job in quadrant file to run (int)
     :param doSpecificIDs: flag to perform feature generation for ztf_id column in config-specified file (bool)
     :param skipCloseSources: flag to skip removal of sources too close to bright stars via Gaia (bool)
+    :param top_n_periods: number of ELS, ECE periods to pass to EAOV if using ELS_ECE_EAOV algorithm (int)
 
     :return feature_df: dataframe containing generated features
 
@@ -763,13 +766,33 @@ def generate_features(
         else:
             freqs_to_remove = None
 
+        # Create separate grid with terrestrial freqs removed
+        freqs_copy = freqs.copy()
+        if freqs_to_remove is not None:
+            for pair in freqs_to_remove:
+                idx = np.where((freqs_copy < pair[0]) | (freqs_copy > pair[1]))[0]
+                freqs_copy = freqs_copy[idx]
+        freqs_no_terrestrial = freqs_copy
+
         # Continue with periodsearch/periodfind
         period_dict = {}
         significance_dict = {}
         pdot_dict = {}
+        do_nested_GPU_algorithms = False
         if doCPU or doGPU:
             if doCPU and doGPU:
-                raise KeyError('Please set only one of -doCPU or -doGPU.')
+                raise KeyError('Please set only one of --doCPU or --doGPU.')
+
+            if 'ELS_ECE_EAOV' in period_algorithms:
+                period_algorithms = [
+                    'ELS_periodogram',
+                    'ECE_periodogram',
+                    'EAOV_periodogram',
+                ]
+                do_nested_GPU_algorithms = True
+                warnings.warn(
+                    'Performing nested ELS/ECE -> EAOV period search. Other algorithms in config will be ignored.'
+                )
 
             n_sources = len(feature_dict)
             if n_sources % period_batch_size != 0:
@@ -777,19 +800,25 @@ def generate_features(
             else:
                 n_iterations = n_sources // period_batch_size
 
-            for algorithm in period_algorithms:
-                # Iterate over period batches and algorithms
-                all_periods = np.array([])
-                all_significances = np.array([])
-                all_pdots = np.array([])
+            all_periods = {algorithm: [] for algorithm in period_algorithms}
+            all_significances = {algorithm: [] for algorithm in period_algorithms}
+            all_pdots = {algorithm: [] for algorithm in period_algorithms}
 
-                print(
-                    f'Running period algorithms for {len(feature_dict)} sources in batches of {period_batch_size}...'
-                )
-                print(f'Running {algorithm} algorithm:')
+            if do_nested_GPU_algorithms:
+                # Additional entry for nested algorithm
+                all_periods['ELS_ECE_EAOV'] = []
+                all_significances['ELS_ECE_EAOV'] = []
+                all_pdots['ELS_ECE_EAOV'] = []
 
-                for i in range(0, n_iterations):
-                    print(f"Iteration {i+1} of {n_iterations}...")
+            print(
+                f'Running {len(period_algorithms)} period algorithms for {len(feature_dict)} sources in batches of {period_batch_size}...'
+            )
+            for i in range(0, n_iterations):
+                print(f"Iteration {i+1} of {n_iterations}...")
+
+                for algorithm in period_algorithms:
+                    print(f'Running {algorithm} algorithm:')
+                    # Iterate over algorithms
                     periods, significances, pdots = periodsearch.find_periods(
                         algorithm,
                         tme_collection[
@@ -799,7 +828,6 @@ def generate_features(
                             )
                         ],
                         freqs,
-                        batch_size=period_batch_size,
                         doGPU=doGPU,
                         doCPU=doCPU,
                         doRemoveTerrestrial=doRemoveTerrestrial,
@@ -811,15 +839,97 @@ def generate_features(
                         # Ncore=Ncore, # CPU parallelization to be added
                     )
 
-                    all_periods = np.concatenate([all_periods, periods])
-                    all_significances = np.concatenate(
-                        [all_significances, significances]
-                    )
-                    all_pdots = np.concatenate([all_pdots, pdots])
+                    if not do_nested_GPU_algorithms:
+                        all_periods[algorithm] = np.concatenate(
+                            [all_periods[algorithm], periods]
+                        )
 
-                period_dict[algorithm] = all_periods
-                significance_dict[algorithm] = all_significances
-                pdot_dict[algorithm] = all_pdots
+                    else:
+                        # Different workflow if nesting algorithms
+                        p_vals = [p['period'] for p in periods]
+                        p_stats = [p['data'] for p in periods]
+                        all_periods[algorithm] = np.concatenate(
+                            [all_periods[algorithm], p_vals]
+                        )
+
+                        if algorithm == 'ELS_periodogram':
+                            # Maximum statistic is best for ELS; select top N
+                            topN_significance_indices_ELS = [
+                                np.argsort(ps.flatten())[::-1][:top_n_periods]
+                                for ps in p_stats
+                            ]
+                        elif algorithm == 'ECE_periodogram':
+                            # Minimum statistic is best for ECE; select top N
+                            topN_significance_indices_ECE = [
+                                np.argsort(ps.flatten())[:top_n_periods]
+                                for ps in p_stats
+                            ]
+                        elif algorithm == 'EAOV_periodogram':
+                            # Combine top ELS, ECE results by source
+                            ELS_ECE_top_indices = np.concatenate(
+                                [
+                                    topN_significance_indices_ELS,
+                                    topN_significance_indices_ECE,
+                                ],
+                                axis=1,
+                            )
+
+                            # Ensure no duplicate periods
+                            ELS_ECE_top_indices = [
+                                np.unique(x) for x in ELS_ECE_top_indices
+                            ]
+
+                            # Determine where EAOV statistic is maximum among the options given by ELS/ECE
+                            best_index_of_indices = [
+                                np.argmax(p_stats[i][ELS_ECE_top_indices[i]])
+                                for i in range(len(p_stats))
+                            ]
+
+                            # The above index is only to the local list, we need the index to the freqs array
+                            best_indices = [
+                                ELS_ECE_top_indices[i][best_index_of_indices[i]]
+                                for i in range(len(ELS_ECE_top_indices))
+                            ]
+
+                            # Assign ELS_ECE_EAOV periods
+                            all_periods['ELS_ECE_EAOV'] = np.concatenate(
+                                [
+                                    all_periods['ELS_ECE_EAOV'],
+                                    1 / freqs_no_terrestrial[best_indices],
+                                ]
+                            )
+
+                            # Assign ELS_ECE_EAOV significances using full EAOV significance value at that period
+                            all_significances['ELS_ECE_EAOV'] = np.concatenate(
+                                [
+                                    all_significances['ELS_ECE_EAOV'],
+                                    [
+                                        p_stats[i].flatten()[best_indices[i]]
+                                        for i in range(len(best_indices))
+                                    ],
+                                ]
+                            )
+
+                            # Assign pdots from full EAOV run
+                            all_pdots['ELS_ECE_EAOV'] = np.concatenate(
+                                [
+                                    all_pdots['ELS_ECE_EAOV'],
+                                    pdots,
+                                ]
+                            )
+
+                    all_significances[algorithm] = np.concatenate(
+                        [all_significances[algorithm], significances]
+                    )
+                    all_pdots[algorithm] = np.concatenate([all_pdots[algorithm], pdots])
+
+            period_dict = all_periods
+            significance_dict = all_significances
+            pdot_dict = all_pdots
+
+            if do_nested_GPU_algorithms:
+                period_algorithms += ['ELS_ECE_EAOV']
+
         else:
             warnings.warn("Skipping period finding; setting all periods to 1.0 d.")
             # Default periods 1.0 d
@@ -829,26 +939,35 @@ def generate_features(
             pdot_dict['Ones'] = np.ones(len(tme_collection))
 
         for algorithm in period_algorithms:
+            if algorithm != 'ELS_ECE_EAOV':
+                algorithm_name = algorithm.split('_')[0]
+            else:
+                algorithm_name = algorithm
+
             for idx, _id in enumerate(keep_id_list):
 
                 period = period_dict[algorithm][idx]
                 significance = significance_dict[algorithm][idx]
                 pdot = pdot_dict[algorithm][idx]
 
-                tme_dict[_id][f'period_{algorithm}'] = period
-                tme_dict[_id][f'significance_{algorithm}'] = significance
-                tme_dict[_id][f'pdot_{algorithm}'] = pdot
+                tme_dict[_id][f'period_{algorithm_name}'] = period
+                tme_dict[_id][f'significance_{algorithm_name}'] = significance
+                tme_dict[_id][f'pdot_{algorithm_name}'] = pdot
 
-                feature_dict[_id][f'period_{algorithm}'] = period
-                feature_dict[_id][f'significance_{algorithm}'] = significance
-                feature_dict[_id][f'pdot_{algorithm}'] = pdot
+                feature_dict[_id][f'period_{algorithm_name}'] = period
+                feature_dict[_id][f'significance_{algorithm_name}'] = significance
+                feature_dict[_id][f'pdot_{algorithm_name}'] = pdot
 
         print(f'Computing Fourier stats for {len(period_dict)} algorithms...')
         for algorithm in period_algorithms:
+            if algorithm != 'ELS_ECE_EAOV':
+                algorithm_name = algorithm.split('_')[0]
+            else:
+                algorithm_name = algorithm
             print(f'- Algorithm: {algorithm}')
             fourierStats = Parallel(n_jobs=Ncore)(
                 delayed(lcstats.calc_fourier_stats)(
-                    id, vals['tme'], vals[f'period_{algorithm}']
+                    id, vals['tme'], vals[f'period_{algorithm_name}']
                 )
                 for id, vals in tme_dict.items()
             )
@@ -857,20 +976,20 @@ def generate_features(
                 _id = [x for x in statline.keys()][0]
                 statvals = [x for x in statline.values()][0]
 
-                feature_dict[_id][f'f1_power_{algorithm}'] = statvals[0]
-                feature_dict[_id][f'f1_BIC_{algorithm}'] = statvals[1]
-                feature_dict[_id][f'f1_a_{algorithm}'] = statvals[2]
-                feature_dict[_id][f'f1_b_{algorithm}'] = statvals[3]
-                feature_dict[_id][f'f1_amp_{algorithm}'] = statvals[4]
-                feature_dict[_id][f'f1_phi0_{algorithm}'] = statvals[5]
-                feature_dict[_id][f'f1_relamp1_{algorithm}'] = statvals[6]
-                feature_dict[_id][f'f1_relphi1_{algorithm}'] = statvals[7]
-                feature_dict[_id][f'f1_relamp2_{algorithm}'] = statvals[8]
-                feature_dict[_id][f'f1_relphi2_{algorithm}'] = statvals[9]
-                feature_dict[_id][f'f1_relamp3_{algorithm}'] = statvals[10]
-                feature_dict[_id][f'f1_relphi3_{algorithm}'] = statvals[11]
-                feature_dict[_id][f'f1_relamp4_{algorithm}'] = statvals[12]
-                feature_dict[_id][f'f1_relphi4_{algorithm}'] = statvals[13]
+                feature_dict[_id][f'f1_power_{algorithm_name}'] = statvals[0]
+                feature_dict[_id][f'f1_BIC_{algorithm_name}'] = statvals[1]
+                feature_dict[_id][f'f1_a_{algorithm_name}'] = statvals[2]
+                feature_dict[_id][f'f1_b_{algorithm_name}'] = statvals[3]
+                feature_dict[_id][f'f1_amp_{algorithm_name}'] = statvals[4]
+                feature_dict[_id][f'f1_phi0_{algorithm_name}'] = statvals[5]
+                feature_dict[_id][f'f1_relamp1_{algorithm_name}'] = statvals[6]
+                feature_dict[_id][f'f1_relphi1_{algorithm_name}'] = statvals[7]
+                feature_dict[_id][f'f1_relamp2_{algorithm_name}'] = statvals[8]
+                feature_dict[_id][f'f1_relphi2_{algorithm_name}'] = statvals[9]
+                feature_dict[_id][f'f1_relamp3_{algorithm_name}'] = statvals[10]
+                feature_dict[_id][f'f1_relphi3_{algorithm_name}'] = statvals[11]
+                feature_dict[_id][f'f1_relamp4_{algorithm_name}'] = statvals[12]
+                feature_dict[_id][f'f1_relphi4_{algorithm_name}'] = statvals[13]
 
         print('Computing dmdt histograms...')
         dmdt = Parallel(n_jobs=Ncore)(
@@ -1152,6 +1271,12 @@ if __name__ == "__main__":
         default=False,
         help="if set, skip removal of sources too close to bright stars via Gaia. May be useful if input data has previously been analyzed in this way.",
     )
+    parser.add_argument(
+        "--top_n_periods",
+        type=int,
+        default=50,
+        help="number of ELS, ECE periods to pass to EAOV if using ELS_ECE_EAOV algorithm",
+    )
 
     args = parser.parse_args()
 
@@ -1186,4 +1311,5 @@ if __name__ == "__main__":
         quadrant_index=args.quadrant_index,
         doSpecificIDs=args.doSpecificIDs,
         skipCloseSources=args.skipCloseSources,
+        top_n_periods=args.top_n_periods,
     )
