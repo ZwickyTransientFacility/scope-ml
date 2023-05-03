@@ -1346,10 +1346,10 @@ feature_generation:
     GPU:
       # If ELS_ECE_EAOV is set, period finding will be run using a nested approach which passes the top N ELS and ECE periods to EAOV.
       # Individual ELS, ECE and EAOV periods will also be saved.
-      - ELS_ECE_EAOV
-      #- ECE
-      #- EAOV
-      #- ELS
+      #- ELS_ECE_EAOV
+      - ELS
+      - ECE
+      - EAOV
   fields_to_run:
     # If this list is populated (example below), generate_features_job_submission.py will only run on the specified fields.
     #- 296
