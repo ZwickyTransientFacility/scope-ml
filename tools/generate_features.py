@@ -845,11 +845,13 @@ def generate_features(
                         )
 
                     else:
+                        # Different workflow if nesting algorithms
                         p_vals = [p['period'] for p in periods]
                         p_stats = [p['data'] for p in periods]
                         all_periods[algorithm] = np.concatenate(
                             [all_periods[algorithm], p_vals]
                         )
+
                         if algorithm == 'ELS_periodogram':
                             # Maximum statistic is best for ELS; select top N
                             topN_significance_indices_ELS = [
@@ -863,6 +865,7 @@ def generate_features(
                                 for ps in p_stats
                             ]
                         elif algorithm == 'EAOV_periodogram':
+                            # Combine top ELS, ECE results by source
                             ELS_ECE_top_indices = np.concatenate(
                                 [
                                     topN_significance_indices_ELS,
@@ -870,20 +873,25 @@ def generate_features(
                                 ],
                                 axis=1,
                             )
+
+                            # Ensure no duplicate periods
                             ELS_ECE_top_indices = [
                                 np.unique(x) for x in ELS_ECE_top_indices
                             ]
 
+                            # Determine where EAOV statistic is maximum among the options given by ELS/ECE
                             best_index_of_indices = [
                                 np.argmax(p_stats[i][ELS_ECE_top_indices[i]])
                                 for i in range(len(p_stats))
                             ]
 
+                            # The above index is only to the local list, we need the index to the freqs array
                             best_indices = [
                                 ELS_ECE_top_indices[i][best_index_of_indices[i]]
                                 for i in range(len(ELS_ECE_top_indices))
                             ]
 
+                            # Assign ELS_ECE_EAOV periods
                             all_periods['ELS_ECE_EAOV'] = np.concatenate(
                                 [
                                     all_periods['ELS_ECE_EAOV'],
@@ -891,6 +899,7 @@ def generate_features(
                                 ]
                             )
 
+                            # Assign ELS_ECE_EAOV significances using full EAOV significance value at that period
                             all_significances['ELS_ECE_EAOV'] = np.concatenate(
                                 [
                                     all_significances['ELS_ECE_EAOV'],
@@ -901,6 +910,7 @@ def generate_features(
                                 ]
                             )
 
+                            # Assign pdots from full EAOV run
                             all_pdots['ELS_ECE_EAOV'] = np.concatenate(
                                 [
                                     all_pdots['ELS_ECE_EAOV'],
