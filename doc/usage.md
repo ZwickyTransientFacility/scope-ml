@@ -147,9 +147,9 @@ The fields associated with each key are `fritz_label` (containing the associated
 ```
 
 ## Generating features (work in progress)
-We are actively adapting code from [ztfperiodic](https://github.com/mcoughlin/ztfperiodic) and other sources to calculate basic and Fourier stats for light curves. This will allow new features to be generated using SCoPe, both locally and using GPU cluster resources. The feature generation script is contained within `tools/generate_features.py`.
+We are actively adapting code from [ztfperiodic](https://github.com/mcoughlin/ztfperiodic) and other sources to calculate basic and Fourier stats for light curves along with other features. This will allow new features to be generated with SCoPe, both locally and using GPU cluster resources. The feature generation script is contained within `tools/generate_features.py`.
 
-Currently, the basic stats are calculated via `tools/featureGeneration/lcstats.py`, and a host of period-finding algorithms are available in `tools/featureGeneration/periodsearch.py`. Among the CPU-based period-finding algorithms, there is not yet support for `AOV_cython`. For the `AOV` algorithm to work, run `source build.sh` in the `tools/featureGeneration/pyaov/` directory, then copy the newly created `.so` file (`aov.cpython-310-darwin.so` or similar) to `lib/python3.10/site-packages/` or equivalent within your environment.
+Currently, the basic stats are calculated via `tools/featureGeneration/lcstats.py`, and a host of period-finding algorithms are available in `tools/featureGeneration/periodsearch.py`. Among the CPU-based period-finding algorithms, there is not yet support for `AOV_cython`. For the `AOV` algorithm to work, run `source build.sh` in the `tools/featureGeneration/pyaov/` directory, then copy the newly created `.so` file (`aov.cpython-310-darwin.so` or similar) to `lib/python3.10/site-packages/` or equivalent within your environment. The GPU-based algorithms require CUDA support (so Mac GPUs are not supported).
 
 inputs:
 1. --source_catalog* : name of Kowalski catalog containing ZTF sources (str)
@@ -180,6 +180,9 @@ inputs:
 26. --doQuadrantFile : flag to use a generated file containing [jobID, field, ccd, quad] columns instead of specifying --field, --ccd and --quad (bool)
 27. --quadrant_file : name of quadrant file in the generated_features/slurm directory or equivalent (str)
 28. --quadrant_index : number of job in quadrant file to run (int)
+29. --doSpecificIDs: flag to perform feature generation for ztf_id column in config-specified file (bool)
+30. --skipCloseSources: flag to skip removal of sources too close to bright stars via Gaia (bool)
+31. --top_n_periods: number of ELS, ECE periods to pass to EAOV if using ELS_ECE_EAOV algorithm (int)
 
 output:
 feature_df : dataframe containing generated features
@@ -223,6 +226,9 @@ inputs:
 12. --generateQuadrantFile : flag to map fields/ccds/quads containing sources to job numbers, save file (bool)
 13. --max_instances : maximum number of HPC instances to run in parallel (int)
 14. --wait_time_minutes : amount of time to wait between status checks in minutes (float)
+15. --doSubmitLoop : flag to run loop initiating instances until out of jobs (hard on Kowalski)
+16. --runParallel : flag to run jobs in parallel using slurm [recommended]. Otherwise, run in series on a single instance
+17. --user : if using slurm, your username. This will be used to periodically run `squeue` and list your running jobs (str)
 
 
 ## Scope Download Classification

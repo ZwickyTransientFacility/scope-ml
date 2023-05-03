@@ -1,4 +1,4 @@
-# Developer Guidelines
+# Installation/Developer Guidelines
 
 ## How to contribute
 
@@ -87,7 +87,7 @@ The pre-commit hook will lint *changes* made to the source.
 We currently recommend running `scope` with Python 3.10. You may want to create/activate a virtual environment, for example using conda:
 
 ```bash
-conda create -n scope-env python=3.10 healpy
+conda create -n scope-env -c conda-forge python=3.10 healpy
 conda activate scope-env
 ```
 
