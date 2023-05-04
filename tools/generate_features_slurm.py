@@ -344,7 +344,25 @@ if __name__ == "__main__":
     )
     parser.add_argument("--doQuadrantFile", action="store_true", default=False)
     parser.add_argument("--quadrant_file", default="slurm.dat")
-    parser.add_argument("--quadrant_index", default=0, type=int)
+    parser.add_argument("--quadrant_index", default=None, type=int)
+    parser.add_argument(
+        "--doSpecificIDs",
+        action='store_true',
+        default=False,
+        help="if set, perform feature generation for ztf_id column in config-specified file",
+    )
+    parser.add_argument(
+        "--skipCloseSources",
+        action='store_true',
+        default=False,
+        help="if set, skip removal of sources too close to bright stars via Gaia. May be useful if input data has previously been analyzed in this way.",
+    )
+    parser.add_argument(
+        "--top_n_periods",
+        type=int,
+        default=50,
+        help="number of ELS, ECE periods to pass to EAOV if using ELS_ECE_EAOV algorithm",
+    )
     parser.add_argument(
         "--max_instances",
         type=int,
@@ -358,16 +376,32 @@ if __name__ == "__main__":
         help="Time to wait between job status checks",
     )
     parser.add_argument(
+        "--doSubmitLoop",
+        action="store_true",
+        default=False,
+        help="If set, loop to initiate instances until out of jobs (hard on Kowalski)",
+    )
+    parser.add_argument(
         "--runParallel",
         action="store_true",
         default=False,
         help="If set, run jobs in parallel using slurm. Otherwise, run in series on a single instance.",
+    )
+    parser.add_argument(
+        "--user",
+        type=str,
+        default="bhealy",
+        help="HPC username",
     )
 
     args = parser.parse_args()
 
     if not (args.doCPU or args.doGPU):
         print("--doCPU or --doGPU required")
+        exit(0)
+
+    if args.doQuadrantFile and args.doSpecificIDs:
+        print("Choose one of --doQuadrantFile or --doSpecificIDs")
         exit(0)
 
     source_catalog = args.source_catalog
@@ -393,6 +427,9 @@ if __name__ == "__main__":
     doCesium = args.doCesium
     doNotSave = args.doNotSave
     stop_early = args.stop_early
+    doSpecificIDs = args.doSpecificIDs
+    skipCloseSources = args.skipCloseSources
+    top_n_periods = args.top_n_periods
 
     if args.doCPU:
         cpu_gpu_flag = "--doCPU"
@@ -410,6 +447,10 @@ if __name__ == "__main__":
         extra_flags.append("--doNotSave")
     if args.stop_early:
         extra_flags.append("--stop_early")
+    if args.doSpecificIDs:
+        extra_flags.append("--doSpecificIDs")
+    if args.skipCloseSources:
+        extra_flags.append("--skipCloseSources")
     extra_flags = " ".join(extra_flags)
 
     dirpath = BASE_DIR / dirname
@@ -462,8 +503,11 @@ if __name__ == "__main__":
         fid.write(f'source activate {args.python_env_name}\n')
 
     if args.doQuadrantFile:
+        qid = '$QID'
+        if args.quadrant_index is not None:
+            qid = args.quadrant_index
         fid.write(
-            '%s/generate_features.py --source_catalog %s --alerts_catalog %s --gaia_catalog %s --bright_star_query_radius_arcsec %s --xmatch_radius_arcsec %s --query_size_limit %s --period_batch_size %s --samples_per_peak %s --Ncore %s --min_n_lc_points %s --min_cadence_minutes %s --dirname %s --filename %s --doQuadrantFile --quadrant_file %s --quadrant_index $QID %s %s\n'
+            '%s/generate_features.py --source_catalog %s --alerts_catalog %s --gaia_catalog %s --bright_star_query_radius_arcsec %s --xmatch_radius_arcsec %s --query_size_limit %s --period_batch_size %s --samples_per_peak %s --Ncore %s --min_n_lc_points %s --min_cadence_minutes %s --dirname %s --filename %s --top_n_periods %s --doQuadrantFile --quadrant_file %s --quadrant_index %s %s %s\n'
             % (
                 BASE_DIR / 'tools',
                 source_catalog,
@@ -479,14 +523,16 @@ if __name__ == "__main__":
                 min_cadence_minutes,
                 dirname,
                 filename,
+                top_n_periods,
                 args.quadrant_file,
+                qid,
                 cpu_gpu_flag,
                 extra_flags,
             )
         )
     else:
         fid.write(
-            '%s/generate_features.py --source_catalog %s --alerts_catalog %s --gaia_catalog %s --bright_star_query_radius_arcsec %s --xmatch_radius_arcsec %s --query_size_limit %s --period_batch_size %s --samples_per_peak %s --Ncore %s --field %s --ccd %s --quad %s --min_n_lc_points %s --min_cadence_minutes %s --dirname %s --filename %s %s %s\n'
+            '%s/generate_features.py --source_catalog %s --alerts_catalog %s --gaia_catalog %s --bright_star_query_radius_arcsec %s --xmatch_radius_arcsec %s --query_size_limit %s --period_batch_size %s --samples_per_peak %s --Ncore %s --field %s --ccd %s --quad %s --min_n_lc_points %s --min_cadence_minutes %s --dirname %s --filename %s --top_n_periods %s %s %s\n'
             % (
                 BASE_DIR / 'tools',
                 source_catalog,
@@ -505,6 +551,7 @@ if __name__ == "__main__":
                 min_cadence_minutes,
                 dirname,
                 filename,
+                top_n_periods,
                 cpu_gpu_flag,
                 extra_flags,
             )
@@ -530,26 +577,48 @@ if __name__ == "__main__":
         fid.write('module add slurm\n')
         fid.write(f'source activate {args.python_env_name}\n')
 
-    if args.runParallel:
-        fid.write(
-            '%s/generate_features_job_submission.py --dirname %s --filename %s --doSubmit --runParallel --max_instances %s --wait_time_minutes %s\n'
-            % (
-                BASE_DIR / 'tools',
-                dirpath,
-                filename,
-                args.max_instances,
-                args.wait_time_minutes,
+    if not args.doSubmitLoop:
+        if args.runParallel:
+            fid.write(
+                '%s/generate_features_job_submission.py --dirname %s --filename %s --doSubmit --runParallel --max_instances %s --wait_time_minutes %s --user %s\n'
+                % (
+                    BASE_DIR / 'tools',
+                    dirpath,
+                    filename,
+                    args.max_instances,
+                    args.wait_time_minutes,
+                    args.user,
+                )
             )
-        )
+        else:
+            fid.write(
+                '%s/generate_features_job_submission.py --dirname %s --filename %s --doSubmit --max_instances %s --wait_time_minutes %s --user %s\n'
+                % (
+                    BASE_DIR / 'tools',
+                    dirpath,
+                    filename,
+                    args.max_instances,
+                    args.wait_time_minutes,
+                    args.user,
+                )
+            )
     else:
-        fid.write(
-            '%s/generate_features_job_submission.py --dirname %s --filename %s --doSubmit --max_instances %s --wait_time_minutes %s\n'
-            % (
-                BASE_DIR / 'tools',
-                dirpath,
-                filename,
-                args.max_instances,
-                args.wait_time_minutes,
+        if args.runParallel:
+            fid.write(
+                '%s/generate_features_job_submission.py --dirname %s --filename %s --doSubmitLoop --runParallel\n'
+                % (
+                    BASE_DIR / 'tools',
+                    dirpath,
+                    filename,
+                )
             )
-        )
+        else:
+            fid.write(
+                '%s/generate_features_job_submission.py --dirname %s --filename %s --doSubmitLoop\n'
+                % (
+                    BASE_DIR / 'tools',
+                    dirpath,
+                    filename,
+                )
+            )
     fid.close()
