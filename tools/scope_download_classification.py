@@ -636,13 +636,13 @@ def download_classification(
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-file", type=str, default='parse', help="dataset")
-    parser.add_argument("-group_ids", type=int, nargs='+', help="list of group ids")
+    parser.add_argument("--file", type=str, default='parse', help="dataset")
+    parser.add_argument("--group_ids", type=int, nargs='+', help="list of group ids")
     parser.add_argument(
         "-start", type=int, default=0, help="start page/index for continued download"
     )
     parser.add_argument(
-        "-merge_features",
+        "--merge_features",
         type=bool,
         nargs='?',
         const=True,
@@ -650,56 +650,56 @@ if __name__ == "__main__":
         help="merge downloaded results with features from Kowalski",
     )
     parser.add_argument(
-        "-features_catalog",
+        "--features_catalog",
         type=str,
         default=features_catalog,
         help="catalog of features on Kowalski",
     )
 
     parser.add_argument(
-        "-features_limit",
+        "--features_limit",
         type=int,
         default=1000,
         help="Maximum number of sources queried for features per loop",
     )
 
     parser.add_argument(
-        "-taxonomy_map",
+        "--taxonomy_map",
         type=str,
         default='golden_dataset_mapper.json',
         help="JSON file mapping between origin labels and Fritz taxonomy",
     )
 
     parser.add_argument(
-        "-output_dir",
+        "--output_dir",
         type=str,
         default='fritzDownload',
         help="Name of directory to save downloaded file",
     )
 
     parser.add_argument(
-        "-output_filename",
+        "--output_filename",
         type=str,
         default='merged_classifications_features',
         help="Name of output file containing merged classifications and features",
     )
 
     parser.add_argument(
-        "-output_format",
+        "--output_format",
         type=str,
         default='parquet',
         help="Format of output file: parquet, h5 or csv",
     )
 
     parser.add_argument(
-        "-get_ztf_filters",
+        "--get_ztf_filters",
         action='store_true',
         default=False,
         help="add ZTF filter ID to default features",
     )
 
     parser.add_argument(
-        "-impute_missing_features",
+        "--impute_missing_features",
         action='store_true',
         default=False,
         help="impute missing features using strategy specified by config",
