@@ -509,7 +509,7 @@ def generate_features(
         _, lst = get_ids_loop(
             get_field_ids,
             catalog=source_catalog,
-            kowalski_instance=kowalski_instances['melman'],
+            kowalski_instance=kowalski_instances['gloria'],
             limit=limit,
             field=field,
             ccd_range=ccd,
@@ -614,7 +614,7 @@ def generate_features(
     feature_gen_ids = [x for x in feature_gen_source_dict.keys()]
 
     lcs = get_lightcurves_via_ids(
-        kowalski_instance=kowalski_instances['melman'],
+        kowalski_instance=kowalski_instances['gloria'],
         ids=feature_gen_ids,
         catalog=source_catalog,
         limit_per_query=lc_limit,
