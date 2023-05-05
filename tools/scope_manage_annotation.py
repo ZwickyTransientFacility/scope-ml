@@ -178,12 +178,12 @@ def manage_annotation(action, source, group_ids, origin, key, value):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-action", help="post, update, or delete annotation")
-    parser.add_argument("-source", help="Fritz object id or csv file of sources")
-    parser.add_argument("-group_ids", type=int, nargs='+', help="list of group ids")
-    parser.add_argument("-origin", type=str, help="name of annotation origin")
-    parser.add_argument("-key", help="annotation key")
-    parser.add_argument("-value", type=str, help="annotation value")
+    parser.add_argument("--action", help="post, update, or delete annotation")
+    parser.add_argument("--source", help="Fritz object id or csv file of sources")
+    parser.add_argument("--group_ids", type=int, nargs='+', help="list of group ids")
+    parser.add_argument("--origin", type=str, help="name of annotation origin")
+    parser.add_argument("--key", help="annotation key")
+    parser.add_argument("--value", type=str, help="annotation value")
 
     args = parser.parse_args()
 

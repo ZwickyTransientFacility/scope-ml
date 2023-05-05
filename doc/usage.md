@@ -258,7 +258,7 @@ process:
 output: data with new columns appended.
 
 ```sh
-./scope_download_classification.py -file sample.csv -group_ids 360 361 -start 10 -merge_features True -features_catalog ZTF_source_features_DR5 -features_limit 5000 -taxonomy_map golden_dataset_mapper.json -output_dir fritzDownload -output_filename merged_classifications_features -output_format parquet -get_ztf_filters -impute_missing_features
+./scope_download_classification.py --file sample.csv --group_ids 360 361 --start 10 --merge_features True --features_catalog ZTF_source_features_DR5 --features_limit 5000 --taxonomy_map golden_dataset_mapper.json --output_dir fritzDownload --output_filename merged_classifications_features --output_format parquet -get_ztf_filters --impute_missing_features
 ```
 
 ## Scope Upload Classification
@@ -294,7 +294,7 @@ process:
 6. (post comment to each uploaded source)
 
 ```sh
-./scope_upload_classification.py -file sample.csv -group_ids 500 250 750 -classification variable flaring -taxonomy_map map.json -comment confident -start 35 -stop 50 -skip_phot -p_threshold 0.9 -write_obj_id -result_format csv -use_existing_obj_id -post_survey_id -replace_classifications
+./scope_upload_classification.py --file sample.csv --group_ids 500 250 750 --classification variable flaring --taxonomy_map map.json --comment confident --start 35 --stop 50 --skip_phot --p_threshold 0.9 --write_obj_id --result_format csv --use_existing_obj_id --post_survey_id --replace_classifications
 ```
 
 ## Scope Manage Annotation
@@ -312,7 +312,7 @@ process:
 3. confirm changes with printed messages
 
 ```sh
-./scope_manage_annotation.py -action post -source sample.csv -group_ids 200 300 400 -origin revisedperiod -key period
+./scope_manage_annotation.py --action post --source sample.csv --group_ids 200 300 400 --origin revisedperiod --key period
 ```
 
 ## Scope Upload Disagreements
