@@ -342,7 +342,7 @@ def calc_stats(t, mag, err, p):
             f1_relamp3,
             f1_relphi3,
             f1_relamp4,
-            f1_relphi5,
+            f1_relphi4,
         ) = fourier_decomposition(t, mag, err, p)
     except Exception:
         (
@@ -359,7 +359,7 @@ def calc_stats(t, mag, err, p):
             f1_relamp3,
             f1_relphi3,
             f1_relamp4,
-            f1_relphi5,
+            f1_relphi4,
         ) = (
             np.nan,
             np.nan,
@@ -414,7 +414,7 @@ def calc_stats(t, mag, err, p):
         f1_relamp3,
         f1_relphi3,
         f1_relamp4,
-        f1_relphi5,
+        f1_relphi4,
     ]
 
 
@@ -436,7 +436,7 @@ def calc_fourier_stats(id, tme, p):
         f1_relamp3,
         f1_relphi3,
         f1_relamp4,
-        f1_relphi5,
+        f1_relphi4,
     ) = fourier_decomposition(t, mag, err, p)
 
     try:
@@ -455,7 +455,7 @@ def calc_fourier_stats(id, tme, p):
             f1_relamp3,
             f1_relphi3,
             f1_relamp4,
-            f1_relphi5,
+            f1_relphi4,
         ) = fourier_decomposition(t, mag, err, p)
     except Exception:
         (
@@ -472,7 +472,7 @@ def calc_fourier_stats(id, tme, p):
             f1_relamp3,
             f1_relphi3,
             f1_relamp4,
-            f1_relphi5,
+            f1_relphi4,
         ) = (
             np.nan,
             np.nan,
@@ -506,7 +506,7 @@ def calc_fourier_stats(id, tme, p):
             f1_relamp3,
             f1_relphi3,
             f1_relamp4,
-            f1_relphi5,
+            f1_relphi4,
         ]
     }
 
