@@ -527,7 +527,7 @@ if __name__ == "__main__":
         type=str,
         help="Post specified string to comments for sources in file",
     )
-    parser.add_argument("-start", type=int, help="Zero-based index to start uploading")
+    parser.add_argument("--start", type=int, help="Zero-based index to start uploading")
     parser.add_argument(
         "--stop",
         type=int,
