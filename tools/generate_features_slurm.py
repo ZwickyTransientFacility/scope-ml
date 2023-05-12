@@ -51,17 +51,31 @@ kowalski_instances = {'kowalski': kowalski, 'gloria': gloria, 'melman': melman}
 def check_quads_for_sources(
     fields: list = np.arange(1, 2001),
     kowalski_instance_name: str = 'melman',
-    catalog=source_catalog,
+    catalog: str = source_catalog,
+    count_sources: bool = False,
 ):
     """
-    Check ZTF field/ccd/quadrant combos for any sources.
+    Check ZTF field/ccd/quadrant combos for any sources. By default, lists any quadrants that have at least one source.
 
+    :param fields: list of integer field numbers to query (list)
+    :param kowalski_instance_name: name of kowalski instance to query (str)
+    :param catalog: name of source catalog to query (str)
+    :param count_sources: if set, count number of sources per quad and return (bool)
+
+    :return field_dct: dictionary containing quadrants having at least one source (and optionally, number of sources per quad)
+    :return has_sources: boolean stating whether each field in fields has sources
+    :return missing_ccd_quad: boolean stating whether each field in fields has no sources in at least one ccd/quad
     """
     kowalski_instance = kowalski_instances[kowalski_instance_name]
+    query_kwargs = {}
+    if not count_sources:
+        query_kwargs = {"limit": 1}
 
+    running_total_sources = 0
     has_sources = np.zeros(len(fields), dtype=bool)
     missing_ccd_quad = np.zeros(len(fields), dtype=bool)
     field_dct = {}
+
     for idx, field in enumerate(fields):
         print('Running field %d' % field)
         except_count = 0
@@ -89,7 +103,10 @@ def check_quads_for_sources(
             print(f'Field {field} has sources...')
             field_dct[field] = {}
             for ccd in range(1, 17):
-                quads = []
+                if count_sources:
+                    quads = {}
+                else:
+                    quads = []
                 for quadrant in range(1, 5):
 
                     # Another minimal query for each ccd/quad combo
@@ -104,13 +121,18 @@ def check_quads_for_sources(
                             },
                             "projection": {"_id": 1},
                         },
-                        "kwargs": {"limit": 1},
+                        "kwargs": query_kwargs,
                     }
                     rsp = kowalski_instance.query(q)
                     data = rsp['data']
 
                     if len(data) > 0:
-                        quads += [quadrant]
+                        if count_sources:
+                            quads[quadrant] = len(data)
+                            running_total_sources += len(data)
+                        else:
+                            quads += [quadrant]
+
                     else:
                         except_count += 1
 
@@ -122,6 +144,8 @@ def check_quads_for_sources(
             missing_ccd_quad[idx] = True
 
     print(f"Sources found in {np.sum(has_sources)} fields.")
+    if count_sources:
+        print(f"Found {running_total_sources} sources.")
 
     return field_dct, has_sources, missing_ccd_quad
 
