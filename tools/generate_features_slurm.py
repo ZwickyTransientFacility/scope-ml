@@ -5,6 +5,7 @@ import yaml
 import os
 from penquins import Kowalski
 import numpy as np
+import json
 
 
 BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
@@ -53,6 +54,8 @@ def check_quads_for_sources(
     kowalski_instance_name: str = 'melman',
     catalog: str = source_catalog,
     count_sources: bool = False,
+    save: bool = False,
+    filename: str = 'catalog_completeness',
 ):
     """
     Check ZTF field/ccd/quadrant combos for any sources. By default, lists any quadrants that have at least one source.
@@ -61,6 +64,8 @@ def check_quads_for_sources(
     :param kowalski_instance_name: name of kowalski instance to query (str)
     :param catalog: name of source catalog to query (str)
     :param count_sources: if set, count number of sources per quad and return (bool)
+    :param save: if set, save results dictionary in json format (bool)
+    :param filename: filename of saved results (str)
 
     :return field_dct: dictionary containing quadrants having at least one source (and optionally, number of sources per quad)
     :return has_sources: boolean stating whether each field in fields has sources
@@ -146,6 +151,10 @@ def check_quads_for_sources(
     print(f"Sources found in {np.sum(has_sources)} fields.")
     if count_sources:
         print(f"Found {running_total_sources} sources.")
+
+    if save:
+        with open(BASE_DIR / f'{filename}.json', 'w') as f:
+            json.dump(field_dct, f)
 
     return field_dct, has_sources, missing_ccd_quad
 
