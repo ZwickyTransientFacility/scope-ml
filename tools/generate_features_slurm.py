@@ -72,9 +72,6 @@ def check_quads_for_sources(
     :return missing_ccd_quad: boolean stating whether each field in fields has no sources in at least one ccd/quad
     """
     kowalski_instance = kowalski_instances[kowalski_instance_name]
-    query_kwargs = {}
-    if not count_sources:
-        query_kwargs = {"limit": 1}
 
     running_total_sources = 0
     has_sources = np.zeros(len(fields), dtype=bool)
@@ -116,7 +113,7 @@ def check_quads_for_sources(
 
                     # Another minimal query for each ccd/quad combo
                     q = {
-                        "query_type": "find",
+                        "query_type": 'count_documents',
                         "query": {
                             "catalog": catalog,
                             "filter": {
@@ -124,17 +121,15 @@ def check_quads_for_sources(
                                 'ccd': {'$eq': int(ccd)},
                                 'quad': {'$eq': int(quadrant)},
                             },
-                            "projection": {"_id": 1},
                         },
-                        "kwargs": query_kwargs,
                     }
                     rsp = kowalski_instance.query(q)
                     data = rsp['data']
 
-                    if len(data) > 0:
+                    if data > 0:
                         if count_sources:
-                            quads[quadrant] = len(data)
-                            running_total_sources += len(data)
+                            quads[quadrant] = data
+                            running_total_sources += data
                         else:
                             quads += [quadrant]
 
