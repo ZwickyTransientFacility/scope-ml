@@ -103,7 +103,7 @@ def check_quads_for_sources(
 
         if has_sources[idx]:
             print(f'Field {field} has sources...')
-            field_dct[field] = {}
+            field_dct[str(field)] = {}
             for ccd in range(1, 17):
                 if count_sources:
                     quads = {}
@@ -128,7 +128,7 @@ def check_quads_for_sources(
 
                     if data > 0:
                         if count_sources:
-                            quads[quadrant] = data
+                            quads[str(quadrant)] = data
                             running_total_sources += data
                         else:
                             quads += [quadrant]
@@ -137,7 +137,7 @@ def check_quads_for_sources(
                         except_count += 1
 
                 if len(quads) > 0:
-                    field_dct[field].update({ccd: quads})
+                    field_dct[str(field)].update({str(ccd): quads})
 
         print(f"{64 - except_count} ccd/quad combos")
         if except_count > 0:
