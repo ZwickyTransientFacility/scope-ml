@@ -437,6 +437,7 @@ def generate_features(
     doSpecificIDs: bool = False,
     skipCloseSources: bool = False,
     top_n_periods: int = 50,
+    max_freq: float = 48.0,
 ):
     """
     Generate features for ZTF light curves
@@ -453,7 +454,7 @@ def generate_features(
     :param doCPU: flag to run config-specified CPU period algorithms (bool)
     :param doGPU: flag to run config-specified GPU period algorithms (bool)
     :param samples_per_peak: number of samples per periodogram peak (int)
-    :param doScaleMinPeriod: for period finding, scale min period based on min_cadence_minutes [otherwise, min P = 3 min] (bool)
+    :param doScaleMinPeriod: for period finding, scale min period based on min_cadence_minutes (bool). Otherwise, set --max_freq to desired value
     :param doRemoveTerrestrial: remove terrestrial frequencies from period-finding analysis (bool)
     :param Ncore: number of CPU cores to parallelize queries (int)
     :param field: ZTF field to run (int)
@@ -472,6 +473,7 @@ def generate_features(
     :param doSpecificIDs: flag to perform feature generation for ztf_id column in config-specified file (bool)
     :param skipCloseSources: flag to skip removal of sources too close to bright stars via Gaia (bool)
     :param top_n_periods: number of ELS, ECE periods to pass to EAOV if using ELS_ECE_EAOV algorithm (int)
+    :param max_freq: maximum frequency [1 / days] to use for period finding (float). Overridden by --doScaleMinPeriod
 
     :return feature_df: dataframe containing generated features
 
@@ -737,11 +739,11 @@ def generate_features(
         # Define frequency grid using largest LC time baseline
         if doScaleMinPeriod:
             fmin, fmax = 2 / baseline, 1 / (
-                2 * min_cadence_minutes / 1440
+                2 * min_cadence_minutes / 1440.0
             )  # Nyquist frequency given minimum cadence converted to days
         else:
             # Default minimum period is 30 min
-            fmin, fmax = 2 / baseline, 48
+            fmin, fmax = 2 / baseline, max_freq
 
         df = 1.0 / (samples_per_peak * baseline)
         nf = int(np.ceil((fmax - fmin) / df))
@@ -1190,7 +1192,7 @@ if __name__ == "__main__":
         "--doScaleMinPeriod",
         action='store_true',
         default=False,
-        help="if set, scale min period using min_cadence_minutes",
+        help="if set, scale min period using min_cadence_minutes. Otherwise, set --max_freq to desired value",
     )
     parser.add_argument(
         "--doRemoveTerrestrial",
@@ -1279,6 +1281,12 @@ if __name__ == "__main__":
         default=50,
         help="number of ELS, ECE periods to pass to EAOV if using ELS_ECE_EAOV algorithm",
     )
+    parser.add_argument(
+        "--max_freq",
+        type=float,
+        default=48.0,
+        help="maximum frequency [1 / days] to use for period finding. Overridden by --doScaleMinPeriod",
+    )
 
     args = parser.parse_args()
 
@@ -1314,4 +1322,5 @@ if __name__ == "__main__":
         doSpecificIDs=args.doSpecificIDs,
         skipCloseSources=args.skipCloseSources,
         top_n_periods=args.top_n_periods,
+        max_freq=args.max_freq,
     )
