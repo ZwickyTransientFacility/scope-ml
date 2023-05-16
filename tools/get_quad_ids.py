@@ -322,7 +322,7 @@ def get_field_ids(
         "quad": {"$eq": quad},
     }
     if minobs > 0:
-        filter["nobs"] = {"$gt": minobs}
+        filter["nobs"] = {"$gte": minobs}
 
     projection = {"_id": 1}
     if get_coords:
