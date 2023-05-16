@@ -54,6 +54,7 @@ def check_quads_for_sources(
     kowalski_instance_name: str = 'melman',
     catalog: str = source_catalog,
     count_sources: bool = False,
+    minobs: int = 0,
     save: bool = False,
     filename: str = 'catalog_completeness',
 ):
@@ -64,6 +65,7 @@ def check_quads_for_sources(
     :param kowalski_instance_name: name of kowalski instance to query (str)
     :param catalog: name of source catalog to query (str)
     :param count_sources: if set, count number of sources per quad and return (bool)
+    :param minobs: minimum number of observations needed to count a source (int)
     :param save: if set, save results dictionary in json format (bool)
     :param filename: filename of saved results (str)
 
@@ -110,17 +112,20 @@ def check_quads_for_sources(
                 else:
                     quads = []
                 for quadrant in range(1, 5):
+                    fltr = {
+                        'field': {'$eq': int(field)},
+                        'ccd': {'$eq': int(ccd)},
+                        'quad': {'$eq': int(quadrant)},
+                    }
+                    if minobs > 0:
+                        fltr.update({'nobs': {'$gte': int(minobs)}})
 
                     # Another minimal query for each ccd/quad combo
                     q = {
                         "query_type": 'count_documents',
                         "query": {
                             "catalog": catalog,
-                            "filter": {
-                                'field': {'$eq': int(field)},
-                                'ccd': {'$eq': int(ccd)},
-                                'quad': {'$eq': int(quadrant)},
-                            },
+                            "filter": fltr,
                         },
                     }
                     rsp = kowalski_instance.query(q)
