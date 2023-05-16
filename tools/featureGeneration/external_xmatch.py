@@ -34,6 +34,19 @@ def xmatch(
     for c in catalog_info.keys():
         ext_results_dct[c] = {}
 
+    # Store desired external features for later
+    cat_projection_names = {}
+    for catalog in catalog_info.keys():
+        cat_projection_names[catalog] = [
+            x for x in catalog_info[catalog]['projection'].keys()
+        ]
+
+    # Add coordinates.radec_geojson to each catalog projection
+    [
+        catalog_info[x]['projection'].update({'coordinates.radec_geojson': 1})
+        for x in catalog_info.keys()
+    ]
+
     print('Querying crossmatch catalogs in batches...')
     for i in range(0, n_iterations):
         print(f"Iteration {i+1} of {n_iterations}...")
@@ -48,19 +61,6 @@ def xmatch(
         # Need to add 180 -> no negative RAs
         radec_geojson[0, :] += 180.0
         radec_dict = dict(zip(id_slice, radec_geojson.transpose().tolist()))
-
-        # Store desired external features for later
-        cat_projection_names = {}
-        for catalog in catalog_info.keys():
-            cat_projection_names[catalog] = [
-                x for x in catalog_info[catalog]['projection'].keys()
-            ]
-
-        # Add coordinates.radec_geojson to each catalog projection
-        [
-            catalog_info[x]['projection'].update({'coordinates.radec_geojson': 1})
-            for x in catalog_info.keys()
-        ]
 
         if Ncore > 1:
             # Split dictionary for parallel querying
