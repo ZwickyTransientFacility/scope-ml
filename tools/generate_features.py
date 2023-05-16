@@ -740,7 +740,8 @@ def generate_features(
                 2 * min_cadence_minutes / 1440
             )  # Nyquist frequency given minimum cadence converted to days
         else:
-            fmin, fmax = 2 / baseline, 480
+            # Default minimum period is 30 min
+            fmin, fmax = 2 / baseline, 48
 
         df = 1.0 / (samples_per_peak * baseline)
         nf = int(np.ceil((fmax - fmin) / df))
