@@ -81,7 +81,7 @@ def check_quads_for_sources(
     field_dct = {}
 
     for idx, field in enumerate(fields):
-        print('Running field %d' % field)
+        print('Running field %d' % int(field))
         except_count = 0
         # Run minimal query to determine if sources exist in field
         q = {
