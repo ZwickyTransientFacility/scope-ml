@@ -81,7 +81,7 @@ def check_quads_for_sources(
     field_dct = {}
 
     for idx, field in enumerate(fields):
-        print('Running field %d' % field)
+        print('Running field %d' % int(field))
         except_count = 0
         # Run minimal query to determine if sources exist in field
         q = {
@@ -223,7 +223,7 @@ if __name__ == "__main__":
         "--doScaleMinPeriod",
         action='store_true',
         default=False,
-        help="if set, scale min period by min_cadence_minutes",
+        help="if set, scale min period by min_cadence_minutes. Otherwise, set --max_freq to desired value",
     )
     parser.add_argument(
         "--doRemoveTerrestrial",
@@ -241,7 +241,7 @@ if __name__ == "__main__":
         "--field",
         type=int,
         default=296,
-        help="if not -doAllFields, ZTF field to run on",
+        help="if not --doQuadrantFile, ZTF field to run on",
     )
     parser.add_argument(
         "--ccd", type=int, default=1, help="if not -doAllCCDs, ZTF ccd to run on"
@@ -375,6 +375,13 @@ if __name__ == "__main__":
         default=False,
         help="if set, generate a list of fields/ccd/quads and job numbers, save to slurm.dat",
     )
+    parser.add_argument(
+        "--field_list",
+        type=int,
+        nargs='+',
+        default=None,
+        help="space-separated list of fields for which to generate quadrant file. If None, all populated fields included.",
+    )
     parser.add_argument("--doQuadrantFile", action="store_true", default=False)
     parser.add_argument("--quadrant_file", default="slurm.dat")
     parser.add_argument("--quadrant_index", default=None, type=int)
@@ -395,6 +402,12 @@ if __name__ == "__main__":
         type=int,
         default=50,
         help="number of ELS, ECE periods to pass to EAOV if using ELS_ECE_EAOV algorithm",
+    )
+    parser.add_argument(
+        "--max_freq",
+        type=float,
+        default=48.0,
+        help="maximum frequency [1 / days] to use for period finding. Overridden by --doScaleMinPeriod",
     )
     parser.add_argument(
         "--max_instances",
@@ -463,6 +476,7 @@ if __name__ == "__main__":
     doSpecificIDs = args.doSpecificIDs
     skipCloseSources = args.skipCloseSources
     top_n_periods = args.top_n_periods
+    max_freq = args.max_freq
 
     if args.doCPU:
         cpu_gpu_flag = "--doCPU"
@@ -499,9 +513,17 @@ if __name__ == "__main__":
 
     quadrantfile = os.path.join(slurmDir, args.quadrant_file)
     if args.generateQuadrantFile:
-        field_dct, _, _ = check_quads_for_sources(
-            kowalski_instance_name=args.kowalski_instance_name, catalog=source_catalog
-        )
+        if args.field_list is None:
+            field_dct, _, _ = check_quads_for_sources(
+                kowalski_instance_name=args.kowalski_instance_name,
+                catalog=source_catalog,
+            )
+        else:
+            field_dct, _, _ = check_quads_for_sources(
+                fields=args.field_list,
+                kowalski_instance_name=args.kowalski_instance_name,
+                catalog=source_catalog,
+            )
 
         job_number = 0
 
@@ -509,7 +531,10 @@ if __name__ == "__main__":
         for field in field_dct.keys():
             for ccd in field_dct[field].keys():
                 for quad in field_dct[field][ccd]:
-                    fid.write('%d %d %d %d\n' % (job_number, field, ccd, quad))
+                    fid.write(
+                        '%d %d %d %d\n'
+                        % (int(job_number), int(field), int(ccd), int(quad))
+                    )
                     job_number += 1
         fid.close()
 
@@ -531,7 +556,7 @@ if __name__ == "__main__":
 
     if args.cluster_name in ['Expanse', 'expanse', 'EXPANSE']:
         fid.write('module purge\n')
-        fid.write('module add gpu\n')
+        fid.write('module add gpu/0.15.4\n')
         fid.write('module add cuda\n')
         fid.write(f'source activate {args.python_env_name}\n')
 
@@ -540,7 +565,7 @@ if __name__ == "__main__":
         if args.quadrant_index is not None:
             qid = args.quadrant_index
         fid.write(
-            '%s/generate_features.py --source_catalog %s --alerts_catalog %s --gaia_catalog %s --bright_star_query_radius_arcsec %s --xmatch_radius_arcsec %s --query_size_limit %s --period_batch_size %s --samples_per_peak %s --Ncore %s --min_n_lc_points %s --min_cadence_minutes %s --dirname %s --filename %s --top_n_periods %s --doQuadrantFile --quadrant_file %s --quadrant_index %s %s %s\n'
+            '%s/generate_features.py --source_catalog %s --alerts_catalog %s --gaia_catalog %s --bright_star_query_radius_arcsec %s --xmatch_radius_arcsec %s --query_size_limit %s --period_batch_size %s --samples_per_peak %s --Ncore %s --min_n_lc_points %s --min_cadence_minutes %s --dirname %s --filename %s --top_n_periods %s --max_freq %s --doQuadrantFile --quadrant_file %s --quadrant_index %s %s %s\n'
             % (
                 BASE_DIR / 'tools',
                 source_catalog,
@@ -557,6 +582,7 @@ if __name__ == "__main__":
                 dirname,
                 filename,
                 top_n_periods,
+                max_freq,
                 args.quadrant_file,
                 qid,
                 cpu_gpu_flag,
@@ -565,7 +591,7 @@ if __name__ == "__main__":
         )
     else:
         fid.write(
-            '%s/generate_features.py --source_catalog %s --alerts_catalog %s --gaia_catalog %s --bright_star_query_radius_arcsec %s --xmatch_radius_arcsec %s --query_size_limit %s --period_batch_size %s --samples_per_peak %s --Ncore %s --field %s --ccd %s --quad %s --min_n_lc_points %s --min_cadence_minutes %s --dirname %s --filename %s --top_n_periods %s %s %s\n'
+            '%s/generate_features.py --source_catalog %s --alerts_catalog %s --gaia_catalog %s --bright_star_query_radius_arcsec %s --xmatch_radius_arcsec %s --query_size_limit %s --period_batch_size %s --samples_per_peak %s --Ncore %s --field %s --ccd %s --quad %s --min_n_lc_points %s --min_cadence_minutes %s --dirname %s --filename %s --top_n_periods %s --max_freq %s %s %s\n'
             % (
                 BASE_DIR / 'tools',
                 source_catalog,
@@ -585,6 +611,7 @@ if __name__ == "__main__":
                 dirname,
                 filename,
                 top_n_periods,
+                max_freq,
                 cpu_gpu_flag,
                 extra_flags,
             )

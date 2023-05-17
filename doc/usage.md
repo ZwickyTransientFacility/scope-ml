@@ -164,7 +164,7 @@ inputs:
 10. --doCPU : flag to run config-specified CPU period algorithms (bool)
 11. --doGPU : flag to run config-specified GPU period algorithms (bool)
 12. --samples_per_peak : number of samples per periodogram peak (int)
-13. --doScaleMinPeriod : for period finding, scale min period based on min_cadence_minutes [otherwise, min P = 3 min] (bool)
+13. --doScaleMinPeriod : for period finding, scale min period based on min_cadence_minutes (bool). Otherwise, set --max_freq to desired value
 14. --doRemoveTerrestrial : remove terrestrial frequencies from period-finding analysis (bool)
 15. --Ncore : number of CPU cores to parallelize queries (int)
 16. --field : ZTF field to run (int)
@@ -183,6 +183,7 @@ inputs:
 29. --doSpecificIDs: flag to perform feature generation for ztf_id column in config-specified file (bool)
 30. --skipCloseSources: flag to skip removal of sources too close to bright stars via Gaia (bool)
 31. --top_n_periods: number of ELS, ECE periods to pass to EAOV if using ELS_ECE_EAOV algorithm (int)
+32. --max_freq: maximum frequency [1 / days] to use for period finding (float). Overridden by --doScaleMinPeriod
 
 output:
 feature_df : dataframe containing generated features
