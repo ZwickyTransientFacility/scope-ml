@@ -1040,6 +1040,8 @@ class Scope:
         group_name: str = 'experiment',
         algorithm: str = 'dnn',
         scale_features: str = 'min_max',
+        feature_directory: str = 'features',
+        period_colname: str = 'period',
         write_csv: bool = False,
     ):
         """
@@ -1049,12 +1051,14 @@ class Scope:
         :param group_name: name of group containing trained models within models directory (str)
         :param algorithm: algorithm to use in script (str)
         :param scale_features: method to scale features (str, currently "min_max" or "median_std")
+        :param feature_directory: (str)
+        :param period_colname: (str)
         :param write_csv: if True, write CSV file in addition to HDF5 (bool)
 
         :return:
 
         :example:  ./scope.py create_inference_script --filename='get_all_preds_dnn.sh' --group_name='experiment' \
-                    --algorithm='dnn'
+                    --algorithm='dnn' --feature_directory='generated_features'
         """
 
         path = str(pathlib.Path(__file__).parent.absolute() / filename)
@@ -1088,7 +1092,7 @@ class Scope:
                         [file for file in tag_file_gen], key=os.path.getctime
                     ).name
                     script.write(
-                        f'echo -n "{tag} ..." && python tools/inference.py --path-model=models_{algorithm}/{group_name}/{tag}/{most_recent_file} --model-class={tag} --field=$1 --whole-field --flag_ids --scale_features={scale_features} {addtl_args} && echo "done"\n'
+                        f'echo -n "{tag} ..." && python tools/inference.py --path-model=models_{algorithm}/{group_name}/{tag}/{most_recent_file} --model-class={tag} --field=$1 --whole-field --flag_ids --scale_features={scale_features} --feature_directory={feature_directory} --period_colname={period_colname} {addtl_args} && echo "done"\n'
                     )
 
             elif algorithm in ['XGB', 'xgb', 'XGBoost', 'xgboost', 'XGBOOST']:
@@ -1100,7 +1104,7 @@ class Scope:
                         [file for file in tag_file_gen], key=os.path.getctime
                     ).name
                     script.write(
-                        f'echo -n "{tag} ..." && python tools/inference.py --path-model=models_{algorithm}/{group_name}/{tag}/{most_recent_file} --model-class={tag} --xgb_model --field=$1 --whole-field --flag_ids {addtl_args} && echo "done"\n'
+                        f'echo -n "{tag} ..." && python tools/inference.py --path-model=models_{algorithm}/{group_name}/{tag}/{most_recent_file} --model-class={tag} --scale_features={scale_features} --feature_directory={feature_directory} --period_colname={period_colname} --xgb_model --field=$1 --whole-field --flag_ids {addtl_args} && echo "done"\n'
                     )
 
             else:

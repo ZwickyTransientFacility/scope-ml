@@ -10,7 +10,6 @@ import yaml
 import json
 import os
 import time
-import h5py
 import pyarrow.dataset as ds
 import scope
 from scope.utils import (
@@ -225,6 +224,8 @@ def run(
     feature_stats = kwargs.get("feature_stats", None)
     scale_features = kwargs.get("scale_features", "min_max")
     trainingSet = kwargs.get("trainingSet", "use_config")
+    feature_directory = kwargs.get("feature_directory", "features")
+    period_colname = kwargs.get("period_colname", "period")
 
     if xgbst:
         algorithm = 'xgb'
@@ -236,7 +237,9 @@ def run(
         default_source_file = (
             BASE_DIR + "/../ids/field_" + str(field) + "/field_" + str(field) + ".h5"
         )
-        default_features_file = BASE_DIR + "/../features/field_" + str(field)
+        default_features_file = (
+            BASE_DIR + f"/../{feature_directory}/field_" + str(field)
+        )
     else:
         default_source_file = (
             BASE_DIR
@@ -250,7 +253,7 @@ def run(
         )
         default_features_file = (
             BASE_DIR
-            + "/../features/field_"
+            + f"/../{feature_directory}/*field_"
             + str(field)
             + "/ccd_"
             + str(ccd).zfill(2)
@@ -263,23 +266,7 @@ def run(
     source_ids_filename = os.path.join(BASE_DIR, source_ids_filename)
     features_filename = os.path.join(BASE_DIR, features_filename)
 
-    if verbose:
-        # read source ids from hdf5 file
-        ts = time.time()
-        all_source_ids = np.array([])
-        with h5py.File(source_ids_filename, "r") as f:
-            ids = np.array(f[list(f.keys())[0]])
-            all_source_ids = np.concatenate((all_source_ids, ids), axis=0)
-        te = time.time()
-        if tm:
-            print(
-                "read source_ids from .h5".ljust(JUST)
-                + "\t --> \t"
-                + str(round(te - ts, 4))
-                + " s"
-            )
-
-        print("Number of ids:", len(all_source_ids))
+    # print("Number of ids:", len(all_source_ids))
 
     # Load pre-trained model
     ts = time.time()
@@ -320,11 +307,16 @@ def run(
         batch_count += 1
         print(f'Batch {batch_count} of {len(DS.files)}...')
         features = batch.to_pandas()
-        source_ids = features['_id'].values
+        if feature_directory == 'features':
+            source_ids = features['_id'].values
+        else:
+            # Generated features have _id column set as index
+            source_ids = features.index.values
+            features['_id'] = source_ids
         ra_collection = np.concatenate([ra_collection, features['ra'].values])
         dec_collection = np.concatenate([dec_collection, features['dec'].values])
         period_collection = np.concatenate(
-            [period_collection, features['period'].values]
+            [period_collection, features[period_colname].values]
         )
         source_id_count += len(source_ids)
 
@@ -437,18 +429,6 @@ def run(
                 )
         else:
             # xgboost inferencing
-
-            features = clean_data(
-                features,
-                feature_names,
-                field,
-                ccd,
-                quad,
-                flag_ids,
-                whole_field,
-                algorithm=algorithm,
-            )
-
             ts = time.time()
             scores = model.predict(features[feature_names])
             features[model_class + '_xgb'] = scores

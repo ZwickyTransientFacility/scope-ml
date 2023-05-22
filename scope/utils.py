@@ -632,11 +632,11 @@ def impute_features(
 def get_feature_stats(df: pd.DataFrame, features: list):
     feature_stats = {
         feature: {
-            "min": np.min(df[feature]),
-            "max": np.max(df[feature]),
-            "median": np.median(df[feature]),
-            "mean": np.mean(df[feature]),
-            "std": np.std(df[feature]),
+            "min": np.nanmin(df[feature]),
+            "max": np.nanmax(df[feature]),
+            "median": np.nanmedian(df[feature]),
+            "mean": np.nanmean(df[feature]),
+            "std": np.nanstd(df[feature]),
         }
         for feature in features
     }
