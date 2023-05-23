@@ -58,18 +58,6 @@ else:
         'Training set must have one of .parquet, .h5 or .csv file formats.'
     )
 
-
-def clean_dataset_xgb(df):
-    # Deprecated
-    warnings.warn(
-        "clean_dataset_xgb is deprecated and will be removed in a future commit."
-    )
-    assert isinstance(df, pd.DataFrame), "df needs to be a pd.DataFrame"
-    df.dropna(inplace=True)
-    indices_to_keep = ~df.isin([np.nan, np.inf, -np.inf]).any(1)
-    return df[indices_to_keep].astype(np.float64)
-
-
 missing_dict = {}
 
 
@@ -90,6 +78,7 @@ def clean_data(
     flag_ids=False,
     whole_field=False,
     algorithm='dnn',
+    period_suffix=None,
 ):
     '''
     Impute missing values in features data
@@ -99,12 +88,21 @@ def clean_data(
         dataframe containing features of all sources (output of get_features)
     feature_names : List<str>
         features of interest for inference
-    flag_ids : bool
-        whether to store flagged ids and features with missing values
+    field : int
+        ZTF field number
     ccd : int
         CCD number [1,16]
     quad : int
         CCD quad number [1,4]
+    flag_ids : bool
+        whether to store flagged ids and features with missing values
+    whole_field : bool
+        whether data to be cleaned comes from a single file for entire field
+    algorithm : str
+        'dnn' or 'xgb'
+    period_suffix : str
+        suffix to append to periodic feature names
+
     Returns
     -------
     Clean dataframe with no missing values.
@@ -143,7 +141,9 @@ def clean_data(
 
     # impute missing values as specified in config
     # (Should already be complete to save time here)
-    features_df = impute_features(features_df, self_impute=True)
+    features_df = impute_features(
+        features_df, self_impute=True, period_suffix=period_suffix
+    )
 
     if flag_ids:
         os.makedirs(os.path.dirname(filename), exist_ok=True)
@@ -173,7 +173,7 @@ def run_inference(
     scale_features: str = 'min_max',
     trainingSet: str = 'use_config',
     feature_directory: str = 'features',
-    period_colname: str = 'period',
+    period_suffix: str = None,
     **kwargs,
 ):
     """
@@ -213,8 +213,8 @@ def run_inference(
         usually set to 'use_config'. A DataFrame can also be passed in, but this is not recommended
     feature_directory: str
         name of directory containing features
-    period_colname: str
-        name of column containing period to save with inference results
+    period_suffix: str
+        suffix of column containing period to save with inference results
 
     Returns
     =======
@@ -286,13 +286,16 @@ def run_inference(
     else:
         default_outfile = out_dir + "field_" + str(field) + "/field_" + str(field)
 
-    # print("Number of ids:", len(all_source_ids))
     source_id_count = 0
     ra_collection = np.array([])
     dec_collection = np.array([])
     period_collection = np.array([])
     preds_collection = []
     filename = kwargs.get("output", default_outfile)
+
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
+    if os.path.isfile(f'{filename}.h5'):
+        raise FileExistsError('Preds file for this field (/ccd/quad) already exists.')
 
     ts = time.time()
     DS = ds.dataset(features_filename, format='parquet')
@@ -308,6 +311,12 @@ def run_inference(
 
     batch_count = 0
     max_batch_count = len(DS.files)
+
+    if not ((period_suffix is None) | (period_suffix == 'None')):
+        period_colname = f'period_{period_suffix}'
+    else:
+        period_colname = 'period'
+
     for batch in generator:
         batch_count += 1
         print(f'Batch {batch_count} of {max_batch_count}...')
@@ -336,6 +345,13 @@ def run_inference(
         feature_names = [
             key for key in all_features if forgiving_true(all_features[key]["include"])
         ]
+
+        if not ((period_suffix is None) | (period_suffix == 'None')):
+            periodic_bool = [all_features[x]['periodic'] for x in feature_names]
+            for j, name in enumerate(feature_names):
+                if periodic_bool[j]:
+                    feature_names[j] = f'{name}_{period_suffix}'
+
         # Do not use dmdt as a feature for xgb algorithm
         if algorithm == 'xgb':
             if 'dmdt' in feature_names:
@@ -355,6 +371,7 @@ def run_inference(
             flag_ids,
             whole_field,
             algorithm=algorithm,
+            period_suffix=period_suffix,
         )
 
         # Get feature stats using training set for scaling consistency
@@ -418,8 +435,7 @@ def run_inference(
                     + " s"
                 )
 
-            # MODEL_CLASS
-            # Fetch specific feature names on a per-class basis
+            # Redefine feature_names on a per-class basis (phenomenological or ontological)
             train_config = config["training"]["classes"][model_class]
             all_features = config["features"][train_config["features"]]
 
@@ -428,6 +444,12 @@ def run_inference(
                 for key in all_features
                 if forgiving_true(all_features[key]["include"])
             ]
+
+            if not ((period_suffix is None) | (period_suffix == 'None')):
+                periodic_bool = [all_features[x]['periodic'] for x in feature_names]
+                for j, name in enumerate(feature_names):
+                    if periodic_bool[j]:
+                        feature_names[j] = f'{name}_{period_suffix}'
 
             if algorithm == 'dnn':
                 dmdt = np.expand_dims(
@@ -526,32 +548,18 @@ def run_inference(
     preds_df.attrs['inference_dateTime_utc'] = start_dt
     preds_df.attrs.update(features_metadata)
 
-    os.makedirs(os.path.dirname(filename), exist_ok=True)
-    if os.path.isfile(f'{filename}.h5'):
-        # Merge existing and new preds
-        existing_preds = read_hdf(f'{filename}.h5')
-        existing_attrs = existing_preds.attrs
-        existing_attrs.update(preds_df.attrs)
-        preds_df = pd.merge(
-            existing_preds,
-            preds_df,
-            on=['_id', 'Gaia_EDR3___id', 'AllWISE___id', 'PS1_DR1___id'],
-            how='outer',
-        )
-        preds_df.attrs = existing_attrs
-    else:
-        # If new file, add ra/dec/period columns
-        # Reorganize so inference columns are together, not interrupted by coords/period
+    # Add ra/dec/period columns
+    # Reorganize so inference columns are together, not interrupted by coords/period
 
-        preds_df['ra'] = ra_collection
-        preds_df['dec'] = dec_collection
-        preds_df['period'] = period_collection
+    preds_df['ra'] = ra_collection
+    preds_df['dec'] = dec_collection
+    preds_df['period'] = period_collection
 
-        for name in model_class_names:
-            class_name = f"{name}_{algorithm}"
-            inference_col = preds_df[class_name]
-            preds_df.drop(columns=class_name, inplace=True)
-            preds_df[class_name] = inference_col
+    for name in model_class_names:
+        class_name = f"{name}_{algorithm}"
+        inference_col = preds_df[class_name]
+        preds_df.drop(columns=class_name, inplace=True)
+        preds_df[class_name] = inference_col
 
     write_hdf(preds_df, f'{filename}.h5')
     if write_csv:
@@ -631,10 +639,10 @@ if __name__ == "__main__":
         help="name of directory containing features",
     )
     parser.add_argument(
-        "--period_colname",
+        "--period_suffix",
         type=str,
-        default='period',
-        help="name of column containing period to save with inference results",
+        default=None,
+        help="suffix of column containing period to save with inference results",
     )
 
     args = parser.parse_args()
@@ -656,5 +664,5 @@ if __name__ == "__main__":
         scale_features=args.scale_features,
         trainingSet=args.trainingSet,
         feature_directory=args.feature_directory,
-        period_colname=args.period_colname,
+        period_suffix=args.period_suffix,
     )

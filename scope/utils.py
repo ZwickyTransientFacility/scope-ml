@@ -507,7 +507,10 @@ def plot_gaia_density(
 
 
 def impute_features(
-    features_df: pd.DataFrame, n_neighbors: int = 5, self_impute: bool = False
+    features_df: pd.DataFrame,
+    n_neighbors: int = 5,
+    self_impute: bool = False,
+    period_suffix: str = None,
 ):
     # Load config file
     config = load_config(
@@ -532,16 +535,23 @@ def impute_features(
 
         referenceSet = trainingSet
 
+    all_features = config['features']['ontological']
+
     # Impute zero where specified
     feature_list_impute_zero = [
         x
-        for x in config['features']['ontological']
+        for x in all_features
         if (
-            config['features']['ontological'][x]['include']
-            and config['features']['ontological'][x]['impute_strategy']
-            in ['zero', 'Zero', 'ZERO']
+            all_features[x]['include']
+            and all_features[x]['impute_strategy'] in ['zero', 'Zero', 'ZERO']
         )
     ]
+
+    if not ((period_suffix is None) | (period_suffix == 'None')):
+        periodic_bool = [all_features[x]['periodic'] for x in feature_list_impute_zero]
+        for j, name in enumerate(feature_list_impute_zero):
+            if periodic_bool[j]:
+                feature_list_impute_zero[j] = f'{name}_{period_suffix}'
 
     print('Imputing zero for the following features: ', feature_list_impute_zero)
     print()
@@ -551,13 +561,20 @@ def impute_features(
     # Impute median from reference set where specified
     feature_list_impute_median = [
         x
-        for x in config['features']['ontological']
+        for x in all_features
         if (
-            config['features']['ontological'][x]['include']
-            and config['features']['ontological'][x]['impute_strategy']
-            in ['median', 'Median', 'MEDIAN']
+            all_features[x]['include']
+            and all_features[x]['impute_strategy'] in ['median', 'Median', 'MEDIAN']
         )
     ]
+
+    if not ((period_suffix is None) | (period_suffix == 'None')):
+        periodic_bool = [
+            all_features[x]['periodic'] for x in feature_list_impute_median
+        ]
+        for j, name in enumerate(feature_list_impute_median):
+            if periodic_bool[j]:
+                feature_list_impute_median[j] = f'{name}_{period_suffix}'
 
     print('Imputing median for the following features: ', feature_list_impute_median)
     print()
@@ -567,13 +584,18 @@ def impute_features(
     # Impute mean from reference set where specified
     feature_list_impute_mean = [
         x
-        for x in config['features']['ontological']
+        for x in all_features
         if (
-            config['features']['ontological'][x]['include']
-            and config['features']['ontological'][x]['impute_strategy']
-            in ['mean', 'Mean', 'MEAN']
+            all_features[x]['include']
+            and all_features[x]['impute_strategy'] in ['mean', 'Mean', 'MEAN']
         )
     ]
+
+    if not ((period_suffix is None) | (period_suffix == 'None')):
+        periodic_bool = [all_features[x]['periodic'] for x in feature_list_impute_mean]
+        for j, name in enumerate(feature_list_impute_mean):
+            if periodic_bool[j]:
+                feature_list_impute_mean[j] = f'{name}_{period_suffix}'
 
     print('Imputing mean for the following features: ', feature_list_impute_mean)
     print()
@@ -583,13 +605,18 @@ def impute_features(
     # Impute via regression where specified
     feature_list_regression = [
         x
-        for x in config['features']['ontological']
+        for x in all_features
         if (
-            config['features']['ontological'][x]['include']
-            and config['features']['ontological'][x]['impute_strategy']
-            in ['regress', 'Regress', 'REGRESS']
+            all_features[x]['include']
+            and all_features[x]['impute_strategy'] in ['regress', 'Regress', 'REGRESS']
         )
     ]
+
+    if not ((period_suffix is None) | (period_suffix == 'None')):
+        periodic_bool = [all_features[x]['periodic'] for x in feature_list_regression]
+        for j, name in enumerate(feature_list_regression):
+            if periodic_bool[j]:
+                feature_list_regression[j] = f'{name}_{period_suffix}'
 
     print('Imputing by regression on the following features: ', feature_list_regression)
     print()
@@ -608,13 +635,18 @@ def impute_features(
     # (Ensures no subsequent errors due to these missing values)
     feature_list_impute_none = [
         x
-        for x in config['features']['ontological']
+        for x in all_features
         if (
-            config['features']['ontological'][x]['include']
-            and config['features']['ontological'][x]['impute_strategy']
-            in ['none', 'None', 'NONE']
+            all_features[x]['include']
+            and all_features[x]['impute_strategy'] in ['none', 'None', 'NONE']
         )
     ]
+
+    if not ((period_suffix is None) | (period_suffix == 'None')):
+        periodic_bool = [all_features[x]['periodic'] for x in feature_list_impute_none]
+        for j, name in enumerate(feature_list_impute_none):
+            if periodic_bool[j]:
+                feature_list_impute_none[j] = f'{name}_{period_suffix}'
 
     orig_len = len(features_df)
     features_df = features_df.dropna(subset=feature_list_impute_none).reset_index(

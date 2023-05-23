@@ -1041,7 +1041,7 @@ class Scope:
         algorithm: str = 'dnn',
         scale_features: str = 'min_max',
         feature_directory: str = 'features',
-        period_colname: str = 'period',
+        period_suffix: str = None,
         write_csv: bool = False,
     ):
         """
@@ -1051,14 +1051,15 @@ class Scope:
         :param group_name: name of group containing trained models within models directory (str)
         :param algorithm: algorithm to use in script (str)
         :param scale_features: method to scale features (str, currently "min_max" or "median_std")
-        :param feature_directory: (str)
-        :param period_colname: (str)
+        :param feature_directory: name of directory containing downloaded or generated features (str)
+        :param period_suffix: suffix to append to periodic feature names (str)
         :param write_csv: if True, write CSV file in addition to HDF5 (bool)
 
         :return:
+        Saves shell script to use when running inference
 
         :example:  ./scope.py create_inference_script --filename='get_all_preds_dnn.sh' --group_name='experiment' \
-                    --algorithm='dnn' --feature_directory='generated_features'
+                    --algorithm='dnn' --feature_directory='generated_features' --period_suffix='ELS_ECE_EAOV'
         """
 
         path = str(pathlib.Path(__file__).parent.absolute() / filename)
@@ -1082,6 +1083,9 @@ class Scope:
                 '# Call script followed by field number, e.g: ./get_all_preds_dnn.sh 301\n'
             )
 
+            paths_models_str = ''
+            model_class_names_str = ''
+
             if algorithm in ['dnn', 'DNN', 'nn', 'NN']:
                 algorithm = 'dnn'
                 script.write('echo "dnn inference"\n')
@@ -1091,9 +1095,15 @@ class Scope:
                     most_recent_file = max(
                         [file for file in tag_file_gen], key=os.path.getctime
                     ).name
-                    script.write(
-                        f'echo -n "{tag} ..." && python tools/inference.py --path-model=models_{algorithm}/{group_name}/{tag}/{most_recent_file} --model-class={tag} --field=$1 --whole-field --flag_ids --scale_features={scale_features} --feature_directory={feature_directory} --period_colname={period_colname} {addtl_args} && echo "done"\n'
+
+                    paths_models_str += (
+                        f'models_{algorithm}/{group_name}/{tag}/{most_recent_file} '
                     )
+                    model_class_names_str += f'{tag} '
+
+                script.write(
+                    f'echo -n "Running inference..." && python tools/inference.py --paths_models {paths_models_str} --model_class_names {model_class_names_str} --field $1 --whole_field --flag_ids --scale_features {scale_features} --feature_directory {feature_directory} --period_suffix {period_suffix} {addtl_args} && echo "done"\n'
+                )
 
             elif algorithm in ['XGB', 'xgb', 'XGBoost', 'xgboost', 'XGBOOST']:
                 algorithm = 'xgb'
@@ -1103,9 +1113,15 @@ class Scope:
                     most_recent_file = max(
                         [file for file in tag_file_gen], key=os.path.getctime
                     ).name
-                    script.write(
-                        f'echo -n "{tag} ..." && python tools/inference.py --path-model=models_{algorithm}/{group_name}/{tag}/{most_recent_file} --model-class={tag} --scale_features={scale_features} --feature_directory={feature_directory} --period_colname={period_colname} --xgb_model --field=$1 --whole-field --flag_ids {addtl_args} && echo "done"\n'
+
+                    paths_models_str += (
+                        f'models_{algorithm}/{group_name}/{tag}/{most_recent_file} '
                     )
+                    model_class_names_str += f'{tag} '
+
+                script.write(
+                    f'echo -n "Running inference..." && python tools/inference.py --paths_models {paths_models_str} --model_class_names {model_class_names_str} --scale_features {scale_features} --feature_directory {feature_directory} --period_suffix {period_suffix} --xgb_model --field $1 --whole_field --flag_ids {addtl_args} && echo "done"\n'
+                )
 
             else:
                 raise ValueError('algorithm must be dnn or xgb')
