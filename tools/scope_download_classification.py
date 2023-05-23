@@ -742,7 +742,7 @@ if __name__ == "__main__":
     parser.add_argument("--file", type=str, default='parse', help="dataset")
     parser.add_argument("--group_ids", type=int, nargs='+', help="list of group ids")
     parser.add_argument(
-        "-start", type=int, default=0, help="start page/index for continued download"
+        "--start", type=int, default=0, help="start page/index for continued download"
     )
     parser.add_argument(
         "--merge_features",
