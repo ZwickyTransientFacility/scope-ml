@@ -505,6 +505,7 @@ class Scope:
         verbose: bool = False,
         job_type: str = 'train',
         group: str = 'experiment',
+        period_suffix: str = None,
         **kwargs,
     ):
         """Train classifier
@@ -549,6 +550,11 @@ class Scope:
         features = [
             key for key in all_features if forgiving_true(all_features[key]["include"])
         ]
+        if not ((period_suffix is None) | (period_suffix == 'None')):
+            periodic_bool = [all_features[x]['periodic'] for x in features]
+            for j, name in enumerate(features):
+                if periodic_bool[j]:
+                    features[j] = f'{name}_{period_suffix}'
 
         ds = Dataset(
             tag=tag,
@@ -556,6 +562,7 @@ class Scope:
             features=features,
             verbose=verbose,
             algorithm=algorithm,
+            period_suffix=period_suffix,
             **kwargs,
         )
 
@@ -905,6 +912,7 @@ class Scope:
         min_count: int = 100,
         path_dataset: str = None,
         pre_trained_group_name: str = None,
+        period_suffix: str = None,
         add_keywords: str = '',
         train_all: bool = False,
     ):
@@ -916,6 +924,7 @@ class Scope:
         :param min_count: minimum number of positive examples to include in script (int)
         :param path_dataset: local path to .parquet, .h5 or .csv file with the dataset, if not provided in config.yaml (str)
         :param pre_trained_group_name: name of group containing pre-trained models within models directory (str)
+        :param period_suffix: suffix to append to periodic feature names (str)
         :param add_keywords: str containing additional training keywords to append to each line in the script
         :param train_all: if group_name is specified, set this keyword to train all classes regardeless of whether a trained model exists (bool)
 
@@ -993,12 +1002,12 @@ class Scope:
                         ).name
 
                         script.writelines(
-                            f'./scope.py train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --pre_trained_model=models/{pre_trained_group_name}/{tag}/{most_recent_file} --verbose {add_keywords} \n'
+                            f'./scope.py train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --pre_trained_model=models/{pre_trained_group_name}/{tag}/{most_recent_file} --period_suffix={period_suffix} --verbose {add_keywords} \n'
                         )
 
                     elif train_all:
                         script.writelines(
-                            f'./scope.py train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --verbose {add_keywords} \n'
+                            f'./scope.py train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --period_suffix={period_suffix} --verbose {add_keywords} \n'
                         )
 
                 script.write('# Ontological\n')
@@ -1010,26 +1019,26 @@ class Scope:
                         ).name
 
                         script.writelines(
-                            f'./scope.py train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --pre_trained_model=models/{pre_trained_group_name}/{tag}/{most_recent_file} --verbose {add_keywords} \n'
+                            f'./scope.py train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --pre_trained_model=models/{pre_trained_group_name}/{tag}/{most_recent_file} --period_suffix={period_suffix} --verbose {add_keywords} \n'
                         )
 
                     elif train_all:
                         script.writelines(
-                            f'./scope.py train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --verbose {add_keywords} \n'
+                            f'./scope.py train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --period_suffix={period_suffix} --verbose {add_keywords} \n'
                         )
 
             else:
                 script.write('# Phenomenological\n')
                 script.writelines(
                     [
-                        f'./scope.py train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --verbose {add_keywords} \n'
+                        f'./scope.py train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --period_suffix={period_suffix} --verbose {add_keywords} \n'
                         for tag in phenom_tags
                     ]
                 )
                 script.write('# Ontological\n')
                 script.writelines(
                     [
-                        f'./scope.py train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --verbose {add_keywords} \n'
+                        f'./scope.py train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --period_suffix={period_suffix} --verbose {add_keywords} \n'
                         for tag in ontol_tags
                     ]
                 )
@@ -1640,7 +1649,6 @@ class Scope:
                 / f"field_{test_field}"
                 / f"{test_feature_filename}_field_{test_field}_ccd_{test_ccd}_quad_{test_quad}.parquet"
             )
-            os.remove(path_gen_features)
 
         with status("Test get_cone_ids"):
             print()
@@ -1685,6 +1693,7 @@ class Scope:
             write_parquet(test_ftrs, str(testpath_features / 'field_0_iter_0.parquet'))
 
         # create a mock dataset and check that the training pipeline works
+        dataset_orig = f"{uuid.uuid4().hex}_orig.csv"
         dataset = f"{uuid.uuid4().hex}.csv"
         path_mock = pathlib.Path(__file__).parent.absolute() / "data" / "training"
         group_mock = 'experiment'
@@ -1692,19 +1701,51 @@ class Scope:
         try:
             with status('Test training'):
                 print()
+
+                period_suffix = 'LS'
+
                 if not path_mock.exists():
                     path_mock.mkdir(parents=True, exist_ok=True)
 
                 all_feature_names = self.config["features"]["ontological"]
-                feature_names = [
+                feature_names_orig = [
                     key
                     for key in all_feature_names
                     if forgiving_true(all_feature_names[key]['include'])
                 ]
+
+                feature_names = feature_names_orig.copy()
+                if not ((period_suffix is None) | (period_suffix == 'None')):
+                    periodic_bool = [
+                        all_feature_names[x]['periodic'] for x in feature_names
+                    ]
+                    for j, name in enumerate(feature_names):
+                        if periodic_bool[j]:
+                            feature_names[j] = f'{name}_{period_suffix}'
+
                 class_names = [
                     self.config["training"]["classes"][class_name]["label"]
                     for class_name in self.config["training"]["classes"]
                 ]
+
+                entries = []
+                for i in range(1000):
+                    entry = {
+                        **{
+                            feature_name: np.random.normal(0, 0.1)
+                            for feature_name in feature_names_orig
+                        },
+                        **{
+                            class_name: np.random.choice([0, 1])
+                            for class_name in class_names
+                        },
+                        **{"non-variable": np.random.choice([0, 1])},
+                        **{"dmdt": np.abs(np.random.random((26, 26))).tolist()},
+                    }
+                    entries.append(entry)
+
+                df_mock_orig = pd.DataFrame.from_records(entries)
+                df_mock_orig.to_csv(path_mock / dataset_orig, index=False)
 
                 entries = []
                 for i in range(1000):
@@ -1726,6 +1767,35 @@ class Scope:
                 df_mock.to_csv(path_mock / dataset, index=False)
 
                 algorithms = ['xgb', 'dnn']
+                model_paths_orig = []
+
+                # Train twice: once on Kowalski features, once on generated features with different periodic feature names
+                for algorithm in algorithms:
+                    tag = "vnv"
+                    if algorithm == 'xgb':
+                        extension = 'json'
+                    elif algorithm == 'dnn':
+                        extension = 'h5'
+                    time_tag = self.train(
+                        tag=tag,
+                        path_dataset=path_mock / dataset_orig,
+                        batch_size=32,
+                        epochs=3,
+                        verbose=True,
+                        save=True,
+                        test=True,
+                        algorithm=algorithm,
+                        skip_cv=True,
+                    )
+                    path_model = (
+                        pathlib.Path(__file__).parent.absolute()
+                        / f"models_{algorithm}"
+                        / group_mock
+                        / tag
+                        / f"{tag}.{time_tag}.{extension}"
+                    )
+                    model_paths_orig += [path_model]
+
                 model_paths = []
                 for algorithm in algorithms:
                     tag = "vnv"
@@ -1743,6 +1813,7 @@ class Scope:
                         test=True,
                         algorithm=algorithm,
                         skip_cv=True,
+                        period_suffix=period_suffix,
                     )
                     path_model = (
                         pathlib.Path(__file__).parent.absolute()
@@ -1753,26 +1824,56 @@ class Scope:
                     )
                     model_paths += [path_model]
 
+            print('model_paths_orig', model_paths_orig)
             print('model_paths', model_paths)
 
-            with status("Test inference"):
+            with status("Test inference (queried features)"):
                 print()
                 print(model_paths[1])
-                _, preds_filename_dnn = inference.run(
-                    str(model_paths[1]),
-                    tag,
+                _, preds_filename_dnn_orig = inference.run_inference(
+                    paths_models=[str(model_paths_orig[1])],
+                    model_class_names=[tag],
                     field=0,
                     whole_field=True,
-                    trainingSet=df_mock,
+                    trainingSet=df_mock_orig,
                 )
                 print(model_paths[0])
-                _, preds_filename_xgb = inference.run(
-                    str(model_paths[0]),
-                    tag,
+                _, preds_filename_xgb_orig = inference.run_inference(
+                    paths_models=[str(model_paths_orig[0])],
+                    model_class_names=[tag],
                     field=0,
                     whole_field=True,
+                    trainingSet=df_mock_orig,
+                    xgb_model=True,
+                )
+
+            with status("Test inference (generated features)"):
+                print()
+                _, preds_filename_dnn = inference.run_inference(
+                    paths_models=[str(model_paths[1])],
+                    model_class_names=[tag],
+                    field=test_field,
+                    ccd=test_ccd,
+                    quad=test_quad,
+                    trainingSet=df_mock,
+                    feature_directory=test_feature_directory,
+                    feature_file_prefix=test_feature_filename,
+                    period_suffix=period_suffix,
+                    no_write_metadata=True,
+                )
+                print()
+                _, preds_filename_xgb = inference.run_inference(
+                    paths_models=[str(model_paths[0])],
+                    model_class_names=[tag],
+                    field=test_field,
+                    ccd=test_ccd,
+                    quad=test_quad,
                     trainingSet=df_mock,
                     xgb_model=True,
+                    feature_directory=test_feature_directory,
+                    feature_file_prefix=test_feature_filename,
+                    period_suffix=period_suffix,
+                    no_write_metadata=True,
                 )
 
             with status("Test select_al_sample"):
@@ -1808,15 +1909,19 @@ class Scope:
 
         finally:
             # clean up after thyself
+            (path_mock / dataset_orig).unlink()
             (path_mock / dataset).unlink()
+            os.remove(path_gen_features)
             (testpath_features / 'field_0_iter_0.parquet').unlink()
             os.rmdir(testpath_features)
+            (preds_filename_dnn_orig).unlink()
+            (preds_filename_xgb_orig).unlink()
             (preds_filename_dnn).unlink()
             (preds_filename_xgb).unlink()
-            (preds_filename_dnn.parent / 'meta.json').unlink()
-            (preds_filename_xgb.parent / 'meta.json').unlink()
-            os.rmdir(preds_filename_dnn.parent)
-            os.rmdir(preds_filename_xgb.parent)
+            (preds_filename_dnn_orig.parent / 'meta.json').unlink()
+            (preds_filename_xgb_orig.parent / 'meta.json').unlink()
+            os.rmdir(preds_filename_dnn_orig.parent)
+            os.rmdir(preds_filename_xgb_orig.parent)
 
             # Remove trained model artifacts, but keep models_xgb and models_dnn directories
             for path in model_paths:

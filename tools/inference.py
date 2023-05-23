@@ -173,7 +173,9 @@ def run_inference(
     scale_features: str = 'min_max',
     trainingSet: str = 'use_config',
     feature_directory: str = 'features',
+    feature_file_prefix: str = 'generated_features',
     period_suffix: str = None,
+    no_write_metadata: bool = False,
     **kwargs,
 ):
     """
@@ -213,8 +215,12 @@ def run_inference(
         usually set to 'use_config'. A DataFrame can also be passed in, but this is not recommended
     feature_directory: str
         name of directory containing features
+    feature_file_prefix: str
+        prefix of generated feature file names
     period_suffix: str
         suffix of column containing period to save with inference results
+    no_write_metadata: bool
+        if True, do not write metadata [useful for testing] (bool)
 
     Returns
     =======
@@ -254,15 +260,32 @@ def run_inference(
             + str(quad)
             + ".h5"
         )
-        default_features_file = (
-            BASE_DIR
-            + f"/../{feature_directory}/*field_"
-            + str(field)
-            + "/ccd_"
-            + str(ccd).zfill(2)
-            + "_quad_"
-            + str(quad)
-        )
+        if feature_directory == 'features':
+            default_features_file = (
+                BASE_DIR
+                + f"/../{feature_directory}/field_"
+                + str(field)
+                + "/ccd_"
+                + str(ccd).zfill(2)
+                + "_quad_"
+                + str(quad)
+                + '.parquet'
+            )
+        else:
+            default_features_file = (
+                BASE_DIR
+                + f"/../{feature_directory}/field_"
+                + str(field)
+                + f"/{feature_file_prefix}_"
+                + "field_"
+                + str(field)
+                + "_ccd_"
+                + str(ccd)
+                + "_quad_"
+                + str(quad)
+                + '.parquet'
+            )
+
     source_ids_filename = kwargs.get("source_ids_filename", default_source_file)
     features_filename = kwargs.get("features_filename", default_features_file)
 
@@ -477,6 +500,7 @@ def run_inference(
                 preds = model([features[feature_names].values, dmdt], training=False)
                 preds = preds.numpy().flatten()
                 features[model_class + '_dnn'] = preds
+
                 te = time.time()
                 if time_run:
                     print(
@@ -498,30 +522,33 @@ def run_inference(
                         + str(round(te - ts, 4))
                         + " s"
                     )
-                if i == 0:
-                    preds_df = features[["_id", model_class + '_xgb']]
-                else:
-                    preds_df[model_class + '_xgb'] = features[model_class + '_xgb']
+            if i == 0:
+                preds_df = features[["_id", f"{model_class}_{algorithm}"]]
+            else:
+                preds_df[f"{model_class}_{algorithm}"] = features[
+                    f"{model_class}_{algorithm}"
+                ]
 
-            meta_filename = os.path.dirname(filename) + "/meta.json"
-            if batch_count == max_batch_count:
-                if not os.path.exists(meta_filename):
-                    os.makedirs(os.path.dirname(meta_filename), exist_ok=True)
-                    dct = {}
-                    dct["field"] = field
-                    dct[f"{algorithm}_models"] = [path_model]
-                    dct["total"] = source_id_count
-                else:
-                    with open(meta_filename, 'r') as f:
-                        dct = json.load(f)
-                        if f"{algorithm}_models" in dct.keys():
-                            dct[f"{algorithm}_models"] += [path_model]
+            if not no_write_metadata:
+                meta_filename = os.path.dirname(filename) + "/meta.json"
+                if batch_count == max_batch_count:
+                    if not os.path.exists(meta_filename):
+                        os.makedirs(os.path.dirname(meta_filename), exist_ok=True)
+                        dct = {}
+                        dct["field"] = field
+                        dct[f"{algorithm}_models"] = [path_model]
+                        dct["total"] = source_id_count
+                    else:
+                        with open(meta_filename, 'r') as f:
+                            dct = json.load(f)
+                            if f"{algorithm}_models" in dct.keys():
+                                dct[f"{algorithm}_models"] += [path_model]
 
-                with open(meta_filename, "w") as f:
-                    try:
-                        json.dump(dct, f)  # dump dictionary to a json file
-                    except Exception as e:
-                        print("error dumping to json, message: ", e)
+                    with open(meta_filename, "w") as f:
+                        try:
+                            json.dump(dct, f)  # dump dictionary to a json file
+                        except Exception as e:
+                            print("error dumping to json, message: ", e)
 
             preds_df['Gaia_EDR3___id'] = (
                 features['Gaia_EDR3___id'].fillna(0).astype(int)
@@ -567,6 +594,9 @@ def run_inference(
 
     if verbose:
         print("Predictions:\n", preds_df)
+
+    final_outfile = pathlib.Path(f'{filename}.h5')
+    return preds_df, final_outfile
 
 
 if __name__ == "__main__":
@@ -644,6 +674,9 @@ if __name__ == "__main__":
         default=None,
         help="suffix of column containing period to save with inference results",
     )
+    parser.add_argument(
+        "--no_write_metadata", action='store_true', help="flag to not write metadata"
+    )
 
     args = parser.parse_args()
 
@@ -665,4 +698,5 @@ if __name__ == "__main__":
         trainingSet=args.trainingSet,
         feature_directory=args.feature_directory,
         period_suffix=args.period_suffix,
+        no_write_metadata=args.no_write_metadata,
     )

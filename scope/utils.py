@@ -928,6 +928,7 @@ class Dataset(object):
         features: tuple,
         verbose: bool = False,
         algorithm: str = 'dnn',
+        period_suffix: str = None,
         **kwargs,
     ):
         """Load parquet, hdf5 or csv file with the dataset containing both data and labels
@@ -976,7 +977,9 @@ class Dataset(object):
 
         # Last-chance imputation - this should have happened by now, but the messages will still print.
         # If no missing features, the process runs quickly.
-        self.df_ds = impute_features(self.df_ds, self_impute=True)
+        self.df_ds = impute_features(
+            self.df_ds, self_impute=True, period_suffix=period_suffix
+        )
 
         dmdt = []
         if (self.verbose) & (self.algorithm == 'dnn'):
