@@ -313,6 +313,10 @@ def run_inference(
     ra_collection = np.array([])
     dec_collection = np.array([])
     period_collection = np.array([])
+    field_collection = np.array([])
+    ccd_collection = np.array([])
+    quad_collection = np.array([])
+    filter_collection = np.array([])
     preds_collection = []
     filename = kwargs.get("output", default_outfile)
 
@@ -355,6 +359,17 @@ def run_inference(
         period_collection = np.concatenate(
             [period_collection, features[period_colname].values]
         )
+        field_collection = np.concatenate([field_collection, features['field'].values])
+        ccd_collection = np.concatenate([ccd_collection, features['ccd'].values])
+        quad_collection = np.concatenate([quad_collection, features['quad'].values])
+        try:
+            filter_collection = np.concatenate(
+                [filter_collection, features['filter'].values]
+            )
+            found_filters = True
+        except KeyError:
+            warnings.warn('Could not find filter column.')
+            found_filters = False
         source_id_count += len(source_ids)
 
         try:
@@ -581,6 +596,11 @@ def run_inference(
     preds_df['ra'] = ra_collection
     preds_df['dec'] = dec_collection
     preds_df['period'] = period_collection
+    preds_df['field'] = field_collection.astype(int)
+    preds_df['ccd'] = ccd_collection.astype(int)
+    preds_df['quad'] = quad_collection.astype(int)
+    if found_filters:
+        preds_df['filter'] = filter_collection.astype(int)
 
     for name in model_class_names:
         class_name = f"{name}_{algorithm}"
