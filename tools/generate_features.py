@@ -1031,6 +1031,10 @@ def generate_features(
         )
         feature_df = pd.DataFrame.from_dict(feature_dict, orient='index')
 
+        # Rename index column to '_id' and reset index
+        feature_df.index.set_names('_id', inplace=True)
+        feature_df.reset_index(inplace=True)
+
         # Convert various _id datatypes to Int64
         colnames = [x for x in feature_df.columns]
         for col in colnames:
