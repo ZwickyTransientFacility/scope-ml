@@ -1386,7 +1386,7 @@ class Scope:
             print('Consolidating classification probabilities to one per source...')
             for field in fields:
                 print(field)
-                h = read_hdf(str(preds_path / field / f'{field}.h5'))
+                h = read_parquet(str(preds_path / field / f'{field}.parquet'))
                 consolidated_df, all_rows_df = self.consolidate_inference_results(
                     h, statistic=consolidation_statistic
                 )
