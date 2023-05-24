@@ -13,7 +13,7 @@ import scope
 from scope.utils import (
     read_hdf,
     read_parquet,
-    write_hdf,
+    write_parquet,
     forgiving_true,
     impute_features,
     get_feature_stats,
@@ -204,7 +204,7 @@ def run_inference(
     time_run: bool
         print time taken by each step
     write_csv: bool
-        if True, write CSV file in addition to HDF5
+        if True, write CSV file in addition to parquet
     float_convert_types: 2-tuple of ints (16, 32 or 64)
         Existing and final float types for feature conversion
     feature_stats: str
@@ -321,7 +321,7 @@ def run_inference(
     filename = kwargs.get("output", default_outfile)
 
     os.makedirs(os.path.dirname(filename), exist_ok=True)
-    if os.path.isfile(f'{filename}.h5'):
+    if os.path.isfile(f'{filename}.parquet'):
         raise FileExistsError('Preds file for this field (/ccd/quad) already exists.')
 
     ts = time.time()
@@ -349,22 +349,28 @@ def run_inference(
         print(f'Batch {batch_count} of {max_batch_count}...')
         features = batch.to_pandas()
         if feature_directory == 'features':
-            source_ids = features['_id'].values
+            source_ids = features['_id'].astype("Int64").values
         else:
             # Generated features have _id column set as index
-            source_ids = features.index.values
+            source_ids = features.index.astype("Int64").values
             features['_id'] = source_ids
         ra_collection = np.concatenate([ra_collection, features['ra'].values])
         dec_collection = np.concatenate([dec_collection, features['dec'].values])
         period_collection = np.concatenate(
             [period_collection, features[period_colname].values]
         )
-        field_collection = np.concatenate([field_collection, features['field'].values])
-        ccd_collection = np.concatenate([ccd_collection, features['ccd'].values])
-        quad_collection = np.concatenate([quad_collection, features['quad'].values])
+        field_collection = np.concatenate(
+            [field_collection, features['field'].astype("Int64").values]
+        )
+        ccd_collection = np.concatenate(
+            [ccd_collection, features['ccd'].astype("Int64").values]
+        )
+        quad_collection = np.concatenate(
+            [quad_collection, features['quad'].astype("Int64").values]
+        )
         try:
             filter_collection = np.concatenate(
-                [filter_collection, features['filter'].values]
+                [filter_collection, features['filter'].astype("Int64").values]
             )
             found_filters = True
         except KeyError:
@@ -566,10 +572,14 @@ def run_inference(
                             print("error dumping to json, message: ", e)
 
             preds_df['Gaia_EDR3___id'] = (
-                features['Gaia_EDR3___id'].fillna(0).astype(int)
+                features['Gaia_EDR3___id'].fillna(0).astype("Int64")
             )
-            preds_df['AllWISE___id'] = features['AllWISE___id'].fillna(0).astype(int)
-            preds_df['PS1_DR1___id'] = features['PS1_DR1___id'].fillna(0).astype(int)
+            preds_df['AllWISE___id'] = (
+                features['AllWISE___id'].fillna(0).astype("Int64")
+            )
+            preds_df['PS1_DR1___id'] = (
+                features['PS1_DR1___id'].fillna(0).astype("Int64")
+            )
 
             preds_df.reset_index(inplace=True, drop=True)
             # End of one model_class
@@ -596,11 +606,11 @@ def run_inference(
     preds_df['ra'] = ra_collection
     preds_df['dec'] = dec_collection
     preds_df['period'] = period_collection
-    preds_df['field'] = field_collection.astype(int)
-    preds_df['ccd'] = ccd_collection.astype(int)
-    preds_df['quad'] = quad_collection.astype(int)
+    preds_df['field'] = field_collection
+    preds_df['ccd'] = ccd_collection
+    preds_df['quad'] = quad_collection
     if found_filters:
-        preds_df['filter'] = filter_collection.astype(int)
+        preds_df['filter'] = filter_collection
 
     for name in model_class_names:
         class_name = f"{name}_{algorithm}"
@@ -608,14 +618,15 @@ def run_inference(
         preds_df.drop(columns=class_name, inplace=True)
         preds_df[class_name] = inference_col
 
-    write_hdf(preds_df, f'{filename}.h5')
+    write_parquet(preds_df, f'{filename}.parquet')
+
     if write_csv:
         preds_df.to_csv(f'{filename}.csv', index=False)
 
     if verbose:
         print("Predictions:\n", preds_df)
 
-    final_outfile = pathlib.Path(f'{filename}.h5')
+    final_outfile = pathlib.Path(f'{filename}.parquet')
     return preds_df, final_outfile
 
 
@@ -656,7 +667,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--write_csv",
         action='store_true',
-        help="flag to write CSV file in addition to HDF5",
+        help="flag to write CSV file in addition to parquet",
     )
     parser.add_argument(
         "--float_convert_types",
