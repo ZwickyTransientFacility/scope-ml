@@ -172,11 +172,13 @@ if __name__ == '__main__':
         counter = 0
         status_njobs = njobs
         diff_njobs = 0
-        size = args.max_instances
+        size = np.min([args.max_instances, njobs])
         final_round = False
+        if size == njobs:
+            final_round = True
         while njobs > 0:
             # Limit number of parallel jobs for Kowalski stability
-            if counter < args.max_instances:
+            if counter < size:
                 # Avoid choosing same index multiple times in one round of jobs
                 rng = np.random.default_rng()
                 quadrant_indices = rng.choice(njobs, size=size, replace=False)
@@ -191,10 +193,10 @@ if __name__ == '__main__':
                     )
                     counter += 1
 
-                print(f"Instances available: {args.max_instances - counter}")
+                print(f"Instances available: {size - counter}")
 
                 if final_round:
-                    print('The final jobs in the run have been queued - breaking loop.')
+                    print('The final jobs in the run have been queued; breaking loop.')
                     print(
                         'Run "squeue -u <username>" to check status of remaining jobs.'
                     )
