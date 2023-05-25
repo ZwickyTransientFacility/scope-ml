@@ -61,16 +61,6 @@ def download_gcn_sources(
     endDate_datetime = dateobs_datetime + timedelta(days=days_range)
     endDate = endDate_datetime.strftime("%Y-%m-%dT%H:%M:%S")
 
-    # response = api('GET', f'/api/gcn_event/{dateobs}')
-    # data = response.json().get('data')
-    # if len(data) > 0:
-    #     gcn_event = data
-    #     most_recent_localization = gcn_event['localizations'][0]
-    #     #loc_id = most_recent_localization['properties']['localization_id']
-    #     print(most_recent_localization)
-    #     print(type(most_recent_localization))
-    #     print(len(most_recent_localization))
-
     data = {
         'group_ids': group_ids,
         'localizationDateobs': dateobs,
@@ -133,6 +123,11 @@ def download_gcn_sources(
         distance_units='arcsec',
         get_coords=True,
     )
+
+    coord_col = ids['coordinates']
+    ids['radec_geojson'] = [row['radec_geojson'] for row in coord_col]
+    ids.drop('coordinates', axis=1, inplace=True)
+    ids.rename({'obj_id': 'fritz_name'}, axis=1, inplace=True)
 
     ids = ids.set_index('_id').to_dict(orient='index')
     with open(str(BASE_DIR / save_filename), 'w') as f:

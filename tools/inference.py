@@ -159,7 +159,7 @@ def clean_data(
 def run_inference(
     paths_models: list,
     model_class_names: list,
-    field: int = 302,
+    field: str = '296',
     ccd: int = 1,
     quad: int = 1,
     whole_field: bool = False,
@@ -187,7 +187,7 @@ def run_inference(
         path(s) to model(s)
     model_class_name : list of str
         name(s) of model class(es)
-    field : int
+    field : str
         field number
     ccd : int
         ccd number (with whole_field=False)
@@ -241,55 +241,43 @@ def run_inference(
     else:
         algorithm = 'dnn'
 
-    # default file location for source ids
-    if whole_field:
-        default_source_file = (
-            BASE_DIR + "/../ids/field_" + str(field) + "/field_" + str(field) + ".h5"
-        )
-        default_features_file = (
-            BASE_DIR + f"/../{feature_directory}/field_" + str(field)
-        )
+    if field == 'specific_ids':
+        default_features_file = BASE_DIR + f"/../{feature_directory}/specific_ids"
     else:
-        default_source_file = (
-            BASE_DIR
-            + "/../ids/field_"
-            + str(field)
-            + "/data_ccd_"
-            + str(ccd).zfill(2)
-            + "_quad_"
-            + str(quad)
-            + ".h5"
-        )
-        if feature_directory == 'features':
+        field = int(field)
+        # default file location for source ids
+        if whole_field:
             default_features_file = (
-                BASE_DIR
-                + f"/../{feature_directory}/field_"
-                + str(field)
-                + "/ccd_"
-                + str(ccd).zfill(2)
-                + "_quad_"
-                + str(quad)
-                + '.parquet'
+                BASE_DIR + f"/../{feature_directory}/field_" + str(field)
             )
         else:
-            default_features_file = (
-                BASE_DIR
-                + f"/../{feature_directory}/field_"
-                + str(field)
-                + f"/{feature_file_prefix}_"
-                + "field_"
-                + str(field)
-                + "_ccd_"
-                + str(ccd)
-                + "_quad_"
-                + str(quad)
-                + '.parquet'
-            )
+            if feature_directory == 'features':
+                default_features_file = (
+                    BASE_DIR
+                    + f"/../{feature_directory}/field_"
+                    + str(field)
+                    + "/ccd_"
+                    + str(ccd).zfill(2)
+                    + "_quad_"
+                    + str(quad)
+                    + '.parquet'
+                )
+            else:
+                default_features_file = (
+                    BASE_DIR
+                    + f"/../{feature_directory}/field_"
+                    + str(field)
+                    + f"/{feature_file_prefix}_"
+                    + "field_"
+                    + str(field)
+                    + "_ccd_"
+                    + str(ccd)
+                    + "_quad_"
+                    + str(quad)
+                    + '.parquet'
+                )
 
-    source_ids_filename = kwargs.get("source_ids_filename", default_source_file)
     features_filename = kwargs.get("features_filename", default_features_file)
-
-    source_ids_filename = os.path.join(BASE_DIR, source_ids_filename)
     features_filename = os.path.join(BASE_DIR, features_filename)
 
     out_dir = os.path.join(
@@ -640,7 +628,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model_class_names", type=str, nargs='+', help="name(s) of model class(es)"
     )
-    parser.add_argument("--field", type=int, default=302, help="field number")
+    parser.add_argument("--field", type=str, default='296', help="field number")
     parser.add_argument(
         "--ccd", type=int, default=1, help="ccd number (if whole_field is not set)"
     )
