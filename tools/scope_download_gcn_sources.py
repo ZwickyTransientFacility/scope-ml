@@ -14,6 +14,7 @@ BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
 NUM_PER_PAGE = 100
 
 # EM+GW is group 1544
+# Recommendation: query all groups when downloading, then upload all classifications to single group (e.g. EM+GW)
 
 config_path = BASE_DIR / "config.yaml"
 with open(config_path) as config_yaml:
@@ -56,6 +57,16 @@ def download_gcn_sources(
     radius_arcsec: float = 2.0,
     save_filename: str = 'tools/fritzDownload/specific_ids_GCN_sources.json',
 ):
+    """
+    Download sources for a GCN event from Fritz (with intent to generate features/run inference on these sources)
+
+    :param dateobs: unique dateObs of GCN event (str)
+    :param group_ids: group ids to query sources [all if not specified] (list)
+    :param days_range: max days past event to search for sources (float)
+    :param radius_arcsec: radius [arcsec] around new sources to search for existing ZTF sources (float)
+    :param save_filename: filename to save source ids/coordinates (str)
+
+    """
 
     dateobs_datetime = datetime.strptime(dateobs, '%Y-%m-%dT%H:%M:%S')
     endDate_datetime = dateobs_datetime + timedelta(days=days_range)
@@ -136,10 +147,31 @@ def download_gcn_sources(
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dateobs", type=str, help="dataset")
-    parser.add_argument("--group_ids", type=int, nargs='+', help="dataset")
-    parser.add_argument("--days_range", type=float, default=7.0, help="dataset")
-    parser.add_argument("--radius_arcsec", type=float, default=2.0, help="dataset")
+    parser.add_argument("--dateobs", type=str, help="unique dateObs of GCN event")
+    parser.add_argument(
+        "--group_ids",
+        type=int,
+        nargs='+',
+        help="group ids to query sources (all if not specified)",
+    )
+    parser.add_argument(
+        "--days_range",
+        type=float,
+        default=7.0,
+        help="max days past event to search for sources",
+    )
+    parser.add_argument(
+        "--radius_arcsec",
+        type=float,
+        default=2.0,
+        help="radius around new sources to search for existing ZTF sources",
+    )
+    parser.add_argument(
+        "--save_filename",
+        type=str,
+        default='tools/fritzDownload/specific_ids_GCN_sources.json',
+        help="filename to save source ids/coordinates",
+    )
 
     args = parser.parse_args()
 
@@ -148,4 +180,5 @@ if __name__ == '__main__':
         group_ids=args.group_ids,
         days_range=args.days_range,
         radius_arcsec=args.radius_arcsec,
+        save_filename=args.save_filename,
     )
