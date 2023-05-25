@@ -335,13 +335,10 @@ def run_inference(
     for batch in generator:
         batch_count += 1
         print(f'Batch {batch_count} of {max_batch_count}...')
+
         features = batch.to_pandas()
-        if feature_directory == 'features':
-            source_ids = features['_id'].astype("Int64").values
-        else:
-            # Generated features have _id column set as index
-            source_ids = features.index.astype("Int64").values
-            features['_id'] = source_ids
+        source_ids = features['_id'].astype("Int64").values
+
         ra_collection = np.concatenate([ra_collection, features['ra'].values])
         dec_collection = np.concatenate([dec_collection, features['dec'].values])
         period_collection = np.concatenate(
@@ -559,16 +556,6 @@ def run_inference(
                         except Exception as e:
                             print("error dumping to json, message: ", e)
 
-            preds_df['Gaia_EDR3___id'] = (
-                features['Gaia_EDR3___id'].fillna(0).astype("Int64")
-            )
-            preds_df['AllWISE___id'] = (
-                features['AllWISE___id'].fillna(0).astype("Int64")
-            )
-            preds_df['PS1_DR1___id'] = (
-                features['PS1_DR1___id'].fillna(0).astype("Int64")
-            )
-
             preds_df.reset_index(inplace=True, drop=True)
             # End of one model_class
 
@@ -588,8 +575,15 @@ def run_inference(
     preds_df.attrs['inference_dateTime_utc'] = start_dt
     preds_df.attrs.update(features_metadata)
 
-    # Add ra/dec/period columns
+    # Add ids/ra/dec/period columns
     # Reorganize so inference columns are together, not interrupted by coords/period
+
+    if 'fritz_name' in features.columns:
+        preds_df['obj_id'] = features['fritz_name']
+
+    preds_df['Gaia_EDR3___id'] = features['Gaia_EDR3___id'].fillna(0).astype("Int64")
+    preds_df['AllWISE___id'] = features['AllWISE___id'].fillna(0).astype("Int64")
+    preds_df['PS1_DR1___id'] = features['PS1_DR1___id'].fillna(0).astype("Int64")
 
     preds_df['ra'] = ra_collection
     preds_df['dec'] = dec_collection
