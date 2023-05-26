@@ -13,7 +13,6 @@ import questionary
 import subprocess
 import sys
 import tdtax
-from tdtax import taxonomy  # noqa: F401
 from typing import Optional, Sequence, Union
 import yaml
 from scope.utils import (
@@ -22,7 +21,6 @@ from scope.utils import (
     read_hdf,
     read_parquet,
     write_parquet,
-    write_hdf,
 )
 from scope.fritz import radec_to_iau_name
 import json
@@ -1141,7 +1139,7 @@ class Scope:
         statistic: str = 'mean',
     ):
         """
-        Consolidate inference results from multiple rows to one per source (called in select_al_sample)
+        Consolidate inference results from multiple rows to one per source (called in select_fritz_sample)
 
         :param dataset: inference results from 'preds' directory (pandas DataFrame)
         :param statistic: method to combine multiple predictions for single source [mean, median and max currently supported] (str)
@@ -1164,15 +1162,12 @@ class Scope:
         )
 
         # Define columns for each subset that should not be averaged or otherwise aggregated
-        skip_mean_cols_Gaia = withGaiaID[
-            ['Gaia_EDR3___id', 'AllWISE___id', 'PS1_DR1___id', '_id']
-        ]
-        skip_mean_cols_AllWise = withAllWiseID[
-            ['Gaia_EDR3___id', 'AllWISE___id', 'PS1_DR1___id', '_id']
-        ]
-        skip_mean_cols_PS1 = withPS1ID[
-            ['Gaia_EDR3___id', 'AllWISE___id', 'PS1_DR1___id', '_id']
-        ]
+
+        skipList = ['Gaia_EDR3___id', 'AllWISE___id', 'PS1_DR1___id', '_id']
+
+        skip_mean_cols_Gaia = withGaiaID[skipList]
+        skip_mean_cols_AllWise = withAllWiseID[skipList]
+        skip_mean_cols_PS1 = withPS1ID[skipList]
 
         if statistic in [
             'mean',
@@ -1270,16 +1265,32 @@ class Scope:
         allRows_Gaia = pd.merge(
             groupedMeans_Gaia, skip_mean_cols_Gaia, on=['Gaia_EDR3___id']
         )
+        noDup_ids_Gaia = allRows_Gaia.drop_duplicates('Gaia_EDR3___id')[
+            ['Gaia_EDR3___id', '_id']
+        ]
+        groupedMeans_Gaia = pd.merge(
+            groupedMeans_Gaia, noDup_ids_Gaia, on='Gaia_EDR3___id'
+        )
         groupedMeans_Gaia.drop('Gaia_EDR3___id', axis=1, inplace=True)
 
         allRows_AllWise = pd.merge(
             groupedMeans_AllWise, skip_mean_cols_AllWise, on=['AllWISE___id']
+        )
+        noDup_ids_AllWise = allRows_AllWise.drop_duplicates('AllWISE___id')[
+            ['AllWISE___id', '_id']
+        ]
+        groupedMeans_AllWise = pd.merge(
+            groupedMeans_AllWise, noDup_ids_AllWise, on='AllWISE___id'
         )
         groupedMeans_AllWise.drop('AllWISE___id', axis=1, inplace=True)
 
         allRows_PS1 = pd.merge(
             groupedMeans_PS1, skip_mean_cols_PS1, on=['PS1_DR1___id']
         )
+        noDup_ids_PS1 = allRows_PS1.drop_duplicates('PS1_DR1___id')[
+            ['PS1_DR1___id', '_id']
+        ]
+        groupedMeans_PS1 = pd.merge(groupedMeans_PS1, noDup_ids_PS1, on='PS1_DR1___id')
         groupedMeans_PS1.drop('PS1_DR1___id', axis=1, inplace=True)
 
         # Create dataframe with one row per source
@@ -1299,7 +1310,7 @@ class Scope:
 
         return consol_rows, all_rows
 
-    def select_al_sample(
+    def select_fritz_sample(
         self,
         fields: Union[list, str] = 'all',
         group: str = 'experiment',
@@ -1318,34 +1329,39 @@ class Scope:
         write_consolidation_results: bool = False,
         consol_filename: str = 'inference_results',
         doNotSave: bool = False,
+        doAllSources: bool = False,
     ):
         """
-        Select subset of predictions to use for active learning.
+        Select subset of predictions to use for posting to Fritz (active learning, GCN source classifications).
 
-        :param fields: list of field predictions (integers) to include, or 'all' to use all available fields (list or str)
+        :param fields: list of field predictions (integers) to include, 'all' to use all available fields, or 'specific_ids' if running on e.g. GCN sources (list or str)
             note: do not use spaces if providing a list of comma-separated integers to this argument.
         :param group: name of group containing trained models within models directory (str)
         :param min_class_examples: minimum number of examples to include for each class. Some classes may contain fewer than this if the sample is limited (int)
         :param select_top_n: if True, select top N probabilities above probability_threshold from each class (bool)
         :param include_all_highprob_labels: if select_top_n is set, setting this keyword includes any classification above the probability_threshold for all top N sources.
             Otherwise, literally only the top N probabilities for each classification will be included, which may artifically exclude relevant labels.
-        :param probability_threshold: minimum probability to select examples for active learning (float)
-        :param al_directory: name of directory to create/populate with active learning sample (str)
-        :param al_filename: name of file (no extension) to store active learning sample (str)
+        :param probability_threshold: minimum probability to select for Fritz (float)
+        :param al_directory: name of directory to create/populate with Fritz sample (str)
+        :param al_filename: name of file (no extension) to store Fritz sample (str)
         :param algorithm: algorithm [dnn or xgb] (str)
         :param exclude_training_sources: if True, exclude sources in current training set from AL sample (bool)
-        :param write_csv: if True, write CSV file in addition to HDF5 (bool)
+        :param write_csv: if True, write CSV file in addition to parquet (bool)
         :param verbose: if True, print additional information (bool)
         :param consolidation_statistic: method to combine multiple classification probabilities for a single source [mean, median or max currently supported] (str)
-        :param read_consolidation_results: if True, search for and read an existing consolidated file having _consol.h5 suffix (bool)
+        :param read_consolidation_results: if True, search for and read an existing consolidated file having _consol.parquet suffix (bool)
         :param write_consolidation_results: if True, save two files: consolidated inference results [1 row per source] and full results [≥ 1 row per source] (bool)
         :param consol_filename: name of file (no extension) to store consolidated and full results (str)
-        :param doNotSave: if set, do not write results
+        :param doNotSave: if set, do not write results (bool)
+        :param doAllSources: if set, ignore min_class_examples and run for all sources (bool)
 
         :return:
+        final_toPost: DataFrame containing sources with high-confidence classifications to post
 
-        :examples:  ./scope.py select_al_sample --fields=[296,297] --group='experiment' --min_class_examples=1000 --probability_threshold=0.9 --exclude_training_sources --write_consolidation_results
-                    ./scope.py select_al_sample --fields=[296,297] --group='experiment' --min_class_examples=500 --select_top_n --include_all_highprob_labels --probability_threshold=0.7 --exclude_training_sources --read_consolidation_results
+        :examples:  ./scope.py select_fritz_sample --fields=[296,297] --group='experiment' --min_class_examples=1000 --probability_threshold=0.9 --exclude_training_sources --write_consolidation_results
+                    ./scope.py select_fritz_sample --fields=[296,297] --group='experiment' --min_class_examples=500 --select_top_n --include_all_highprob_labels --probability_threshold=0.7 --exclude_training_sources --read_consolidation_results
+                    ./scope.py select_fritz_sample --fields='specific_ids' --group='DR16' --algorithm='xgb' --probability_threshold=0.9 --consol_filename='inference_results_specific_ids' --al_directory='GCN' --al_filename='GCN_sources' --write_consolidation_results --select_top_n --doAllSources --write_csv
+
         """
         base_path = pathlib.Path(__file__).parent.absolute()
         if algorithm in ['DNN', 'NN', 'dnn', 'nn']:
@@ -1367,26 +1383,40 @@ class Scope:
         if fields in ['all', 'All', 'ALL']:
             gen_fields = os.walk(preds_path)
             fields = [x for x in gen_fields][0][1]
+        elif fields == 'specific_ids':
+            fields = ['field_specific_ids']
         else:
             fields = [f'field_{f}' for f in fields]
 
-        print(f'Generating active learning sample from {len(fields)} fields:')
+        if 'field_specific_ids' not in fields:
+            print(f'Generating Fritz sample from {len(fields)} fields:')
+        else:
+            print('Generating Fritz sample from specific ids across multiple fields:')
 
         column_nums = []
 
         AL_directory_PL = pathlib.Path(AL_directory_path)
-        gen = AL_directory_PL.glob(f'{consol_filename}_consol.h5')
+        gen = AL_directory_PL.glob(f'{consol_filename}_consol.parquet')
         existing_consol_files = [str(x) for x in gen]
 
         if (read_consolidation_results) & (len(existing_consol_files) > 0):
             print('Loading existing consolidated results...')
-            preds_df = read_hdf(existing_consol_files[0])
+            preds_df = read_parquet(existing_consol_files[0])
 
         else:
             print('Consolidating classification probabilities to one per source...')
             for field in fields:
                 print(field)
                 h = read_parquet(str(preds_path / field / f'{field}.parquet'))
+
+                has_obj_id = False
+                if 'obj_id' in h.columns:
+                    has_obj_id = True
+                    id_mapper = (
+                        h[['_id', 'obj_id']].set_index('_id').to_dict(orient='index')
+                    )
+                    h.drop('obj_id', axis=1, inplace=True)
+
                 consolidated_df, all_rows_df = self.consolidate_inference_results(
                     h, statistic=consolidation_statistic
                 )
@@ -1407,16 +1437,30 @@ class Scope:
 
                 # Create consolidated dataframe (one row per source)
                 preds_df = pd.concat(df_coll, axis=0)
+
+                cols = [x for x in preds_df.columns]
+                cols.remove('_id')
+                cols.remove('survey_id')
+                agg_dct = {c: 'mean' for c in cols}
+
                 # One more groupby to combine sources across multiple fields
-                preds_df = preds_df.groupby('survey_id').mean().reset_index()
+                preds_df = (
+                    preds_df.groupby(['survey_id', '_id']).agg(agg_dct).reset_index()
+                )
 
                 # Create dataframe including all light curves (multiple rows per source)
                 preds_df_allRows = pd.concat(df_coll_allRows, axis=0)
 
-                # Generate position-based obj_ids for Fritz
-                raArr = [ra for ra in preds_df['ra']]
-                decArr = [dec for dec in preds_df['dec']]
-                obj_ids = [radec_to_iau_name(x, y) for x, y in zip(raArr, decArr)]
+                if not has_obj_id:
+                    # Generate position-based obj_ids for Fritz
+                    raArr = [ra for ra in preds_df['ra']]
+                    decArr = [dec for dec in preds_df['dec']]
+                    obj_ids = [radec_to_iau_name(x, y) for x, y in zip(raArr, decArr)]
+                else:
+                    obj_ids = []
+                    for ID in preds_df['_id']:
+                        obj_ids += [id_mapper[ID]['obj_id']]
+
                 preds_df['obj_id'] = obj_ids
 
                 # Assign obj_ids to all rows
@@ -1436,12 +1480,13 @@ class Scope:
 
                 # Save results
                 if write_consolidation_results:
-                    write_hdf(
-                        preds_df, f'{AL_directory_path}/{consol_filename}_consol.h5'
+                    write_parquet(
+                        preds_df,
+                        f'{AL_directory_path}/{consol_filename}_consol.parquet',
                     )
-                    write_hdf(
+                    write_parquet(
                         preds_df_allRows,
-                        f'{AL_directory_path}/{consol_filename}_full.h5',
+                        f'{AL_directory_path}/{consol_filename}_full.parquet',
                     )
                     if write_csv:
                         preds_df.to_csv(
@@ -1501,6 +1546,11 @@ class Scope:
         # Fix random state to allow reproducible results
         rng = np.random.RandomState(9)
 
+        # Reset min_class_examples if doAllSources is set
+        if doAllSources:
+            min_class_examples = len(preds_df)
+            print(f'Selecting sample from all sources ({min_class_examples})')
+
         if not select_top_n:
             for tag in model_tags:
                 # Idenfity all sources above probability threshold
@@ -1537,6 +1587,7 @@ class Scope:
             print(
                 f'Selecting top {min_class_examples} classifications above P = {probability_threshold}...'
             )
+
             preds_df.reset_index(inplace=True)
             topN_df = pd.DataFrame()
             class_list = [f'{t}_{algorithm}' for t in model_tags]
@@ -1593,8 +1644,8 @@ class Scope:
         final_toPost = toPost_df.reset_index(drop=True)
 
         if not doNotSave:
-            # Write hdf5 and csv files
-            write_hdf(final_toPost, f'{AL_directory_path}/{al_filename}.h5')
+            # Write parquet and csv files
+            write_parquet(final_toPost, f'{AL_directory_path}/{al_filename}.parquet')
             if write_csv:
                 final_toPost.to_csv(
                     f'{AL_directory_path}/{al_filename}.csv', index=False
@@ -1608,7 +1659,7 @@ class Scope:
                 except Exception as e:
                     print("error dumping to json, message: ", e)
 
-        return final_toPost
+        yield final_toPost
 
     def test(self, doGPU=False):
         """Test different workflows
@@ -1876,14 +1927,14 @@ class Scope:
                     no_write_metadata=True,
                 )
 
-            with status("Test select_al_sample"):
+            with status("Test select_fritz_sample"):
                 print()
-                _ = self.select_al_sample(
+                _ = self.select_fritz_sample(
                     [0],
                     probability_threshold=0.0,
                     doNotSave=True,
                 )
-                _ = self.select_al_sample(
+                _ = self.select_fritz_sample(
                     [0],
                     select_top_n=True,
                     include_all_highprob_labels=True,
@@ -1891,13 +1942,13 @@ class Scope:
                     probability_threshold=0.0,
                     doNotSave=True,
                 )
-                _ = self.select_al_sample(
+                _ = self.select_fritz_sample(
                     [0],
                     probability_threshold=0.0,
                     doNotSave=True,
                     algorithm='xgb',
                 )
-                _ = self.select_al_sample(
+                _ = self.select_fritz_sample(
                     [0],
                     select_top_n=True,
                     include_all_highprob_labels=True,
