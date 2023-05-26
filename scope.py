@@ -1139,7 +1139,7 @@ class Scope:
         statistic: str = 'mean',
     ):
         """
-        Consolidate inference results from multiple rows to one per source (called in select_al_sample)
+        Consolidate inference results from multiple rows to one per source (called in select_fritz_sample)
 
         :param dataset: inference results from 'preds' directory (pandas DataFrame)
         :param statistic: method to combine multiple predictions for single source [mean, median and max currently supported] (str)
@@ -1310,7 +1310,7 @@ class Scope:
 
         return consol_rows, all_rows
 
-    def select_al_sample(
+    def select_fritz_sample(
         self,
         fields: Union[list, str] = 'all',
         group: str = 'experiment',
@@ -1332,7 +1332,7 @@ class Scope:
         doAllSources: bool = False,
     ):
         """
-        Select subset of predictions to use for active learning.
+        Select subset of predictions to use for posting to Fritz (active learning, GCN source classifications).
 
         :param fields: list of field predictions (integers) to include, 'all' to use all available fields, or 'specific_ids' if running on e.g. GCN sources (list or str)
             note: do not use spaces if providing a list of comma-separated integers to this argument.
@@ -1341,9 +1341,9 @@ class Scope:
         :param select_top_n: if True, select top N probabilities above probability_threshold from each class (bool)
         :param include_all_highprob_labels: if select_top_n is set, setting this keyword includes any classification above the probability_threshold for all top N sources.
             Otherwise, literally only the top N probabilities for each classification will be included, which may artifically exclude relevant labels.
-        :param probability_threshold: minimum probability to select examples for active learning (float)
-        :param al_directory: name of directory to create/populate with active learning sample (str)
-        :param al_filename: name of file (no extension) to store active learning sample (str)
+        :param probability_threshold: minimum probability to select for Fritz (float)
+        :param al_directory: name of directory to create/populate with Fritz sample (str)
+        :param al_filename: name of file (no extension) to store Fritz sample (str)
         :param algorithm: algorithm [dnn or xgb] (str)
         :param exclude_training_sources: if True, exclude sources in current training set from AL sample (bool)
         :param write_csv: if True, write CSV file in addition to parquet (bool)
@@ -1358,9 +1358,9 @@ class Scope:
         :return:
         final_toPost: DataFrame containing sources with high-confidence classifications to post
 
-        :examples:  ./scope.py select_al_sample --fields=[296,297] --group='experiment' --min_class_examples=1000 --probability_threshold=0.9 --exclude_training_sources --write_consolidation_results
-                    ./scope.py select_al_sample --fields=[296,297] --group='experiment' --min_class_examples=500 --select_top_n --include_all_highprob_labels --probability_threshold=0.7 --exclude_training_sources --read_consolidation_results
-                    ./scope.py select_al_sample --fields='specific_ids' --group='DR16' --algorithm='xgb' --probability_threshold=0.9 --consol_filename='inference_results_specific_ids' --al_directory='GCN' --al_filename='GCN_sources' --write_consolidation_results --select_top_n --doAllSources --write_csv
+        :examples:  ./scope.py select_fritz_sample --fields=[296,297] --group='experiment' --min_class_examples=1000 --probability_threshold=0.9 --exclude_training_sources --write_consolidation_results
+                    ./scope.py select_fritz_sample --fields=[296,297] --group='experiment' --min_class_examples=500 --select_top_n --include_all_highprob_labels --probability_threshold=0.7 --exclude_training_sources --read_consolidation_results
+                    ./scope.py select_fritz_sample --fields='specific_ids' --group='DR16' --algorithm='xgb' --probability_threshold=0.9 --consol_filename='inference_results_specific_ids' --al_directory='GCN' --al_filename='GCN_sources' --write_consolidation_results --select_top_n --doAllSources --write_csv
 
         """
         base_path = pathlib.Path(__file__).parent.absolute()
@@ -1389,9 +1389,9 @@ class Scope:
             fields = [f'field_{f}' for f in fields]
 
         if 'field_specific_ids' not in fields:
-            print(f'Generating active learning sample from {len(fields)} fields:')
+            print(f'Generating Fritz sample from {len(fields)} fields:')
         else:
-            print('Generating sample from specific ids across multiple fields:')
+            print('Generating Fritz sample from specific ids across multiple fields:')
 
         column_nums = []
 
@@ -1927,14 +1927,14 @@ class Scope:
                     no_write_metadata=True,
                 )
 
-            with status("Test select_al_sample"):
+            with status("Test select_fritz_sample"):
                 print()
-                _ = self.select_al_sample(
+                _ = self.select_fritz_sample(
                     [0],
                     probability_threshold=0.0,
                     doNotSave=True,
                 )
-                _ = self.select_al_sample(
+                _ = self.select_fritz_sample(
                     [0],
                     select_top_n=True,
                     include_all_highprob_labels=True,
@@ -1942,13 +1942,13 @@ class Scope:
                     probability_threshold=0.0,
                     doNotSave=True,
                 )
-                _ = self.select_al_sample(
+                _ = self.select_fritz_sample(
                     [0],
                     probability_threshold=0.0,
                     doNotSave=True,
                     algorithm='xgb',
                 )
-                _ = self.select_al_sample(
+                _ = self.select_fritz_sample(
                     [0],
                     select_top_n=True,
                     include_all_highprob_labels=True,
