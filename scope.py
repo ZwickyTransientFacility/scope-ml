@@ -1334,7 +1334,7 @@ class Scope:
         """
         Select subset of predictions to use for active learning.
 
-        :param fields: list of field predictions (integers) to include, 'all' to use all available fields, or 'specific_ids'... (list or str)
+        :param fields: list of field predictions (integers) to include, 'all' to use all available fields, or 'specific_ids' if running on e.g. GCN sources (list or str)
             note: do not use spaces if providing a list of comma-separated integers to this argument.
         :param group: name of group containing trained models within models directory (str)
         :param min_class_examples: minimum number of examples to include for each class. Some classes may contain fewer than this if the sample is limited (int)
@@ -1352,7 +1352,8 @@ class Scope:
         :param read_consolidation_results: if True, search for and read an existing consolidated file having _consol.parquet suffix (bool)
         :param write_consolidation_results: if True, save two files: consolidated inference results [1 row per source] and full results [≥ 1 row per source] (bool)
         :param consol_filename: name of file (no extension) to store consolidated and full results (str)
-        :param doNotSave: if set, do not write results
+        :param doNotSave: if set, do not write results (bool)
+        :param doAllSources: if set, ignore min_class_examples and run for all sources (bool)
 
         :return:
         final_toPost: DataFrame containing sources with high-confidence classifications to post
