@@ -144,11 +144,11 @@ def download_gcn_sources(
     coord_col = ids['coordinates']
     ids['radec_geojson'] = [row['radec_geojson'] for row in coord_col]
     ids.drop('coordinates', axis=1, inplace=True)
-    ids.rename({'obj_id': 'fritz_name'}, axis=1, inplace=True)
+    ids.rename({'_id': 'ztf_id', 'obj_id': 'fritz_name'}, axis=1, inplace=True)
 
     write_parquet(ids, str(BASE_DIR / f"{save_filename}.parquet"))
 
-    ids = ids.set_index('_id').to_dict(orient='index')
+    ids = ids.set_index('ztf_id').to_dict(orient='index')
     with open(str(BASE_DIR / f"{save_filename}.json"), 'w') as f:
         json.dump(ids, f)
 
