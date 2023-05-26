@@ -9,6 +9,7 @@ import numpy as np
 import json
 from scope.fritz import api
 from tools.get_quad_ids import get_cone_ids
+from scope.utils import write_parquet
 
 BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
 NUM_PER_PAGE = 100
@@ -55,7 +56,7 @@ def download_gcn_sources(
     group_ids: list = [],
     days_range: float = 7.0,
     radius_arcsec: float = 2.0,
-    save_filename: str = 'tools/fritzDownload/specific_ids_GCN_sources.json',
+    save_filename: str = 'tools/fritzDownload/specific_ids_GCN_sources',
 ):
     """
     Download sources for a GCN event from Fritz (with intent to generate features/run inference on these sources)
@@ -100,6 +101,9 @@ def download_gcn_sources(
                 '/api/sources',
                 {
                     "group_ids": group_ids,
+                    'localizationDateobs': dateobs,
+                    'startDate': dateobs,
+                    'endDate': endDate,
                     'numPerPage': NUM_PER_PAGE,
                     'pageNumber': pageNum,
                 },  # page numbers start at 1
@@ -135,13 +139,17 @@ def download_gcn_sources(
         get_coords=True,
     )
 
+    ids = ids.drop_duplicates('_id').reset_index(drop=True)
+
     coord_col = ids['coordinates']
     ids['radec_geojson'] = [row['radec_geojson'] for row in coord_col]
     ids.drop('coordinates', axis=1, inplace=True)
     ids.rename({'obj_id': 'fritz_name'}, axis=1, inplace=True)
 
+    write_parquet(ids, str(BASE_DIR / f"{save_filename}.parquet"))
+
     ids = ids.set_index('_id').to_dict(orient='index')
-    with open(str(BASE_DIR / save_filename), 'w') as f:
+    with open(str(BASE_DIR / f"{save_filename}.json"), 'w') as f:
         json.dump(ids, f)
 
 
@@ -169,7 +177,7 @@ if __name__ == '__main__':
     parser.add_argument(
         "--save_filename",
         type=str,
-        default='tools/fritzDownload/specific_ids_GCN_sources.json',
+        default='tools/fritzDownload/specific_ids_GCN_sources',
         help="filename to save source ids/coordinates",
     )
 

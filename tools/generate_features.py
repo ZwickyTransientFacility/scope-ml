@@ -558,6 +558,14 @@ def generate_features(
                 raise KeyError(
                     'Columns "ztf_id" and "coordinates" must be included in source dataset.'
                 )
+
+            hasFritzNames = False
+            try:
+                fritz_names = fg_sources['fritz_name'].values.tolist()
+                hasFritzNames = True
+            except KeyError:
+                warnings.warn('No obj_id column found in dataset.')
+
         else:
             # Load pre-saved dataset if Gaia analysis already complete
             fg_sources_config = config['feature_generation']['ids_skipGaia']
@@ -575,8 +583,20 @@ def generate_features(
 
         if not skipCloseSources:
             # Create list with same structure as query results
-            lst = [
-                {
+            if hasFritzNames:
+                dct_for_lst = {
+                    ztf_ids[i]: {
+                        'radec_geojson': {
+                            'coordinates': coordinates[i]['radec_geojson'][
+                                'coordinates'
+                            ].tolist()
+                        },
+                        'fritz_name': fritz_names[i],
+                    }
+                    for i in range(n_fg_sources)
+                }
+            else:
+                dct_for_lst = {
                     ztf_ids[i]: {
                         'radec_geojson': {
                             'coordinates': coordinates[i]['radec_geojson'][
@@ -586,7 +606,9 @@ def generate_features(
                     }
                     for i in range(n_fg_sources)
                 }
-            ]
+
+            lst = [dct_for_lst]
+
             print(f'Loaded ZTF IDs for {len(lst[0])} sources.')
 
             # Each index of lst corresponds to a different ccd/quad combo
