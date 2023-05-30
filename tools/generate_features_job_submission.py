@@ -172,13 +172,15 @@ if __name__ == '__main__':
         counter = 0
         status_njobs = njobs
         diff_njobs = 0
-        size = np.min([args.max_instances, njobs])
+        # Redefine max instances if fewer jobs remain
+        new_max_instances = np.min([args.max_instances, njobs])
+        size = new_max_instances
         final_round = False
         if size == njobs:
             final_round = True
         while njobs > 0:
             # Limit number of parallel jobs for Kowalski stability
-            if counter < size:
+            if counter < new_max_instances:
                 # Avoid choosing same index multiple times in one round of jobs
                 rng = np.random.default_rng()
                 quadrant_indices = rng.choice(njobs, size=size, replace=False)
@@ -193,7 +195,7 @@ if __name__ == '__main__':
                     )
                     counter += 1
 
-                print(f"Instances available: {size - counter}")
+                print(f"Instances available: {new_max_instances - counter}")
 
                 if final_round:
                     print('The final jobs in the run have been queued; breaking loop.')
@@ -220,7 +222,7 @@ if __name__ == '__main__':
                 counter -= diff_njobs
 
                 # Define size of the next quadrant_indices array
-                size = np.min([args.max_instances - counter, njobs])
+                size = np.min([new_max_instances - counter, njobs])
                 # Signal to stop looping when the last set of jobs is queued
                 if size == njobs:
                     final_round = True
