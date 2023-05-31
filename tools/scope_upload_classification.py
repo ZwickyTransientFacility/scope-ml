@@ -28,6 +28,7 @@ def upload_classification(
     comment: str,
     start: int,
     stop: int,
+    classification_origin: str = 'SCoPe',
     post_survey_id: bool = False,
     survey_id_origin: str = 'SCoPe_xmatch',
     skip_phot: bool = False,
@@ -52,6 +53,7 @@ def upload_classification(
     :param comment: single comment to post (str)
     :param start: index in CSV file to start upload (int)
     :param stop: index in CSV file to stop upload (inclusive) (int)
+    :param classification_origin: origin of classifications (str)
     :post_survey_id: if True, post survey_id from input dataset (bool)
     :skip_phot: if True, only upload groups and classifications (no photometry) (bool)
     :p_threshold: classification probabilties must be >= this number to post (float)
@@ -321,17 +323,18 @@ def upload_classification(
                 for cls in cls_list:
                     tax = tax_dict[cls]
                     prob = probs[cls]
+                    json = {
+                        "obj_id": obj_id,
+                        "classification": cls,
+                        "origin": classification_origin,
+                        "taxonomy_id": tax,
+                        "probability": prob,
+                        "group_ids": group_ids,
+                        "vote": post_upvote,
+                        "label": check_labelled_box,
+                    }
                     if cls not in existing_classes:
                         # post all non-duplicate classifications
-                        json = {
-                            "obj_id": obj_id,
-                            "classification": cls,
-                            "taxonomy_id": tax,
-                            "probability": prob,
-                            "group_ids": group_ids,
-                            "vote": post_upvote,
-                            "label": check_labelled_box,
-                        }
                         dict_list += [json]
                     else:
                         # Classification may exist, but not for intended groups.
@@ -340,15 +343,6 @@ def upload_classification(
                             if g not in class_group_dict[cls]:
                                 groups_to_post += [g]
                         if len(groups_to_post) > 0:
-                            json = {
-                                "obj_id": obj_id,
-                                "classification": cls,
-                                "taxonomy_id": tax,
-                                "probability": prob,
-                                "group_ids": groups_to_post,
-                                "vote": post_upvote,
-                                "label": check_labelled_box,
-                            }
                             dict_list += [json]
 
             if comment is not None:
@@ -534,6 +528,12 @@ if __name__ == "__main__":
         help="Index to stop uploading (inclusive)",
     )
     parser.add_argument(
+        "--classification_origin",
+        type=str,
+        default='SCoPe',
+        help="origin of classifications",
+    )
+    parser.add_argument(
         "--skip_phot",
         type=bool,
         nargs='?',
@@ -637,6 +637,7 @@ if __name__ == "__main__":
         args.comment,
         args.start,
         args.stop,
+        args.classification_origin,
         args.post_survey_id,
         args.survey_id_origin,
         args.skip_phot,
