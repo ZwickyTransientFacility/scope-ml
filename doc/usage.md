@@ -301,7 +301,7 @@ inputs:
 5. --comment : Comment to post (if specified)
 6. --start : Index to start uploading (zero-based)
 7. --stop : Index to stop uploading (inclusive)
-8. --origin: origin of classifications. If 'SCoPe' (default), Fritz will apply custom color-coding
+8. --classification_origin: origin of classifications. If 'SCoPe' (default), Fritz will apply custom color-coding
 9. --skip_phot : flag to skip photometry upload (skips for existing sources only)
 10. --post_survey_id : flag to post an annotation for the Gaia, AllWISE or PS1 id associated with each source
 11. --survey_id_origin : Annotation origin name for survey_id
