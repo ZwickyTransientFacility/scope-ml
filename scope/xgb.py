@@ -446,11 +446,16 @@ class XGB(AbstractClassifier):
                 if not path.exists():
                     path.mkdir(parents=True, exist_ok=True)
                 impvars = tag + '_impvars.pdf'
+                impvars_json = tag + '_impvars.json'
                 cmpdf = tag + '_cm.pdf'
                 recallpdf = tag + '_recall.pdf'
                 rocpdf = tag + '_roc.pdf'
 
                 max_num_features = kwargs.get('max_num_features', 8)
+
+                self.meta['importance'] = self.model.get_score()
+                with open(path / impvars_json, 'w') as f:
+                    json.dump(self.meta['importance'], f)
 
                 _ = xgb.plot_importance(
                     self.model, max_num_features=max_num_features, grid=False
