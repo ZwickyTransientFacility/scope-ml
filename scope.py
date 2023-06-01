@@ -709,8 +709,6 @@ class Scope:
             classifier = DNN(name=tag)
 
             if run_sweeps:
-                # sweep_epochs = kwargs.get("sweep_epochs", 30)
-
                 # Point to datasets needed for training/validation
                 classifier.assign_datasets(
                     features_input_shape=len(features),
@@ -817,14 +815,6 @@ class Scope:
                 )
 
         elif algorithm == 'xgb':
-
-            # if gpu is not None:
-            #     # specified a GPU to run on?
-            #     gpus = tf.config.list_physical_devices("GPU")
-            #     tf.config.experimental.set_visible_devices(gpus[gpu], "GPU")
-            # else:
-            #     # otherwise run on CPU
-            #     tf.config.experimental.set_visible_devices([], "GPU")
 
             # XGB-specific code
             X_train = ds.df_ds.loc[indexes['train']][features]
