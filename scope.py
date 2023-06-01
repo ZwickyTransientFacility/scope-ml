@@ -504,6 +504,7 @@ class Scope:
         job_type: str = 'train',
         group: str = 'experiment',
         period_suffix: str = None,
+        run_sweeps: bool = False,
         **kwargs,
     ):
         """Train classifier
@@ -604,12 +605,17 @@ class Scope:
             float_convert_types=float_convert_types,
         )
 
-        # set up and train model
+        # Define default hyperparameters for model
         dense_branch = kwargs.get("dense_branch", True)
         conv_branch = kwargs.get("conv_branch", True)
         loss = kwargs.get("loss", "binary_crossentropy")
         optimizer = kwargs.get("optimizer", "adam")
         lr = float(kwargs.get("lr", 3e-4))
+        beta_1 = kwargs.get("beta_1", 0.9)
+        beta_2 = kwargs.get("beta_2", 0.999)
+        epsilon = kwargs.get("epsilon", 1e-7)  # None?
+        decay = kwargs.get("decay", 0.0)
+        amsgrad = kwargs.get("amsgrad", 3e-4)
         momentum = float(kwargs.get("momentum", 0.9))
         monitor = kwargs.get("monitor", "val_loss")
         patience = int(kwargs.get("patience", 20))
@@ -702,6 +708,38 @@ class Scope:
 
             classifier = DNN(name=tag)
 
+            if run_sweeps:
+                # sweep_epochs = kwargs.get("sweep_epochs", 30)
+
+                # Point to datasets needed for training/validation
+                classifier.assign_datasets(
+                    features_input_shape=len(features),
+                    train_dataset_repeat=datasets["train_repeat"],
+                    val_dataset_repeat=datasets["val_repeat"],
+                    steps_per_epoch_train=steps_per_epoch["train"],
+                    steps_per_epoch_val=steps_per_epoch["val"],
+                    train_dataset=datasets["train"],
+                    val_dataset=datasets["val"],
+                )
+
+                wandb.login(key=self.config["wandb"]["token"])
+
+                # Define sweep config
+                sweep_configuration = self.config['wandb']['sweep_config_dnn']
+                sweep_configuration['name'] = f"{tag}-{time_tag}"
+
+                # Set up sweep/id
+                sweep_id = wandb.sweep(
+                    sweep=sweep_configuration,
+                    project=self.config["wandb"]["project"],
+                )
+
+                # Start sweep job.
+                wandb.agent(sweep_id, function=classifier.sweep)
+                wandb.finish()
+
+                return
+
             if pre_trained_model is not None:
                 classifier.load(pre_trained_model, weights_only=weights_only)
                 model_input = classifier.model.input
@@ -733,6 +771,11 @@ class Scope:
                     patience=patience,
                     callbacks=callbacks,
                     run_eagerly=run_eagerly,
+                    beta_1=beta_1,
+                    beta_2=beta_2,
+                    epsilon=epsilon,
+                    decay=decay,
+                    amsgrad=amsgrad,
                 )
 
             if verbose:
@@ -774,6 +817,14 @@ class Scope:
                 )
 
         elif algorithm == 'xgb':
+
+            # if gpu is not None:
+            #     # specified a GPU to run on?
+            #     gpus = tf.config.list_physical_devices("GPU")
+            #     tf.config.experimental.set_visible_devices(gpus[gpu], "GPU")
+            # else:
+            #     # otherwise run on CPU
+            #     tf.config.experimental.set_visible_devices([], "GPU")
 
             # XGB-specific code
             X_train = ds.df_ds.loc[indexes['train']][features]

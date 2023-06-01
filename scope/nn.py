@@ -13,6 +13,7 @@ from sklearn.metrics import (
 )
 from scope.utils import make_confusion_matrix, plot_roc, plot_pr
 import numpy as np
+import wandb
 
 from .models import AbstractClassifier
 
@@ -371,6 +372,102 @@ class DNN(AbstractClassifier):
                     min_lr=0,
                 )
                 self.meta["callbacks"].append(reduce_lr_on_plateau_callback)
+
+    def assign_datasets(
+        self,
+        features_input_shape,
+        train_dataset_repeat,
+        val_dataset_repeat,
+        steps_per_epoch_train,
+        steps_per_epoch_val,
+        train_dataset,
+        val_dataset,
+    ):
+        self.meta['features_input_shape'] = features_input_shape
+        self.meta['train_dataset_repeat'] = train_dataset_repeat
+        self.meta['val_dataset_repeat'] = val_dataset_repeat
+        self.meta['steps_per_epoch_train'] = steps_per_epoch_train
+        self.meta['steps_per_epoch_val'] = steps_per_epoch_val
+        self.meta['train_dataset'] = train_dataset
+        self.meta['val_dataset'] = val_dataset
+
+    def sweep(
+        self,
+    ):
+        wandb.init(
+            job_type='sweep',
+        )
+
+        wandb_epochs = wandb.config.epochs
+        wandb_dense_branch = wandb.config.dense_branch
+        wandb_conv_branch = wandb.config.conv_branch
+        wandb_loss = wandb.config.loss
+        wandb_optimizer = wandb.config.optimizer
+        wandb_lr = wandb.config.lr
+        wandb_momentum = wandb.config.momentum
+        wandb_monitor = wandb.config.monitor
+        wandb_patience = wandb.config.patience
+        wandb_callbacks = wandb.config.callbacks
+        wandb_run_eagerly = wandb.config.run_eagerly
+        wandb_beta_1 = wandb.config.beta_1
+        wandb_beta_2 = wandb.config.beta_2
+        wandb_epsilon = wandb.config.epsilon
+        wandb_amsgrad = wandb.config.amsgrad
+        wandb_decay = wandb.config.decay
+
+        self.setup(
+            features_input_shape=self.meta['features_input_shape'],
+            dense_branch=wandb_dense_branch,
+            conv_branch=wandb_conv_branch,
+            dmdt_input_shape=(26, 26, 1),
+            loss=wandb_loss,
+            optimizer=wandb_optimizer,
+            momentum=wandb_momentum,
+            monitor=wandb_monitor,
+            patience=wandb_patience,
+            callbacks=wandb_callbacks,
+            run_eagerly=wandb_run_eagerly,
+            learning_rate=wandb_lr,
+            beta_1=wandb_beta_1,
+            beta_2=wandb_beta_2,
+            epsilon=wandb_epsilon,
+            amsgrad=wandb_amsgrad,
+            decay=wandb_decay,
+        )
+
+        self.train(
+            train_dataset=self.meta['train_dataset_repeat'],
+            val_dataset=self.meta['val_dataset_repeat'],
+            steps_per_epoch_train=self.meta['steps_per_epoch_train'],
+            steps_per_epoch_val=self.meta['steps_per_epoch_val'],
+            epochs=wandb_epochs,
+        )
+
+        stats_train = self.evaluate(self.meta['train_dataset'], name='train', verbose=0)
+        stats_val = self.evaluate(self.meta['val_dataset'], name='val', verbose=0)
+
+        wandb.log(
+            {
+                'dense_branch': wandb_dense_branch,
+                'conv_branch': wandb_conv_branch,
+                'loss': wandb_loss,
+                'optimizer': wandb_optimizer,
+                'lr': wandb_lr,
+                'momentum': wandb_momentum,
+                'monitor': wandb_monitor,
+                'patience': wandb_patience,
+                'callbacks': wandb_callbacks,
+                'run_eagerly': wandb_run_eagerly,
+                'beta_1': wandb_beta_1,
+                'beta_2': wandb_beta_2,
+                'epsilon': wandb_epsilon,
+                'amsgrad': wandb_amsgrad,
+                'decay': wandb_decay,
+                'epochs': wandb_epochs,
+                'train_loss': stats_train[0],
+                'val_loss': stats_val[0],
+            }
+        )
 
     def train(
         self,
