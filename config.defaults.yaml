@@ -51,6 +51,10 @@ wandb:
         #values: [0.0, 0.1]
         min: 0.0
         max: 0.1
+      beta_1:
+        value: 0.9
+      beta_2:
+        value: 0.999
       epochs:
         value: 30
       dense_branch:
