@@ -724,7 +724,7 @@ class Scope:
 
                 # Define sweep config
                 sweep_configuration = self.config['wandb']['sweep_config_dnn']
-                sweep_configuration['name'] = f"{tag}-{time_tag}"
+                sweep_configuration['name'] = f"{group}-{tag}-{time_tag}"
 
                 entity = self.config['wandb']['entity']
                 project = self.config['wandb']['project']
@@ -741,6 +741,9 @@ class Scope:
                 # Stop sweep job
                 os.system(f'wandb sweep --stop {entity}/{project}/{sweep_id}')
 
+                print(
+                    'Sweep complete. Adjust hyperparameters in config file and run scope.py train again without the --run_sweeps flag.'
+                )
                 return
 
             if pre_trained_model is not None:
