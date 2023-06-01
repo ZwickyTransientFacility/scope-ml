@@ -726,15 +726,20 @@ class Scope:
                 sweep_configuration = self.config['wandb']['sweep_config_dnn']
                 sweep_configuration['name'] = f"{tag}-{time_tag}"
 
+                entity = self.config['wandb']['entity']
+                project = self.config['wandb']['project']
+
                 # Set up sweep/id
                 sweep_id = wandb.sweep(
                     sweep=sweep_configuration,
-                    project=self.config["wandb"]["project"],
+                    project=project,
                 )
 
-                # Start sweep job.
+                # Start sweep job
                 wandb.agent(sweep_id, function=classifier.sweep)
-                wandb.finish()
+
+                # Stop sweep job
+                os.system(f'wandb sweep --stop {entity}/{project}/{sweep_id}')
 
                 return
 

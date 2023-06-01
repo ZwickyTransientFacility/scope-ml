@@ -24,6 +24,7 @@ fritz:
   max_attempts: 10
   sleep_time: 5
 wandb:
+  entity: ztf-scope
   project: scope
   # Get your W&B token at https://wandb.ai/authorize
   token:
