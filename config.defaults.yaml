@@ -33,7 +33,7 @@ wandb:
     metric:
       goal: minimize
       name: val_loss
-    run_cap: 8
+    run_cap: 10
     parameters:
     # For bayes method, use min/max instead of values
       lr:
@@ -57,7 +57,7 @@ wandb:
       beta_2:
         value: 0.999
       epochs:
-        value: 30
+        value: 50
       dense_branch:
         value: True
       conv_branch:
