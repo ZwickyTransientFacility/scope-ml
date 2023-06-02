@@ -743,7 +743,13 @@ class Scope:
                 )
 
                 # Stop sweep job
-                os.system(f'python -m wandb sweep --stop {entity}/{project}/{sweep_id}')
+                try:
+                    print('Stopping sweep.')
+                    os.system(
+                        f'python -m wandb sweep --stop {entity}/{project}/{sweep_id}'
+                    )
+                except Exception:
+                    print('Sweep already stopped.')
 
                 return
 

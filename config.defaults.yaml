@@ -49,9 +49,7 @@ wandb:
         min: 3.e-5
         max: 3.e-3
       decay:
-        #values: [0.0, 0.1]
-        min: 0.0
-        max: 0.1
+        value: 0.0
       beta_1:
         value: 0.9
       beta_2:
