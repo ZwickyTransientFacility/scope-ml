@@ -24,9 +24,58 @@ fritz:
   max_attempts: 10
   sleep_time: 5
 wandb:
+  entity: ztf-scope
   project: scope
   # Get your W&B token at https://wandb.ai/authorize
   token:
+  sweep_config_dnn:
+    method: bayes
+    metric:
+      goal: minimize
+      name: val_loss
+    run_cap: 10
+    parameters:
+    # For bayes method, use min/max instead of values
+      lr:
+        #values: [3.e-2, 3.e-3, 3.e-4]
+        min: 3.e-4
+        max: 3.e-2
+      epsilon:
+        #values: [1.e-7, 1.e-8]
+        min: 1.e-8
+        max: 1.e-7
+      amsgrad:
+        #values: [3.e-3, 3.e-4, 3.e-5]
+        min: 3.e-5
+        max: 3.e-3
+      decay:
+        value: 0.0
+      beta_1:
+        value: 0.9
+      beta_2:
+        value: 0.999
+      epochs:
+        value: 50
+      dense_branch:
+        value: True
+      conv_branch:
+        value: True
+      loss:
+        value: binary_crossentropy
+      optimizer:
+        value: adam
+      momentum:
+        value: 0.9
+      monitor:
+        value: val_loss
+      patience:
+        value: 20
+      callbacks:
+        value:
+          - reduce_lr_on_plateau
+          - early_stopping
+      run_eagerly:
+        value: False
 taxonomy:
   class: tds
   name: time domain source type
