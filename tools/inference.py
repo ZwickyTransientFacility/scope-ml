@@ -33,6 +33,8 @@ config_path = pathlib.Path(__file__).parent.parent.absolute() / "config.yaml"
 with open(config_path) as config_yaml:
     config = yaml.load(config_yaml, Loader=yaml.FullLoader)
 
+period_suffix = config['features']['info']['period_suffix']
+
 # Load training set
 trainingSetPath = config['training']['dataset']
 if trainingSetPath.endswith('.parquet'):
@@ -142,7 +144,7 @@ def clean_data(
     # impute missing values as specified in config
     # (Should already be complete to save time here)
     features_df = impute_features(
-        features_df, self_impute=True, period_suffix=period_suffix
+        features_df, self_impute=False, period_suffix=period_suffix
     )
 
     if flag_ids:
@@ -684,7 +686,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--period_suffix",
         type=str,
-        default=None,
+        default=period_suffix,
         help="suffix of column containing period to save with inference results",
     )
     parser.add_argument(
