@@ -71,7 +71,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--partition_type",
         type=str,
-        default='shared',
+        default='gpu_shared',
         help="Partition name to request for computing",
     )
     parser.add_argument(
@@ -88,7 +88,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--Ncore",
-        default=10,
+        default=4,
         type=int,
         help="number of cores to request for computing",
     )
@@ -104,16 +104,16 @@ if __name__ == "__main__":
         type=int,
         help="number of cores to request for job submission",
     )
-    # parser.add_argument(
-    #     "--gpus",
-    #     type=int,
-    #     default=1,
-    #     help="Number of GPUs to request",
-    # )
+    parser.add_argument(
+        "--gpus",
+        type=int,
+        default=1,
+        help="Number of GPUs to request",
+    )
     parser.add_argument(
         "--memory_GB",
         type=int,
-        default=16,
+        default=64,
         help="Memory allocation to request for computing",
     )
     parser.add_argument(
@@ -161,7 +161,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--max_instances",
         type=int,
-        default=100,
+        default=20,
         help="Max number of instances to run in parallel",
     )
     parser.add_argument(
@@ -169,6 +169,12 @@ if __name__ == "__main__":
         type=float,
         default=5.0,
         help="Time to wait between job status checks",
+    )
+    parser.add_argument(
+        "--sweep",
+        action='store_true',
+        default=False,
+        help="If set, job submission runs filter_completed in different directory",
     )
 
     args = parser.parse_args()
@@ -179,7 +185,9 @@ if __name__ == "__main__":
     _, group, algorithm, line_info = parse_training_script(script_path)
 
     dirname = f"{algorithm}_{args.dirname}"
-    jobname = f"{args.jobname}_{algorithm}"
+    jobname = f"{args.job_name}_{algorithm}"
+    if args.sweep:
+        jobname += "_sweep"
 
     dirpath = BASE_DIR / dirname
     os.makedirs(dirpath, exist_ok=True)
@@ -199,7 +207,7 @@ if __name__ == "__main__":
     fid.write(f'#SBATCH -p {args.partition_type}\n')
     fid.write(f'#SBATCH --nodes {args.nodes}\n')
     fid.write(f'#SBATCH --ntasks-per-node {args.Ncore}\n')
-    # fid.write(f'#SBATCH --gpus {args.gpus}\n')
+    fid.write(f'#SBATCH --gpus {args.gpus}\n')
     fid.write(f'#SBATCH --mem {args.memory_GB}G\n')
     fid.write(f'#SBATCH --time={args.time}\n')
     fid.write('#SBATCH --mail-type=ALL\n')
@@ -208,8 +216,9 @@ if __name__ == "__main__":
 
     if args.cluster_name in ['Expanse', 'expanse', 'EXPANSE']:
         fid.write('module purge\n')
-        # fid.write('module add gpu\n')
-        # fid.write('module add cuda\n')
+        if args.gpus > 0:
+            fid.write('module add gpu/0.15.4\n')
+            fid.write('module add cuda\n')
         fid.write(f'source activate {args.python_env_name}\n')
 
     fid.write(
@@ -238,16 +247,28 @@ if __name__ == "__main__":
         fid.write('module add slurm\n')
         fid.write(f'source activate {args.python_env_name}\n')
 
-    fid.write(
-        '%s/train_algorithm_job_submission.py --dirname=%s --scriptname=%s --algorithm=%s --user=%s --max_instances=%s --wait_time_minutes=%s\n'
-        % (
-            BASE_DIR / 'tools',
-            dirname,
-            scriptname,
-            algorithm,
-            args.user,
-            args.max_instances,
-            args.wait_time_minutes,
+    if args.sweep:
+        fid.write(
+            '%s/train_algorithm_job_submission.py --dirname=%s --scriptname=%s --user=%s --max_instances=%s --wait_time_minutes=%s --sweep\n'
+            % (
+                BASE_DIR / 'tools',
+                dirname,
+                scriptname,
+                args.user,
+                args.max_instances,
+                args.wait_time_minutes,
+            )
         )
-    )
+    else:
+        fid.write(
+            '%s/train_algorithm_job_submission.py --dirname=%s --scriptname=%s --user=%s --max_instances=%s --wait_time_minutes=%s\n'
+            % (
+                BASE_DIR / 'tools',
+                dirname,
+                scriptname,
+                args.user,
+                args.max_instances,
+                args.wait_time_minutes,
+            )
+        )
     fid.close()

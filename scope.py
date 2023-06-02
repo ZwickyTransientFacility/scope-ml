@@ -706,6 +706,10 @@ class Scope:
 
         time_tag = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
 
+        output_path = (
+            pathlib.Path(__file__).parent.absolute() / f"models_{algorithm}" / group
+        )
+
         if algorithm == 'dnn':
 
             classifier = DNN(name=tag)
@@ -752,6 +756,13 @@ class Scope:
                     )
                 except Exception:
                     print('Sweep already stopped.')
+
+                if save:
+                    sweep_output_path = str(output_path / 'sweeps' / tag)
+                    if not sweep_output_path.exists():
+                        sweep_output_path.mkdir(parents=True, exist_ok=True)
+                    # Make dummy file to register as completed (if using train_algorithm_job_submission.py)
+                    os.system(f'touch {sweep_output_path}/{tag}.{time_tag}.sweep')
 
                 return
 
@@ -945,16 +956,10 @@ class Scope:
                     wandb.run.summary["dropped_samples_f1"] = 2 * p * r / (p + r)
 
         if save:
-            output_path = str(
-                pathlib.Path(__file__).parent.absolute()
-                / f"models_{algorithm}"
-                / group
-                / tag
-            )
             if verbose:
-                print(f"Saving model to {output_path}")
+                print(f"Saving model to {output_path / tag}")
             classifier.save(
-                output_path=output_path,
+                output_path=str(output_path / tag),
                 tag=f"{tag}.{time_tag}",
                 plot=plot,
             )
