@@ -724,6 +724,7 @@ class Scope:
                     steps_per_epoch_val=steps_per_epoch["val"],
                     train_dataset=datasets["train"],
                     val_dataset=datasets["val"],
+                    wandb_token=self.config['wandb']['token'],
                 )
 
                 wandb.login(key=self.config["wandb"]["token"])

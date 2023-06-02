@@ -71,7 +71,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--partition_type",
         type=str,
-        default='gpu_shared',
+        default='gpu-shared',
         help="Partition name to request for computing",
     )
     parser.add_argument(
