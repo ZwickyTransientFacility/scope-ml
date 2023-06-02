@@ -144,7 +144,7 @@ def clean_data(
     # impute missing values as specified in config
     # (Should already be complete to save time here)
     features_df = impute_features(
-        features_df, self_impute=False, period_suffix=period_suffix
+        features_df, self_impute=True, period_suffix=period_suffix
     )
 
     if flag_ids:
