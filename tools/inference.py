@@ -507,7 +507,7 @@ def run_inference(
                 # but keeps memory usage under control.
                 preds = model([features[feature_names].values, dmdt], training=False)
                 preds = preds.numpy().flatten()
-                features[model_class + '_dnn'] = preds
+                features[model_class + '_dnn'] = preds.round(2)
 
                 te = time.time()
                 if time_run:
