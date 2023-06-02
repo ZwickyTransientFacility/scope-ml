@@ -759,11 +759,11 @@ class Scope:
                     print('Sweep already stopped.')
 
                 if save:
-                    sweep_output_path = str(output_path / 'sweeps' / tag)
+                    sweep_output_path = output_path / 'sweeps' / tag
                     if not sweep_output_path.exists():
                         sweep_output_path.mkdir(parents=True, exist_ok=True)
                     # Make dummy file to register as completed (if using train_algorithm_job_submission.py)
-                    os.system(f'touch {sweep_output_path}/{tag}.{time_tag}.sweep')
+                    os.system(f'touch {str(sweep_output_path)}/{tag}.{time_tag}.sweep')
 
                 return
 
