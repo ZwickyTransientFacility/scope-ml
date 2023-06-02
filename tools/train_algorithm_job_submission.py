@@ -104,18 +104,19 @@ if __name__ == '__main__':
     counter = 0
     status_njobs = njobs
     diff_njobs = 0
-    size = args.max_instances
+    new_max_instances = np.min([args.max_instances, njobs])
+    size = new_max_instances
     final_round = False
+    if size == njobs:
+        final_round = True
     while njobs > 0:
         # Limit number of parallel jobs
         for tag in tags_remaining:
-            if counter < args.max_instances:
+            if counter < new_max_instances:
                 run_job(tag)
                 counter += 1
 
-        print(f"Instances available: {args.max_instances - counter}")
-        if counter < args.max_instances:
-            final_round = True
+        print(f"Instances available: {new_max_instances - counter}")
 
         if final_round:
             print('The final jobs in the run have been queued - breaking loop.')
@@ -140,7 +141,7 @@ if __name__ == '__main__':
             counter -= diff_njobs
 
             # Define size of the next quadrant_indices array
-            size = np.min([args.max_instances - counter, njobs])
+            size = np.min([new_max_instances - counter, njobs])
             # Signal to stop looping when the last set of jobs is queued
             if size == njobs:
                 final_round = True
