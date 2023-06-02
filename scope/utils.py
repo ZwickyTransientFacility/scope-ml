@@ -510,11 +510,15 @@ def impute_features(
     features_df: pd.DataFrame,
     n_neighbors: int = 5,
     self_impute: bool = False,
-    period_suffix: str = None,
+    **kwargs,
 ):
     # Load config file
     config = load_config(
         pathlib.Path(__file__).parent.parent.absolute() / "config.yaml"
+    )
+
+    period_suffix = kwargs.get(
+        'period_suffix', config['features']['info']['period_suffix']
     )
 
     if self_impute:
@@ -928,7 +932,6 @@ class Dataset(object):
         features: tuple,
         verbose: bool = False,
         algorithm: str = 'dnn',
-        period_suffix: str = None,
         **kwargs,
     ):
         """Load parquet, hdf5 or csv file with the dataset containing both data and labels
@@ -943,6 +946,8 @@ class Dataset(object):
         self.features = features
         self.verbose = verbose
         self.target = None
+
+        period_suffix = kwargs.get('period_suffix', None)
 
         if algorithm in ['DNN', 'NN', 'dnn', 'nn']:
             self.algorithm = 'dnn'

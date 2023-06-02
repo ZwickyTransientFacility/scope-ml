@@ -299,6 +299,8 @@ docs:
       title: Variable stars
 
 features:
+  info:
+    period_suffix:
   phenomenological:
     ad:
       include: true

@@ -503,7 +503,6 @@ class Scope:
         verbose: bool = False,
         job_type: str = 'train',
         group: str = 'experiment',
-        period_suffix: str = None,
         run_sweeps: bool = False,
         **kwargs,
     ):
@@ -538,6 +537,10 @@ class Scope:
         label_params = self.config["training"]["classes"][tag]
         train_config_xgb = self.config["training"]['xgboost']
 
+        period_suffix = kwargs.get(
+            'period_suffix', self.config['features']['info']['period_suffix']
+        )
+
         if algorithm in ['DNN', 'NN', 'dnn', 'nn']:
             algorithm = 'dnn'
         elif algorithm in ['XGB', 'xgb', 'XGBoost', 'xgboost', 'XGBOOST']:
@@ -561,7 +564,6 @@ class Scope:
             features=features,
             verbose=verbose,
             algorithm=algorithm,
-            period_suffix=period_suffix,
             **kwargs,
         )
 
@@ -966,9 +968,9 @@ class Scope:
         min_count: int = 100,
         path_dataset: str = None,
         pre_trained_group_name: str = None,
-        period_suffix: str = None,
         add_keywords: str = '',
         train_all: bool = False,
+        **kwargs,
     ):
         """
         Create training shell script from classes in config file meeting minimum count requirement
@@ -978,7 +980,6 @@ class Scope:
         :param min_count: minimum number of positive examples to include in script (int)
         :param path_dataset: local path to .parquet, .h5 or .csv file with the dataset, if not provided in config.yaml (str)
         :param pre_trained_group_name: name of group containing pre-trained models within models directory (str)
-        :param period_suffix: suffix to append to periodic feature names (str)
         :param add_keywords: str containing additional training keywords to append to each line in the script
         :param train_all: if group_name is specified, set this keyword to train all classes regardeless of whether a trained model exists (bool)
 
@@ -994,6 +995,10 @@ class Scope:
 
         phenom_tags = []
         ontol_tags = []
+
+        period_suffix = kwargs.get(
+            'period_suffix', self.config['features']['info']['period_suffix']
+        )
 
         if path_dataset is None:
             dataset_name = self.config['training']['dataset']
@@ -1104,8 +1109,8 @@ class Scope:
         algorithm: str = 'dnn',
         scale_features: str = 'min_max',
         feature_directory: str = 'features',
-        period_suffix: str = None,
         write_csv: bool = False,
+        **kwargs,
     ):
         """
         Create inference shell script
@@ -1115,14 +1120,13 @@ class Scope:
         :param algorithm: algorithm to use in script (str)
         :param scale_features: method to scale features (str, currently "min_max" or "median_std")
         :param feature_directory: name of directory containing downloaded or generated features (str)
-        :param period_suffix: suffix to append to periodic feature names (str)
         :param write_csv: if True, write CSV file in addition to HDF5 (bool)
 
         :return:
         Saves shell script to use when running inference
 
         :example:  ./scope.py create_inference_script --filename='get_all_preds_dnn.sh' --group_name='experiment' \
-                    --algorithm='dnn' --feature_directory='generated_features' --period_suffix='ELS_ECE_EAOV'
+                    --algorithm='dnn' --feature_directory='generated_features'
         """
 
         path = str(pathlib.Path(__file__).parent.absolute() / filename)
@@ -1139,6 +1143,10 @@ class Scope:
         gen = os.walk(group_path)
         model_tags = [tag[1] for tag in gen]
         model_tags = model_tags[0]
+
+        period_suffix = kwargs.get(
+            'period_suffix', self.config['features']['info']['period_suffix']
+        )
 
         with open(path, 'x') as script:
             script.write('#!/bin/bash\n')
