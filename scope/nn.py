@@ -382,6 +382,7 @@ class DNN(AbstractClassifier):
         steps_per_epoch_val,
         train_dataset,
         val_dataset,
+        wandb_token,
     ):
         self.meta['features_input_shape'] = features_input_shape
         self.meta['train_dataset_repeat'] = train_dataset_repeat
@@ -390,6 +391,8 @@ class DNN(AbstractClassifier):
         self.meta['steps_per_epoch_val'] = steps_per_epoch_val
         self.meta['train_dataset'] = train_dataset
         self.meta['val_dataset'] = val_dataset
+
+        wandb.login(key=wandb_token)
 
     def sweep(
         self,

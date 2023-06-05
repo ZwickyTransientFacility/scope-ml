@@ -17,7 +17,11 @@ def parse_training_script(script_path):
     with open(script_path, 'r') as f:
         lines = f.readlines()
 
+    # Set defaults
     tags = []
+    group = 'experiment'
+    algorithm = 'dnn'
+
     for line in lines:
         if 'scope.py train' in line:
             line_info = line.removeprefix('./scope.py train').split()
@@ -29,10 +33,13 @@ def parse_training_script(script_path):
 
                 if '--group' in arg:
                     group = arg.split('=')[1]
-                else:
-                    group = 'experiment'
+                    line_info.remove(arg)
 
-    return tags, group, line_info
+                if '--algorithm' in arg:
+                    algorithm = arg.split('=')[1]
+                    line_info.remove(arg)
+
+    return tags, group, algorithm, line_info
 
 
 if __name__ == "__main__":
@@ -42,19 +49,19 @@ if __name__ == "__main__":
     parser.add_argument(
         "--scriptname",
         type=str,
-        default='train_xgb.sh',
+        default='train_script.sh',
         help="Training script filename within scope directory",
     )
     parser.add_argument(
         "--dirname",
         type=str,
-        default='xgb_training',
+        default='training',
         help="Directory name for slurm scripts/logs",
     )
     parser.add_argument(
         "--job_name",
         type=str,
-        default='train_xgb',
+        default='train',
         help="job name",
     )
     parser.add_argument(
@@ -66,7 +73,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--partition_type",
         type=str,
-        default='shared',
+        default='gpu-shared',
         help="Partition name to request for computing",
     )
     parser.add_argument(
@@ -83,7 +90,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--Ncore",
-        default=10,
+        default=4,
         type=int,
         help="number of cores to request for computing",
     )
@@ -99,16 +106,16 @@ if __name__ == "__main__":
         type=int,
         help="number of cores to request for job submission",
     )
-    # parser.add_argument(
-    #     "--gpus",
-    #     type=int,
-    #     default=1,
-    #     help="Number of GPUs to request",
-    # )
+    parser.add_argument(
+        "--gpus",
+        type=int,
+        default=1,
+        help="Number of GPUs to request",
+    )
     parser.add_argument(
         "--memory_GB",
         type=int,
-        default=16,
+        default=64,
         help="Memory allocation to request for computing",
     )
     parser.add_argument(
@@ -156,7 +163,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--max_instances",
         type=int,
-        default=100,
+        default=20,
         help="Max number of instances to run in parallel",
     )
     parser.add_argument(
@@ -165,14 +172,24 @@ if __name__ == "__main__":
         default=5.0,
         help="Time to wait between job status checks",
     )
+    parser.add_argument(
+        "--sweep",
+        action='store_true',
+        default=False,
+        help="If set, job submission runs filter_completed in different directory",
+    )
 
     args = parser.parse_args()
 
     scriptname = args.scriptname
-    dirname = args.dirname
 
     script_path = BASE_DIR / scriptname
-    _, group, line_info = parse_training_script(script_path)
+    _, group, algorithm, line_info = parse_training_script(script_path)
+
+    dirname = f"{algorithm}_{args.dirname}"
+    jobname = f"{args.job_name}_{algorithm}"
+    if args.sweep:
+        jobname += "_sweep"
 
     dirpath = BASE_DIR / dirname
     os.makedirs(dirpath, exist_ok=True)
@@ -186,13 +203,13 @@ if __name__ == "__main__":
     # Main script to run feature generation
     fid = open(os.path.join(slurmDir, 'slurm.sub'), 'w')
     fid.write('#!/bin/bash\n')
-    fid.write(f'#SBATCH --job-name={args.job_name}.job\n')
-    fid.write(f'#SBATCH --output=../logs/{args.job_name}_%A_%a.out\n')
-    fid.write(f'#SBATCH --error=../logs/{args.job_name}_%A_%a.err\n')
+    fid.write(f'#SBATCH --job-name={jobname}.job\n')
+    fid.write(f'#SBATCH --output=../logs/{jobname}_%A_%a.out\n')
+    fid.write(f'#SBATCH --error=../logs/{jobname}_%A_%a.err\n')
     fid.write(f'#SBATCH -p {args.partition_type}\n')
     fid.write(f'#SBATCH --nodes {args.nodes}\n')
     fid.write(f'#SBATCH --ntasks-per-node {args.Ncore}\n')
-    # fid.write(f'#SBATCH --gpus {args.gpus}\n')
+    fid.write(f'#SBATCH --gpus {args.gpus}\n')
     fid.write(f'#SBATCH --mem {args.memory_GB}G\n')
     fid.write(f'#SBATCH --time={args.time}\n')
     fid.write('#SBATCH --mail-type=ALL\n')
@@ -201,8 +218,9 @@ if __name__ == "__main__":
 
     if args.cluster_name in ['Expanse', 'expanse', 'EXPANSE']:
         fid.write('module purge\n')
-        # fid.write('module add gpu\n')
-        # fid.write('module add cuda\n')
+        if args.gpus > 0:
+            fid.write('module add gpu/0.15.4\n')
+            fid.write('module add cuda\n')
         fid.write(f'source activate {args.python_env_name}\n')
 
     fid.write(
@@ -210,13 +228,13 @@ if __name__ == "__main__":
     )
     fid.close()
 
-    # Secondary script to manage job submission using train_xgb_job_submission.py
+    # Secondary script to manage job submission using train_algorithm_job_submission.py
     # (Python code can also be run interactively)
     fid = open(os.path.join(slurmDir, 'slurm_submission.sub'), 'w')
     fid.write('#!/bin/bash\n')
-    fid.write(f'#SBATCH --job-name={args.job_name}_submit.job\n')
-    fid.write(f'#SBATCH --output=../logs/{args.job_name}_submit_%A_%a.out\n')
-    fid.write(f'#SBATCH --error=../logs/{args.job_name}_submit_%A_%a.err\n')
+    fid.write(f'#SBATCH --job-name={jobname}_submit.job\n')
+    fid.write(f'#SBATCH --output=../logs/{jobname}_submit_%A_%a.out\n')
+    fid.write(f'#SBATCH --error=../logs/{jobname}_submit_%A_%a.err\n')
     fid.write(f'#SBATCH -p {args.submit_partition_type}\n')
     fid.write(f'#SBATCH --nodes {args.submit_nodes}\n')
     fid.write(f'#SBATCH --ntasks-per-node {args.submit_Ncore}\n')
@@ -231,15 +249,28 @@ if __name__ == "__main__":
         fid.write('module add slurm\n')
         fid.write(f'source activate {args.python_env_name}\n')
 
-    fid.write(
-        '%s/train_xgb_job_submission.py --dirname=%s --scriptname=%s --user=%s --max_instances=%s --wait_time_minutes=%s\n'
-        % (
-            BASE_DIR / 'tools',
-            dirname,
-            scriptname,
-            args.user,
-            args.max_instances,
-            args.wait_time_minutes,
+    if args.sweep:
+        fid.write(
+            '%s/train_algorithm_job_submission.py --dirname=%s --scriptname=%s --user=%s --max_instances=%s --wait_time_minutes=%s --sweep\n'
+            % (
+                BASE_DIR / 'tools',
+                dirname,
+                scriptname,
+                args.user,
+                args.max_instances,
+                args.wait_time_minutes,
+            )
         )
-    )
+    else:
+        fid.write(
+            '%s/train_algorithm_job_submission.py --dirname=%s --scriptname=%s --user=%s --max_instances=%s --wait_time_minutes=%s\n'
+            % (
+                BASE_DIR / 'tools',
+                dirname,
+                scriptname,
+                args.user,
+                args.max_instances,
+                args.wait_time_minutes,
+            )
+        )
     fid.close()

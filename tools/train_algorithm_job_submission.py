@@ -4,7 +4,7 @@ import pathlib
 import time
 import argparse
 import yaml
-from train_xgb_slurm import parse_training_script
+from tools.train_algorithm_slurm import parse_training_script
 import numpy as np
 
 BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
@@ -24,13 +24,13 @@ def parse_commandline():
     parser.add_argument(
         "--dirname",
         type=str,
-        default='xgb_training',
+        default='training',
         help="Directory name for training slurm scripts",
     )
     parser.add_argument(
         "--scriptname",
         type=str,
-        default='train_xgb.sh',
+        default='train_script.sh',
         help="training script name",
     )
     parser.add_argument(
@@ -54,15 +54,24 @@ def parse_commandline():
         default=5.0,
         help="Time to wait between job status checks",
     )
+    parser.add_argument(
+        "--sweep",
+        action='store_true',
+        default=False,
+        help="If set, job submission runs filter_completed in different directory",
+    )
 
     args = parser.parse_args()
     return args
 
 
-def filter_completed(tags, group, algorithm='xgb'):
+def filter_completed(tags, group, algorithm, sweep=False):
     tags_remaining = tags.copy()
     for tag in tags:
-        searchDir = BASE_DIR / f'models_{algorithm}' / group / tag
+        if sweep:
+            searchDir = BASE_DIR / f'models_{algorithm}' / group / 'sweeps' / tag
+        else:
+            searchDir = BASE_DIR / f'models_{algorithm}' / group / tag
         try:
             has_files = any(searchDir.iterdir())
         except FileNotFoundError:
@@ -89,16 +98,17 @@ if __name__ == '__main__':
     scriptname = args.scriptname
     filetype = args.filetype
     dirname = args.dirname
+    sweep = args.sweep
 
     slurmDir = str(BASE_DIR / dirname)
     scriptpath = str(BASE_DIR / scriptname)
 
-    tags, group, _ = parse_training_script(scriptpath)
+    tags, group, algorithm, _ = parse_training_script(scriptpath)
 
     subDir = os.path.join(slurmDir, filetype)
     subfile = os.path.join(subDir, '%s.sub' % filetype)
 
-    tags_remaining = filter_completed(tags, group)
+    tags_remaining = filter_completed(tags, group, algorithm, sweep=sweep)
     njobs = len(tags_remaining)
 
     counter = 0
@@ -129,7 +139,9 @@ if __name__ == '__main__':
             time.sleep(args.wait_time_minutes * 60)
 
             # Filter completed runs, redefine njobs
-            tags_remaining = filter_completed(tags_remaining, group)
+            tags_remaining = filter_completed(
+                tags_remaining, group, algorithm, sweep=sweep
+            )
             njobs = len(tags_remaining)
             print('%d jobs remaining...' % njobs)
 
