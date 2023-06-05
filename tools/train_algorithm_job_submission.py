@@ -52,7 +52,13 @@ def parse_commandline():
         "--wait_time_minutes",
         type=float,
         default=5.0,
-        help="Time to wait between job status checks",
+        help="Time to wait between job status checks (minutes)",
+    )
+    parser.add_argument(
+        "--submit_interval_seconds",
+        type=float,
+        default=5.0,
+        help="Time to wait between job submissions (seconds)",
     )
     parser.add_argument(
         "--sweep",
@@ -83,7 +89,10 @@ def filter_completed(tags, group, algorithm, sweep=False):
     return tags_remaining
 
 
-def run_job(tag):
+def run_job(tag, submit_interval_seconds=5.0):
+    # Don't hit WandB server with too many login attempts at once
+    time.sleep(submit_interval_seconds)
+
     sbatchstr = f"sbatch --export=TID={tag} {subfile}"
     print(sbatchstr)
     os.system(sbatchstr)
@@ -123,7 +132,7 @@ if __name__ == '__main__':
         # Limit number of parallel jobs
         for tag in tags_remaining:
             if counter < new_max_instances:
-                run_job(tag)
+                run_job(tag, submit_interval_seconds=args.submit_interval_seconds)
                 counter += 1
 
         print(f"Instances available: {new_max_instances - counter}")

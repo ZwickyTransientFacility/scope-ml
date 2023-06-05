@@ -170,7 +170,13 @@ if __name__ == "__main__":
         "--wait_time_minutes",
         type=float,
         default=5.0,
-        help="Time to wait between job status checks",
+        help="Time to wait between job status checks (minutes)",
+    )
+    parser.add_argument(
+        "--submit_interval_seconds",
+        type=float,
+        default=5.0,
+        help="Time to wait between job submissions (seconds)",
     )
     parser.add_argument(
         "--sweep",
@@ -251,7 +257,7 @@ if __name__ == "__main__":
 
     if args.sweep:
         fid.write(
-            '%s/train_algorithm_job_submission.py --dirname=%s --scriptname=%s --user=%s --max_instances=%s --wait_time_minutes=%s --sweep\n'
+            '%s/train_algorithm_job_submission.py --dirname=%s --scriptname=%s --user=%s --max_instances=%s --wait_time_minutes=%s --submit_interval_seconds=%s --sweep\n'
             % (
                 BASE_DIR / 'tools',
                 dirname,
@@ -259,11 +265,12 @@ if __name__ == "__main__":
                 args.user,
                 args.max_instances,
                 args.wait_time_minutes,
+                args.submit_interval_seconds,
             )
         )
     else:
         fid.write(
-            '%s/train_algorithm_job_submission.py --dirname=%s --scriptname=%s --user=%s --max_instances=%s --wait_time_minutes=%s\n'
+            '%s/train_algorithm_job_submission.py --dirname=%s --scriptname=%s --user=%s --max_instances=%s --wait_time_minutes=%s --submit_interval_seconds=%s\n'
             % (
                 BASE_DIR / 'tools',
                 dirname,
@@ -271,6 +278,7 @@ if __name__ == "__main__":
                 args.user,
                 args.max_instances,
                 args.wait_time_minutes,
+                args.submit_interval_seconds,
             )
         )
     fid.close()
