@@ -17,7 +17,11 @@ def parse_training_script(script_path):
     with open(script_path, 'r') as f:
         lines = f.readlines()
 
+    # Set defaults
     tags = []
+    group = 'experiment'
+    algorithm = 'dnn'
+
     for line in lines:
         if 'scope.py train' in line:
             line_info = line.removeprefix('./scope.py train').split()
@@ -29,13 +33,11 @@ def parse_training_script(script_path):
 
                 if '--group' in arg:
                     group = arg.split('=')[1]
-                else:
-                    group = 'experiment'
+                    line_info.remove(arg)
 
                 if '--algorithm' in arg:
                     algorithm = arg.split('=')[1]
-                else:
-                    algorithm = 'dnn'
+                    line_info.remove(arg)
 
     return tags, group, algorithm, line_info
 
