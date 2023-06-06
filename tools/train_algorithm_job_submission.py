@@ -6,6 +6,7 @@ import argparse
 import yaml
 from tools.train_algorithm_slurm import parse_training_script
 import numpy as np
+import datetime
 
 BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
 
@@ -66,22 +67,41 @@ def parse_commandline():
         default=False,
         help="If set, job submission runs filter_completed in different directory",
     )
+    parser.add_argument(
+        "--init_ignore_running",
+        action='store_true',
+        default=False,
+        help="If set, ignore .running files on first run of filter_completed. Useful if trying to re-run after some jobs began but failed.",
+    )
 
     args = parser.parse_args()
     return args
 
 
-def filter_completed(tags, group, algorithm, sweep=False):
+def filter_completed(tags, group, algorithm, sweep=False, ignore_running=False):
     tags_remaining = tags.copy()
     for tag in tags:
-        if sweep:
-            searchDir = BASE_DIR / f'models_{algorithm}' / group / 'sweeps' / tag
-        else:
-            searchDir = BASE_DIR / f'models_{algorithm}' / group / tag
         try:
-            has_files = any(searchDir.iterdir())
+            if sweep:
+                searchDir = BASE_DIR / f'models_{algorithm}' / group / 'sweeps' / tag
+                has_files = any(searchDir.iterdir())
+
+            else:
+                searchDir = BASE_DIR / f'models_{algorithm}' / group / tag
+                contents = [x for x in searchDir.iterdir()]
+                # Check if hdf5 (DNN) or json (XGB) models have been saved
+                if algorithm == 'dnn':
+                    has_model = np.sum([x.suffix == '.h5' for x in contents])
+                else:
+                    has_model = np.sum([x.suffix == '.json' for x in contents])
+                running = np.sum([(x.suffix == '.running') for x in contents])
         except FileNotFoundError:
             has_files = False
+        if ignore_running:
+            # Optionally ignore .running file
+            has_files = has_model
+        else:
+            has_files = has_model & running
         if has_files:
             tags_remaining.remove(tag)
 
@@ -89,13 +109,23 @@ def filter_completed(tags, group, algorithm, sweep=False):
     return tags_remaining
 
 
-def run_job(tag, submit_interval_seconds=5.0):
+def run_job(tag, submit_interval_seconds=5.0, sweep=False):
     # Don't hit WandB server with too many login attempts at once
     time.sleep(submit_interval_seconds)
 
     sbatchstr = f"sbatch --export=TID={tag} {subfile}"
     print(sbatchstr)
     os.system(sbatchstr)
+
+    time_tag = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+
+    # Make dummy file to register as completed
+    if sweep:
+        output_path = BASE_DIR / f'models_{algorithm}' / group / 'sweeps' / tag
+        os.system(f'touch {str(output_path)}/{tag}.{time_tag}.sweep.running')
+    else:
+        output_path = BASE_DIR / f'models_{algorithm}' / group / tag
+        os.system(f'touch {str(output_path)}/{tag}.{time_tag}.running')
 
 
 if __name__ == '__main__':
@@ -108,6 +138,7 @@ if __name__ == '__main__':
     filetype = args.filetype
     dirname = args.dirname
     sweep = args.sweep
+    init_ignore_running = args.init_ignore_running
 
     slurmDir = str(BASE_DIR / dirname)
     scriptpath = str(BASE_DIR / scriptname)
@@ -117,7 +148,9 @@ if __name__ == '__main__':
     subDir = os.path.join(slurmDir, filetype)
     subfile = os.path.join(subDir, '%s.sub' % filetype)
 
-    tags_remaining = filter_completed(tags, group, algorithm, sweep=sweep)
+    tags_remaining = filter_completed(
+        tags, group, algorithm, sweep=sweep, ignore_running=init_ignore_running
+    )
     njobs = len(tags_remaining)
 
     counter = 0
@@ -132,7 +165,11 @@ if __name__ == '__main__':
         # Limit number of parallel jobs
         for tag in tags_remaining:
             if counter < new_max_instances:
-                run_job(tag, submit_interval_seconds=args.submit_interval_seconds)
+                run_job(
+                    tag,
+                    submit_interval_seconds=args.submit_interval_seconds,
+                    sweep=sweep,
+                )
                 counter += 1
 
         print(f"Instances available: {new_max_instances - counter}")
