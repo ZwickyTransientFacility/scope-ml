@@ -136,6 +136,7 @@ def filter_completed(tags, group, algorithm, sweep=False):
 
         except FileNotFoundError:
             has_model = False
+            running = False
 
         if has_model:
             tags_remaining_to_complete.remove(tag)
