@@ -67,6 +67,12 @@ def parse_commandline():
         default=False,
         help="If set, job submission runs filter_completed in different directory",
     )
+    parser.add_argument(
+        "--reset_running",
+        action='store_true',
+        default=False,
+        help="If set, reset the 'running' status of all tags",
+    )
 
     args = parser.parse_args()
     return args
@@ -105,7 +111,7 @@ def parse_commandline():
     return tags_remaining """
 
 
-def filter_completed(tags, group, algorithm, sweep=False):
+def filter_completed(tags, group, algorithm, sweep=False, reset_running=False):
     # Using two lists of tags allows us to distinguish running models from completed ones, minimizing computational waste
     # tags_remaining_to_complete informs when the counter should be decreased
     # tags_remaining_to_run informs which jobs to select from once the counter allows it
@@ -115,11 +121,19 @@ def filter_completed(tags, group, algorithm, sweep=False):
         try:
             if sweep:
                 searchDir = BASE_DIR / f'models_{algorithm}' / group / 'sweeps' / tag
+                if reset_running:
+                    paths = [x for x in searchDir.glob('*.running')]
+                    for path in paths:
+                        path.unlink()
                 has_files = any(searchDir.iterdir())
                 running = has_files
                 has_model = has_files
             else:
                 searchDir = BASE_DIR / f'models_{algorithm}' / group / tag
+                if reset_running:
+                    paths = [x for x in searchDir.glob('*.running')]
+                    for path in paths:
+                        path.unlink()
                 contents = [x for x in searchDir.iterdir()]
 
                 # Check if hdf5 (DNN) or json (XGB) models have been saved
@@ -180,6 +194,7 @@ if __name__ == '__main__':
     filetype = args.filetype
     dirname = args.dirname
     sweep = args.sweep
+    reset_running = args.reset_running
 
     slurmDir = str(BASE_DIR / dirname)
     scriptpath = str(BASE_DIR / scriptname)
@@ -190,7 +205,7 @@ if __name__ == '__main__':
     subfile = os.path.join(subDir, '%s.sub' % filetype)
 
     tags_remaining_to_complete, tags_remaining_to_run = filter_completed(
-        tags, group, algorithm, sweep=sweep
+        tags, group, algorithm, sweep=sweep, reset_running=reset_running
     )
     njobs = len(tags_remaining_to_complete)
 
