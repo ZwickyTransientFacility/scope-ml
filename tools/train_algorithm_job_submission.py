@@ -101,7 +101,7 @@ def filter_completed(tags, group, algorithm, sweep=False, ignore_running=False):
                     # Optionally ignore .running file
                     has_files = has_model
                 else:
-                    has_files = has_model & running
+                    has_files = has_model | running
         except FileNotFoundError:
             has_files = False
         if has_files:
