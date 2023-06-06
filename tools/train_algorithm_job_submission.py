@@ -89,19 +89,21 @@ def filter_completed(tags, group, algorithm, sweep=False, ignore_running=False):
             else:
                 searchDir = BASE_DIR / f'models_{algorithm}' / group / tag
                 contents = [x for x in searchDir.iterdir()]
+
                 # Check if hdf5 (DNN) or json (XGB) models have been saved
                 if algorithm == 'dnn':
                     has_model = np.sum([x.suffix == '.h5' for x in contents])
                 else:
                     has_model = np.sum([x.suffix == '.json' for x in contents])
                 running = np.sum([(x.suffix == '.running') for x in contents])
+
+                if ignore_running:
+                    # Optionally ignore .running file
+                    has_files = has_model
+                else:
+                    has_files = has_model & running
         except FileNotFoundError:
             has_files = False
-        if ignore_running:
-            # Optionally ignore .running file
-            has_files = has_model
-        else:
-            has_files = has_model & running
         if has_files:
             tags_remaining.remove(tag)
 
