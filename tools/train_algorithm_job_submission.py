@@ -78,7 +78,7 @@ def parse_commandline():
     return args
 
 
-def filter_completed(tags, group, algorithm, sweep=False, ignore_running=False):
+""" def filter_completed(tags, group, algorithm, sweep=False, ignore_running=False):
     tags_remaining = tags.copy()
     for tag in tags:
         try:
@@ -108,7 +108,50 @@ def filter_completed(tags, group, algorithm, sweep=False, ignore_running=False):
             tags_remaining.remove(tag)
 
     print('Models remaining: ', len(tags_remaining))
-    return tags_remaining
+    return tags_remaining """
+
+
+def filter_completed(tags, group, algorithm, sweep=False):
+    # Using two lists of tags allows us to distinguish running models from completed ones, minimizing computational waste
+    # tags_remaining_to_complete informs when the counter should be decreased
+    # tags_remaining_to_run informs which jobs to select from once the counter allows it
+    tags_remaining_to_complete = tags.copy()
+    tags_remaining_to_run = tags.copy()
+    for tag in tags:
+        try:
+            if sweep:
+                searchDir = BASE_DIR / f'models_{algorithm}' / group / 'sweeps' / tag
+                has_files = any(searchDir.iterdir())
+                running = has_files
+                has_model = has_files
+            else:
+                searchDir = BASE_DIR / f'models_{algorithm}' / group / tag
+                contents = [x for x in searchDir.iterdir()]
+
+                # Check if hdf5 (DNN) or json (XGB) models have been saved
+                if algorithm == 'dnn':
+                    has_model = np.sum([x.suffix == '.h5' for x in contents]) > 0
+                else:
+                    has_model = np.sum([x.suffix == '.json' for x in contents]) > 0
+
+                # tags_remaining_to_run is a subset of tags_remaining_to_complete
+                # (A tag could be queued but not yet finished: removed from 'to_run' but not from 'to_complete')
+                running = (np.sum([(x.suffix == '.running') for x in contents]) > 0) | (
+                    has_model
+                )
+
+        except FileNotFoundError:
+            has_model = False
+
+        if has_model:
+            tags_remaining_to_complete.remove(tag)
+
+        if running:
+            tags_remaining_to_run.remove(tag)
+
+    print('Models remaining to complete: ', len(tags_remaining_to_complete))
+    print('Models remaining to run: ', len(tags_remaining_to_run))
+    return tags_remaining_to_complete, tags_remaining_to_run
 
 
 def run_job(tag, submit_interval_seconds=5.0, sweep=False):
@@ -152,10 +195,10 @@ if __name__ == '__main__':
     subDir = os.path.join(slurmDir, filetype)
     subfile = os.path.join(subDir, '%s.sub' % filetype)
 
-    tags_remaining = filter_completed(
+    tags_remaining_to_complete, tags_remaining_to_run = filter_completed(
         tags, group, algorithm, sweep=sweep, ignore_running=init_ignore_running
     )
-    njobs = len(tags_remaining)
+    njobs = len(tags_remaining_to_complete)
 
     counter = 0
     status_njobs = njobs
@@ -167,7 +210,8 @@ if __name__ == '__main__':
         final_round = True
     while njobs > 0:
         # Limit number of parallel jobs
-        for tag in tags_remaining:
+        for tag in tags_remaining_to_run:
+            # Only run jobs from tags_remaining_to_run list
             if counter < new_max_instances:
                 run_job(
                     tag,
@@ -188,11 +232,11 @@ if __name__ == '__main__':
             print(f"Waiting {args.wait_time_minutes} minutes until next check...")
             time.sleep(args.wait_time_minutes * 60)
 
-            # Filter completed runs, redefine njobs
-            tags_remaining = filter_completed(
-                tags_remaining, group, algorithm, sweep=sweep
+            # Filter completed runs, redefine njobs using tags_remaininig_to_complete
+            tags_remaining_to_complete, tags_remaining_to_run = filter_completed(
+                tags_remaining_to_complete, group, algorithm, sweep=sweep
             )
-            njobs = len(tags_remaining)
+            njobs = len(tags_remaining_to_complete)
             print('%d jobs remaining...' % njobs)
 
             # Compute difference in njobs to count available instances
