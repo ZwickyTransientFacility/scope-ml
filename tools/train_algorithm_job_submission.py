@@ -124,9 +124,11 @@ def run_job(tag, submit_interval_seconds=5.0, sweep=False):
     # Make dummy file to register as completed
     if sweep:
         output_path = BASE_DIR / f'models_{algorithm}' / group / 'sweeps' / tag
+        os.makedirs(output_path, exist_ok=True)
         os.system(f'touch {str(output_path)}/{tag}.{time_tag}.sweep.running')
     else:
         output_path = BASE_DIR / f'models_{algorithm}' / group / tag
+        os.makedirs(output_path, exist_ok=True)
         os.system(f'touch {str(output_path)}/{tag}.{time_tag}.running')
 
 
