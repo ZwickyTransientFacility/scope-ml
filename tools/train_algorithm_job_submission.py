@@ -67,12 +67,6 @@ def parse_commandline():
         default=False,
         help="If set, job submission runs filter_completed in different directory",
     )
-    parser.add_argument(
-        "--init_ignore_running",
-        action='store_true',
-        default=False,
-        help="If set, ignore .running files on first run of filter_completed. Useful if trying to re-run after some jobs began but failed.",
-    )
 
     args = parser.parse_args()
     return args
@@ -185,7 +179,6 @@ if __name__ == '__main__':
     filetype = args.filetype
     dirname = args.dirname
     sweep = args.sweep
-    init_ignore_running = args.init_ignore_running
 
     slurmDir = str(BASE_DIR / dirname)
     scriptpath = str(BASE_DIR / scriptname)
@@ -196,7 +189,7 @@ if __name__ == '__main__':
     subfile = os.path.join(subDir, '%s.sub' % filetype)
 
     tags_remaining_to_complete, tags_remaining_to_run = filter_completed(
-        tags, group, algorithm, sweep=sweep, ignore_running=init_ignore_running
+        tags, group, algorithm, sweep=sweep
     )
     njobs = len(tags_remaining_to_complete)
 
