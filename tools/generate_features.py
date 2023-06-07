@@ -30,6 +30,7 @@ from joblib import Parallel, delayed
 
 
 BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
+print(BASE_DIR)
 
 # setup connection to Kowalski instances
 config_path = pathlib.Path(__file__).parent.parent.absolute() / "config.yaml"
