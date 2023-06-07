@@ -384,8 +384,6 @@ def drop_close_bright_stars(
     if save:
         with open(str(BASE_DIR / save_filename), 'w') as f:
             json.dump(id_dct_keep, f)
-        # save_df = pd.DataFrame.from_dict(id_dct_keep, orient='index')
-        # write_parquet(save_df, str(BASE_DIR / save_filename))
 
     print(f"Dropped {len(id_dct) - len(id_dct_keep)} sources.")
     return id_dct_keep

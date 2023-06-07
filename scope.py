@@ -130,8 +130,7 @@ class Scope:
                 )
         else:
             self.kowalski = None
-            # raise ConnectionError("Could not connect to Kowalski.")
-            print("Kowalski not available")
+            raise ConnectionError("Could not connect to Kowalski.")
 
     def _get_features(
         self,
@@ -354,11 +353,6 @@ class Scope:
                 make_tdtax_taxonomy(self.config["taxonomy"]),
                 outname=path_static / "taxonomy.html",
             )
-
-        # generate images for the Field Guide
-        if (self.kowalski is None) or (not self.kowalski.ping()):
-            print("Kowalski connection not established, cannot generate docs.")
-            return
 
         period_limits = {
             "cepheid": [1.0, 100.0],
