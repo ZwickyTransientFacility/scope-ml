@@ -364,9 +364,12 @@ def drop_close_bright_stars(
     else:
         id_dct_keep = id_dct
 
+    print('save', save)
     if save:
+        print(str(BASE_DIR / save_filename))
         with open(str(BASE_DIR / save_filename), 'w') as f:
             json.dump(id_dct_keep, f)
+        print('Done saving.')
         # save_df = pd.DataFrame.from_dict(id_dct_keep, orient='index')
         # write_parquet(save_df, str(BASE_DIR / save_filename))
 
