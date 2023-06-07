@@ -5,6 +5,7 @@ import yaml
 import os
 from penquins import Kowalski
 import numpy as np
+import json
 
 
 BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
@@ -53,18 +54,35 @@ cesium_feature_list = config['feature_generation']['cesium_features']
 
 def check_quads_for_sources(
     fields: list = np.arange(1, 2001),
-    catalog=source_catalog,
+    catalog: str = source_catalog,
+    count_sources: bool = False,
+    minobs: int = 0,
+    save: bool = False,
+    filename: str = 'catalog_completeness',
 ):
     """
-    Check ZTF field/ccd/quadrant combos for any sources.
+    Check ZTF field/ccd/quadrant combos for any sources. By default, lists any quadrants that have at least one source.
 
+    :param fields: list of integer field numbers to query (list)
+    :param kowalski_instance_name: name of kowalski instance to query (str)
+    :param catalog: name of source catalog to query (str)
+    :param count_sources: if set, count number of sources per quad and return (bool)
+    :param minobs: minimum number of observations needed to count a source (int)
+    :param save: if set, save results dictionary in json format (bool)
+    :param filename: filename of saved results (str)
+
+    :return field_dct: dictionary containing quadrants having at least one source (and optionally, number of sources per quad)
+    :return has_sources: boolean stating whether each field in fields has sources
+    :return missing_ccd_quad: boolean stating whether each field in fields has no sources in at least one ccd/quad
     """
 
+    running_total_sources = 0
     has_sources = np.zeros(len(fields), dtype=bool)
     missing_ccd_quad = np.zeros(len(fields), dtype=bool)
     field_dct = {}
+
     for idx, field in enumerate(fields):
-        print('Running field %d' % field)
+        print('Running field %d' % int(field))
         except_count = 0
         # Run minimal query to determine if sources exist in field
         q = {
@@ -93,24 +111,28 @@ def check_quads_for_sources(
 
         if has_sources[idx]:
             print(f'Field {field} has sources...')
-            field_dct[field] = {}
+            field_dct[str(field)] = {}
             for ccd in range(1, 17):
-                quads = []
+                if count_sources:
+                    quads = {}
+                else:
+                    quads = []
                 for quadrant in range(1, 5):
+                    fltr = {
+                        'field': {'$eq': int(field)},
+                        'ccd': {'$eq': int(ccd)},
+                        'quad': {'$eq': int(quadrant)},
+                    }
+                    if minobs > 0:
+                        fltr.update({'nobs': {'$gte': int(minobs)}})
 
                     # Another minimal query for each ccd/quad combo
                     q = {
-                        "query_type": "find",
+                        "query_type": 'count_documents',
                         "query": {
                             "catalog": catalog,
-                            "filter": {
-                                'field': {'$eq': int(field)},
-                                'ccd': {'$eq': int(ccd)},
-                                'quad': {'$eq': int(quadrant)},
-                            },
-                            "projection": {"_id": 1},
+                            "filter": fltr,
                         },
-                        "kwargs": {"limit": 1},
                     }
                     responses = kowalski_instances.query(q)
 
@@ -120,19 +142,30 @@ def check_quads_for_sources(
                             if response.get("status", "error") == "success":
                                 data = response.get("data")
 
-                    if len(data) > 0:
-                        quads += [quadrant]
+                    if data > 0:
+                        if count_sources:
+                            quads[str(quadrant)] = data
+                            running_total_sources += data
+                        else:
+                            quads += [quadrant]
+
                     else:
                         except_count += 1
 
                 if len(quads) > 0:
-                    field_dct[field].update({ccd: quads})
+                    field_dct[str(field)].update({str(ccd): quads})
 
         print(f"{64 - except_count} ccd/quad combos")
         if except_count > 0:
             missing_ccd_quad[idx] = True
 
     print(f"Sources found in {np.sum(has_sources)} fields.")
+    if count_sources:
+        print(f"Found {running_total_sources} sources.")
+
+    if save:
+        with open(BASE_DIR / f'{filename}.json', 'w') as f:
+            json.dump(field_dct, f)
 
     return field_dct, has_sources, missing_ccd_quad
 
@@ -198,10 +231,10 @@ if __name__ == "__main__":
         type=int,
     )
     parser.add_argument(
-        "--doLongPeriod",
+        "--doScaleMinPeriod",
         action='store_true',
         default=False,
-        help="if set, optimize frequency grid for long periods",
+        help="if set, scale min period by min_cadence_minutes. Otherwise, set --max_freq to desired value",
     )
     parser.add_argument(
         "--doRemoveTerrestrial",
@@ -219,7 +252,7 @@ if __name__ == "__main__":
         "--field",
         type=int,
         default=296,
-        help="if not -doAllFields, ZTF field to run on",
+        help="if not --doQuadrantFile, ZTF field to run on",
     )
     parser.add_argument(
         "--ccd", type=int, default=1, help="if not -doAllCCDs, ZTF ccd to run on"
@@ -249,7 +282,7 @@ if __name__ == "__main__":
         "--filename",
         type=str,
         default='gen_features',
-        help="if set, run on all quads for specified field/ccds",
+        help="Filename prefix for generated features",
     )
     parser.add_argument(
         "--doCesium",
@@ -347,9 +380,40 @@ if __name__ == "__main__":
         default=False,
         help="if set, generate a list of fields/ccd/quads and job numbers, save to slurm.dat",
     )
+    parser.add_argument(
+        "--field_list",
+        type=int,
+        nargs='+',
+        default=None,
+        help="space-separated list of fields for which to generate quadrant file. If None, all populated fields included.",
+    )
     parser.add_argument("--doQuadrantFile", action="store_true", default=False)
     parser.add_argument("--quadrant_file", default="slurm.dat")
-    parser.add_argument("--quadrant_index", default=0, type=int)
+    parser.add_argument("--quadrant_index", default=None, type=int)
+    parser.add_argument(
+        "--doSpecificIDs",
+        action='store_true',
+        default=False,
+        help="if set, perform feature generation for ztf_id column in config-specified file",
+    )
+    parser.add_argument(
+        "--skipCloseSources",
+        action='store_true',
+        default=False,
+        help="if set, skip removal of sources too close to bright stars via Gaia. May be useful if input data has previously been analyzed in this way.",
+    )
+    parser.add_argument(
+        "--top_n_periods",
+        type=int,
+        default=50,
+        help="number of ELS, ECE periods to pass to EAOV if using ELS_ECE_EAOV algorithm",
+    )
+    parser.add_argument(
+        "--max_freq",
+        type=float,
+        default=48.0,
+        help="maximum frequency [1 / days] to use for period finding. Overridden by --doScaleMinPeriod",
+    )
     parser.add_argument(
         "--max_instances",
         type=int,
@@ -363,16 +427,32 @@ if __name__ == "__main__":
         help="Time to wait between job status checks",
     )
     parser.add_argument(
+        "--doSubmitLoop",
+        action="store_true",
+        default=False,
+        help="If set, loop to initiate instances until out of jobs (hard on Kowalski)",
+    )
+    parser.add_argument(
         "--runParallel",
         action="store_true",
         default=False,
         help="If set, run jobs in parallel using slurm. Otherwise, run in series on a single instance.",
+    )
+    parser.add_argument(
+        "--user",
+        type=str,
+        default="bhealy",
+        help="HPC username",
     )
 
     args = parser.parse_args()
 
     if not (args.doCPU or args.doGPU):
         print("--doCPU or --doGPU required")
+        exit(0)
+
+    if args.doQuadrantFile and args.doSpecificIDs:
+        print("Choose one of --doQuadrantFile or --doSpecificIDs")
         exit(0)
 
     source_catalog = args.source_catalog
@@ -385,7 +465,7 @@ if __name__ == "__main__":
     doCPU = args.doCPU
     doGPU = args.doGPU
     samples_per_peak = args.samples_per_peak
-    doLongPeriod = args.doLongPeriod
+    doScaleMinPeriod = args.doScaleMinPeriod
     doRemoveTerrestrial = args.doRemoveTerrestrial
     Ncore = args.Ncore
     field = args.field
@@ -398,6 +478,10 @@ if __name__ == "__main__":
     doCesium = args.doCesium
     doNotSave = args.doNotSave
     stop_early = args.stop_early
+    doSpecificIDs = args.doSpecificIDs
+    skipCloseSources = args.skipCloseSources
+    top_n_periods = args.top_n_periods
+    max_freq = args.max_freq
 
     if args.doCPU:
         cpu_gpu_flag = "--doCPU"
@@ -405,8 +489,8 @@ if __name__ == "__main__":
         cpu_gpu_flag = "--doGPU"
 
     extra_flags = []
-    if args.doLongPeriod:
-        extra_flags.append("--doLongPeriod")
+    if args.doScaleMinPeriod:
+        extra_flags.append("--doScaleMinPeriod")
     if args.doRemoveTerrestrial:
         extra_flags.append("--doRemoveTerrestrial")
     if args.doCesium:
@@ -415,6 +499,10 @@ if __name__ == "__main__":
         extra_flags.append("--doNotSave")
     if args.stop_early:
         extra_flags.append("--stop_early")
+    if args.doSpecificIDs:
+        extra_flags.append("--doSpecificIDs")
+    if args.skipCloseSources:
+        extra_flags.append("--skipCloseSources")
     extra_flags = " ".join(extra_flags)
 
     dirpath = BASE_DIR / dirname
@@ -430,7 +518,15 @@ if __name__ == "__main__":
 
     quadrantfile = os.path.join(slurmDir, args.quadrant_file)
     if args.generateQuadrantFile:
-        field_dct, _, _ = check_quads_for_sources(catalog=source_catalog)
+        if args.field_list is None:
+            field_dct, _, _ = check_quads_for_sources(
+                catalog=source_catalog,
+            )
+        else:
+            field_dct, _, _ = check_quads_for_sources(
+                fields=args.field_list,
+                catalog=source_catalog,
+            )
 
         job_number = 0
 
@@ -438,7 +534,10 @@ if __name__ == "__main__":
         for field in field_dct.keys():
             for ccd in field_dct[field].keys():
                 for quad in field_dct[field][ccd]:
-                    fid.write('%d %d %d %d\n' % (job_number, field, ccd, quad))
+                    fid.write(
+                        '%d %d %d %d\n'
+                        % (int(job_number), int(field), int(ccd), int(quad))
+                    )
                     job_number += 1
         fid.close()
 
@@ -460,13 +559,16 @@ if __name__ == "__main__":
 
     if args.cluster_name in ['Expanse', 'expanse', 'EXPANSE']:
         fid.write('module purge\n')
-        fid.write('module add gpu\n')
+        fid.write('module add gpu/0.15.4\n')
         fid.write('module add cuda\n')
         fid.write(f'source activate {args.python_env_name}\n')
 
     if args.doQuadrantFile:
+        qid = '$QID'
+        if args.quadrant_index is not None:
+            qid = args.quadrant_index
         fid.write(
-            '%s/generate_features.py --source_catalog %s --alerts_catalog %s --gaia_catalog %s --bright_star_query_radius_arcsec %s --xmatch_radius_arcsec %s --query_size_limit %s --period_batch_size %s --samples_per_peak %s --Ncore %s --min_n_lc_points %s --min_cadence_minutes %s --dirname %s --filename %s --doQuadrantFile --quadrant_file %s --quadrant_index $QID %s %s\n'
+            '%s/generate_features.py --source_catalog %s --alerts_catalog %s --gaia_catalog %s --bright_star_query_radius_arcsec %s --xmatch_radius_arcsec %s --query_size_limit %s --period_batch_size %s --samples_per_peak %s --Ncore %s --min_n_lc_points %s --min_cadence_minutes %s --dirname %s --filename %s --top_n_periods %s --max_freq %s --doQuadrantFile --quadrant_file %s --quadrant_index %s %s %s\n'
             % (
                 BASE_DIR / 'tools',
                 source_catalog,
@@ -482,14 +584,17 @@ if __name__ == "__main__":
                 min_cadence_minutes,
                 dirname,
                 filename,
+                top_n_periods,
+                max_freq,
                 args.quadrant_file,
+                qid,
                 cpu_gpu_flag,
                 extra_flags,
             )
         )
     else:
         fid.write(
-            '%s/generate_features.py --source_catalog %s --alerts_catalog %s --gaia_catalog %s --bright_star_query_radius_arcsec %s --xmatch_radius_arcsec %s --query_size_limit %s --period_batch_size %s --samples_per_peak %s --Ncore %s --field %s --ccd %s --quad %s --min_n_lc_points %s --min_cadence_minutes %s --dirname %s --filename %s %s %s\n'
+            '%s/generate_features.py --source_catalog %s --alerts_catalog %s --gaia_catalog %s --bright_star_query_radius_arcsec %s --xmatch_radius_arcsec %s --query_size_limit %s --period_batch_size %s --samples_per_peak %s --Ncore %s --field %s --ccd %s --quad %s --min_n_lc_points %s --min_cadence_minutes %s --dirname %s --filename %s --top_n_periods %s --max_freq %s %s %s\n'
             % (
                 BASE_DIR / 'tools',
                 source_catalog,
@@ -508,6 +613,8 @@ if __name__ == "__main__":
                 min_cadence_minutes,
                 dirname,
                 filename,
+                top_n_periods,
+                max_freq,
                 cpu_gpu_flag,
                 extra_flags,
             )
@@ -533,26 +640,48 @@ if __name__ == "__main__":
         fid.write('module add slurm\n')
         fid.write(f'source activate {args.python_env_name}\n')
 
-    if args.runParallel:
-        fid.write(
-            '%s/generate_features_job_submission.py --dirname %s --filename %s --doSubmit --runParallel --max_instances %s --wait_time_minutes %s\n'
-            % (
-                BASE_DIR / 'tools',
-                dirpath,
-                filename,
-                args.max_instances,
-                args.wait_time_minutes,
+    if not args.doSubmitLoop:
+        if args.runParallel:
+            fid.write(
+                '%s/generate_features_job_submission.py --dirname %s --filename %s --doSubmit --runParallel --max_instances %s --wait_time_minutes %s --user %s\n'
+                % (
+                    BASE_DIR / 'tools',
+                    dirpath,
+                    filename,
+                    args.max_instances,
+                    args.wait_time_minutes,
+                    args.user,
+                )
             )
-        )
+        else:
+            fid.write(
+                '%s/generate_features_job_submission.py --dirname %s --filename %s --doSubmit --max_instances %s --wait_time_minutes %s --user %s\n'
+                % (
+                    BASE_DIR / 'tools',
+                    dirpath,
+                    filename,
+                    args.max_instances,
+                    args.wait_time_minutes,
+                    args.user,
+                )
+            )
     else:
-        fid.write(
-            '%s/generate_features_job_submission.py --dirname %s --filename %s --doSubmit --max_instances %s --wait_time_minutes %s\n'
-            % (
-                BASE_DIR / 'tools',
-                dirpath,
-                filename,
-                args.max_instances,
-                args.wait_time_minutes,
+        if args.runParallel:
+            fid.write(
+                '%s/generate_features_job_submission.py --dirname %s --filename %s --doSubmitLoop --runParallel\n'
+                % (
+                    BASE_DIR / 'tools',
+                    dirpath,
+                    filename,
+                )
             )
-        )
+        else:
+            fid.write(
+                '%s/generate_features_job_submission.py --dirname %s --filename %s --doSubmitLoop\n'
+                % (
+                    BASE_DIR / 'tools',
+                    dirpath,
+                    filename,
+                )
+            )
     fid.close()

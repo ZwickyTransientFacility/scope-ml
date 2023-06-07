@@ -1,4 +1,4 @@
-# Developer Guidelines
+# Installation/Developer Guidelines
 
 ## How to contribute
 
@@ -84,10 +84,10 @@ The pre-commit hook will lint *changes* made to the source.
 
 ---
 
-You may want to create/activate a virtual environment, for example using conda:
+We currently recommend running `scope` with Python 3.10. You may want to create/activate a virtual environment, for example using conda:
 
 ```bash
-conda create -n scope-env
+conda create -n scope-env -c conda-forge python=3.10 healpy
 conda activate scope-env
 ```
 
@@ -126,7 +126,7 @@ After successfully installing tensorflow-deps, tensorflow-macos, tensorflow-meta
 cp -f .requirements/dev-M1.txt .requirements/dev.txt
 ```
 
-This removes `tensorflow<2.6` `tensorflow-addons>=0.12` from `.requirements/dev.txt` . The file should now list the following requirements:
+This removes `tensorflow` and `tensorflow-addons` from `.requirements/dev.txt` . The file should now list the following requirements:
 
 ```txt
 deepdiff>=5.0
@@ -151,20 +151,6 @@ Install the required python packages by running:
 pip install -r requirements.txt
 ```
 
-#### Troubleshooting
-
-Upon encountering installation errors, manually install the package in question using  `conda install xxx` , and remove it from `.requirements/dev.txt`. After that, re-run `pip install -r requirements.txt` to continue.
-
-You may need to install some packages separately, e.g.:
-```bash
-conda install healpy
-conda install numpy
-conda install openblas #to fix the numpy
-conda install pandas
-```
-
-If the installation continues to raise errors, update the conda environment and try again.
-
 #### Create and modify config.yaml
 
 From the included config.defaults.yaml, make a copy called config.yaml:
@@ -173,7 +159,23 @@ From the included config.defaults.yaml, make a copy called config.yaml:
 cp config.defaults.yaml config.yaml
 ```
 
-Edit config.yaml to include Kowalski and Fritz tokens in the associated empty `token:` fields.
+Edit config.yaml to include Kowalski instance and Fritz tokens in the associated empty `token:` fields.
+
+#### Testing
+Run `./scope.py test` to test your installation. Note that for the test to pass, you will need access to the Kowalski database.
+
+#### Troubleshooting
+Upon encountering installation/testing errors, manually install the package in question using  `conda install xxx` , and remove it from `.requirements/dev.txt`. After that, re-run `pip install -r requirements.txt` to continue.
+
+#### Known issues
+- Across all platforms, we are currently aware of `scope` dependency issues with Python 3.11.
+- Anaconda continues to cause problems with environment setup.
+- Using `pip` to install `healpy` on an arm64 Mac can raise an error upon import. We recommend including `healpy` as a requirement during the creation of your `conda` environment.
+- On Windows machines, `healpy` and `cesium` raise errors upon installation.
+   - For `healpy`, see [this](https://healpy.readthedocs.io/en/latest/install.html#installation-on-windows-through-the-windows-subsystem-for-linux) guide for a potential workaround.
+   - For `cesium`, try to install from the source (https://cesium-ml.org/docs/install.html#from-source) within `scope`. If you will not be running feature generation, this is not a critical error, but there will be points in the code that fail (e.g. `scope.py test`, `tools/generate_features.py`)
+
+If the installation continues to raise errors, update the conda environment and try again.
 
 ## Contributing Field Guide sections
 

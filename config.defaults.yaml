@@ -12,8 +12,8 @@ kowalski:
   timeout: 300
   collections:
     gaia: Gaia_EDR3
-    # Current sources are from DR15 (on melman)
-    sources: ZTF_sources_20230109
+    # Current sources are from DR16 (on melman)
+    sources: ZTF_sources_20230309
     # Current features generated from DR5 (on gloria)
     features: ZTF_source_features_DR5
     # Current classifications are from DR5 (on gloria)
@@ -27,9 +27,58 @@ fritz:
   max_attempts: 10
   sleep_time: 5
 wandb:
+  entity: ztf-scope
   project: scope
   # Get your W&B token at https://wandb.ai/authorize
   token:
+  sweep_config_dnn:
+    method: bayes
+    metric:
+      goal: minimize
+      name: val_loss
+    run_cap: 10
+    parameters:
+    # For bayes method, use min/max instead of values
+      lr:
+        #values: [3.e-2, 3.e-3, 3.e-4]
+        min: 3.e-4
+        max: 3.e-2
+      epsilon:
+        #values: [1.e-7, 1.e-8, 1.e-9]
+        min: 1.e-9
+        max: 1.e-7
+      amsgrad:
+        #values: [3.e-3, 3.e-4, 3.e-5]
+        min: 3.e-5
+        max: 3.e-3
+      decay:
+        value: 0.0
+      beta_1:
+        value: 0.9
+      beta_2:
+        value: 0.999
+      epochs:
+        value: 50
+      dense_branch:
+        value: True
+      conv_branch:
+        value: True
+      loss:
+        value: binary_crossentropy
+      optimizer:
+        value: adam
+      momentum:
+        value: 0.9
+      monitor:
+        value: val_loss
+      patience:
+        value: 20
+      callbacks:
+        value:
+          - reduce_lr_on_plateau
+          - early_stopping
+      run_eagerly:
+        value: False
 taxonomy:
   class: tds
   name: time domain source type
@@ -253,639 +302,612 @@ docs:
       title: Variable stars
 
 features:
-  phenomenological_d12:
-    - ad
-    - chi2red
-    - f1_a
-    - f1_amp
-    - f1_b
-    - f1_bic
-    - f1_phi0
-    - f1_power
-    - f1_relamp1
-    - f1_relamp2
-    - f1_relamp3
-    - f1_relamp4
-    - f1_relphi1
-    - f1_relphi2
-    - f1_relphi3
-    - f1_relphi5
-    - f60
-    - f70
-    - f80
-    - f90
-    - inv_vonneumannratio
-    - iqr
-    - median
-    - median_abs_dev
-    - norm_excess_var
-    - norm_peak_to_peak_amp
-    - pdot
-    - period
-    - roms
-    - significance
-    - skew
-    - smallkurt
-    - stetson_j
-    - stetson_k
-    - sw
-    - welch_i
-    - wmean
-    - wstd
-    - n_ztf_alerts
-    - mean_ztf_alert_braai
-  phenomenological_d13:
-#    - ra
-#    - dec
-#    - n
-    - median
-    - wmean
-    - chi2red
-    - roms
-    - wstd
-    - norm_peak_to_peak_amp
-    - norm_excess_var
-    - median_abs_dev
-    - iqr
-    - i60r
-    - i70r
-    - i80r
-    - i90r
-    - skew
-    - smallkurt
-    - inv_vonneumannratio
-    - welch_i
-    - stetson_j
-    - stetson_k
-    - ad
-    - sw
-    - n_ztf_alerts
-    - mean_ztf_alert_braai
-    - period
-    - significance
-#    - pdot
-    - f1_power
-    - f1_BIC
-    - f1_a
-    - f1_b
-    - f1_amp
-    - f1_phi0
-    - f1_relamp1
-    - f1_relphi1
-    - f1_relamp2
-    - f1_relphi2
-    - f1_relamp3
-    - f1_relphi3
-    - f1_relamp4
-    - f1_relphi4
-  ontological_d13:
-#    - ra
-#    - dec
-    - median
-    - wmean
-    - chi2red
-    - roms
-    - wstd
-    - norm_peak_to_peak_amp
-    - norm_excess_var
-    - median_abs_dev
-    - iqr
-    - i60r
-    - i70r
-    - i80r
-    - i90r
-    - skew
-    - smallkurt
-    - inv_vonneumannratio
-    - welch_i
-    - stetson_j
-    - stetson_k
-    - ad
-    - sw
-    - n_ztf_alerts
-    - mean_ztf_alert_braai
-    - period
-    - significance
-#    - pdot
-    - f1_power
-    - f1_BIC
-    - f1_a
-    - f1_b
-    - f1_amp
-    - f1_phi0
-    - f1_relamp1
-    - f1_relphi1
-    - f1_relamp2
-    - f1_relphi2
-    - f1_relamp3
-    - f1_relphi3
-    - f1_relamp4
-    - f1_relphi4
-    - AllWISE__w1mpro
-    - AllWISE__w1sigmpro
-    - AllWISE__w2mpro
-    - AllWISE__w2sigmpro
-    - AllWISE__w3mpro
-    - AllWISE__w3sigmpro
-    - AllWISE__w4mpro
-    - AllWISE__w4sigmpro
-#    - AllWISE__ph_qual,
-    - Gaia_EDR3__phot_g_mean_mag
-    - Gaia_EDR3__phot_bp_mean_mag
-    - Gaia_EDR3__phot_rp_mean_mag
-    - Gaia_EDR3__parallax
-    - Gaia_EDR3__parallax_error
-    - Gaia_EDR3__pmra
-    - Gaia_EDR3__pmra_error
-    - Gaia_EDR3__pmdec
-    - Gaia_EDR3__pmdec_error
-    - Gaia_EDR3__astrometric_excess_noise
-    - Gaia_EDR3__phot_bp_rp_excess_factor
-    - PS1_DR1__gMeanPSFMag
-    - PS1_DR1__gMeanPSFMagErr
-    - PS1_DR1__rMeanPSFMag
-    - PS1_DR1__rMeanPSFMagErr
-    - PS1_DR1__iMeanPSFMag
-    - PS1_DR1__iMeanPSFMagErr
-    - PS1_DR1__zMeanPSFMag
-    - PS1_DR1__zMeanPSFMagErr
-    - PS1_DR1__yMeanPSFMag
-    - PS1_DR1__yMeanPSFMagErr
+  info:
+    period_suffix:
   phenomenological:
     ad:
       include: true
       dtype: float
+      periodic: false
     ccd:
       include: false
       dtype: Int64
+      periodic: false
     chi2red:
       include: true
       dtype: float
+      periodic: false
     dec:
       include: false
       dtype: float
+      periodic: false
     f1_BIC:
       include: true
       dtype: float
+      periodic: true
     f1_a:
       include: true
       dtype: float
+      periodic: true
     f1_amp:
       include: true
       dtype: float
+      periodic: true
     f1_b:
       include: true
       dtype: float
+      periodic: true
     f1_phi0:
       include: true
       dtype: float
+      periodic: true
     f1_power:
       include: true
       dtype: float
+      periodic: true
     f1_relamp1:
       include: true
       dtype: float
+      periodic: true
     f1_relamp2:
       include: true
       dtype: float
+      periodic: true
     f1_relamp3:
       include: true
       dtype: float
+      periodic: true
     f1_relamp4:
       include: true
       dtype: float
+      periodic: true
     f1_relphi1:
       include: true
       dtype: float
+      periodic: true
     f1_relphi2:
       include: true
       dtype: float
+      periodic: true
     f1_relphi3:
       include: true
       dtype: float
+      periodic: true
     f1_relphi4:
       include: true
       dtype: float
+      periodic: true
     field:
       include: false
       dtype: Int64
+      periodic: false
     i60r:
       include: true
       dtype: float
+      periodic: false
     i70r:
       include: true
       dtype: float
+      periodic: false
     i80r:
       include: true
       dtype: float
+      periodic: false
     i90r:
       include: true
       dtype: float
+      periodic: false
     inv_vonneumannratio:
       include: true
       dtype: float
+      periodic: false
     iqr:
       include: true
       dtype: float
+      periodic: false
     mean_ztf_alert_braai:
       include: false
       dtype: float
+      periodic: false
     median:
       include: true
       dtype: float
+      periodic: false
     median_abs_dev:
       include: true
       dtype: float
+      periodic: false
     n:
       include: false
       dtype: float
+      periodic: false
     n_ztf_alerts:
       include: false
       dtype: Int64
+      periodic: false
     norm_excess_var:
       include: true
       dtype: float
+      periodic: false
     norm_peak_to_peak_amp:
       include: true
       dtype: float
+      periodic: false
     pdot:
       include: false
       dtype: float
+      periodic: true
     period:
       include: false
       dtype: float
+      periodic: true
     quad:
       include: false
       dtype: Int64
+      periodic: false
     ra:
       include: false
       dtype: float
+      periodic: false
     roms:
       include: true
       dtype: float
+      periodic: false
     significance:
       include: false
       dtype: float
+      periodic: true
     skew:
       include: true
       dtype: float
+      periodic: false
     smallkurt:
       include: true
       dtype: float
+      periodic: false
     stetson_j:
       include: true
       dtype: float
+      periodic: false
     stetson_k:
       include: true
       dtype: float
+      periodic: false
     sw:
       include: true
       dtype: float
+      periodic: false
     welch_i:
       include: true
       dtype: float
+      periodic: false
     wmean:
       include: true
       dtype: float
+      periodic: false
     wstd:
       include: true
       dtype: float
+      periodic: false
   ontological:
     ad:
       include: true
       dtype: float
       impute_strategy: None
+      periodic: false
     ccd:
       include: false
       dtype: Int64
       impute_strategy: None
+      periodic: false
     chi2red:
       include: true
       dtype: float
       impute_strategy: None
+      periodic: false
     dec:
       include: false
       dtype: float
       impute_strategy: None
+      periodic: false
     f1_BIC:
       include: true
       dtype: float
       impute_strategy: None
+      periodic: true
     f1_a:
       include: true
       dtype: float
       impute_strategy: None
+      periodic: true
     f1_amp:
       include: true
       dtype: float
       impute_strategy: None
+      periodic: true
     f1_b:
       include: true
       dtype: float
       impute_strategy: None
+      periodic: true
     f1_phi0:
       include: true
       dtype: float
       impute_strategy: None
+      periodic: true
     f1_power:
       include: true
       dtype: float
       impute_strategy: None
+      periodic: true
     f1_relamp1:
       include: true
       dtype: float
       impute_strategy: None
+      periodic: true
     f1_relamp2:
       include: true
       dtype: float
       impute_strategy: None
+      periodic: true
     f1_relamp3:
       include: true
       dtype: float
       impute_strategy: None
+      periodic: true
     f1_relamp4:
       include: true
       dtype: float
       impute_strategy: None
+      periodic: true
     f1_relphi1:
       include: true
       dtype: float
       impute_strategy: None
+      periodic: true
     f1_relphi2:
       include: true
       dtype: float
       impute_strategy: None
+      periodic: true
     f1_relphi3:
       include: true
       dtype: float
       impute_strategy: None
+      periodic: true
     f1_relphi4:
       include: true
       dtype: float
       impute_strategy: None
+      periodic: true
     field:
       include: false
       dtype: Int64
       impute_strategy: None
+      periodic: false
     i60r:
       include: true
       dtype: float
       impute_strategy: None
+      periodic: false
     i70r:
       include: true
       dtype: float
       impute_strategy: None
+      periodic: false
     i80r:
       include: true
       dtype: float
       impute_strategy: None
+      periodic: false
     i90r:
       include: true
       dtype: float
       impute_strategy: None
+      periodic: false
     inv_vonneumannratio:
       include: true
       dtype: float
       impute_strategy: None
+      periodic: false
     iqr:
       include: true
       dtype: float
       impute_strategy: None
+      periodic: false
     mean_ztf_alert_braai:
       include: true
       dtype: float
       impute_strategy: zero
+      periodic: false
     median:
       include: true
       dtype: float
       impute_strategy: None
+      periodic: false
     median_abs_dev:
       include: true
       dtype: float
       impute_strategy: None
+      periodic: false
     n:
       include: false
       dtype: float
       impute_strategy: None
+      periodic: false
     n_ztf_alerts:
       include: true
       dtype: Int64
       impute_strategy: zero
+      periodic: false
     norm_excess_var:
       include: true
       dtype: float
       impute_strategy: None
+      periodic: false
     norm_peak_to_peak_amp:
       include: true
       dtype: float
       impute_strategy: None
+      periodic: false
     pdot:
       include: false
       dtype: float
       impute_strategy: None
+      periodic: true
     period:
       include: true
       dtype: float
       impute_strategy: None
+      periodic: true
     quad:
       include: false
       dtype: Int64
       impute_strategy: None
+      periodic: false
     ra:
       include: false
       dtype: float
       impute_strategy: None
+      periodic: false
     roms:
       include: true
       dtype: float
       impute_strategy: None
+      periodic: false
     significance:
       include: true
       dtype: float
       impute_strategy: None
+      periodic: true
     skew:
       include: true
       dtype: float
       impute_strategy: None
+      periodic: false
     smallkurt:
       include: true
       dtype: float
       impute_strategy: None
+      periodic: false
     stetson_j:
       include: true
       dtype: float
       impute_strategy: None
+      periodic: false
     stetson_k:
       include: true
       dtype: float
       impute_strategy: None
+      periodic: false
     sw:
       include: true
       dtype: float
       impute_strategy: None
+      periodic: false
     welch_i:
       include: true
       dtype: float
       impute_strategy: None
+      periodic: false
     wmean:
       include: true
       dtype: float
       impute_strategy: None
+      periodic: false
     wstd:
       include: true
       dtype: float
       impute_strategy: None
+      periodic: false
     AllWISE___id:
       include: false
       dtype: Int64
       impute_strategy: None
+      periodic: false
     AllWISE__ph_qual:
       include: false
       dtype: str
       impute_strategy: None
+      periodic: false
     AllWISE__w1mpro:
       include: true
       dtype: float
       impute_strategy: regress
+      periodic: false
     AllWISE__w1sigmpro:
       include: true
       dtype: float
       impute_strategy: median
+      periodic: false
     AllWISE__w2mpro:
       include: true
       dtype: float
       impute_strategy: regress
+      periodic: false
     AllWISE__w2sigmpro:
       include: true
       dtype: float
       impute_strategy: median
+      periodic: false
     AllWISE__w3mpro:
       include: true
       dtype: float
       impute_strategy: regress
+      periodic: false
     # The below magnitude error is missing from the majority of training sources; we therefore exclude it by default.
     AllWISE__w3sigmpro:
       include: false
       dtype: float
       impute_strategy: None
+      periodic: false
     AllWISE__w4mpro:
       include: true
       dtype: float
       impute_strategy: regress
+      periodic: false
     # The below magnitude error is missing from the majority of training sources; we therefore exclude it by default.
     AllWISE__w4sigmpro:
       include: false
       dtype: float
       impute_strategy: None
+      periodic: false
     Gaia_EDR3___id:
       include: false
       dtype: Int64
       impute_strategy: None
+      periodic: false
     Gaia_EDR3__astrometric_excess_noise:
       include: false
       dtype: float
       impute_strategy: None
+      periodic: false
     Gaia_EDR3__parallax:
       include: true
       dtype: float
       impute_strategy: regress
+      periodic: false
     Gaia_EDR3__parallax_error:
       include: false
       dtype: float
       impute_strategy: None
+      periodic: false
     Gaia_EDR3__phot_bp_mean_mag:
       include: true
       dtype: float
       impute_strategy: regress
+      periodic: false
     Gaia_EDR3__phot_bp_rp_excess_factor:
       include: true
       dtype: float
       impute_strategy: median
+      periodic: false
     Gaia_EDR3__phot_g_mean_mag:
       include: true
       dtype: float
       impute_strategy: regress
+      periodic: false
     Gaia_EDR3__phot_rp_mean_mag:
       include: true
       dtype: float
       impute_strategy: regress
+      periodic: false
     Gaia_EDR3__pmdec:
       include: false
       dtype: float
       impute_strategy: None
+      periodic: false
     Gaia_EDR3__pmdec_error:
       include: false
       dtype: float
       impute_strategy: None
+      periodic: false
     Gaia_EDR3__pmra:
       include: false
       dtype: float
       impute_strategy: None
+      periodic: false
     Gaia_EDR3__pmra_error:
       include: false
       dtype: float
       impute_strategy: None
+      periodic: false
     PS1_DR1___id:
       include: false
       dtype: Int64
       impute_strategy: None
+      periodic: false
     PS1_DR1__gMeanPSFMag:
       include: true
       dtype: float
       impute_strategy: regress
+      periodic: false
     PS1_DR1__gMeanPSFMagErr:
       include: true
       dtype: float
       impute_strategy: median
+      periodic: false
     PS1_DR1__iMeanPSFMag:
       include: true
       dtype: float
       impute_strategy: regress
+      periodic: false
     PS1_DR1__iMeanPSFMagErr:
       include: true
       dtype: float
       impute_strategy: median
+      periodic: false
     PS1_DR1__qualityFlag:
       include: false
       dtype: Int64
       impute_strategy: None
+      periodic: false
     PS1_DR1__rMeanPSFMag:
       include: true
       dtype: float
       impute_strategy: regress
+      periodic: false
     PS1_DR1__rMeanPSFMagErr:
       include: true
       dtype: float
       impute_strategy: median
+      periodic: false
     PS1_DR1__yMeanPSFMag:
       include: true
       dtype: float
       impute_strategy: regress
+      periodic: false
     PS1_DR1__yMeanPSFMagErr:
       include: true
       dtype: float
       impute_strategy: median
+      periodic: false
     PS1_DR1__zMeanPSFMag:
       include: true
       dtype: float
       impute_strategy: regress
+      periodic: false
     PS1_DR1__zMeanPSFMagErr:
       include: true
       dtype: float
       impute_strategy: median
+      periodic: false
     _id:
       include: false
       dtype: int
       impute_strategy: None
+      periodic: false
     coordinates:
       include: false
       dtype: object
       impute_strategy: None
+      periodic: false
     # This feature is included separately by nn.py, but the dtype is specified here for get_features.py
     dmdt:
       include: false
       dtype: object
       impute_strategy: None
+      periodic: false
 
 feature_stats:
   # d15-based
@@ -1336,13 +1358,27 @@ feature_stats:
 
 # Below, specify algorithms, external catalogs and features to include in generated feature lists:
 feature_generation:
+  # If --doSpecificIDs is set in generate_features.py, the script will generate features for the below dataset instead of a field/ccd/quad.
+  # Dataset must contain columns named "ztf_id" and "coordinates" with data in the format of these fields on Kowalski
+  # Default dataset is the training set downloadable from Fritz
+  dataset: tools/fritzDownload/merged_classifications_features.parquet
+  # Once generate_features.py is run with --doSpecificIDs, a file will be saved with the default name below.
+  # Set --skipCloseSources to load the file below and skip the idenfication of close sources:
+  ids_skipGaia: tools/fritzDownload/specific_ids_dropCloseSources.json
   period_algorithms:
     CPU:
       - LS
     GPU:
+      # If ELS_ECE_EAOV is set, period finding will be run using a nested approach which passes the top N ELS and ECE periods to EAOV.
+      # Individual ELS, ECE and EAOV periods will also be saved.
+      #- ELS_ECE_EAOV
+      - ELS
       - ECE
       - EAOV
-      - ELS
+  fields_to_run:
+    # If this list is populated (example below), generate_features_job_submission.py will only run on the specified fields.
+    #- 296
+    #- 297
   cesium_features:
     # Some features on this list are already computed by lcstats - these are commented below
     #
@@ -1573,6 +1609,24 @@ feature_generation:
 training:
   # Below, enter path to training set
   dataset: tools/fritzDownload/merged_classifications_features.parquet
+  xgboost:
+    # See scope.py train for descriptions of these parameters
+    gridsearch_params_start_stop_step:
+      max_depth: [3, 8, 2]
+      min_child_weight: [1, 6, 2]
+      # subsample, colsample values get divided by 10
+      # (default values produce .6, .8, 1.0)
+      subsample: [6, 11, 2]
+      colsample_bytree: [6, 11, 2]
+    other_training_params:
+      eta: [0.3, 0.2, 0.1, 0.05]
+      seed: 42
+      nfold: 5
+      metrics: ['auc']
+      objective: 'binary:logistic'
+      eval_metric: 'auc'
+      early_stopping_rounds: 10
+      num_boost_round: 999
   classes:
     # phenomenological classes
     vnv:

@@ -13,7 +13,6 @@ import questionary
 import subprocess
 import sys
 import tdtax
-from tdtax import taxonomy  # noqa: F401
 from typing import Optional, Sequence, Union
 import yaml
 from scope.utils import (
@@ -22,10 +21,10 @@ from scope.utils import (
     read_hdf,
     read_parquet,
     write_parquet,
-    write_hdf,
 )
 from scope.fritz import radec_to_iau_name
 import json
+import shutil
 
 
 @contextmanager
@@ -515,16 +514,19 @@ class Scope:
         self,
         tag: str,
         path_dataset: Union[str, pathlib.Path],
+        algorithm: str = 'DNN',
         gpu: Optional[int] = None,
         verbose: bool = False,
         job_type: str = 'train',
         group: str = 'experiment',
+        run_sweeps: bool = False,
         **kwargs,
     ):
         """Train classifier
 
         :param tag: classifier designation, refers to "class" in config.taxonomy
         :param path_dataset: local path to .parquet, .h5 or .csv file with the dataset
+        :param algorithm: name of ML algorithm to use
         :param gpu: GPU id to use, zero-based. check tf.config.list_physical_devices('GPU') for available devices
         :param verbose:
         :param kwargs: refer to utils.DNN.setup and utils.Dataset.make
@@ -545,45 +547,64 @@ class Scope:
         from wandb.keras import WandbCallback
 
         from scope.nn import DNN
+        from scope.xgb import XGB
         from scope.utils import Dataset
 
-        train_config = self.config["training"]["classes"][tag]
+        label_params = self.config["training"]["classes"][tag]
+        train_config_xgb = self.config["training"]['xgboost']
 
-        all_features = self.config["features"][train_config["features"]]
+        period_suffix = kwargs.get(
+            'period_suffix', self.config['features']['info']['period_suffix']
+        )
+
+        if algorithm in ['DNN', 'NN', 'dnn', 'nn']:
+            algorithm = 'dnn'
+        elif algorithm in ['XGB', 'xgb', 'XGBoost', 'xgboost', 'XGBOOST']:
+            algorithm = 'xgb'
+        else:
+            raise ValueError('Current supported algorithms are DNN and XGB.')
+
+        all_features = self.config["features"][label_params["features"]]
         features = [
             key for key in all_features if forgiving_true(all_features[key]["include"])
         ]
+        if not ((period_suffix is None) | (period_suffix == 'None')):
+            periodic_bool = [all_features[x]['periodic'] for x in features]
+            for j, name in enumerate(features):
+                if periodic_bool[j]:
+                    features[j] = f'{name}_{period_suffix}'
 
         ds = Dataset(
             tag=tag,
             path_dataset=path_dataset,
             features=features,
             verbose=verbose,
+            algorithm=algorithm,
             **kwargs,
         )
 
-        label = train_config["label"]
+        label = label_params["label"]
 
         # values from kwargs override those defined in config. if latter is absent, use reasonable default
-        threshold = kwargs.get("threshold", train_config.get("threshold", 0.5))
-        balance = kwargs.get("balance", train_config.get("balance", None))
+        threshold = kwargs.get("threshold", label_params.get("threshold", 0.5))
+        balance = kwargs.get("balance", label_params.get("balance", None))
         weight_per_class = kwargs.get(
-            "weight_per_class", train_config.get("weight_per_class", False)
+            "weight_per_class", label_params.get("weight_per_class", False)
         )
         scale_features = kwargs.get("scale_features", "min_max")
 
-        test_size = kwargs.get("test_size", train_config.get("test_size", 0.1))
-        val_size = kwargs.get("val_size", train_config.get("val_size", 0.1))
-        random_state = kwargs.get("random_state", train_config.get("random_state", 42))
+        test_size = kwargs.get("test_size", label_params.get("test_size", 0.1))
+        val_size = kwargs.get("val_size", label_params.get("val_size", 0.1))
+        random_state = kwargs.get("random_state", label_params.get("random_state", 42))
         feature_stats = kwargs.get("feature_stats", None)
         if feature_stats == 'config':
             feature_stats = self.config.get("feature_stats", None)
 
-        batch_size = kwargs.get("batch_size", train_config.get("batch_size", 64))
+        batch_size = kwargs.get("batch_size", label_params.get("batch_size", 64))
         shuffle_buffer_size = kwargs.get(
-            "shuffle_buffer_size", train_config.get("shuffle_buffer_size", 512)
+            "shuffle_buffer_size", label_params.get("shuffle_buffer_size", 512)
         )
-        epochs = kwargs.get("epochs", train_config.get("epochs", 100))
+        epochs = kwargs.get("epochs", label_params.get("epochs", 100))
         float_convert_types = kwargs.get("float_convert_types", (64, 32))
 
         datasets, indexes, steps_per_epoch, class_weight = ds.make(
@@ -602,12 +623,17 @@ class Scope:
             float_convert_types=float_convert_types,
         )
 
-        # set up and train model
+        # Define default hyperparameters for model
         dense_branch = kwargs.get("dense_branch", True)
         conv_branch = kwargs.get("conv_branch", True)
         loss = kwargs.get("loss", "binary_crossentropy")
         optimizer = kwargs.get("optimizer", "adam")
         lr = float(kwargs.get("lr", 3e-4))
+        beta_1 = kwargs.get("beta_1", 0.9)
+        beta_2 = kwargs.get("beta_2", 0.999)
+        epsilon = kwargs.get("epsilon", 1e-7)  # None?
+        decay = kwargs.get("decay", 0.0)
+        amsgrad = kwargs.get("amsgrad", 3e-4)
         momentum = float(kwargs.get("momentum", 0.9))
         monitor = kwargs.get("monitor", "val_loss")
         patience = int(kwargs.get("patience", 20))
@@ -615,7 +641,78 @@ class Scope:
         run_eagerly = kwargs.get("run_eagerly", False)
         pre_trained_model = kwargs.get("pre_trained_model")
         save = kwargs.get("save", False)
+        plot = kwargs.get("plot", False)
         weights_only = kwargs.get("weights_only", False)
+        skip_cv = kwargs.get("skip_cv", False)
+
+        # xgb-specific arguments (descriptions adapted from https://xgboost.readthedocs.io/en/stable/parameter.html and https://xgboost.readthedocs.io/en/stable/python/python_api.html)
+        # max_depth: maximum depth of a tree
+        max_depth_config = train_config_xgb['gridsearch_params_start_stop_step'].get(
+            'max_depth', [3, 8, 2]
+        )
+        max_depth_start = max_depth_config[0]
+        max_depth_stop = max_depth_config[1]
+        max_depth_step = max_depth_config[2]
+
+        # min_child_weight: minimum sum of instance weight (hessian) needed in a child
+        min_child_weight_config = train_config_xgb[
+            'gridsearch_params_start_stop_step'
+        ].get('min_child_weight', [1, 6, 2])
+        min_child_weight_start = min_child_weight_config[0]
+        min_child_weight_stop = min_child_weight_config[1]
+        min_child_weight_step = min_child_weight_config[2]
+
+        # eta = kwargs.get("xgb_eta", 0.1)
+        eta_list = train_config_xgb['other_training_params'].get(
+            'eta_list', [0.3, 0.2, 0.1, 0.05]
+        )
+
+        # subsample: Subsample ratio of the training instances (setting to 0.5 means XGBoost would randomly sample half of the training data prior to growing trees)
+        # subsample = kwargs.get("xgb_subsample", 0.7)
+        subsample_config = train_config_xgb['gridsearch_params_start_stop_step'].get(
+            'subsample', [6, 11, 2]
+        )
+        subsample_start = subsample_config[0]
+        subsample_stop = subsample_config[1]
+        subsample_step = subsample_config[2]
+
+        # colsample_bytree: subsample ratio of columns when constructing each tree.
+        # colsample_bytree = kwargs.get("xgb_colsample_bytree", 0.7)
+        colsample_bytree_config = train_config_xgb[
+            'gridsearch_params_start_stop_step'
+        ].get('subsample', [6, 11, 2])
+        colsample_bytree_start = colsample_bytree_config[0]
+        colsample_bytree_stop = colsample_bytree_config[1]
+        colsample_bytree_step = colsample_bytree_config[2]
+
+        # seed: random seed
+        seed = train_config_xgb['other_training_params'].get('seed', 42)
+
+        # nfold: number of folds during cross-validation
+        nfold = train_config_xgb['other_training_params'].get('nfold', 5)
+
+        # metrics: evaluation metrics to use during cross-validation
+        metrics = train_config_xgb['other_training_params'].get('metrics', ['auc'])
+
+        # objective: name of learning objective
+        objective = train_config_xgb['other_training_params'].get(
+            "objective", "binary:logistic"
+        )
+
+        # eval_metric: Evaluation metrics for validation data
+        eval_metric = train_config_xgb['other_training_params'].get(
+            "eval_metric", "auc"
+        )
+
+        # early_stopping_rounds: Validation metric needs to improve at least once in every early_stopping_rounds round(s) to continue training
+        early_stopping_rounds = train_config_xgb['other_training_params'].get(
+            "early_stopping_rounds", 10
+        )
+
+        # num_boost_round: Number of boosting iterations
+        num_boost_round = train_config_xgb['other_training_params'].get(
+            "num_boost_round", 999
+        )
 
         # parse boolean args
         dense_branch = forgiving_true(dense_branch)
@@ -623,149 +720,285 @@ class Scope:
         run_eagerly = forgiving_true(run_eagerly)
         save = forgiving_true(save)
 
-        classifier = DNN(name=tag)
-
-        if pre_trained_model is not None:
-            classifier.load(pre_trained_model, weights_only=weights_only)
-            model_input = classifier.model.input
-            training_set_inputs = datasets['train'].element_spec[0]
-            # Compare input shapes with model inputs
-            print(
-                'Comparing shapes of input features with inputs for existing model...'
-            )
-            for inpt in model_input:
-                inpt_name = inpt.name
-                inpt_shape = inpt.shape
-                inpt_shape.assert_is_compatible_with(
-                    training_set_inputs[inpt_name].shape
-                )
-            print('Input shapes are consistent.')
-            classifier.set_callbacks(callbacks, tag, **kwargs)
-
-        else:
-            classifier.setup(
-                dense_branch=dense_branch,
-                features_input_shape=(len(features),),
-                conv_branch=conv_branch,
-                dmdt_input_shape=(26, 26, 1),
-                loss=loss,
-                optimizer=optimizer,
-                learning_rate=lr,
-                momentum=momentum,
-                monitor=monitor,
-                patience=patience,
-                callbacks=callbacks,
-                run_eagerly=run_eagerly,
-            )
-
-        if verbose:
-            print(classifier.model.summary())
-
         time_tag = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
 
-        if not kwargs.get("test", False):
-            wandb.login(key=self.config["wandb"]["token"])
-            wandb.init(
-                job_type=job_type,
-                project=self.config["wandb"]["project"],
-                tags=[tag],
-                group=group,
-                name=f"{tag}-{time_tag}",
-                config={
-                    "tag": tag,
-                    "label": label,
-                    "dataset": pathlib.Path(path_dataset).name,
-                    "scale_features": scale_features,
-                    "learning_rate": lr,
-                    "epochs": epochs,
-                    "patience": patience,
-                    "random_state": random_state,
-                    "batch_size": batch_size,
-                    "architecture": "scope-net",
-                    "dense_branch": dense_branch,
-                    "conv_branch": conv_branch,
-                },
-            )
-            classifier.meta["callbacks"].append(WandbCallback())
-
-        classifier.train(
-            datasets["train"],
-            datasets["val"],
-            steps_per_epoch["train"],
-            steps_per_epoch["val"],
-            epochs=epochs,
-            class_weight=class_weight,
-            verbose=verbose,
+        output_path = (
+            pathlib.Path(__file__).parent.absolute() / f"models_{algorithm}" / group
         )
 
-        if verbose:
-            print("Evaluating on test set:")
-        stats = classifier.evaluate(datasets["test"], verbose=verbose)
-        if verbose:
-            print(stats)
+        if algorithm == 'dnn':
 
-        param_names = (
-            "loss",
-            "tp",
-            "fp",
-            "tn",
-            "fn",
-            "accuracy",
-            "precision",
-            "recall",
-            "auc",
-        )
-        if not kwargs.get("test", False):
-            # log model performance on the test set
-            for param, value in zip(param_names, stats):
-                wandb.run.summary[f"test_{param}"] = value
-            p, r = wandb.run.summary["test_precision"], wandb.run.summary["test_recall"]
-            wandb.run.summary["test_f1"] = 2 * p * r / (p + r)
+            classifier = DNN(name=tag)
 
-        if datasets["dropped_samples"] is not None:
-            # log model performance on the dropped samples
+            if run_sweeps:
+                # Point to datasets needed for training/validation
+                classifier.assign_datasets(
+                    features_input_shape=len(features),
+                    train_dataset_repeat=datasets["train_repeat"],
+                    val_dataset_repeat=datasets["val_repeat"],
+                    steps_per_epoch_train=steps_per_epoch["train"],
+                    steps_per_epoch_val=steps_per_epoch["val"],
+                    train_dataset=datasets["train"],
+                    val_dataset=datasets["val"],
+                    wandb_token=self.config['wandb']['token'],
+                )
+
+                wandb.login(key=self.config["wandb"]["token"])
+
+                # Define sweep config
+                sweep_configuration = self.config['wandb']['sweep_config_dnn']
+                sweep_configuration['name'] = f"{group}-{tag}-{time_tag}"
+
+                entity = self.config['wandb']['entity']
+                project = self.config['wandb']['project']
+
+                # Set up sweep/id
+                sweep_id = wandb.sweep(
+                    sweep=sweep_configuration,
+                    project=project,
+                )
+
+                # Start sweep job
+                wandb.agent(sweep_id, function=classifier.sweep)
+
+                print(
+                    'Sweep complete. Adjust hyperparameters in config file and run scope.py train again without the --run_sweeps flag.'
+                )
+
+                # Stop sweep job
+                try:
+                    print('Stopping sweep.')
+                    os.system(
+                        f'python -m wandb sweep --stop {entity}/{project}/{sweep_id}'
+                    )
+                except Exception:
+                    print('Sweep already stopped.')
+
+                if save:
+                    sweep_output_path = output_path / 'sweeps' / tag
+                    if not sweep_output_path.exists():
+                        sweep_output_path.mkdir(parents=True, exist_ok=True)
+                    # Make dummy file to register as completed (if using train_algorithm_job_submission.py)
+                    os.system(f'touch {str(sweep_output_path)}/{tag}.{time_tag}.sweep')
+
+                return
+
+            if pre_trained_model is not None:
+                classifier.load(pre_trained_model, weights_only=weights_only)
+                model_input = classifier.model.input
+                training_set_inputs = datasets['train'].element_spec[0]
+                # Compare input shapes with model inputs
+                print(
+                    'Comparing shapes of input features with inputs for existing model...'
+                )
+                for inpt in model_input:
+                    inpt_name = inpt.name
+                    inpt_shape = inpt.shape
+                    inpt_shape.assert_is_compatible_with(
+                        training_set_inputs[inpt_name].shape
+                    )
+                print('Input shapes are consistent.')
+                classifier.set_callbacks(callbacks, tag, **kwargs)
+
+            else:
+                classifier.setup(
+                    dense_branch=dense_branch,
+                    features_input_shape=(len(features),),
+                    conv_branch=conv_branch,
+                    dmdt_input_shape=(26, 26, 1),
+                    loss=loss,
+                    optimizer=optimizer,
+                    learning_rate=lr,
+                    momentum=momentum,
+                    monitor=monitor,
+                    patience=patience,
+                    callbacks=callbacks,
+                    run_eagerly=run_eagerly,
+                    beta_1=beta_1,
+                    beta_2=beta_2,
+                    epsilon=epsilon,
+                    decay=decay,
+                    amsgrad=amsgrad,
+                )
+
             if verbose:
-                print("Evaluating on samples dropped from the training set:")
-            stats = classifier.evaluate(datasets["dropped_samples"], verbose=verbose)
-            if verbose:
-                print(stats)
+                print(classifier.model.summary())
 
             if not kwargs.get("test", False):
-                for param, value in zip(param_names, stats):
-                    wandb.run.summary[f"dropped_samples_{param}"] = value
-                p, r = (
-                    wandb.run.summary["dropped_samples_precision"],
-                    wandb.run.summary["dropped_samples_recall"],
+                wandb.login(key=self.config["wandb"]["token"])
+                wandb.init(
+                    job_type=job_type,
+                    project=self.config["wandb"]["project"],
+                    tags=[tag],
+                    group=group,
+                    name=f"{tag}-{time_tag}",
+                    config={
+                        "tag": tag,
+                        "label": label,
+                        "dataset": pathlib.Path(path_dataset).name,
+                        "scale_features": scale_features,
+                        "learning_rate": lr,
+                        "epochs": epochs,
+                        "patience": patience,
+                        "random_state": random_state,
+                        "batch_size": batch_size,
+                        "architecture": "scope-net",
+                        "dense_branch": dense_branch,
+                        "conv_branch": conv_branch,
+                    },
                 )
-                wandb.run.summary["dropped_samples_f1"] = 2 * p * r / (p + r)
+                classifier.meta["callbacks"].append(WandbCallback())
+
+                classifier.train(
+                    datasets["train_repeat"],
+                    datasets["val_repeat"],
+                    steps_per_epoch["train"],
+                    steps_per_epoch["val"],
+                    epochs=epochs,
+                    class_weight=class_weight,
+                    verbose=verbose,
+                )
+
+        elif algorithm == 'xgb':
+
+            # XGB-specific code
+            X_train = ds.df_ds.loc[indexes['train']][features]
+            y_train = ds.target[indexes['train']]
+
+            X_val = ds.df_ds.loc[indexes['val']][features]
+            y_val = ds.target[indexes['val']]
+
+            X_test = ds.df_ds.loc[indexes['test']][features]
+            y_test = ds.target[indexes['test']]
+
+            # Add code to train XGB algorithm
+            classifier = XGB(name=tag)
+            classifier.setup(
+                max_depth=max_depth_start,
+                min_child_weight=min_child_weight_start,
+                eta=eta_list[0],
+                subsample=subsample_start / 10.0,
+                colsample_bytree=colsample_bytree_start / 10.0,
+                objective=objective,
+                eval_metric=eval_metric,
+                early_stopping_rounds=early_stopping_rounds,
+                num_boost_round=num_boost_round,
+            )
+            classifier.train(
+                X_train,
+                y_train,
+                X_val,
+                y_val,
+                skip_cv=skip_cv,
+                seed=seed,
+                nfold=nfold,
+                metrics=metrics,
+                max_depth_start=max_depth_start,
+                max_depth_stop=max_depth_stop,
+                max_depth_step=max_depth_step,
+                min_child_weight_start=min_child_weight_start,
+                min_child_weight_stop=min_child_weight_stop,
+                min_child_weight_step=min_child_weight_step,
+                eta_list=eta_list,
+                subsample_start=subsample_start,
+                subsample_stop=subsample_stop,
+                subsample_step=subsample_step,
+                colsample_bytree_start=colsample_bytree_start,
+                colsample_bytree_stop=colsample_bytree_stop,
+                colsample_bytree_step=colsample_bytree_step,
+            )
+
+        if verbose:
+            print("Evaluating on train/val/test sets:")
+        # TODO: there should not need to be this algorithm-based split in the call to classifier.evaluate()
+        if algorithm == 'xgb':
+            stats_train = classifier.evaluate(X_train, y_train, name='train')
+            stats_val = classifier.evaluate(X_val, y_val, name='val')
+            stats_test = classifier.evaluate(X_test, y_test, name='test')
+        else:
+            stats_train = classifier.evaluate(
+                datasets["train"], name='train', verbose=verbose
+            )
+            stats_val = classifier.evaluate(
+                datasets["val"], name='val', verbose=verbose
+            )
+            stats_test = classifier.evaluate(
+                datasets["test"], name='test', verbose=verbose
+            )
+
+        print('training stats: ', stats_train)
+        print('validation stats: ', stats_val)
+        if verbose:
+            print('test stats: ', stats_test)
+
+        if algorithm == 'DNN':
+            param_names = (
+                "loss",
+                "tp",
+                "fp",
+                "tn",
+                "fn",
+                "accuracy",
+                "precision",
+                "recall",
+                "auc",
+            )
+            if not kwargs.get("test", False):
+                # log model performance on the test set
+                for param, value in zip(param_names, stats_test):
+                    wandb.run.summary[f"test_{param}"] = value
+                p, r = (
+                    wandb.run.summary["test_precision"],
+                    wandb.run.summary["test_recall"],
+                )
+                wandb.run.summary["test_f1"] = 2 * p * r / (p + r)
+
+            if datasets["dropped_samples"] is not None:
+                # log model performance on the dropped samples
+                if verbose:
+                    print("Evaluating on samples dropped from the training set:")
+                stats = classifier.evaluate(
+                    datasets["dropped_samples"], verbose=verbose
+                )
+                if verbose:
+                    print(stats)
+
+                if not kwargs.get("test", False):
+                    for param, value in zip(param_names, stats):
+                        wandb.run.summary[f"dropped_samples_{param}"] = value
+                    p, r = (
+                        wandb.run.summary["dropped_samples_precision"],
+                        wandb.run.summary["dropped_samples_recall"],
+                    )
+                    wandb.run.summary["dropped_samples_f1"] = 2 * p * r / (p + r)
 
         if save:
-            output_path = str(
-                pathlib.Path(__file__).parent.absolute() / "models" / group / tag
-            )
             if verbose:
-                print(f"Saving model to {output_path}")
+                print(f"Saving model to {output_path / tag}")
             classifier.save(
-                output_path=output_path,
-                output_format="h5",
-                tag=time_tag,
+                output_path=str(output_path / tag),
+                tag=f"{tag}.{time_tag}",
+                plot=plot,
             )
 
             return time_tag
 
     def create_training_script(
         self,
-        filename: str = 'train_dnn.sh',
+        filename: str = 'train_script.sh',
+        algorithm: str = 'dnn',
         min_count: int = 100,
         path_dataset: str = None,
         pre_trained_group_name: str = None,
         add_keywords: str = '',
         train_all: bool = False,
+        **kwargs,
     ):
         """
         Create training shell script from classes in config file meeting minimum count requirement
 
         :param filename: filename of shell script (must not currently exist) (str)
+        :param algorithm: name of algorithm to use for training (str)
         :param min_count: minimum number of positive examples to include in script (int)
         :param path_dataset: local path to .parquet, .h5 or .csv file with the dataset, if not provided in config.yaml (str)
         :param pre_trained_group_name: name of group containing pre-trained models within models directory (str)
@@ -774,16 +1007,20 @@ class Scope:
 
         :return:
 
-        :examples:  ./scope.py create_training_script --filename='train_dnn.sh' --min_count=1000 \
-                    --path_dataset='tools/fritzDownload/merged_classifications_features.parquet' --add_keywords='--save'
+        :examples:  ./scope.py create_training_script --filename='train_dnn.sh' --algorithm='dnn' --min_count=1000 \
+                    --path_dataset='tools/fritzDownload/merged_classifications_features.parquet' --add_keywords='--save --plot --group=groupname'
 
-                    ./scope.py create_training_script --filename='train_dnn.sh' --min_count=100 \
-                    --add_keywords='--save --batch_size=32'
+                    ./scope.py create_training_script --filename='train_xgb.sh' --algorithm='xgb' --min_count=100 \
+                    --add_keywords='--save --plot --batch_size=32 --group=groupname'
         """
         path = str(pathlib.Path(__file__).parent.absolute() / filename)
 
         phenom_tags = []
         ontol_tags = []
+
+        period_suffix = kwargs.get(
+            'period_suffix', self.config['features']['info']['period_suffix']
+        )
 
         if path_dataset is None:
             dataset_name = self.config['training']['dataset']
@@ -822,7 +1059,7 @@ class Scope:
             if pre_trained_group_name is not None:
                 group_path = (
                     pathlib.Path(__file__).parent.absolute()
-                    / 'models'
+                    / f'models_{algorithm}'
                     / pre_trained_group_name
                 )
                 gen = os.walk(group_path)
@@ -846,12 +1083,12 @@ class Scope:
                         ).name
 
                         script.writelines(
-                            f'./scope.py train --tag {tag} --path_dataset {path_dataset} --pre_trained_model models/{pre_trained_group_name}/{tag}/{most_recent_file} --verbose {add_keywords} \n'
+                            f'./scope.py train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --pre_trained_model=models/{pre_trained_group_name}/{tag}/{most_recent_file} --period_suffix={period_suffix} --verbose {add_keywords} \n'
                         )
 
                     elif train_all:
                         script.writelines(
-                            f'./scope.py train --tag {tag} --path_dataset {path_dataset} --verbose {add_keywords} \n'
+                            f'./scope.py train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --period_suffix={period_suffix} --verbose {add_keywords} \n'
                         )
 
                 script.write('# Ontological\n')
@@ -863,26 +1100,26 @@ class Scope:
                         ).name
 
                         script.writelines(
-                            f'./scope.py train --tag {tag} --path_dataset {path_dataset} --pre_trained_model models/{pre_trained_group_name}/{tag}/{most_recent_file} --verbose {add_keywords} \n'
+                            f'./scope.py train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --pre_trained_model=models/{pre_trained_group_name}/{tag}/{most_recent_file} --period_suffix={period_suffix} --verbose {add_keywords} \n'
                         )
 
                     elif train_all:
                         script.writelines(
-                            f'./scope.py train --tag {tag} --path_dataset {path_dataset} --verbose {add_keywords} \n'
+                            f'./scope.py train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --period_suffix={period_suffix} --verbose {add_keywords} \n'
                         )
 
             else:
                 script.write('# Phenomenological\n')
                 script.writelines(
                     [
-                        f'./scope.py train --tag {tag} --path_dataset {path_dataset} --verbose {add_keywords} \n'
+                        f'./scope.py train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --period_suffix={period_suffix} --verbose {add_keywords} \n'
                         for tag in phenom_tags
                     ]
                 )
                 script.write('# Ontological\n')
                 script.writelines(
                     [
-                        f'./scope.py train --tag {tag} --path_dataset {path_dataset} --verbose {add_keywords} \n'
+                        f'./scope.py train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --period_suffix={period_suffix} --verbose {add_keywords} \n'
                         for tag in ontol_tags
                     ]
                 )
@@ -893,7 +1130,9 @@ class Scope:
         group_name: str = 'experiment',
         algorithm: str = 'dnn',
         scale_features: str = 'min_max',
+        feature_directory: str = 'features',
         write_csv: bool = False,
+        **kwargs,
     ):
         """
         Create inference shell script
@@ -902,16 +1141,22 @@ class Scope:
         :param group_name: name of group containing trained models within models directory (str)
         :param algorithm: algorithm to use in script (str)
         :param scale_features: method to scale features (str, currently "min_max" or "median_std")
+        :param feature_directory: name of directory containing downloaded or generated features (str)
         :param write_csv: if True, write CSV file in addition to HDF5 (bool)
 
         :return:
+        Saves shell script to use when running inference
 
         :example:  ./scope.py create_inference_script --filename='get_all_preds_dnn.sh' --group_name='experiment' \
-                    --algorithm='dnn'
+                    --algorithm='dnn' --feature_directory='generated_features'
         """
 
         path = str(pathlib.Path(__file__).parent.absolute() / filename)
-        group_path = pathlib.Path(__file__).parent.absolute() / 'models' / group_name
+        group_path = (
+            pathlib.Path(__file__).parent.absolute()
+            / f'models_{algorithm}'
+            / group_name
+        )
 
         addtl_args = ''
         if write_csv:
@@ -921,13 +1166,21 @@ class Scope:
         model_tags = [tag[1] for tag in gen]
         model_tags = model_tags[0]
 
+        period_suffix = kwargs.get(
+            'period_suffix', self.config['features']['info']['period_suffix']
+        )
+
         with open(path, 'x') as script:
             script.write('#!/bin/bash\n')
             script.write(
                 '# Call script followed by field number, e.g: ./get_all_preds_dnn.sh 301\n'
             )
 
+            paths_models_str = ''
+            model_class_names_str = ''
+
             if algorithm in ['dnn', 'DNN', 'nn', 'NN']:
+                algorithm = 'dnn'
                 script.write('echo "dnn inference"\n')
                 # Select most recent model for each tag
                 for tag in model_tags:
@@ -935,23 +1188,36 @@ class Scope:
                     most_recent_file = max(
                         [file for file in tag_file_gen], key=os.path.getctime
                     ).name
-                    script.write(
-                        f'echo -n "{tag} ..." && python tools/inference.py --path-model=models/{group_name}/{tag}/{most_recent_file} --model-class={tag} --field=$1 --whole-field --flag_ids --scale_features={scale_features} {addtl_args} && echo "done"\n'
-                    )
 
-            elif algorithm in ['xgb', 'XGB', 'xgboost', 'XGBOOST', 'XGBoost']:
+                    paths_models_str += (
+                        f'models_{algorithm}/{group_name}/{tag}/{most_recent_file} '
+                    )
+                    model_class_names_str += f'{tag} '
+
+                script.write(
+                    f'echo -n "Running inference..." && python tools/inference.py --paths_models {paths_models_str} --model_class_names {model_class_names_str} --field $1 --whole_field --flag_ids --scale_features {scale_features} --feature_directory {feature_directory} --period_suffix {period_suffix} {addtl_args} && echo "done"\n'
+                )
+
+            elif algorithm in ['XGB', 'xgb', 'XGBoost', 'xgboost', 'XGBOOST']:
+                algorithm = 'xgb'
                 script.write('echo "xgb inference"\n')
                 for tag in model_tags:
-                    tag_file_gen = (group_path / tag).glob('*.h5')
+                    tag_file_gen = (group_path / tag).glob('*.json')
                     most_recent_file = max(
                         [file for file in tag_file_gen], key=os.path.getctime
                     ).name
-                    script.write(
-                        f'echo -n "{tag} ..." && python tools/inference.py --path-model=models/{group_name}/{tag}/{most_recent_file} --model-class={tag} --xgb_model --field=$1 --whole-field --flag_ids {addtl_args} && echo "done"\n'
+
+                    paths_models_str += (
+                        f'models_{algorithm}/{group_name}/{tag}/{most_recent_file} '
                     )
+                    model_class_names_str += f'{tag} '
+
+                script.write(
+                    f'echo -n "Running inference..." && python tools/inference.py --paths_models {paths_models_str} --model_class_names {model_class_names_str} --scale_features {scale_features} --feature_directory {feature_directory} --period_suffix {period_suffix} --xgb_model --field $1 --whole_field --flag_ids {addtl_args} && echo "done"\n'
+                )
 
             else:
-                raise ValueError('algorithm must be DNN or XGB')
+                raise ValueError('algorithm must be dnn or xgb')
 
     def consolidate_inference_results(
         self,
@@ -959,7 +1225,7 @@ class Scope:
         statistic: str = 'mean',
     ):
         """
-        Consolidate inference results from multiple rows to one per source (called in select_al_sample)
+        Consolidate inference results from multiple rows to one per source (called in select_fritz_sample)
 
         :param dataset: inference results from 'preds' directory (pandas DataFrame)
         :param statistic: method to combine multiple predictions for single source [mean, median and max currently supported] (str)
@@ -982,15 +1248,12 @@ class Scope:
         )
 
         # Define columns for each subset that should not be averaged or otherwise aggregated
-        skip_mean_cols_Gaia = withGaiaID[
-            ['Gaia_EDR3___id', 'AllWISE___id', 'PS1_DR1___id', '_id']
-        ]
-        skip_mean_cols_AllWise = withAllWiseID[
-            ['Gaia_EDR3___id', 'AllWISE___id', 'PS1_DR1___id', '_id']
-        ]
-        skip_mean_cols_PS1 = withPS1ID[
-            ['Gaia_EDR3___id', 'AllWISE___id', 'PS1_DR1___id', '_id']
-        ]
+
+        skipList = ['Gaia_EDR3___id', 'AllWISE___id', 'PS1_DR1___id', '_id']
+
+        skip_mean_cols_Gaia = withGaiaID[skipList]
+        skip_mean_cols_AllWise = withAllWiseID[skipList]
+        skip_mean_cols_PS1 = withPS1ID[skipList]
 
         if statistic in [
             'mean',
@@ -1088,16 +1351,32 @@ class Scope:
         allRows_Gaia = pd.merge(
             groupedMeans_Gaia, skip_mean_cols_Gaia, on=['Gaia_EDR3___id']
         )
+        noDup_ids_Gaia = allRows_Gaia.drop_duplicates('Gaia_EDR3___id')[
+            ['Gaia_EDR3___id', '_id']
+        ]
+        groupedMeans_Gaia = pd.merge(
+            groupedMeans_Gaia, noDup_ids_Gaia, on='Gaia_EDR3___id'
+        )
         groupedMeans_Gaia.drop('Gaia_EDR3___id', axis=1, inplace=True)
 
         allRows_AllWise = pd.merge(
             groupedMeans_AllWise, skip_mean_cols_AllWise, on=['AllWISE___id']
+        )
+        noDup_ids_AllWise = allRows_AllWise.drop_duplicates('AllWISE___id')[
+            ['AllWISE___id', '_id']
+        ]
+        groupedMeans_AllWise = pd.merge(
+            groupedMeans_AllWise, noDup_ids_AllWise, on='AllWISE___id'
         )
         groupedMeans_AllWise.drop('AllWISE___id', axis=1, inplace=True)
 
         allRows_PS1 = pd.merge(
             groupedMeans_PS1, skip_mean_cols_PS1, on=['PS1_DR1___id']
         )
+        noDup_ids_PS1 = allRows_PS1.drop_duplicates('PS1_DR1___id')[
+            ['PS1_DR1___id', '_id']
+        ]
+        groupedMeans_PS1 = pd.merge(groupedMeans_PS1, noDup_ids_PS1, on='PS1_DR1___id')
         groupedMeans_PS1.drop('PS1_DR1___id', axis=1, inplace=True)
 
         # Create dataframe with one row per source
@@ -1117,7 +1396,7 @@ class Scope:
 
         return consol_rows, all_rows
 
-    def select_al_sample(
+    def select_fritz_sample(
         self,
         fields: Union[list, str] = 'all',
         group: str = 'experiment',
@@ -1136,75 +1415,94 @@ class Scope:
         write_consolidation_results: bool = False,
         consol_filename: str = 'inference_results',
         doNotSave: bool = False,
+        doAllSources: bool = False,
     ):
         """
-        Select subset of predictions to use for active learning.
+        Select subset of predictions to use for posting to Fritz (active learning, GCN source classifications).
 
-        :param fields: list of field predictions (integers) to include, or 'all' to use all available fields (list or str)
+        :param fields: list of field predictions (integers) to include, 'all' to use all available fields, or 'specific_ids' if running on e.g. GCN sources (list or str)
             note: do not use spaces if providing a list of comma-separated integers to this argument.
         :param group: name of group containing trained models within models directory (str)
         :param min_class_examples: minimum number of examples to include for each class. Some classes may contain fewer than this if the sample is limited (int)
         :param select_top_n: if True, select top N probabilities above probability_threshold from each class (bool)
         :param include_all_highprob_labels: if select_top_n is set, setting this keyword includes any classification above the probability_threshold for all top N sources.
             Otherwise, literally only the top N probabilities for each classification will be included, which may artifically exclude relevant labels.
-        :param probability_threshold: minimum probability to select examples for active learning (float)
-        :param al_directory: name of directory to create/populate with active learning sample (str)
-        :param al_filename: name of file (no extension) to store active learning sample (str)
+        :param probability_threshold: minimum probability to select for Fritz (float)
+        :param al_directory: name of directory to create/populate with Fritz sample (str)
+        :param al_filename: name of file (no extension) to store Fritz sample (str)
         :param algorithm: algorithm [dnn or xgb] (str)
         :param exclude_training_sources: if True, exclude sources in current training set from AL sample (bool)
-        :param write_csv: if True, write CSV file in addition to HDF5 (bool)
+        :param write_csv: if True, write CSV file in addition to parquet (bool)
         :param verbose: if True, print additional information (bool)
         :param consolidation_statistic: method to combine multiple classification probabilities for a single source [mean, median or max currently supported] (str)
-        :param read_consolidation_results: if True, search for and read an existing consolidated file having _consol.h5 suffix (bool)
+        :param read_consolidation_results: if True, search for and read an existing consolidated file having _consol.parquet suffix (bool)
         :param write_consolidation_results: if True, save two files: consolidated inference results [1 row per source] and full results [≥ 1 row per source] (bool)
         :param consol_filename: name of file (no extension) to store consolidated and full results (str)
-        :param doNotSave: if set, do not write results
+        :param doNotSave: if set, do not write results (bool)
+        :param doAllSources: if set, ignore min_class_examples and run for all sources (bool)
 
         :return:
+        final_toPost: DataFrame containing sources with high-confidence classifications to post
 
-        :examples:  ./scope.py select_al_sample --fields=[296,297] --group='experiment' --min_class_examples=1000 --probability_threshold=0.9 --exclude_training_sources --write_consolidation_results
-                    ./scope.py select_al_sample --fields=[296,297] --group='experiment' --min_class_examples=500 --select_top_n --include_all_highprob_labels --probability_threshold=0.7 --exclude_training_sources --read_consolidation_results
+        :examples:  ./scope.py select_fritz_sample --fields=[296,297] --group='experiment' --min_class_examples=1000 --probability_threshold=0.9 --exclude_training_sources --write_consolidation_results
+                    ./scope.py select_fritz_sample --fields=[296,297] --group='experiment' --min_class_examples=500 --select_top_n --include_all_highprob_labels --probability_threshold=0.7 --exclude_training_sources --read_consolidation_results
+                    ./scope.py select_fritz_sample --fields='specific_ids' --group='DR16' --algorithm='xgb' --probability_threshold=0.9 --consol_filename='inference_results_specific_ids' --al_directory='GCN' --al_filename='GCN_sources' --write_consolidation_results --select_top_n --doAllSources --write_csv
+
         """
         base_path = pathlib.Path(__file__).parent.absolute()
-        preds_path = base_path / 'preds'
+        if algorithm in ['DNN', 'NN', 'dnn', 'nn']:
+            algorithm = 'dnn'
+        elif algorithm in ['XGB', 'xgb', 'XGBoost', 'xgboost', 'XGBOOST']:
+            algorithm = 'xgb'
+        else:
+            raise ValueError('Algorithm must be either dnn or xgb.')
+
+        preds_path = base_path / f'preds_{algorithm}'
 
         # Strip extension from filename if provided
         al_filename = al_filename.split('.')[0]
         AL_directory_path = str(base_path / f'{al_directory}_{algorithm}' / al_filename)
         os.makedirs(AL_directory_path, exist_ok=True)
 
-        if algorithm in ['dnn', 'DNN']:
-            algorithm = 'dnn'
-        elif algorithm in ['xgb', 'XGB']:
-            algorithm = 'xgb'
-        else:
-            raise ValueError('Algorithm must be either dnn or xgb.')
-
         df_coll = []
         df_coll_allRows = []
         if fields in ['all', 'All', 'ALL']:
             gen_fields = os.walk(preds_path)
             fields = [x for x in gen_fields][0][1]
+        elif fields == 'specific_ids':
+            fields = ['field_specific_ids']
         else:
             fields = [f'field_{f}' for f in fields]
 
-        print(f'Generating active learning sample from {len(fields)} fields:')
+        if 'field_specific_ids' not in fields:
+            print(f'Generating Fritz sample from {len(fields)} fields:')
+        else:
+            print('Generating Fritz sample from specific ids across multiple fields:')
 
         column_nums = []
 
         AL_directory_PL = pathlib.Path(AL_directory_path)
-        gen = AL_directory_PL.glob(f'{consol_filename}_consol.h5')
+        gen = AL_directory_PL.glob(f'{consol_filename}_consol.parquet')
         existing_consol_files = [str(x) for x in gen]
 
         if (read_consolidation_results) & (len(existing_consol_files) > 0):
             print('Loading existing consolidated results...')
-            preds_df = read_hdf(existing_consol_files[0])
+            preds_df = read_parquet(existing_consol_files[0])
 
         else:
             print('Consolidating classification probabilities to one per source...')
             for field in fields:
                 print(field)
-                h = read_hdf(str(preds_path / field / f'{field}.h5'))
+                h = read_parquet(str(preds_path / field / f'{field}.parquet'))
+
+                has_obj_id = False
+                if 'obj_id' in h.columns:
+                    has_obj_id = True
+                    id_mapper = (
+                        h[['_id', 'obj_id']].set_index('_id').to_dict(orient='index')
+                    )
+                    h.drop('obj_id', axis=1, inplace=True)
+
                 consolidated_df, all_rows_df = self.consolidate_inference_results(
                     h, statistic=consolidation_statistic
                 )
@@ -1225,16 +1523,30 @@ class Scope:
 
                 # Create consolidated dataframe (one row per source)
                 preds_df = pd.concat(df_coll, axis=0)
+
+                cols = [x for x in preds_df.columns]
+                cols.remove('_id')
+                cols.remove('survey_id')
+                agg_dct = {c: 'mean' for c in cols}
+
                 # One more groupby to combine sources across multiple fields
-                preds_df = preds_df.groupby('survey_id').mean().reset_index()
+                preds_df = (
+                    preds_df.groupby(['survey_id', '_id']).agg(agg_dct).reset_index()
+                )
 
                 # Create dataframe including all light curves (multiple rows per source)
                 preds_df_allRows = pd.concat(df_coll_allRows, axis=0)
 
-                # Generate position-based obj_ids for Fritz
-                raArr = [ra for ra in preds_df['ra']]
-                decArr = [dec for dec in preds_df['dec']]
-                obj_ids = [radec_to_iau_name(x, y) for x, y in zip(raArr, decArr)]
+                if not has_obj_id:
+                    # Generate position-based obj_ids for Fritz
+                    raArr = [ra for ra in preds_df['ra']]
+                    decArr = [dec for dec in preds_df['dec']]
+                    obj_ids = [radec_to_iau_name(x, y) for x, y in zip(raArr, decArr)]
+                else:
+                    obj_ids = []
+                    for ID in preds_df['_id']:
+                        obj_ids += [id_mapper[ID]['obj_id']]
+
                 preds_df['obj_id'] = obj_ids
 
                 # Assign obj_ids to all rows
@@ -1254,12 +1566,13 @@ class Scope:
 
                 # Save results
                 if write_consolidation_results:
-                    write_hdf(
-                        preds_df, f'{AL_directory_path}/{consol_filename}_consol.h5'
+                    write_parquet(
+                        preds_df,
+                        f'{AL_directory_path}/{consol_filename}_consol.parquet',
                     )
-                    write_hdf(
+                    write_parquet(
                         preds_df_allRows,
-                        f'{AL_directory_path}/{consol_filename}_full.h5',
+                        f'{AL_directory_path}/{consol_filename}_full.parquet',
                     )
                     if write_csv:
                         preds_df.to_csv(
@@ -1302,7 +1615,7 @@ class Scope:
             preds_df = preds_df.set_index('obj_id').drop(list(intersec)).reset_index()
 
         # Use trained model names to establish classes to train
-        gen = os.walk(base_path / 'models' / group)
+        gen = os.walk(base_path / f'models_{algorithm}' / group)
         model_tags = [tag[1] for tag in gen]
         model_tags = model_tags[0]
         model_tags = np.array(model_tags)
@@ -1318,6 +1631,11 @@ class Scope:
 
         # Fix random state to allow reproducible results
         rng = np.random.RandomState(9)
+
+        # Reset min_class_examples if doAllSources is set
+        if doAllSources:
+            min_class_examples = len(preds_df)
+            print(f'Selecting sample from all sources ({min_class_examples})')
 
         if not select_top_n:
             for tag in model_tags:
@@ -1355,6 +1673,7 @@ class Scope:
             print(
                 f'Selecting top {min_class_examples} classifications above P = {probability_threshold}...'
             )
+
             preds_df.reset_index(inplace=True)
             topN_df = pd.DataFrame()
             class_list = [f'{t}_{algorithm}' for t in model_tags]
@@ -1411,8 +1730,8 @@ class Scope:
         final_toPost = toPost_df.reset_index(drop=True)
 
         if not doNotSave:
-            # Write hdf5 and csv files
-            write_hdf(final_toPost, f'{AL_directory_path}/{al_filename}.h5')
+            # Write parquet and csv files
+            write_parquet(final_toPost, f'{AL_directory_path}/{al_filename}.parquet')
             if write_csv:
                 final_toPost.to_csv(
                     f'{AL_directory_path}/{al_filename}.csv', index=False
@@ -1426,7 +1745,7 @@ class Scope:
                 except Exception as e:
                     print("error dumping to json, message: ", e)
 
-        return final_toPost
+        yield final_toPost
 
     def test(self, doGPU=False):
         """Test different workflows
@@ -1457,6 +1776,8 @@ class Scope:
                 stop_early=True,
                 Ncore=1,
                 min_n_lc_points=50,
+                doRemoveTerrestrial=True,
+                doScaleMinPeriod=True,
             )
 
             path_gen_features = (
@@ -1465,7 +1786,6 @@ class Scope:
                 / f"field_{test_field}"
                 / f"{test_feature_filename}_field_{test_field}_ccd_{test_ccd}_quad_{test_quad}.parquet"
             )
-            os.remove(path_gen_features)
 
         with status("Test get_cone_ids"):
             print()
@@ -1510,6 +1830,7 @@ class Scope:
             write_parquet(test_ftrs, str(testpath_features / 'field_0_iter_0.parquet'))
 
         # create a mock dataset and check that the training pipeline works
+        dataset_orig = f"{uuid.uuid4().hex}_orig.csv"
         dataset = f"{uuid.uuid4().hex}.csv"
         path_mock = pathlib.Path(__file__).parent.absolute() / "data" / "training"
         group_mock = 'experiment'
@@ -1517,19 +1838,51 @@ class Scope:
         try:
             with status('Test training'):
                 print()
+
+                period_suffix = 'LS'
+
                 if not path_mock.exists():
                     path_mock.mkdir(parents=True, exist_ok=True)
 
                 all_feature_names = self.config["features"]["ontological"]
-                feature_names = [
+                feature_names_orig = [
                     key
                     for key in all_feature_names
                     if forgiving_true(all_feature_names[key]['include'])
                 ]
+
+                feature_names = feature_names_orig.copy()
+                if not ((period_suffix is None) | (period_suffix == 'None')):
+                    periodic_bool = [
+                        all_feature_names[x]['periodic'] for x in feature_names
+                    ]
+                    for j, name in enumerate(feature_names):
+                        if periodic_bool[j]:
+                            feature_names[j] = f'{name}_{period_suffix}'
+
                 class_names = [
                     self.config["training"]["classes"][class_name]["label"]
                     for class_name in self.config["training"]["classes"]
                 ]
+
+                entries = []
+                for i in range(1000):
+                    entry = {
+                        **{
+                            feature_name: np.random.normal(0, 0.1)
+                            for feature_name in feature_names_orig
+                        },
+                        **{
+                            class_name: np.random.choice([0, 1])
+                            for class_name in class_names
+                        },
+                        **{"non-variable": np.random.choice([0, 1])},
+                        **{"dmdt": np.abs(np.random.random((26, 26))).tolist()},
+                    }
+                    entries.append(entry)
+
+                df_mock_orig = pd.DataFrame.from_records(entries)
+                df_mock_orig.to_csv(path_mock / dataset_orig, index=False)
 
                 entries = []
                 for i in range(1000):
@@ -1550,40 +1903,124 @@ class Scope:
                 df_mock = pd.DataFrame.from_records(entries)
                 df_mock.to_csv(path_mock / dataset, index=False)
 
-                tag = "vnv"
-                time_tag = self.train(
-                    tag=tag,
-                    path_dataset=path_mock / dataset,
-                    batch_size=32,
-                    epochs=3,
-                    verbose=True,
-                    save=True,
-                    test=True,
-                )
-                path_model = (
-                    pathlib.Path(__file__).parent.absolute()
-                    / "models"
-                    / group_mock
-                    / tag
-                    / f"{tag}.{time_tag}.h5"
-                )
+                algorithms = ['xgb', 'dnn']
+                model_paths_orig = []
 
-            with status("Test inference"):
+                # Train twice: once on Kowalski features, once on generated features with different periodic feature names
+                for algorithm in algorithms:
+                    tag = "vnv"
+                    if algorithm == 'xgb':
+                        extension = 'json'
+                    elif algorithm == 'dnn':
+                        extension = 'h5'
+                    time_tag = self.train(
+                        tag=tag,
+                        path_dataset=path_mock / dataset_orig,
+                        batch_size=32,
+                        epochs=3,
+                        verbose=True,
+                        save=True,
+                        test=True,
+                        algorithm=algorithm,
+                        skip_cv=True,
+                    )
+                    path_model = (
+                        pathlib.Path(__file__).parent.absolute()
+                        / f"models_{algorithm}"
+                        / group_mock
+                        / tag
+                        / f"{tag}.{time_tag}.{extension}"
+                    )
+                    model_paths_orig += [path_model]
+
+                model_paths = []
+                for algorithm in algorithms:
+                    tag = "vnv"
+                    if algorithm == 'xgb':
+                        extension = 'json'
+                    elif algorithm == 'dnn':
+                        extension = 'h5'
+                    time_tag = self.train(
+                        tag=tag,
+                        path_dataset=path_mock / dataset,
+                        batch_size=32,
+                        epochs=3,
+                        verbose=True,
+                        save=True,
+                        test=True,
+                        algorithm=algorithm,
+                        skip_cv=True,
+                        period_suffix=period_suffix,
+                    )
+                    path_model = (
+                        pathlib.Path(__file__).parent.absolute()
+                        / f"models_{algorithm}"
+                        / group_mock
+                        / tag
+                        / f"{tag}.{time_tag}.{extension}"
+                    )
+                    model_paths += [path_model]
+
+            print('model_paths_orig', model_paths_orig)
+            print('model_paths', model_paths)
+
+            with status("Test inference (queried features)"):
                 print()
-                _, preds_filename = inference.run(
-                    str(path_model),
-                    tag,
+                print(model_paths[1])
+                _, preds_filename_dnn_orig = inference.run_inference(
+                    paths_models=[str(model_paths_orig[1])],
+                    model_class_names=[tag],
                     field=0,
                     whole_field=True,
-                    trainingSet=df_mock,
+                    trainingSet=df_mock_orig,
+                )
+                print(model_paths[0])
+                _, preds_filename_xgb_orig = inference.run_inference(
+                    paths_models=[str(model_paths_orig[0])],
+                    model_class_names=[tag],
+                    field=0,
+                    whole_field=True,
+                    trainingSet=df_mock_orig,
+                    xgb_model=True,
                 )
 
-            with status("Test select_al_sample"):
+            with status("Test inference (generated features)"):
                 print()
-                _ = self.select_al_sample(
-                    [0], probability_threshold=0.0, doNotSave=True
+                _, preds_filename_dnn = inference.run_inference(
+                    paths_models=[str(model_paths[1])],
+                    model_class_names=[tag],
+                    field=test_field,
+                    ccd=test_ccd,
+                    quad=test_quad,
+                    trainingSet=df_mock,
+                    feature_directory=test_feature_directory,
+                    feature_file_prefix=test_feature_filename,
+                    period_suffix=period_suffix,
+                    no_write_metadata=True,
                 )
-                _ = self.select_al_sample(
+                print()
+                _, preds_filename_xgb = inference.run_inference(
+                    paths_models=[str(model_paths[0])],
+                    model_class_names=[tag],
+                    field=test_field,
+                    ccd=test_ccd,
+                    quad=test_quad,
+                    trainingSet=df_mock,
+                    xgb_model=True,
+                    feature_directory=test_feature_directory,
+                    feature_file_prefix=test_feature_filename,
+                    period_suffix=period_suffix,
+                    no_write_metadata=True,
+                )
+
+            with status("Test select_fritz_sample"):
+                print()
+                _ = self.select_fritz_sample(
+                    [0],
+                    probability_threshold=0.0,
+                    doNotSave=True,
+                )
+                _ = self.select_fritz_sample(
                     [0],
                     select_top_n=True,
                     include_all_highprob_labels=True,
@@ -1591,15 +2028,41 @@ class Scope:
                     probability_threshold=0.0,
                     doNotSave=True,
                 )
+                _ = self.select_fritz_sample(
+                    [0],
+                    probability_threshold=0.0,
+                    doNotSave=True,
+                    algorithm='xgb',
+                )
+                _ = self.select_fritz_sample(
+                    [0],
+                    select_top_n=True,
+                    include_all_highprob_labels=True,
+                    min_class_examples=3,
+                    probability_threshold=0.0,
+                    doNotSave=True,
+                    algorithm='xgb',
+                )
 
         finally:
             # clean up after thyself
+            (path_mock / dataset_orig).unlink()
             (path_mock / dataset).unlink()
+            os.remove(path_gen_features)
             (testpath_features / 'field_0_iter_0.parquet').unlink()
             os.rmdir(testpath_features)
-            (preds_filename).unlink()
-            (preds_filename.parent / 'meta.json').unlink()
-            os.rmdir(preds_filename.parent)
+            (preds_filename_dnn_orig).unlink()
+            (preds_filename_xgb_orig).unlink()
+            (preds_filename_dnn).unlink()
+            (preds_filename_xgb).unlink()
+            (preds_filename_dnn_orig.parent / 'meta.json').unlink()
+            (preds_filename_xgb_orig.parent / 'meta.json').unlink()
+            os.rmdir(preds_filename_dnn_orig.parent)
+            os.rmdir(preds_filename_xgb_orig.parent)
+
+            # Remove trained model artifacts, but keep models_xgb and models_dnn directories
+            for path in model_paths:
+                shutil.rmtree(path.parent.parent)
 
 
 if __name__ == "__main__":

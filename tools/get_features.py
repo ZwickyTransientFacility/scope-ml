@@ -21,9 +21,35 @@ TIMEOUT = 300
 config_path = pathlib.Path(__file__).parent.parent.absolute() / "config.yaml"
 with open(config_path) as config_yaml:
     config = yaml.load(config_yaml, Loader=yaml.FullLoader)
+
 # Access datatypes in config file
-feature_names = config['features']['ontological']
-dtype_dict = {key: feature_names[key]['dtype'] for key in feature_names}
+all_feature_names_config = config["features"]["ontological"]
+dtype_dict = {
+    key: all_feature_names_config[key]['dtype'] for key in all_feature_names_config
+}
+
+# Only features listed in config (regardless of include:) will be downloaded
+projection_dict = {key: 1 for key in all_feature_names_config}
+
+period_suffix = config['features']['info']['period_suffix']
+# Rename periodic feature columns if suffix provided in config (features: info: period_suffix:)
+if not ((period_suffix is None) | (period_suffix == 'None')):
+    all_feature_names = [x for x in all_feature_names_config.keys()]
+    periodic_bool = [all_feature_names_config[x]['periodic'] for x in all_feature_names]
+    for j, name in enumerate(all_feature_names):
+        if periodic_bool[j]:
+            all_feature_names[j] = f'{name}_{period_suffix}'
+
+    dtype_values = [x for x in dtype_dict.values()]
+    projection_values = [x for x in projection_dict.values()]
+
+    dtype_dict = {
+        all_feature_names[i]: dtype_values[i] for i in range(len(dtype_values))
+    }
+    projection_dict = {
+        all_feature_names[i]: projection_values[i]
+        for i in range(len(projection_values))
+    }
 
 # use tokens specified as env vars (if exist)
 kowalski_token_env = os.environ.get("KOWALSKI_INSTANCE_TOKEN")
@@ -159,7 +185,8 @@ def get_features(
     limit_per_query: int = 1000,
     impute_missing_features: bool = False,
     self_impute: bool = True,
-    projection: dict = {},
+    dtypes: dict = dtype_dict,
+    projection: dict = projection_dict,
 ):
     '''
     Get features of all ids present in the field in one file.
@@ -197,8 +224,8 @@ def get_features(
                         raise ValueError(f"No data found for source ids {source_ids}")
 
         df_temp = pd.DataFrame(source_data)
-        if projection == {}:
-            df_temp = df_temp.astype(dtype=dtype_dict)
+        if (projection == {}) | ("dmdt" in projection):
+            df_temp = df_temp.astype(dtype=dtypes)
         df_collection += [df_temp]
         try:
             dmdt_temp = np.expand_dims(

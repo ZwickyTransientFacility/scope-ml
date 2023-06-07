@@ -3,6 +3,17 @@ import os
 import pathlib
 import tensorflow as tf
 from typing import Optional
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.metrics import (
+    confusion_matrix,
+    roc_curve,
+    auc,
+    precision_recall_curve,
+)
+from scope.utils import make_confusion_matrix, plot_roc, plot_pr
+import numpy as np
+import wandb
 
 from .models import AbstractClassifier
 
@@ -362,6 +373,105 @@ class DNN(AbstractClassifier):
                 )
                 self.meta["callbacks"].append(reduce_lr_on_plateau_callback)
 
+    def assign_datasets(
+        self,
+        features_input_shape,
+        train_dataset_repeat,
+        val_dataset_repeat,
+        steps_per_epoch_train,
+        steps_per_epoch_val,
+        train_dataset,
+        val_dataset,
+        wandb_token,
+    ):
+        self.meta['features_input_shape'] = features_input_shape
+        self.meta['train_dataset_repeat'] = train_dataset_repeat
+        self.meta['val_dataset_repeat'] = val_dataset_repeat
+        self.meta['steps_per_epoch_train'] = steps_per_epoch_train
+        self.meta['steps_per_epoch_val'] = steps_per_epoch_val
+        self.meta['train_dataset'] = train_dataset
+        self.meta['val_dataset'] = val_dataset
+
+        wandb.login(key=wandb_token)
+
+    def sweep(
+        self,
+    ):
+        wandb.init(
+            job_type='sweep',
+        )
+
+        wandb_epochs = wandb.config.epochs
+        wandb_dense_branch = wandb.config.dense_branch
+        wandb_conv_branch = wandb.config.conv_branch
+        wandb_loss = wandb.config.loss
+        wandb_optimizer = wandb.config.optimizer
+        wandb_lr = wandb.config.lr
+        wandb_momentum = wandb.config.momentum
+        wandb_monitor = wandb.config.monitor
+        wandb_patience = wandb.config.patience
+        wandb_callbacks = wandb.config.callbacks
+        wandb_run_eagerly = wandb.config.run_eagerly
+        wandb_beta_1 = wandb.config.beta_1
+        wandb_beta_2 = wandb.config.beta_2
+        wandb_epsilon = wandb.config.epsilon
+        wandb_amsgrad = wandb.config.amsgrad
+        wandb_decay = wandb.config.decay
+
+        self.setup(
+            features_input_shape=self.meta['features_input_shape'],
+            dense_branch=wandb_dense_branch,
+            conv_branch=wandb_conv_branch,
+            dmdt_input_shape=(26, 26, 1),
+            loss=wandb_loss,
+            optimizer=wandb_optimizer,
+            momentum=wandb_momentum,
+            monitor=wandb_monitor,
+            patience=wandb_patience,
+            callbacks=wandb_callbacks,
+            run_eagerly=wandb_run_eagerly,
+            learning_rate=wandb_lr,
+            beta_1=wandb_beta_1,
+            beta_2=wandb_beta_2,
+            epsilon=wandb_epsilon,
+            amsgrad=wandb_amsgrad,
+            decay=wandb_decay,
+        )
+
+        self.train(
+            train_dataset=self.meta['train_dataset_repeat'],
+            val_dataset=self.meta['val_dataset_repeat'],
+            steps_per_epoch_train=self.meta['steps_per_epoch_train'],
+            steps_per_epoch_val=self.meta['steps_per_epoch_val'],
+            epochs=wandb_epochs,
+        )
+
+        stats_train = self.evaluate(self.meta['train_dataset'], name='train', verbose=0)
+        stats_val = self.evaluate(self.meta['val_dataset'], name='val', verbose=0)
+
+        wandb.log(
+            {
+                'dense_branch': wandb_dense_branch,
+                'conv_branch': wandb_conv_branch,
+                'loss': wandb_loss,
+                'optimizer': wandb_optimizer,
+                'lr': wandb_lr,
+                'momentum': wandb_momentum,
+                'monitor': wandb_monitor,
+                'patience': wandb_patience,
+                'callbacks': wandb_callbacks,
+                'run_eagerly': wandb_run_eagerly,
+                'beta_1': wandb_beta_1,
+                'beta_2': wandb_beta_2,
+                'epsilon': wandb_epsilon,
+                'amsgrad': wandb_amsgrad,
+                'decay': wandb_decay,
+                'epochs': wandb_epochs,
+                'train_loss': stats_train[0],
+                'val_loss': stats_val[0],
+            }
+        )
+
     def train(
         self,
         train_dataset,
@@ -388,11 +498,26 @@ class DNN(AbstractClassifier):
             verbose=verbose,
         )
 
-    def evaluate(self, test_dataset, **kwargs):
-        return self.model.evaluate(test_dataset, **kwargs)
+    def evaluate(self, eval_dataset, name='test', **kwargs):
+        y_eval = np.concatenate([y for _, y in eval_dataset], axis=0)
+        y_pred = np.around(self.predict(eval_dataset, name=f"_{name}", **kwargs))
 
-    def predict(self, x, **kwargs):
-        return self.model.predict(x, **kwargs)
+        self.meta[f'y_{name}'] = y_eval
+
+        # Generate confusion matrix
+        self.meta[f'cm_{name}'] = confusion_matrix(y_eval, y_pred)
+
+        return self.model.evaluate(eval_dataset, **kwargs)
+
+    def predict(self, X, name=None, **kwargs):
+        y_pred = self.model.predict(X)
+
+        if name is not None:
+            self.meta[f'y_pred{name}'] = y_pred
+        else:
+            self.meta['y_pred'] = y_pred
+
+        return y_pred
 
     def load(self, path_model, weights_only: bool = False, **kwargs):
         # Original functionality
@@ -407,16 +532,60 @@ class DNN(AbstractClassifier):
         tag: str,
         output_path: str = "./",
         output_format: str = "h5",
+        plot: bool = False,
+        names: list = ['train', 'val', 'test'],
+        **kwargs,
     ):
 
         if output_format not in ("h5",):
             raise ValueError("unknown output format")
 
-        path = pathlib.Path(output_path)
-        if not path.exists():
-            path.mkdir(parents=True, exist_ok=True)
+        output_path = pathlib.Path(output_path)
+        if not output_path.exists():
+            output_path.mkdir(parents=True, exist_ok=True)
 
-        output_name = self.name if not tag else f"{self.name}.{tag}"
+        output_name = self.name if not tag else tag
         if not output_name.endswith('.h5'):
             output_name += '.h5'
-        self.model.save(path / output_name, save_format=output_format)
+        self.model.save(output_path / output_name, save_format=output_format)
+
+        # Save diagnostic plots
+        for name in names:
+            if plot:
+                path = output_path / f"{tag}_plots" / name
+                if not path.exists():
+                    path.mkdir(parents=True, exist_ok=True)
+                cmpdf = tag + '_cm.pdf'
+                recallpdf = tag + '_recall.pdf'
+                rocpdf = tag + '_roc.pdf'
+
+                if self.meta[f'cm_{name}'] is not None:
+                    cname = tag.split('.')[0]
+                    make_confusion_matrix(
+                        self.meta[f'cm_{name}'],
+                        figsize=(8, 6),
+                        cbar=False,
+                        percent=False,
+                        categories=['not ' + cname, cname],
+                    )
+                    sns.set_context('talk')
+                    plt.title(cname)
+                    plt.savefig(path / cmpdf, bbox_inches='tight')
+                    plt.close()
+
+                y_compare = self.meta.get(f'y_{name}', None)
+                y_pred = self.meta.get(f'y_pred_{name}', None)
+
+                if (y_compare is not None) & (y_pred is not None):
+
+                    fpr, tpr, _ = roc_curve(y_compare, y_pred)
+                    roc_auc = auc(fpr, tpr)
+                    precision, recall, _ = precision_recall_curve(y_compare, y_pred)
+
+                    plot_roc(fpr, tpr, roc_auc)
+                    plt.savefig(path / rocpdf, bbox_inches='tight')
+                    plt.close()
+
+                    plot_pr(recall, precision)
+                    plt.savefig(path / recallpdf, bbox_inches='tight')
+                    plt.close()

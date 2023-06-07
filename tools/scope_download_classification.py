@@ -16,12 +16,15 @@ from scope.utils import impute_features
 
 NUM_PER_PAGE = 500
 CHECKPOINT_NUM = 500
+BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
 
-config_path = pathlib.Path(__file__).parent.parent.absolute() / "config.yaml"
+config_path = BASE_DIR / "config.yaml"
 with open(config_path) as config_yaml:
     config = yaml.load(config_yaml, Loader=yaml.FullLoader)
 
 features_catalog = config['kowalski']['collections']['features']
+training_set_config = pathlib.Path(config['training']['dataset'])
+training_set_path = BASE_DIR / training_set_config
 
 
 def organize_source_data(src: pd.DataFrame):
@@ -113,6 +116,9 @@ def merge_sources_features(
     output_format='parquet',
     get_ztf_filters=False,
     impute_missing_features=False,
+    update_training_set: bool = False,
+    updated_training_set_prefix: str = 'updated_AL',
+    min_net_votes: int = 1,
 ):
 
     outpath = os.path.join(os.path.dirname(__file__), output_dir)
@@ -161,11 +167,26 @@ def merge_sources_features(
         if not row.isna()['classification']:
             classifications = row['classification'].split(';')
             probabilities = row['probability'].split(';')
+            labellers = row['labellers'].split(';')
+            vote_sums = row['sum_votes'].split(';')
 
+        total_votes = 0
         # Assign given probability values for each Fritz classification
         for i in range(len(classifications)):
             cls = classifications[i]
-            if cls not in completed_classifications:
+            vote_sum = int(vote_sums[i]) if vote_sums[i] != '' else 0
+            total_votes += vote_sum
+
+            # If updating training set with AL results, only include classifications with net votes >= min_net_votes
+            # Otherwise, include all classifications with nonzero probability
+            has_enough_votes = (
+                vote_sum >= min_net_votes if update_training_set else True
+            )
+            do_classification = (not update_training_set) | (
+                update_training_set & has_enough_votes
+            )
+
+            if (cls not in completed_classifications) & (do_classification):
                 try:
                     trainingset_label = gold_dict_specific[cls]['trainingset_label']
                     gold_dict_specific.pop(cls)
@@ -183,7 +204,13 @@ def merge_sources_features(
                 ]
                 source_dict[trainingset_label] = 0.0
 
-        source_dict_list += [source_dict]
+        # Labellers assigned by user ID
+        if labellers == '':
+            labellers = None
+        source_dict['labellers'] = labellers
+
+        if (total_votes > 0) | (not update_training_set):
+            source_dict_list += [source_dict]
 
     # Create and write dataframe
     expanded_sources = pd.DataFrame(source_dict_list)
@@ -296,7 +323,10 @@ def merge_sources_features(
     if impute_missing_features:
         merged_set = impute_features(merged_set, self_impute=True)
 
+    if update_training_set:
+        output_filename = f'{updated_training_set_prefix}_{output_filename}'
     filepath = os.path.join(outpath, output_filename + output_format)
+
     if output_format == '.csv':
         merged_set.to_csv(filepath, index=False)
     elif output_format == '.h5':
@@ -333,6 +363,9 @@ def download_classification(
     output_format: str = 'parquet',
     get_ztf_filters: bool = False,
     impute_missing_features: bool = False,
+    update_training_set: bool = False,
+    updated_training_set_prefix: str = 'updated_AL',
+    min_net_votes: int = 1,
 ):
     """
     Download labels from Fritz
@@ -347,6 +380,9 @@ def download_classification(
     :param output_format: format of output merged features file (str)
     :param get_ztf_filters: if True, add ZTF filter ID to default features (bool)
     :param impute_missing_features: if True, impute missing features using scope.utils.impute_features (bool)
+    :param update_training_set: if downloading an active learning sample, flag to update the training set with the new classification based on votes (bool)
+    :param updated_training_set_prefix: prefix to add to updated trainingset file (str)
+    :param min_net_votes: Minimum number of net votes [upvotes - downvotes] to keep an active learning classification. Caution: if zero, all classifications of reviewed sources will be added (int)
     """
 
     dict_list = []
@@ -469,10 +505,8 @@ def download_classification(
 
             print(f'Saved page {pageNum}.')
 
-        if not merge_features:
-            return sources
-        else:
-            merged_sources = merge_sources_features(
+        if merge_features:
+            sources = merge_sources_features(
                 sources,
                 features_catalog,
                 features_limit,
@@ -482,8 +516,10 @@ def download_classification(
                 output_format,
                 get_ztf_filters,
                 impute_missing_features,
+                update_training_set,
+                updated_training_set_prefix,
+                min_net_votes,
             )
-            return merged_sources
 
     else:
         # read in CSV, HDF5 or parquet file
@@ -616,10 +652,8 @@ def download_classification(
             else:
                 write_parquet(sources, filepath)
 
-        if not merge_features:
-            return sources
-        else:
-            merged_sources = merge_sources_features(
+        if merge_features:
+            sources = merge_sources_features(
                 sources,
                 features_catalog,
                 features_limit,
@@ -629,20 +663,89 @@ def download_classification(
                 output_format,
                 get_ztf_filters,
                 impute_missing_features,
+                update_training_set,
+                updated_training_set_prefix,
+                min_net_votes,
             )
-            return merged_sources
+
+    if update_training_set:
+
+        training_set_extension = pathlib.Path(training_set_path).suffix
+        training_set_parent = training_set_path.parent
+        training_set_filename = training_set_config.name
+
+        print('Loading training set specified in config...')
+        if training_set_extension == '.parquet':
+            training_set = read_parquet(training_set_path)
+        elif training_set_extension == '.h5':
+            training_set = read_hdf(training_set_path)
+        elif training_set_extension == '.csv':
+            training_set = pd.read_csv(training_set_path)
+        else:
+            raise ValueError("Training set must be in .parquet, .h5 or .csv format.")
+
+        orig_len = len(training_set)
+
+        updated_training_set = pd.concat([training_set, sources]).reset_index(drop=True)
+
+        dupl_ztf_sources = updated_training_set[
+            updated_training_set.duplicated('ztf_id', keep=False)
+        ]
+        dupl_ztf_ids = dupl_ztf_sources['ztf_id']
+
+        updated_training_set = (
+            updated_training_set.set_index('ztf_id').drop(dupl_ztf_ids).reset_index()
+        )
+        updated_training_set.set_index('obj_id', inplace=True)
+        dupl_ztf_sources.set_index('ztf_id', inplace=True)
+
+        # For duplicate sources, use original obj_id and newest classifications
+        count_updated = 0
+        for u_id in np.unique(dupl_ztf_ids):
+            source_set = dupl_ztf_sources.loc[u_id].reset_index()
+            first_row = source_set.iloc[0]
+            first_oid = first_row['obj_id']
+            latest_row = source_set.iloc[-1]
+            updated_training_set.loc[first_oid] = latest_row.drop('obj_id')
+            count_updated += 1
+
+        updated_training_set = updated_training_set.reset_index()
+
+        updated_filepath = os.path.join(
+            BASE_DIR, f"{updated_training_set_prefix}_{training_set_config}"
+        )
+        updated_filepath = (
+            training_set_parent
+            / f"{updated_training_set_prefix}_{str(training_set_filename)}"
+        )
+
+        if training_set_extension == '.csv':
+            updated_training_set.to_csv(updated_filepath, index=False)
+        elif training_set_extension == '.h5':
+            write_hdf(updated_training_set, updated_filepath)
+        else:
+            write_parquet(updated_training_set, updated_filepath)
+
+        print(
+            f'Saved updated training set containing {len(updated_training_set)} sources ({len(updated_training_set) - orig_len} new, {count_updated} updated).'
+        )
+        print(
+            f'If using scope_upload_classification.py to upload new sources to the existing training set, set --start to {orig_len - count_updated}.'
+        )
+
+    return sources
 
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-file", type=str, default='parse', help="dataset")
-    parser.add_argument("-group_ids", type=int, nargs='+', help="list of group ids")
+    parser.add_argument("--file", type=str, default='parse', help="dataset")
+    parser.add_argument("--group_ids", type=int, nargs='+', help="list of group ids")
     parser.add_argument(
-        "-start", type=int, default=0, help="start page/index for continued download"
+        "--start", type=int, default=0, help="start page/index for continued download"
     )
     parser.add_argument(
-        "-merge_features",
+        "--merge_features",
         type=bool,
         nargs='?',
         const=True,
@@ -650,59 +753,80 @@ if __name__ == "__main__":
         help="merge downloaded results with features from Kowalski",
     )
     parser.add_argument(
-        "-features_catalog",
+        "--features_catalog",
         type=str,
         default=features_catalog,
         help="catalog of features on Kowalski",
     )
 
     parser.add_argument(
-        "-features_limit",
+        "--features_limit",
         type=int,
         default=1000,
         help="Maximum number of sources queried for features per loop",
     )
 
     parser.add_argument(
-        "-taxonomy_map",
+        "--taxonomy_map",
         type=str,
         default='golden_dataset_mapper.json',
         help="JSON file mapping between origin labels and Fritz taxonomy",
     )
 
     parser.add_argument(
-        "-output_dir",
+        "--output_dir",
         type=str,
         default='fritzDownload',
         help="Name of directory to save downloaded file",
     )
 
     parser.add_argument(
-        "-output_filename",
+        "--output_filename",
         type=str,
         default='merged_classifications_features',
         help="Name of output file containing merged classifications and features",
     )
 
     parser.add_argument(
-        "-output_format",
+        "--output_format",
         type=str,
         default='parquet',
         help="Format of output file: parquet, h5 or csv",
     )
 
     parser.add_argument(
-        "-get_ztf_filters",
+        "--get_ztf_filters",
         action='store_true',
         default=False,
         help="add ZTF filter ID to default features",
     )
 
     parser.add_argument(
-        "-impute_missing_features",
+        "--impute_missing_features",
         action='store_true',
         default=False,
         help="impute missing features using strategy specified by config",
+    )
+
+    parser.add_argument(
+        "--update_training_set",
+        action='store_true',
+        default=False,
+        help="if downloading an active learning sample, update the training set with the new classification based on votes",
+    )
+
+    parser.add_argument(
+        "--updated_training_set_prefix",
+        type=str,
+        default='updated_AL',
+        help="Prefix to add to updated trainingset file",
+    )
+
+    parser.add_argument(
+        "--min_vote_diff",
+        type=int,
+        default=1,
+        help="Minimum number of net votes (upvotes - downvotes) to keep an active learning classification. Caution: if zero, all classifications of reviewed sources will be added",
     )
 
     args = parser.parse_args()
@@ -721,4 +845,7 @@ if __name__ == "__main__":
         args.output_format,
         args.get_ztf_filters,
         args.impute_missing_features,
+        args.update_training_set,
+        args.updated_training_set_prefix,
+        args.min_vote_diff,
     )

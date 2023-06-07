@@ -28,6 +28,7 @@ def upload_classification(
     comment: str,
     start: int,
     stop: int,
+    classification_origin: str = 'SCoPe',
     post_survey_id: bool = False,
     survey_id_origin: str = 'SCoPe_xmatch',
     skip_phot: bool = False,
@@ -52,6 +53,7 @@ def upload_classification(
     :param comment: single comment to post (str)
     :param start: index in CSV file to start upload (int)
     :param stop: index in CSV file to stop upload (inclusive) (int)
+    :param classification_origin: origin of classifications (str)
     :post_survey_id: if True, post survey_id from input dataset (bool)
     :skip_phot: if True, only upload groups and classifications (no photometry) (bool)
     :p_threshold: classification probabilties must be >= this number to post (float)
@@ -321,17 +323,18 @@ def upload_classification(
                 for cls in cls_list:
                     tax = tax_dict[cls]
                     prob = probs[cls]
+                    json = {
+                        "obj_id": obj_id,
+                        "classification": cls,
+                        "origin": classification_origin,
+                        "taxonomy_id": tax,
+                        "probability": prob,
+                        "group_ids": group_ids,
+                        "vote": post_upvote,
+                        "label": check_labelled_box,
+                    }
                     if cls not in existing_classes:
                         # post all non-duplicate classifications
-                        json = {
-                            "obj_id": obj_id,
-                            "classification": cls,
-                            "taxonomy_id": tax,
-                            "probability": prob,
-                            "group_ids": group_ids,
-                            "vote": post_upvote,
-                            "label": check_labelled_box,
-                        }
                         dict_list += [json]
                     else:
                         # Classification may exist, but not for intended groups.
@@ -340,15 +343,6 @@ def upload_classification(
                             if g not in class_group_dict[cls]:
                                 groups_to_post += [g]
                         if len(groups_to_post) > 0:
-                            json = {
-                                "obj_id": obj_id,
-                                "classification": cls,
-                                "taxonomy_id": tax,
-                                "probability": prob,
-                                "group_ids": groups_to_post,
-                                "vote": post_upvote,
-                                "label": check_labelled_box,
-                            }
                             dict_list += [json]
 
             if comment is not None:
@@ -510,31 +504,37 @@ if __name__ == "__main__":
     gloria = Kowalski(**config['kowalski'], verbose=False)
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-file", help="dataset with .csv, .h5 or .parquet extension")
-    parser.add_argument("-group_ids", type=int, nargs='+', help="list of group ids")
+    parser.add_argument("--file", help="dataset with .csv, .h5 or .parquet extension")
+    parser.add_argument("--group_ids", type=int, nargs='+', help="list of group ids")
 
     # parser.add_argument("-classification", type=str, help="name of object class")
     parser.add_argument(
-        "-classification", type=str, nargs='+', help="list of object classes"
+        "--classification", type=str, nargs='+', help="list of object classes"
     )
     parser.add_argument(
-        "-taxonomy_map",
+        "--taxonomy_map",
         type=str,
         help="JSON file mapping between origin labels and Fritz taxonomy",
     )
     parser.add_argument(
-        "-comment",
+        "--comment",
         type=str,
         help="Post specified string to comments for sources in file",
     )
-    parser.add_argument("-start", type=int, help="Zero-based index to start uploading")
+    parser.add_argument("--start", type=int, help="Zero-based index to start uploading")
     parser.add_argument(
-        "-stop",
+        "--stop",
         type=int,
         help="Index to stop uploading (inclusive)",
     )
     parser.add_argument(
-        "-skip_phot",
+        "--classification_origin",
+        type=str,
+        default='SCoPe',
+        help="origin of classifications",
+    )
+    parser.add_argument(
+        "--skip_phot",
         type=bool,
         nargs='?',
         default=False,
@@ -543,83 +543,83 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "-post_survey_id",
+        "--post_survey_id",
         action='store_true',
         help="If set, post survey_id from input dataset.",
     )
 
     parser.add_argument(
-        "-survey_id_origin",
+        "--survey_id_origin",
         type=str,
         default='SCoPe_xmatch',
         help="Annotation origin for survey ID",
     )
 
     parser.add_argument(
-        "-p_threshold",
+        "--p_threshold",
         type=float,
         default=0.0,
         help="Classification probability >= this number to upload",
     )
 
     parser.add_argument(
-        "-match_ids",
+        "--match_ids",
         action='store_true',
         default=False,
         help="If set, match input and existing sources using ZTF source IDs.",
     )
 
     parser.add_argument(
-        "-use_existing_obj_id",
+        "--use_existing_obj_id",
         action='store_true',
         default=False,
         help="If set, source obj_id from input dataset.",
     )
 
     parser.add_argument(
-        "-post_upvote",
+        "--post_upvote",
         action='store_true',
         default=False,
         help="If set, post upvote to new classifications.",
     )
 
     parser.add_argument(
-        "-check_labelled_box",
+        "--check_labelled_box",
         action='store_true',
         default=False,
         help="If set, check 'labelled' box for source.",
     )
 
     parser.add_argument(
-        "-write_obj_id",
+        "--write_obj_id",
         action='store_true',
         default=False,
         help="If set, write obj_ids corresponding to each uploaded source.",
     )
 
     parser.add_argument(
-        "-result_dir",
+        "--result_dir",
         type=str,
         default='fritzUpload',
         help="Directory to save upload results",
     )
 
     parser.add_argument(
-        "-result_filetag",
+        "--result_filetag",
         type=str,
         default='fritzUpload',
         help="Directory to save upload results",
     )
 
     parser.add_argument(
-        "-result_format",
+        "--result_format",
         type=str,
         default='parquet',
         help="Format of result file: parquet, h5 or csv",
     )
 
     parser.add_argument(
-        "-replace_classifications",
+        "--replace_classifications",
         action='store_true',
         default=False,
         help="If set, delete each object's existing classifications before posting new ones.",
@@ -637,6 +637,7 @@ if __name__ == "__main__":
         args.comment,
         args.start,
         args.stop,
+        args.classification_origin,
         args.post_survey_id,
         args.survey_id_origin,
         args.skip_phot,

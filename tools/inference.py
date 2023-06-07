@@ -1,28 +1,26 @@
 #!/usr/bin/env python
 import tensorflow as tf
-import fire
 import numpy as np
 import pandas as pd
 import pathlib
-import xgboost as xgb
 import warnings
-from typing import Union
 import yaml
 import json
 import os
 import time
-import h5py
 import pyarrow.dataset as ds
 import scope
 from scope.utils import (
     read_hdf,
     read_parquet,
-    write_hdf,
+    write_parquet,
     forgiving_true,
     impute_features,
     get_feature_stats,
 )
+from scope.xgb import XGB
 from datetime import datetime
+import argparse
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 warnings.filterwarnings('ignore')
@@ -34,6 +32,8 @@ JUST = 50
 config_path = pathlib.Path(__file__).parent.parent.absolute() / "config.yaml"
 with open(config_path) as config_yaml:
     config = yaml.load(config_yaml, Loader=yaml.FullLoader)
+
+period_suffix = config['features']['info']['period_suffix']
 
 # Load training set
 trainingSetPath = config['training']['dataset']
@@ -60,14 +60,6 @@ else:
         'Training set must have one of .parquet, .h5 or .csv file formats.'
     )
 
-
-def clean_dataset_xgb(df):
-    assert isinstance(df, pd.DataFrame), "df needs to be a pd.DataFrame"
-    df.dropna(inplace=True)
-    indices_to_keep = ~df.isin([np.nan, np.inf, -np.inf]).any(1)
-    return df[indices_to_keep].astype(np.float64)
-
-
 missing_dict = {}
 
 
@@ -87,6 +79,8 @@ def clean_data(
     quad,
     flag_ids=False,
     whole_field=False,
+    algorithm='dnn',
+    period_suffix=None,
 ):
     '''
     Impute missing values in features data
@@ -96,12 +90,21 @@ def clean_data(
         dataframe containing features of all sources (output of get_features)
     feature_names : List<str>
         features of interest for inference
-    flag_ids : bool
-        whether to store flagged ids and features with missing values
+    field : int
+        ZTF field number
     ccd : int
         CCD number [1,16]
     quad : int
         CCD quad number [1,4]
+    flag_ids : bool
+        whether to store flagged ids and features with missing values
+    whole_field : bool
+        whether data to be cleaned comes from a single file for entire field
+    algorithm : str
+        'dnn' or 'xgb'
+    period_suffix : str
+        suffix to append to periodic feature names
+
     Returns
     -------
     Clean dataframe with no missing values.
@@ -112,7 +115,7 @@ def clean_data(
     if not whole_field:
         filename = (
             BASE_DIR
-            + "/../preds/field_"
+            + f"/../preds_{algorithm}/field_"
             + str(field)
             + "/ccd_"
             + str(ccd).zfill(2)
@@ -122,7 +125,10 @@ def clean_data(
         )
     else:
         filename = (
-            BASE_DIR + "/../preds/field_" + str(field) + f"/field_{field}_flagged.json"
+            BASE_DIR
+            + f"/../preds_{algorithm}/field_"
+            + str(field)
+            + f"/field_{field}_flagged.json"
         )
     for feature in (
         features_df[feature_names]
@@ -137,7 +143,9 @@ def clean_data(
 
     # impute missing values as specified in config
     # (Should already be complete to save time here)
-    features_df = impute_features(features_df, self_impute=True)
+    features_df = impute_features(
+        features_df, self_impute=True, period_suffix=period_suffix
+    )
 
     if flag_ids:
         os.makedirs(os.path.dirname(filename), exist_ok=True)
@@ -150,63 +158,26 @@ def clean_data(
     return features_df
 
 
-# Previous model - delete when DNN is re-trained
-# def make_model(**kwargs):
-#     features_input = tf.keras.Input(
-#         shape=kwargs.get("features_input_shape", (40,)), name="features"
-#     )
-#     dmdt_input = tf.keras.Input(
-#         shape=kwargs.get("dmdt_input_shape", (26, 26, 1)), name="dmdt"
-#     )
-#
-#     # dense branch to digest features
-#     x_dense = tf.keras.layers.Dropout(0.2)(features_input)
-#     x_dense = tf.keras.layers.Dense(256, activation='relu', name='dense_fc_1')(x_dense)
-#     x_dense = tf.keras.layers.Dropout(0.25)(x_dense)
-#     x_dense = tf.keras.layers.Dense(32, activation='relu', name='dense_fc_2')(x_dense)
-#
-#     # CNN branch to digest dmdt
-#     x_conv = tf.keras.layers.Dropout(0.2)(dmdt_input)
-#     x_conv = tf.keras.layers.SeparableConv2D(
-#         16, (3, 3), activation='relu', name='conv_conv_1'
-#     )(x_conv)
-#     # x_conv = tf.keras.layers.Dropout(0.25)(x_conv)
-#     x_conv = tf.keras.layers.SeparableConv2D(
-#         16, (3, 3), activation='relu', name='conv_conv_2'
-#     )(x_conv)
-#     x_conv = tf.keras.layers.Dropout(0.25)(x_conv)
-#     x_conv = tf.keras.layers.MaxPooling2D(pool_size=(2, 2))(x_conv)
-#
-#     x_conv = tf.keras.layers.SeparableConv2D(
-#         32, (3, 3), activation='relu', name='conv_conv_3'
-#     )(x_conv)
-#     # x_conv = tf.keras.layers.Dropout(0.25)(x_conv)
-#     x_conv = tf.keras.layers.SeparableConv2D(
-#         32, (3, 3), activation='relu', name='conv_conv_4'
-#     )(x_conv)
-#     x_conv = tf.keras.layers.Dropout(0.25)(x_conv)
-#     # x_conv = tf.keras.layers.MaxPooling2D(pool_size=(2, 2))(x_conv)
-#
-#     x_conv = tf.keras.layers.GlobalAveragePooling2D()(x_conv)
-#
-#     # concatenate
-#     x = tf.keras.layers.concatenate([x_dense, x_conv])
-#     x = tf.keras.layers.Dropout(0.4)(x)
-#
-#     # one more dense layer?
-#     x = tf.keras.layers.Dense(16, activation='relu', name='fc_1')(x)
-#
-#     # Logistic regression to output the final score
-#     x = tf.keras.layers.Dense(1, activation='sigmoid', name='score')(x)
-#
-#     m = tf.keras.Model(inputs=[features_input, dmdt_input], outputs=x)
-#
-#     return m
-
-
-def run(
-    path_model: Union[str, pathlib.Path],
-    model_class: str,
+def run_inference(
+    paths_models: list,
+    model_class_names: list,
+    field: str = '296',
+    ccd: int = 1,
+    quad: int = 1,
+    whole_field: bool = False,
+    flag_ids: bool = False,
+    xgb_model: bool = False,
+    verbose: bool = False,
+    time_run: bool = False,
+    write_csv: bool = False,
+    float_convert_types: tuple = (64, 32),
+    feature_stats: str = None,
+    scale_features: str = 'min_max',
+    trainingSet: str = 'use_config',
+    feature_directory: str = 'features',
+    feature_file_prefix: str = 'generated_features',
+    period_suffix: str = None,
+    no_write_metadata: bool = False,
     **kwargs,
 ):
     """
@@ -214,30 +185,45 @@ def run(
 
     Parameters
     ==========
-    path_model : str
-        path to model
-    model_class : str
-        name of model class
-    field : int
+    paths_model : list of str or pathlib.Path
+        path(s) to model(s)
+    model_class_name : list of str
+        name(s) of model class(es)
+    field : str
         field number
-    whole_field : bool
-        whether to run on whole field
     ccd : int
         ccd number (with whole_field=False)
     quad : int
         quad number (with whole_field=False)
+    whole_field : bool
+        whether to run on whole field
     flag_ids : bool
         whether to flag ids having features with missing values
     xgb_model : bool
         evaluate using xgboost models
     verbose : bool
         whether to print progress
-    time: bool
+    time_run: bool
         print time taken by each step
     write_csv: bool
-        if True, write CSV file in addition to HDF5
+        if True, write CSV file in addition to parquet
     float_convert_types: 2-tuple of ints (16, 32 or 64)
         Existing and final float types for feature conversion
+    feature_stats: str
+        set to 'config' to read feature stats from config file
+    scale_features: str
+        method to use to scale features
+    trainingSet: str
+        usually set to 'use_config'. A DataFrame can also be passed in, but this is not recommended
+    feature_directory: str
+        name of directory containing features
+    feature_file_prefix: str
+        prefix of generated feature file names
+    period_suffix: str
+        suffix of column containing period to save with inference results
+    no_write_metadata: bool
+        if True, do not write metadata [useful for testing] (bool)
+
     Returns
     =======
     Stores the predictions at the following location:
@@ -251,274 +237,54 @@ def run(
         --model-class=agn --field=301 --whole-field --flag_ids
 
     """
-    DEFAULT_FIELD = 302
-    DEFAULT_CCD = 1
-    DEFAULT_QUAD = 1
-    DEFAULT_FLAG_IDS = False
-    DEFAULT_XGBST = False
 
-    # get arguments
-    field = kwargs.get("field", DEFAULT_FIELD)
-    ccd = kwargs.get("ccd", DEFAULT_CCD)
-    quad = kwargs.get("quad", DEFAULT_QUAD)
-    flag_ids = kwargs.get("flag_ids", DEFAULT_FLAG_IDS)
-    xgbst = kwargs.get("xgb_model", DEFAULT_XGBST)
-    tm = kwargs.get("time", False)
-    verbose = kwargs.get("verbose", False)
-    whole_field = kwargs.get("whole_field", False)
-    write_csv = kwargs.get("write_csv", False)
-    float_convert_types = kwargs.get("float_convert_types", (64, 32))
-    feature_stats = kwargs.get("feature_stats", None)
-    scale_features = kwargs.get("scale_features", "min_max")
-    trainingSet = kwargs.get("trainingSet", "use_config")
-
-    # default file location for source ids
-    if whole_field:
-        default_source_file = (
-            BASE_DIR + "/../ids/field_" + str(field) + "/field_" + str(field) + ".h5"
-        )
-        default_features_file = BASE_DIR + "/../features/field_" + str(field)
+    if xgb_model:
+        algorithm = 'xgb'
     else:
-        default_source_file = (
-            BASE_DIR
-            + "/../ids/field_"
-            + str(field)
-            + "/data_ccd_"
-            + str(ccd).zfill(2)
-            + "_quad_"
-            + str(quad)
-            + ".h5"
-        )
-        default_features_file = (
-            BASE_DIR
-            + "/../features/field_"
-            + str(field)
-            + "/ccd_"
-            + str(ccd).zfill(2)
-            + "_quad_"
-            + str(quad)
-        )
-    source_ids_filename = kwargs.get("source_ids_filename", default_source_file)
-    features_filename = kwargs.get("features_filename", default_features_file)
+        algorithm = 'dnn'
 
-    source_ids_filename = os.path.join(BASE_DIR, source_ids_filename)
+    if field == 'specific_ids':
+        default_features_file = BASE_DIR + f"/../{feature_directory}/specific_ids"
+    else:
+        field = int(field)
+        # default file location for source ids
+        if whole_field:
+            default_features_file = (
+                BASE_DIR + f"/../{feature_directory}/field_" + str(field)
+            )
+        else:
+            if feature_directory == 'features':
+                default_features_file = (
+                    BASE_DIR
+                    + f"/../{feature_directory}/field_"
+                    + str(field)
+                    + "/ccd_"
+                    + str(ccd).zfill(2)
+                    + "_quad_"
+                    + str(quad)
+                    + '.parquet'
+                )
+            else:
+                default_features_file = (
+                    BASE_DIR
+                    + f"/../{feature_directory}/field_"
+                    + str(field)
+                    + f"/{feature_file_prefix}_"
+                    + "field_"
+                    + str(field)
+                    + "_ccd_"
+                    + str(ccd)
+                    + "_quad_"
+                    + str(quad)
+                    + '.parquet'
+                )
+
+    features_filename = kwargs.get("features_filename", default_features_file)
     features_filename = os.path.join(BASE_DIR, features_filename)
 
-    if verbose:
-        # read source ids from hdf5 file
-        ts = time.time()
-        all_source_ids = np.array([])
-        with h5py.File(source_ids_filename, "r") as f:
-            ids = np.array(f[list(f.keys())[0]])
-            all_source_ids = np.concatenate((all_source_ids, ids), axis=0)
-        te = time.time()
-        if tm:
-            print(
-                "read source_ids from .h5".ljust(JUST)
-                + "\t --> \t"
-                + str(round(te - ts, 4))
-                + " s"
-            )
-
-        print("Number of ids:", len(all_source_ids))
-
-    # Load pre-trained model
-    ts = time.time()
-    model = tf.keras.models.load_model(path_model)
-    te = time.time()
-    if tm:
-        print(
-            "load pre-trained model".ljust(JUST)
-            + "\t --> \t"
-            + str(round(te - ts, 4))
-            + " s"
-        )
-
-    preds_collection = []
-    ra_collection = np.array([])
-    dec_collection = np.array([])
-    period_collection = np.array([])
-    source_id_count = 0
-
-    ts = time.time()
-    DS = ds.dataset(features_filename, format='parquet')
-    generator = DS.to_batches()
-    te = time.time()
-    if tm:
-        print(
-            "read features from locally stored files".ljust(JUST)
-            + "\t --> \t"
-            + str(round(te - ts, 4))
-            + " s"
-        )
-
-    batch_count = 0
-    for batch in generator:
-        batch_count += 1
-        print(f'Batch {batch_count} of {len(DS.files)}...')
-        features = batch.to_pandas()
-        source_ids = features['_id'].values
-        ra_collection = np.concatenate([ra_collection, features['ra'].values])
-        dec_collection = np.concatenate([dec_collection, features['dec'].values])
-        period_collection = np.concatenate(
-            [period_collection, features['period'].values]
-        )
-        source_id_count += len(source_ids)
-
-        try:
-            features_metadata = json.loads(batch.schema.metadata[b'scope'])
-        except KeyError:
-            warnings.warn('Could not find existing metadata')
-            features_metadata = {}
-
-        if not xgbst:
-            dmdt = np.expand_dims(
-                np.array([d for d in features['dmdt'].apply(list).values]), axis=-1
-            )
-
-            if verbose:
-                print("Features:\n", features)
-
-            train_config = config["training"]["classes"][model_class]
-            all_features = config["features"][train_config["features"]]
-            feature_names = [
-                key
-                for key in all_features
-                if forgiving_true(all_features[key]["include"])
-            ]
-
-            # Impute missing data and flag source ids containing missing values
-            make_missing_dict(source_ids)
-            features = clean_data(
-                features,
-                feature_names,
-                field,
-                ccd,
-                quad,
-                flag_ids,
-                whole_field,
-            )
-
-            # Get feature stats using training set for scaling consistency
-            if type(trainingSet) == str:
-                if (trainingSet == 'use_config') & (len(TRAINING_SET) > 0):
-                    trainingSet = TRAINING_SET
-                else:
-                    raise ValueError('Unable to find config-specified training set.')
-            if feature_stats is None:
-                feature_stats = get_feature_stats(trainingSet, feature_names)
-            elif feature_stats == 'config':
-                feature_stats = config.get("feature_stats", None)
-
-            if verbose:
-                print("Computed feature stats:\n", feature_stats)
-
-            # scale features
-            ts = time.time()
-
-            for feature in feature_names:
-                stats = feature_stats.get(feature)
-                if (stats is not None) and (stats["std"] != 0):
-                    if scale_features == "median_std":
-                        features[feature] = (
-                            features[feature] - stats["median"]
-                        ) / stats["std"]
-                    elif scale_features == "min_max":
-                        features[feature] = (features[feature] - stats["min"]) / (
-                            stats["max"] - stats["min"]
-                        )
-                    else:
-                        raise ValueError(
-                            'Currently supported scaling methods are min_max and median_std.'
-                        )
-            te = time.time()
-            if tm:
-                print(
-                    "min max scaling".ljust(JUST)
-                    + "\t --> \t"
-                    + str(round(te - ts, 4))
-                    + " s"
-                )
-
-            ts = time.time()
-            # Convert float64 to float32 to satisfy tensorflow requirements
-            float_type_dict = {16: np.float16, 32: np.float32, 64: np.float64}
-            float_init, float_final = float_convert_types[0], float_convert_types[1]
-
-            features[
-                features.select_dtypes(float_type_dict[float_init]).columns
-            ] = features.select_dtypes(float_type_dict[float_init]).astype(
-                float_type_dict[float_final]
-            )
-            # preds = model.predict([features[feature_names].values, dmdt])
-            # Above: calling model.predict(features) in a loop leads to significant
-            #        memory leak and eventual freezing
-            #        (e.g. https://github.com/keras-team/keras/issues/13118,
-            #        https://github.com/tensorflow/tensorflow/issues/44711)
-            #
-            # Replacing with model(features, training=False) produces the same output
-            # but keeps memory usage under control.
-            preds = model([features[feature_names].values, dmdt], training=False)
-            preds = preds.numpy().flatten()
-            features[model_class + '_dnn'] = preds
-            te = time.time()
-            if tm:
-                print(
-                    "dnn inference (model.predict())".ljust(JUST)
-                    + "\t --> \t"
-                    + str(round(te - ts, 4))
-                    + " s"
-                )
-            features['Gaia_EDR3___id'] = (
-                features['Gaia_EDR3___id'].fillna(0).astype(int)
-            )
-            features['AllWISE___id'] = features['AllWISE___id'].fillna(0).astype(int)
-            features['PS1_DR1___id'] = features['PS1_DR1___id'].fillna(0).astype(int)
-            preds_df = features[
-                [
-                    "_id",
-                    "Gaia_EDR3___id",
-                    "AllWISE___id",
-                    "PS1_DR1___id",
-                    model_class + '_dnn',
-                ]
-            ].round(2)
-            preds_df.reset_index(inplace=True, drop=True)
-        else:
-            # xgboost inferencing
-            train_config = path_model[-7]
-            feature_names = config["inference"]["xgb"][train_config]
-            features = clean_data(
-                features,
-                feature_names,
-                field,
-                ccd,
-                quad,
-                flag_ids,
-                whole_field,
-            )
-            model = xgb.XGBRegressor()
-            model.load_model(path_model)
-
-            ts = time.time()
-            scores = model.predict(features[feature_names])
-            features[model_class + '_xgb' + train_config] = scores
-            te = time.time()
-            if tm:
-                print(
-                    "dnn inference (model.predict())".ljust(JUST)
-                    + "\t --> \t"
-                    + str(round(te - ts, 4))
-                    + " s"
-                )
-            preds_df = features[["_id", model_class + '_xgb' + train_config]].round(2)
-            preds_df.reset_index(inplace=True, drop=True)
-
-        preds_collection += [preds_df]
-
-    preds_df = pd.concat(preds_collection, axis=0)
-    preds_df.reset_index(drop=True, inplace=True)
-    out_dir = os.path.join(os.path.dirname(__file__), f"{BASE_DIR}/../preds/")
+    out_dir = os.path.join(
+        os.path.dirname(__file__), f"{BASE_DIR}/../preds_{algorithm}/"
+    )
 
     if not whole_field:
         default_outfile = (
@@ -533,7 +299,274 @@ def run(
     else:
         default_outfile = out_dir + "field_" + str(field) + "/field_" + str(field)
 
+    source_id_count = 0
+    ra_collection = np.array([])
+    dec_collection = np.array([])
+    period_collection = np.array([])
+    field_collection = np.array([])
+    ccd_collection = np.array([])
+    quad_collection = np.array([])
+    filter_collection = np.array([])
+    preds_collection = []
     filename = kwargs.get("output", default_outfile)
+
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
+    if os.path.isfile(f'{filename}.parquet'):
+        raise FileExistsError('Preds file for this field (/ccd/quad) already exists.')
+
+    ts = time.time()
+    DS = ds.dataset(features_filename, format='parquet')
+    generator = DS.to_batches()
+    te = time.time()
+    if time_run:
+        print(
+            "read features from locally stored files".ljust(JUST)
+            + "\t --> \t"
+            + str(round(te - ts, 4))
+            + " s"
+        )
+
+    batch_count = 0
+    max_batch_count = len(DS.files)
+
+    if not ((period_suffix is None) | (period_suffix == 'None')):
+        period_colname = f'period_{period_suffix}'
+    else:
+        period_colname = 'period'
+
+    for batch in generator:
+        batch_count += 1
+        print(f'Batch {batch_count} of {max_batch_count}...')
+
+        features = batch.to_pandas()
+        source_ids = features['_id'].astype("Int64").values
+
+        ra_collection = np.concatenate([ra_collection, features['ra'].values])
+        dec_collection = np.concatenate([dec_collection, features['dec'].values])
+        period_collection = np.concatenate(
+            [period_collection, features[period_colname].values]
+        )
+        field_collection = np.concatenate(
+            [field_collection, features['field'].astype("Int64").values]
+        )
+        ccd_collection = np.concatenate(
+            [ccd_collection, features['ccd'].astype("Int64").values]
+        )
+        quad_collection = np.concatenate(
+            [quad_collection, features['quad'].astype("Int64").values]
+        )
+        try:
+            filter_collection = np.concatenate(
+                [filter_collection, features['filter'].astype("Int64").values]
+            )
+            found_filters = True
+        except KeyError:
+            warnings.warn('Could not find filter column.')
+            found_filters = False
+        source_id_count += len(source_ids)
+
+        try:
+            features_metadata = json.loads(batch.schema.metadata[b'scope'])
+        except KeyError:
+            warnings.warn('Could not find existing metadata')
+            features_metadata = {}
+
+        # Fetch all features (under 'ontological' in config) to perform imputation once per batch file
+        all_features = config["features"]["ontological"]
+        feature_names = [
+            key for key in all_features if forgiving_true(all_features[key]["include"])
+        ]
+
+        if not ((period_suffix is None) | (period_suffix == 'None')):
+            periodic_bool = [all_features[x]['periodic'] for x in feature_names]
+            for j, name in enumerate(feature_names):
+                if periodic_bool[j]:
+                    feature_names[j] = f'{name}_{period_suffix}'
+
+        # Do not use dmdt as a feature for xgb algorithm
+        if algorithm == 'xgb':
+            if 'dmdt' in feature_names:
+                feature_names.pop('dmdt')
+
+        if verbose:
+            print("Features:\n", features)
+
+        # Impute missing data and flag source ids containing missing values
+        make_missing_dict(source_ids)
+        features = clean_data(
+            features,
+            feature_names,
+            field,
+            ccd,
+            quad,
+            flag_ids,
+            whole_field,
+            algorithm=algorithm,
+            period_suffix=period_suffix,
+        )
+
+        # Get feature stats using training set for scaling consistency
+        if type(trainingSet) == str:
+            if (trainingSet == 'use_config') & (len(TRAINING_SET) > 0):
+                trainingSet = TRAINING_SET
+            else:
+                raise ValueError('Unable to find config-specified training set.')
+        if feature_stats is None:
+            feature_stats = get_feature_stats(trainingSet, feature_names)
+        elif feature_stats == 'config':
+            feature_stats = config.get("feature_stats", None)
+
+        if verbose:
+            print("Computed feature stats:\n", feature_stats)
+
+        # scale features
+        ts = time.time()
+
+        for feature in feature_names:
+            stats = feature_stats.get(feature)
+            if (stats is not None) and (stats["std"] != 0):
+                if scale_features == "median_std":
+                    features[feature] = (features[feature] - stats["median"]) / stats[
+                        "std"
+                    ]
+                elif scale_features == "min_max":
+                    features[feature] = (features[feature] - stats["min"]) / (
+                        stats["max"] - stats["min"]
+                    )
+                elif scale_features is not None:
+                    raise ValueError(
+                        'Currently supported scaling methods are min_max, median_std, and None.'
+                    )
+        te = time.time()
+        if time_run:
+            print(
+                "min max scaling".ljust(JUST)
+                + "\t --> \t"
+                + str(round(te - ts, 4))
+                + " s"
+            )
+
+        for i, model_class in enumerate(model_class_names):
+            print(f"{model_class}...")
+            path_model = paths_models[i]
+
+            # Load pre-trained model
+            ts = time.time()
+            if algorithm == 'dnn':
+                model = tf.keras.models.load_model(path_model)
+            elif algorithm == 'xgb':
+                model = XGB(name=model_class)
+                model.load(path_model)
+            te = time.time()
+            if time_run:
+                print(
+                    "load pre-trained model".ljust(JUST)
+                    + "\t --> \t"
+                    + str(round(te - ts, 4))
+                    + " s"
+                )
+
+            # Redefine feature_names on a per-class basis (phenomenological or ontological)
+            train_config = config["training"]["classes"][model_class]
+            all_features = config["features"][train_config["features"]]
+
+            feature_names = [
+                key
+                for key in all_features
+                if forgiving_true(all_features[key]["include"])
+            ]
+
+            if not ((period_suffix is None) | (period_suffix == 'None')):
+                periodic_bool = [all_features[x]['periodic'] for x in feature_names]
+                for j, name in enumerate(feature_names):
+                    if periodic_bool[j]:
+                        feature_names[j] = f'{name}_{period_suffix}'
+
+            if algorithm == 'dnn':
+                dmdt = np.expand_dims(
+                    np.array([d for d in features['dmdt'].apply(list).values]), axis=-1
+                )
+
+                ts = time.time()
+                # Convert float64 to float32 to satisfy tensorflow requirements
+                float_type_dict = {16: np.float16, 32: np.float32, 64: np.float64}
+                float_init, float_final = float_convert_types[0], float_convert_types[1]
+
+                features[
+                    features.select_dtypes(float_type_dict[float_init]).columns
+                ] = features.select_dtypes(float_type_dict[float_init]).astype(
+                    float_type_dict[float_final]
+                )
+                # preds = model.predict([features[feature_names].values, dmdt])
+                # Above: calling model.predict(features) in a loop leads to significant
+                #        memory leak and eventual freezing
+                #        (e.g. https://github.com/keras-team/keras/issues/13118,
+                #        https://github.com/tensorflow/tensorflow/issues/44711)
+                #
+                # Replacing with model(features, training=False) produces the same output
+                # but keeps memory usage under control.
+                preds = model([features[feature_names].values, dmdt], training=False)
+                preds = preds.numpy().flatten()
+                features[model_class + '_dnn'] = preds.round(2)
+
+                te = time.time()
+                if time_run:
+                    print(
+                        "dnn inference (model.predict())".ljust(JUST)
+                        + "\t --> \t"
+                        + str(round(te - ts, 4))
+                        + " s"
+                    )
+            else:
+                # xgboost inferencing
+                ts = time.time()
+                scores = model.predict(features[feature_names])
+                features[model_class + '_xgb'] = scores.round(2)
+                te = time.time()
+                if time_run:
+                    print(
+                        "xgb inference (model.predict())".ljust(JUST)
+                        + "\t --> \t"
+                        + str(round(te - ts, 4))
+                        + " s"
+                    )
+            if i == 0:
+                preds_df = features[["_id", f"{model_class}_{algorithm}"]]
+            else:
+                preds_df[f"{model_class}_{algorithm}"] = features[
+                    f"{model_class}_{algorithm}"
+                ]
+
+            if not no_write_metadata:
+                meta_filename = os.path.dirname(filename) + "/meta.json"
+                if batch_count == max_batch_count:
+                    if not os.path.exists(meta_filename):
+                        os.makedirs(os.path.dirname(meta_filename), exist_ok=True)
+                        dct = {}
+                        dct["field"] = field
+                        dct[f"{algorithm}_models"] = [path_model]
+                        dct["total"] = source_id_count
+                    else:
+                        with open(meta_filename, 'r') as f:
+                            dct = json.load(f)
+                            if f"{algorithm}_models" in dct.keys():
+                                dct[f"{algorithm}_models"] += [path_model]
+
+                    with open(meta_filename, "w") as f:
+                        try:
+                            json.dump(dct, f)  # dump dictionary to a json file
+                        except Exception as e:
+                            print("error dumping to json, message: ", e)
+
+            preds_df.reset_index(inplace=True, drop=True)
+            # End of one model_class
+
+        preds_collection += [preds_df]
+        # End of one batch file
+
+    # Final preparation to save after all batch files done
+    preds_df = pd.concat(preds_collection, axis=0)
+    preds_df.reset_index(drop=True, inplace=True)
 
     # Add metadata
     code_version = scope.__version__
@@ -544,69 +577,141 @@ def run(
     preds_df.attrs['inference_dateTime_utc'] = start_dt
     preds_df.attrs.update(features_metadata)
 
-    os.makedirs(os.path.dirname(filename), exist_ok=True)
-    if os.path.isfile(f'{filename}.h5'):
-        # Merge existing and new preds
-        existing_preds = read_hdf(f'{filename}.h5')
-        existing_attrs = existing_preds.attrs
-        existing_attrs.update(preds_df.attrs)
-        preds_df = pd.merge(
-            existing_preds,
-            preds_df,
-            on=['_id', 'Gaia_EDR3___id', 'AllWISE___id', 'PS1_DR1___id'],
-            how='outer',
-        )
-        preds_df.attrs = existing_attrs
-    else:
-        # If new file, add ra/dec/period columns
-        # Reorganize so inference columns are together, not interrupted by coords/period
-        class_name = preds_df.columns[-1]
+    # Add ids/ra/dec/period columns
+    # Reorganize so inference columns are together, not interrupted by coords/period
+
+    if 'fritz_name' in features.columns:
+        preds_df['obj_id'] = features['fritz_name']
+
+    preds_df['Gaia_EDR3___id'] = features['Gaia_EDR3___id'].fillna(0).astype("Int64")
+    preds_df['AllWISE___id'] = features['AllWISE___id'].fillna(0).astype("Int64")
+    preds_df['PS1_DR1___id'] = features['PS1_DR1___id'].fillna(0).astype("Int64")
+
+    preds_df['ra'] = ra_collection
+    preds_df['dec'] = dec_collection
+    preds_df['period'] = period_collection
+    preds_df['field'] = field_collection
+    preds_df['ccd'] = ccd_collection
+    preds_df['quad'] = quad_collection
+    if found_filters:
+        preds_df['filter'] = filter_collection
+
+    for name in model_class_names:
+        class_name = f"{name}_{algorithm}"
         inference_col = preds_df[class_name]
         preds_df.drop(columns=class_name, inplace=True)
-        preds_df['ra'] = ra_collection
-        preds_df['dec'] = dec_collection
-        preds_df['period'] = period_collection
         preds_df[class_name] = inference_col
 
-    write_hdf(preds_df, f'{filename}.h5')
+    write_parquet(preds_df, f'{filename}.parquet')
+
     if write_csv:
         preds_df.to_csv(f'{filename}.csv', index=False)
-
-    meta_filename = os.path.dirname(filename) + "/meta.json"
-    if not os.path.exists(meta_filename):
-        os.makedirs(os.path.dirname(meta_filename), exist_ok=True)
-        dct = {}
-        dct["field"] = field
-        if xgbst:
-            dct["xgb_models"] = [path_model]
-        else:
-            dct["dnn_models"] = [path_model]
-        dct["total"] = source_id_count
-    else:
-        with open(meta_filename, 'r') as f:
-            dct = json.load(f)
-            if xgbst:
-                if "xgb_models" in dct.keys():
-                    dct["xgb_models"] += [path_model]
-                else:
-                    dct["xgb_models"] = [path_model]
-            else:
-                if "dnn_models" in dct.keys():
-                    dct["dnn_models"] += [path_model]
-                else:
-                    dct["dnn_models"] = [path_model]
-    with open(meta_filename, "w") as f:
-        try:
-            json.dump(dct, f)  # dump dictionary to a json file
-        except Exception as e:
-            print("error dumping to json, message: ", e)
 
     if verbose:
         print("Predictions:\n", preds_df)
 
-    final_outfile = pathlib.Path(f'{filename}.h5')
+    final_outfile = pathlib.Path(f'{filename}.parquet')
     return preds_df, final_outfile
 
 
 if __name__ == "__main__":
-    fire.Fire(run)
+    # fire.Fire(run)
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--paths_models", type=str, nargs='+', help="path(s) to model(s)"
+    )
+    parser.add_argument(
+        "--model_class_names", type=str, nargs='+', help="name(s) of model class(es)"
+    )
+    parser.add_argument("--field", type=str, default='296', help="field number")
+    parser.add_argument(
+        "--ccd", type=int, default=1, help="ccd number (if whole_field is not set)"
+    )
+    parser.add_argument(
+        "--quad", type=int, default=1, help="quad number (if whole_field is not set)"
+    )
+    parser.add_argument(
+        "--whole_field", action='store_true', help="flag to run on whole field"
+    )
+    parser.add_argument(
+        "--flag_ids",
+        action='store_true',
+        help="flag to flag ids having features with missing values",
+    )
+    parser.add_argument(
+        "--xgb_model", action='store_true', help="flag to evaluate using XGBoost models"
+    )
+    parser.add_argument("--verbose", action='store_true', help="verbose flag")
+    parser.add_argument(
+        "--time_run",
+        action='store_true',
+        help="flag to time the inference run and print results",
+    )
+    parser.add_argument(
+        "--write_csv",
+        action='store_true',
+        help="flag to write CSV file in addition to parquet",
+    )
+    parser.add_argument(
+        "--float_convert_types",
+        type=tuple,
+        default=(64, 32),
+        help="Existing and final float types for feature conversion",
+    )
+    parser.add_argument(
+        "--feature_stats",
+        type=str,
+        default=None,
+        help="set to 'config' to read feature stats from config file",
+    )
+    parser.add_argument(
+        "--scale_features",
+        type=str,
+        default='min_max',
+        help="method to use to scale features",
+    )
+    parser.add_argument(
+        "--trainingSet",
+        type=str,
+        default='use_config',
+        help="usually set to 'use_config'. A DataFrame can also be passed in, but this is not recommended.",
+    )
+    parser.add_argument(
+        "--feature_directory",
+        type=str,
+        default='features',
+        help="name of directory containing features",
+    )
+    parser.add_argument(
+        "--period_suffix",
+        type=str,
+        default=period_suffix,
+        help="suffix of column containing period to save with inference results",
+    )
+    parser.add_argument(
+        "--no_write_metadata", action='store_true', help="flag to not write metadata"
+    )
+
+    args = parser.parse_args()
+
+    run_inference(
+        paths_models=args.paths_models,
+        model_class_names=args.model_class_names,
+        field=args.field,
+        ccd=args.ccd,
+        quad=args.quad,
+        whole_field=args.whole_field,
+        flag_ids=args.flag_ids,
+        xgb_model=args.xgb_model,
+        verbose=args.verbose,
+        time_run=args.time_run,
+        write_csv=args.write_csv,
+        float_convert_types=args.float_convert_types,
+        feature_stats=args.feature_stats,
+        scale_features=args.scale_features,
+        trainingSet=args.trainingSet,
+        feature_directory=args.feature_directory,
+        period_suffix=args.period_suffix,
+        no_write_metadata=args.no_write_metadata,
+    )
