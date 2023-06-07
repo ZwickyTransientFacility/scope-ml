@@ -276,6 +276,7 @@ class Scope:
         if catalog is None:
             catalog = self.config["kowalski"]["collections"]["sources"]
 
+        light_curves_raw = []
         query = {
             "query_type": "cone_search",
             "query": {
@@ -305,11 +306,13 @@ class Scope:
             },
         }
         responses = self.kowalski.query(query=query)
+
         for name in responses.keys():
             if len(responses[name]) > 0:
                 response = responses[name]
                 if response.get("status", "error") == "success":
-                    light_curves_raw = response.get('data').get("target")
+                    lcs = response.get('data').get(catalog).get('target')
+                    light_curves_raw += lcs
 
         light_curves = []
         for light_curve in light_curves_raw:
