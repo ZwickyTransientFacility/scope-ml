@@ -136,7 +136,7 @@ class Scope:
     def _get_features(
         self,
         positions: Sequence[Sequence[float]],
-        catalog: str = "ZTF_source_features_20210401",
+        catalog: str = None,
         max_distance: Union[float, int] = 5.0,
         distance_units: str = "arcsec",
     ) -> pd.DataFrame:
@@ -244,7 +244,7 @@ class Scope:
         self,
         ra: float,
         dec: float,
-        catalog: str = "ZTF_sources_20210401",
+        catalog: str = None,
         cone_search_radius: Union[float, int] = 2,
         cone_search_unit: str = "arcsec",
         filter_flagged_data: bool = True,
@@ -261,6 +261,8 @@ class Scope:
         """
         if self.kowalski is None:
             raise ConnectionError("Kowalski connection not established.")
+        if catalog is None:
+            catalog = self.config["kowalski"]["collections"]["sources"]
         query = {
             "query_type": "cone_search",
             "query": {
@@ -1797,11 +1799,12 @@ class Scope:
                 dec_list=[50.0, 51.0, 52.0],
             )
 
+        src_catalog = self.config['kowalski']['collections']['sources']
         with status("Test get_ids_loop and get_field_ids"):
             print()
             _, lst = get_quad_ids.get_ids_loop(
                 get_quad_ids.get_field_ids,
-                catalog="ZTF_sources_20210401",
+                catalog=src_catalog,
                 field=298,
                 ccd_range=3,
                 quad_range=4,
