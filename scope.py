@@ -94,21 +94,39 @@ class Scope:
                 pathlib.Path(__file__).parent.absolute() / "config.yaml"
             )
 
-            # use token specified as env var (if exists)
-            kowalski_token_env = os.environ.get("KOWALSKI_TOKEN")
-            kowalski_alt_token_env = os.environ.get("KOWALSKI_ALT_TOKEN")
-            if (kowalski_token_env is not None) & (kowalski_alt_token_env is not None):
-                self.config["kowalski"]["token"] = kowalski_token_env
-                self.config["kowalski"]["alt_token"] = kowalski_alt_token_env
+            # use tokens specified as env vars (if exist)
+            kowalski_token_env = os.environ.get("KOWALSKI_INSTANCE_TOKEN")
+            gloria_token_env = os.environ.get("GLORIA_INSTANCE_TOKEN")
+            melman_token_env = os.environ.get("MELMAN_INSTANCE_TOKEN")
+            if kowalski_token_env is not None:
+                self.config["kowalski"]["hosts"]["kowalski"][
+                    "token"
+                ] = kowalski_token_env
+            if gloria_token_env is not None:
+                self.config["kowalski"]["hosts"]["gloria"]["token"] = gloria_token_env
+            if melman_token_env is not None:
+                self.config["kowalski"]["hosts"]["melman"]["token"] = melman_token_env
+
+            hosts = [
+                x
+                for x in self.config['kowalski']['hosts']
+                if self.config['kowalski']['hosts'][x]['token'] is not None
+            ]
+            instances = {
+                host: {
+                    'protocol': self.config['kowalski']['protocol'],
+                    'port': self.config['kowalski']['port'],
+                    'host': f'{host}.caltech.edu',
+                    'token': self.config['kowalski']['hosts'][host]['token'],
+                }
+                for host in hosts
+            }
 
         # try setting up K connection if token is available
-        if self.config["kowalski"]["token"] is not None:
+        if len(instances) > 0:
             with status("Setting up Kowalski connection"):
                 self.kowalski = Kowalski(
-                    token=self.config["kowalski"]["token"],
-                    protocol=self.config["kowalski"]["protocol"],
-                    host=self.config["kowalski"]["host"],
-                    port=self.config["kowalski"]["port"],
+                    timeout=self.config["kowalski"]["timeout"], instances=instances
                 )
         else:
             self.kowalski = None
@@ -118,7 +136,7 @@ class Scope:
     def _get_features(
         self,
         positions: Sequence[Sequence[float]],
-        catalog: str = "ZTF_source_features_20210401",
+        catalog: str = None,
         max_distance: Union[float, int] = 5.0,
         distance_units: str = "arcsec",
     ) -> pd.DataFrame:
@@ -134,6 +152,8 @@ class Scope:
             raise ConnectionError("Kowalski connection not established.")
         if catalog is None:
             catalog = self.config["kowalski"]["collections"]["features"]
+
+        features_dct = {}
         query = {
             "query_type": "near",
             "query": {
@@ -152,10 +172,14 @@ class Scope:
                 },
             },
         }
-        response = self.kowalski.query(query=query)
-        features_nearest = [
-            v[0] for k, v in response.get("data").get(catalog).items() if len(v) > 0
-        ]
+        responses = self.kowalski.query(query=query)
+        for name in responses.keys():
+            if len(responses[name]) > 0:
+                response = responses[name]
+                if response.get("status", "error") == "success":
+                    features_response = response.get('data').get(catalog)
+                    features_dct.update(features_response)
+        features_nearest = [v[0] for k, v in features_response.items() if len(v) > 0]
         df = pd.DataFrame.from_records(features_nearest)
 
         return df
@@ -179,6 +203,8 @@ class Scope:
             raise ConnectionError("Kowalski connection not established.")
         if catalog is None:
             catalog = self.config["kowalski"]["collections"]["gaia"]
+
+        gaia_dct = {}
         query = {
             "query_type": "near",
             "query": {
@@ -206,10 +232,14 @@ class Scope:
             },
             "kwargs": {"limit": 1},
         }
-        response = self.kowalski.query(query=query)
-        gaia_nearest = [
-            v[0] for k, v in response.get("data").get(catalog).items() if len(v) > 0
-        ]
+        responses = self.kowalski.query(query=query)
+        for name in responses.keys():
+            if len(responses[name]) > 0:
+                response = responses[name]
+                if response.get("status", "error") == "success":
+                    gaia_response = response.get('data').get(catalog)
+                    gaia_dct.update(gaia_response)
+        gaia_nearest = [v[0] for k, v in gaia_dct.items() if len(v) > 0]
         df = pd.DataFrame.from_records(gaia_nearest)
 
         df["M"] = df["phot_g_mean_mag"] + 5 * np.log10(df["parallax"] * 0.001) + 5
@@ -226,7 +256,7 @@ class Scope:
         self,
         ra: float,
         dec: float,
-        catalog: str = "ZTF_sources_20210401",
+        catalog: str = None,
         cone_search_radius: Union[float, int] = 2,
         cone_search_unit: str = "arcsec",
         filter_flagged_data: bool = True,
@@ -243,6 +273,10 @@ class Scope:
         """
         if self.kowalski is None:
             raise ConnectionError("Kowalski connection not established.")
+        if catalog is None:
+            catalog = self.config["kowalski"]["collections"]["sources"]
+
+        light_curves_raw = []
         query = {
             "query_type": "cone_search",
             "query": {
@@ -271,8 +305,14 @@ class Scope:
                 },
             },
         }
-        response = self.kowalski.query(query=query)
-        light_curves_raw = response.get("data").get(catalog).get("target")
+        responses = self.kowalski.query(query=query)
+
+        for name in responses.keys():
+            if len(responses[name]) > 0:
+                response = responses[name]
+                if response.get("status", "error") == "success":
+                    lcs = response.get('data').get(catalog).get('target')
+                    light_curves_raw += lcs
 
         light_curves = []
         for light_curve in light_curves_raw:
@@ -338,7 +378,7 @@ class Scope:
             )
 
         # generate images for the Field Guide
-        if (self.kowalski is None) or (not self.kowalski.ping()):
+        if self.kowalski is None:
             print("Kowalski connection not established, cannot generate docs.")
             return
 
@@ -1779,11 +1819,12 @@ class Scope:
                 dec_list=[50.0, 51.0, 52.0],
             )
 
+        src_catalog = self.config['kowalski']['collections']['sources']
         with status("Test get_ids_loop and get_field_ids"):
             print()
             _, lst = get_quad_ids.get_ids_loop(
                 get_quad_ids.get_field_ids,
-                catalog="ZTF_sources_20210401",
+                catalog=src_catalog,
                 field=298,
                 ccd_range=3,
                 quad_range=4,

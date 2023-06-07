@@ -15,7 +15,6 @@ import pyarrow.dataset as ds
 
 BASE_DIR = os.path.dirname(__file__)
 JUST = 50
-TIMEOUT = 300
 
 
 config_path = pathlib.Path(__file__).parent.parent.absolute() / "config.yaml"
@@ -51,21 +50,37 @@ if not ((period_suffix is None) | (period_suffix == 'None')):
         for i in range(len(projection_values))
     }
 
-# use token specified as env var (if exists)
-kowalski_token_env = os.environ.get("KOWALSKI_TOKEN")
-kowalski_alt_token_env = os.environ.get("KOWALSKI_ALT_TOKEN")
-if (kowalski_token_env is not None) & (kowalski_alt_token_env is not None):
-    config["kowalski"]["token"] = kowalski_token_env
-    config["kowalski"]["alt_token"] = kowalski_alt_token_env
+# use tokens specified as env vars (if exist)
+kowalski_token_env = os.environ.get("KOWALSKI_INSTANCE_TOKEN")
+gloria_token_env = os.environ.get("GLORIA_INSTANCE_TOKEN")
+melman_token_env = os.environ.get("MELMAN_INSTANCE_TOKEN")
 
-# Use new penquins KowalskiInstances class here once approved
-kowalski_instance = Kowalski(
-    token=config["kowalski"]["token"],
-    protocol=config["kowalski"]["protocol"],
-    host=config["kowalski"]["host"],
-    port=config["kowalski"]["port"],
-    timeout=TIMEOUT,
-)
+# Set up Kowalski instance connection
+if kowalski_token_env is not None:
+    config["kowalski"]["hosts"]["kowalski"]["token"] = kowalski_token_env
+if gloria_token_env is not None:
+    config["kowalski"]["hosts"]["gloria"]["token"] = gloria_token_env
+if melman_token_env is not None:
+    config["kowalski"]["hosts"]["melman"]["token"] = melman_token_env
+
+timeout = config['kowalski']['timeout']
+
+hosts = [
+    x
+    for x in config['kowalski']['hosts']
+    if config['kowalski']['hosts'][x]['token'] is not None
+]
+instances = {
+    host: {
+        'protocol': config['kowalski']['protocol'],
+        'port': config['kowalski']['port'],
+        'host': f'{host}.caltech.edu',
+        'token': config['kowalski']['hosts'][host]['token'],
+    }
+    for host in hosts
+}
+
+kowalski_instances = Kowalski(timeout=timeout, instances=instances)
 
 
 def get_features_loop(
@@ -198,13 +213,16 @@ def get_features(
                 "projection": projection,
             },
         }
-        # Update query upon new penquins release
-        response = kowalski_instance.query(query=query)
-        source_data = response.get("data")
+        responses = kowalski_instances.query(query=query)
 
-        if source_data is None:
-            print(response)
-            raise ValueError(f"No data found for source ids {source_ids}")
+        for name in responses.keys():
+            if len(responses[name]) > 0:
+                response = responses[name]
+                if response.get("status", "error") == "success":
+                    source_data = response.get("data")
+                    if source_data is None:
+                        print(response)
+                        raise ValueError(f"No data found for source ids {source_ids}")
 
         df_temp = pd.DataFrame(source_data)
         if (projection == {}) | ("dmdt" in projection):
