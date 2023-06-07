@@ -152,6 +152,8 @@ class Scope:
             raise ConnectionError("Kowalski connection not established.")
         if catalog is None:
             catalog = self.config["kowalski"]["collections"]["features"]
+
+        features_dct = {}
         query = {
             "query_type": "near",
             "query": {
@@ -170,10 +172,14 @@ class Scope:
                 },
             },
         }
-        response = self.kowalski.query(query=query)
-        features_nearest = [
-            v[0] for k, v in response.get("data").get(catalog).items() if len(v) > 0
-        ]
+        responses = self.kowalski.query(query=query)
+        for name in responses.keys():
+            if len(responses[name]) > 0:
+                response = responses[name]
+                if response.get("status", "error") == "success":
+                    features_response = response.get('data').get(catalog)
+                    features_dct.update(features_response)
+        features_nearest = [v[0] for k, v in features_response.items() if len(v) > 0]
         df = pd.DataFrame.from_records(features_nearest)
 
         return df
@@ -197,6 +203,8 @@ class Scope:
             raise ConnectionError("Kowalski connection not established.")
         if catalog is None:
             catalog = self.config["kowalski"]["collections"]["gaia"]
+
+        gaia_dct = {}
         query = {
             "query_type": "near",
             "query": {
@@ -224,10 +232,14 @@ class Scope:
             },
             "kwargs": {"limit": 1},
         }
-        response = self.kowalski.query(query=query)
-        gaia_nearest = [
-            v[0] for k, v in response.get("data").get(catalog).items() if len(v) > 0
-        ]
+        responses = self.kowalski.query(query=query)
+        for name in responses.keys():
+            if len(responses[name]) > 0:
+                response = responses[name]
+                if response.get("status", "error") == "success":
+                    gaia_response = response.get('data').get(catalog)
+                    gaia_dct.update(gaia_response)
+        gaia_nearest = [v[0] for k, v in gaia_dct.items() if len(v) > 0]
         df = pd.DataFrame.from_records(gaia_nearest)
 
         df["M"] = df["phot_g_mean_mag"] + 5 * np.log10(df["parallax"] * 0.001) + 5
@@ -263,6 +275,7 @@ class Scope:
             raise ConnectionError("Kowalski connection not established.")
         if catalog is None:
             catalog = self.config["kowalski"]["collections"]["sources"]
+
         query = {
             "query_type": "cone_search",
             "query": {
@@ -291,8 +304,12 @@ class Scope:
                 },
             },
         }
-        response = self.kowalski.query(query=query)
-        light_curves_raw = response.get("data").get(catalog).get("target")
+        responses = self.kowalski.query(query=query)
+        for name in responses.keys():
+            if len(responses[name]) > 0:
+                response = responses[name]
+                if response.get("status", "error") == "success":
+                    light_curves_raw = response.get('data').get("target")
 
         light_curves = []
         for light_curve in light_curves_raw:
