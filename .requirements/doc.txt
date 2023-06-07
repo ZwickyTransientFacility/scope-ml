@@ -5,7 +5,7 @@ healpy>=1.16.2
 Jinja2<=3.1
 myst-parser>=0.18.1
 pandas>=1.2
-penquins>=2.1
+penquins<2.3
 pre-commit>=3.2.2
 pyyaml>=5.3.1
 sphinx>=4.2
