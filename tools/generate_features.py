@@ -549,7 +549,6 @@ def generate_features(
                 xmatch_radius_arcsec=xmatch_radius_arcsec,
                 limit=limit,
                 Ncore=Ncore,
-                save=not doNotSave,
             )
         else:
             feature_gen_source_dict = lst[0]
