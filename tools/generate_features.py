@@ -73,7 +73,7 @@ ext_catalog_info = config['feature_generation']['external_catalog_features']
 cesium_feature_list = config['feature_generation']['cesium_features']
 period_algorithms = config['feature_generation']['period_algorithms']
 
-kowalski_instances = Kowalski(timeout=300, instances=instances)
+kowalski_instances = Kowalski(timeout=timeout, instances=instances)
 
 
 def drop_close_bright_stars(

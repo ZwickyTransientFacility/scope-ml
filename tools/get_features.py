@@ -15,7 +15,6 @@ import pyarrow.dataset as ds
 
 BASE_DIR = os.path.dirname(__file__)
 JUST = 50
-TIMEOUT = 300
 
 
 config_path = pathlib.Path(__file__).parent.parent.absolute() / "config.yaml"
@@ -64,6 +63,8 @@ if gloria_token_env is not None:
 if melman_token_env is not None:
     config["kowalski"]["hosts"]["melman"]["token"] = melman_token_env
 
+timeout = config['kowalski']['timeout']
+
 hosts = [
     x
     for x in config['kowalski']['hosts']
@@ -79,7 +80,7 @@ instances = {
     for host in hosts
 }
 
-kowalski_instances = Kowalski(timeout=300, instances=instances)
+kowalski_instances = Kowalski(timeout=timeout, instances=instances)
 
 
 def get_features_loop(
