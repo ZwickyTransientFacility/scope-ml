@@ -125,7 +125,9 @@ class Scope:
         # try setting up K connection if token is available
         if len(instances) > 0:
             with status("Setting up Kowalski connection"):
-                self.kowalski = Kowalski(timeout=300, instances=instances)
+                self.kowalski = Kowalski(
+                    timeout=self.config["kowalski"]["timeout"], instances=instances
+                )
         else:
             self.kowalski = None
             # raise ConnectionError("Could not connect to Kowalski.")
