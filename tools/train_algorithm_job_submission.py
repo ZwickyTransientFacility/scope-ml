@@ -73,6 +73,12 @@ def parse_commandline():
         default=False,
         help="If set, reset the 'running' status of all tags",
     )
+    parser.add_argument(
+        "--group_name",
+        type=str,
+        default=None,
+        help="Group name (if different from name in train_script)",
+    )
 
     args = parser.parse_args()
     return args
@@ -130,7 +136,7 @@ def filter_completed(tags, group, algorithm, sweep=False, reset_running=False):
     return tags_remaining_to_complete, tags_remaining_to_run
 
 
-def run_job(tag, submit_interval_seconds=5.0, sweep=False):
+def run_job(tag, group, submit_interval_seconds=5.0, sweep=False):
     # Don't hit WandB server with too many login attempts at once
     time.sleep(submit_interval_seconds)
 
@@ -167,6 +173,8 @@ if __name__ == '__main__':
     scriptpath = str(BASE_DIR / scriptname)
 
     tags, group, algorithm, _ = parse_training_script(scriptpath)
+    if args.group_name is not None:
+        group = args.group_name
 
     subDir = os.path.join(slurmDir, filetype)
     subfile = os.path.join(subDir, '%s.sub' % filetype)
@@ -191,6 +199,7 @@ if __name__ == '__main__':
             if counter < new_max_instances:
                 run_job(
                     tag,
+                    group,
                     submit_interval_seconds=args.submit_interval_seconds,
                     sweep=sweep,
                 )
