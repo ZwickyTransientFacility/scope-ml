@@ -75,17 +75,24 @@ def parse_commandline():
         default="bhealy",
         help="HPC username",
     )
+    parser.add_argument(
+        "--reset_running",
+        action='store_true',
+        default=False,
+        help="If set, reset the 'running' status of all tags",
+    )
 
     args = parser.parse_args()
 
     return args
 
 
-def filter_completed(df, resultsDir, filename):
+def filter_completed(df, resultsDir, filename, reset_running=False):
 
     start_time = time.time()
 
-    tbd = []
+    jobs_remaining_to_complete = []
+    jobs_remaining_to_run = []
     for ii, (_, row) in enumerate(df.iterrows()):
 
         field, ccd, quadrant = int(row["field"]), int(row["ccd"]), int(row["quadrant"])
@@ -93,19 +100,53 @@ def filter_completed(df, resultsDir, filename):
         resultsDir_iter = resultsDir + f"/field_{field}"
         filename_iter = filename + f"_field_{field}_ccd_{ccd}_quad_{quadrant}"
         filename_iter += '.parquet'
-        filepath = os.path.join(resultsDir_iter, filename_iter)
 
-        if not os.path.isfile(filepath):
-            tbd.append(ii)
-        else:
-            print(filepath)
-    df = df.iloc[tbd]
-    df.reset_index(inplace=True, drop=True)
+        resultsPath = pathlib.Path(resultsDir_iter)
+        resultsPath.mkdir(parents=True, exist_ok=True)
+
+        if reset_running:
+            paths = [x for x in resultsPath.glob('*.running')]
+            for path in paths:
+                path.unlink()
+
+        contents = [x for x in resultsPath.iterdir()]
+
+        filepath = resultsPath / filename_iter
+
+        has_file = filepath.is_file()
+        if not has_file:
+            jobs_remaining_to_complete.append(ii)
+
+        # jobs_remaining_to_run is a subset of jobs_remaining_to_complete
+        # (A job could be queued but not yet finished: removed from 'to_run' but not from 'to_complete')
+        running = (
+            np.sum(
+                [
+                    (
+                        x.name
+                        == f'{filename}_field_{field}_ccd_{ccd}_quad_{quadrant}.running'
+                    )
+                    for x in contents
+                ]
+            )
+            > 0
+        ) | (has_file)
+        if not running:
+            jobs_remaining_to_run.append(ii)
+
+    df_toComplete = df.iloc[jobs_remaining_to_complete]
+    df_toComplete.reset_index(inplace=True, drop=True)
+
+    df_toRun = df.iloc[jobs_remaining_to_run]
+    df_toRun.reset_index(inplace=True, drop=True)
+
+    print('Jobs remaining to complete: ', len(jobs_remaining_to_complete))
+    print('Jobs remaining to run: ', len(jobs_remaining_to_run))
 
     end_time = time.time()
     print('Checking completed jobs took %.2f seconds' % (end_time - start_time))
 
-    return df
+    return df_toComplete, df_toRun
 
 
 def run_job(df, quadrant_index, resultsDir, filename, runParallel=False):
@@ -115,8 +156,12 @@ def run_job(df, quadrant_index, resultsDir, filename, runParallel=False):
 
     resultsDir += f"/field_{field}"
     filename += f"_field_{field}_ccd_{ccd}_quad_{quadrant}"
+
+    resultsPath = pathlib.Path(resultsDir)
+    os.system(f'touch {str(resultsPath)}/{filename}.running')
+
     filename += '.parquet'
-    filepath = os.path.join(resultsDir, filename)
+    filepath = resultsPath / filename
 
     if not os.path.isfile(filepath):
         if runParallel:
@@ -139,6 +184,7 @@ if __name__ == '__main__':
     filetype = args.filetype
     dirname = args.dirname
     resultsDir = str(BASE_DIR / dirname)
+    reset_running = args.reset_running
 
     qsubDir = os.path.join(resultsDir, filetype)
     if not os.path.isdir(qsubDir):
@@ -164,8 +210,11 @@ if __name__ == '__main__':
     else:
         df_filtered = df_original
 
-    df = filter_completed(df_filtered, resultsDir, filename)
-    njobs = len(df)
+    df_to_complete, df_to_run = filter_completed(
+        df_filtered, resultsDir, filename, reset_running=reset_running
+    )
+    njobs = len(df_to_run)
+    nchoice = njobs
     print('%d jobs remaining...' % njobs)
 
     if args.doSubmit:
@@ -183,11 +232,11 @@ if __name__ == '__main__':
             if counter < new_max_instances:
                 # Avoid choosing same index multiple times in one round of jobs
                 rng = np.random.default_rng()
-                quadrant_indices = rng.choice(njobs, size=size, replace=False)
+                quadrant_indices = rng.choice(nchoice, size=size, replace=False)
 
                 for quadrant_index in quadrant_indices:
                     run_job(
-                        df,
+                        df_to_run,
                         quadrant_index,
                         resultsDir,
                         filename,
@@ -210,8 +259,11 @@ if __name__ == '__main__':
                 time.sleep(args.wait_time_minutes * 60)
 
                 # Filter completed runs, redefine njobs
-                df = filter_completed(df, resultsDir, filename)
-                njobs = len(df)
+                df_to_complete, df_to_run = filter_completed(
+                    df_to_complete, resultsDir, filename
+                )
+                njobs = len(df_to_complete)
+                nchoice = len(df_to_run)
                 print('%d jobs remaining...' % njobs)
 
                 # Compute difference in njobs to count available instances
@@ -234,7 +286,7 @@ if __name__ == '__main__':
         if confirm in ['yes', 'Yes', 'YES']:
             for quadrant_index in range(njobs):
                 run_job(
-                    df,
+                    df_to_run,
                     quadrant_index,
                     resultsDir,
                     filename,
