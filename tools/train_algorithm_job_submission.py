@@ -219,7 +219,7 @@ if __name__ == '__main__':
 
             # Filter completed runs, redefine njobs using tags_remaininig_to_complete
             tags_remaining_to_complete, tags_remaining_to_run = filter_completed(
-                tags_remaining_to_run, group, algorithm, sweep=sweep
+                tags_remaining_to_complete, group, algorithm, sweep=sweep
             )
             njobs = len(tags_remaining_to_complete)
             print('%d jobs remaining...' % njobs)
