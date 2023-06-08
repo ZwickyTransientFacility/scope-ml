@@ -6,6 +6,7 @@ import argparse
 import yaml
 from tools.train_algorithm_slurm import parse_training_script
 import numpy as np
+import datetime
 
 BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
 
@@ -66,36 +67,121 @@ def parse_commandline():
         default=False,
         help="If set, job submission runs filter_completed in different directory",
     )
+    parser.add_argument(
+        "--reset_running",
+        action='store_true',
+        default=False,
+        help="If set, reset the 'running' status of all tags",
+    )
 
     args = parser.parse_args()
     return args
 
 
-def filter_completed(tags, group, algorithm, sweep=False):
+""" def filter_completed(tags, group, algorithm, sweep=False, ignore_running=False):
     tags_remaining = tags.copy()
     for tag in tags:
-        if sweep:
-            searchDir = BASE_DIR / f'models_{algorithm}' / group / 'sweeps' / tag
-        else:
-            searchDir = BASE_DIR / f'models_{algorithm}' / group / tag
         try:
-            has_files = any(searchDir.iterdir())
+            if sweep:
+                searchDir = BASE_DIR / f'models_{algorithm}' / group / 'sweeps' / tag
+                has_files = any(searchDir.iterdir())
+
+            else:
+                searchDir = BASE_DIR / f'models_{algorithm}' / group / tag
+                contents = [x for x in searchDir.iterdir()]
+
+                # Check if hdf5 (DNN) or json (XGB) models have been saved
+                if algorithm == 'dnn':
+                    has_model = np.sum([x.suffix == '.h5' for x in contents])
+                else:
+                    has_model = np.sum([x.suffix == '.json' for x in contents])
+                running = np.sum([(x.suffix == '.running') for x in contents])
+
+                if ignore_running:
+                    # Optionally ignore .running file
+                    has_files = has_model
+                else:
+                    has_files = has_model | running
         except FileNotFoundError:
             has_files = False
         if has_files:
             tags_remaining.remove(tag)
 
     print('Models remaining: ', len(tags_remaining))
-    return tags_remaining
+    return tags_remaining """
 
 
-def run_job(tag, submit_interval_seconds=5.0):
+def filter_completed(tags, group, algorithm, sweep=False, reset_running=False):
+    # Using two lists of tags allows us to distinguish running models from completed ones, minimizing computational waste
+    # tags_remaining_to_complete informs when the counter should be decreased
+    # tags_remaining_to_run informs which jobs to select from once the counter allows it
+    tags_remaining_to_complete = tags.copy()
+    tags_remaining_to_run = tags.copy()
+    for tag in tags:
+        try:
+            if sweep:
+                searchDir = BASE_DIR / f'models_{algorithm}' / group / 'sweeps' / tag
+                if reset_running:
+                    paths = [x for x in searchDir.glob('*.running')]
+                    for path in paths:
+                        path.unlink()
+                has_files = any(searchDir.iterdir())
+                running = has_files
+                has_model = has_files
+            else:
+                searchDir = BASE_DIR / f'models_{algorithm}' / group / tag
+                if reset_running:
+                    paths = [x for x in searchDir.glob('*.running')]
+                    for path in paths:
+                        path.unlink()
+                contents = [x for x in searchDir.iterdir()]
+
+                # Check if hdf5 (DNN) or json (XGB) models have been saved
+                if algorithm == 'dnn':
+                    has_model = np.sum([x.suffix == '.h5' for x in contents]) > 0
+                else:
+                    has_model = np.sum([x.suffix == '.json' for x in contents]) > 0
+
+                # tags_remaining_to_run is a subset of tags_remaining_to_complete
+                # (A tag could be queued but not yet finished: removed from 'to_run' but not from 'to_complete')
+                running = (np.sum([(x.suffix == '.running') for x in contents]) > 0) | (
+                    has_model
+                )
+
+        except FileNotFoundError:
+            has_model = False
+            running = False
+
+        if has_model:
+            tags_remaining_to_complete.remove(tag)
+
+        if running:
+            tags_remaining_to_run.remove(tag)
+
+    print('Models remaining to complete: ', len(tags_remaining_to_complete))
+    print('Models remaining to run: ', len(tags_remaining_to_run))
+    return tags_remaining_to_complete, tags_remaining_to_run
+
+
+def run_job(tag, submit_interval_seconds=5.0, sweep=False):
     # Don't hit WandB server with too many login attempts at once
     time.sleep(submit_interval_seconds)
 
     sbatchstr = f"sbatch --export=TID={tag} {subfile}"
     print(sbatchstr)
     os.system(sbatchstr)
+
+    time_tag = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+
+    # Make dummy file to register as completed
+    if sweep:
+        output_path = BASE_DIR / f'models_{algorithm}' / group / 'sweeps' / tag
+        os.makedirs(output_path, exist_ok=True)
+        os.system(f'touch {str(output_path)}/{tag}.{time_tag}.sweep.running')
+    else:
+        output_path = BASE_DIR / f'models_{algorithm}' / group / tag
+        os.makedirs(output_path, exist_ok=True)
+        os.system(f'touch {str(output_path)}/{tag}.{time_tag}.running')
 
 
 if __name__ == '__main__':
@@ -108,6 +194,7 @@ if __name__ == '__main__':
     filetype = args.filetype
     dirname = args.dirname
     sweep = args.sweep
+    reset_running = args.reset_running
 
     slurmDir = str(BASE_DIR / dirname)
     scriptpath = str(BASE_DIR / scriptname)
@@ -117,8 +204,10 @@ if __name__ == '__main__':
     subDir = os.path.join(slurmDir, filetype)
     subfile = os.path.join(subDir, '%s.sub' % filetype)
 
-    tags_remaining = filter_completed(tags, group, algorithm, sweep=sweep)
-    njobs = len(tags_remaining)
+    tags_remaining_to_complete, tags_remaining_to_run = filter_completed(
+        tags, group, algorithm, sweep=sweep, reset_running=reset_running
+    )
+    njobs = len(tags_remaining_to_complete)
 
     counter = 0
     status_njobs = njobs
@@ -130,9 +219,14 @@ if __name__ == '__main__':
         final_round = True
     while njobs > 0:
         # Limit number of parallel jobs
-        for tag in tags_remaining:
+        for tag in tags_remaining_to_run:
+            # Only run jobs from tags_remaining_to_run list
             if counter < new_max_instances:
-                run_job(tag, submit_interval_seconds=args.submit_interval_seconds)
+                run_job(
+                    tag,
+                    submit_interval_seconds=args.submit_interval_seconds,
+                    sweep=sweep,
+                )
                 counter += 1
 
         print(f"Instances available: {new_max_instances - counter}")
@@ -147,11 +241,11 @@ if __name__ == '__main__':
             print(f"Waiting {args.wait_time_minutes} minutes until next check...")
             time.sleep(args.wait_time_minutes * 60)
 
-            # Filter completed runs, redefine njobs
-            tags_remaining = filter_completed(
-                tags_remaining, group, algorithm, sweep=sweep
+            # Filter completed runs, redefine njobs using tags_remaininig_to_complete
+            tags_remaining_to_complete, tags_remaining_to_run = filter_completed(
+                tags_remaining_to_complete, group, algorithm, sweep=sweep
             )
-            njobs = len(tags_remaining)
+            njobs = len(tags_remaining_to_complete)
             print('%d jobs remaining...' % njobs)
 
             # Compute difference in njobs to count available instances
