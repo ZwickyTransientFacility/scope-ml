@@ -15,30 +15,37 @@ config_path = pathlib.Path(__file__).parent.parent.absolute() / "config.yaml"
 with open(config_path) as config_yaml:
     config = yaml.load(config_yaml, Loader=yaml.FullLoader)
 
-# use token specified as env var (if exists)
-kowalski_token_env = os.environ.get("KOWALSKI_TOKEN")
-kowalski_alt_token_env = os.environ.get("KOWALSKI_ALT_TOKEN")
-if (kowalski_token_env is not None) & (kowalski_alt_token_env is not None):
-    config["kowalski"]["token"] = kowalski_token_env
-    config["kowalski"]["alt_token"] = kowalski_alt_token_env
+# use tokens specified as env vars (if exist)
+kowalski_token_env = os.environ.get("KOWALSKI_INSTANCE_TOKEN")
+gloria_token_env = os.environ.get("GLORIA_INSTANCE_TOKEN")
+melman_token_env = os.environ.get("MELMAN_INSTANCE_TOKEN")
+
+# Set up Kowalski instance connection
+if kowalski_token_env is not None:
+    config["kowalski"]["hosts"]["kowalski"]["token"] = kowalski_token_env
+if gloria_token_env is not None:
+    config["kowalski"]["hosts"]["gloria"]["token"] = gloria_token_env
+if melman_token_env is not None:
+    config["kowalski"]["hosts"]["melman"]["token"] = melman_token_env
 
 timeout = config['kowalski']['timeout']
 
-gloria = Kowalski(**config['kowalski'], verbose=False)
-melman = Kowalski(
-    token=config['kowalski']['token'],
-    protocol="https",
-    host="melman.caltech.edu",
-    port=443,
-    timeout=timeout,
-)
-kowalski = Kowalski(
-    token=config['kowalski']['alt_token'],
-    protocol="https",
-    host="kowalski.caltech.edu",
-    port=443,
-    timeout=timeout,
-)
+hosts = [
+    x
+    for x in config['kowalski']['hosts']
+    if config['kowalski']['hosts'][x]['token'] is not None
+]
+instances = {
+    host: {
+        'protocol': config['kowalski']['protocol'],
+        'port': config['kowalski']['port'],
+        'host': f'{host}.caltech.edu',
+        'token': config['kowalski']['hosts'][host]['token'],
+    }
+    for host in hosts
+}
+
+kowalski_instances = Kowalski(timeout=timeout, instances=instances)
 
 source_catalog = config['kowalski']['collections']['sources']
 alerts_catalog = config['kowalski']['collections']['alerts']
@@ -46,12 +53,9 @@ gaia_catalog = config['kowalski']['collections']['gaia']
 ext_catalog_info = config['feature_generation']['external_catalog_features']
 cesium_feature_list = config['feature_generation']['cesium_features']
 
-kowalski_instances = {'kowalski': kowalski, 'gloria': gloria, 'melman': melman}
-
 
 def check_quads_for_sources(
     fields: list = np.arange(1, 2001),
-    kowalski_instance_name: str = 'melman',
     catalog: str = source_catalog,
     count_sources: bool = False,
     minobs: int = 0,
@@ -73,7 +77,6 @@ def check_quads_for_sources(
     :return has_sources: boolean stating whether each field in fields has sources
     :return missing_ccd_quad: boolean stating whether each field in fields has no sources in at least one ccd/quad
     """
-    kowalski_instance = kowalski_instances[kowalski_instance_name]
 
     running_total_sources = 0
     has_sources = np.zeros(len(fields), dtype=bool)
@@ -95,8 +98,13 @@ def check_quads_for_sources(
             },
             "kwargs": {"limit": 1},
         }
-        rsp = kowalski_instance.query(q)
-        data = rsp['data']
+        responses = kowalski_instances.query(q)
+
+        for name in responses.keys():
+            if len(responses[name]) > 0:
+                response = responses[name]
+                if response.get("status", "error") == "success":
+                    data = response.get("data")
 
         if len(data) > 0:
             has_sources[idx] = True
@@ -128,8 +136,13 @@ def check_quads_for_sources(
                             "filter": fltr,
                         },
                     }
-                    rsp = kowalski_instance.query(q)
-                    data = rsp['data']
+                    responses = kowalski_instances.query(q)
+
+                    for name in responses.keys():
+                        if len(responses[name]) > 0:
+                            response = responses[name]
+                            if response.get("status", "error") == "success":
+                                data = response.get("data")
 
                     if data > 0:
                         if count_sources:
@@ -364,12 +377,6 @@ if __name__ == "__main__":
         help="Name of python environment to activate",
     )
     parser.add_argument(
-        "--kowalski_instance_name",
-        type=str,
-        default='melman',
-        help="Name of Kowalski instance containing source collection",
-    )
-    parser.add_argument(
         "--generateQuadrantFile",
         action='store_true',
         default=False,
@@ -515,13 +522,11 @@ if __name__ == "__main__":
     if args.generateQuadrantFile:
         if args.field_list is None:
             field_dct, _, _ = check_quads_for_sources(
-                kowalski_instance_name=args.kowalski_instance_name,
                 catalog=source_catalog,
             )
         else:
             field_dct, _, _ = check_quads_for_sources(
                 fields=args.field_list,
-                kowalski_instance_name=args.kowalski_instance_name,
                 catalog=source_catalog,
             )
 

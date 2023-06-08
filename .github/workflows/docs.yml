@@ -42,8 +42,9 @@ jobs:
         ./scope.py lint
     - name: Build docs
       env:
-        KOWALSKI_TOKEN: ${{ secrets.KOWALSKI_TOKEN }}
-        KOWALSKI_ALT_TOKEN: ${{ secrets.KOWALSKI_ALT_TOKEN }}
+        KOWALSKI_INSTANCE_TOKEN: ${{ secrets.KOWALSKI_INSTANCE_TOKEN }}
+        GLORIA_INSTANCE_TOKEN: ${{ secrets.GLORIA_INSTANCE_TOKEN }}
+        MELMAN_INSTANCE_TOKEN: ${{ secrets.MELMAN_INSTANCE_TOKEN }}
       run: |
         ./scope.py doc
     - name: Install SSH Client 🔑

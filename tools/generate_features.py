@@ -36,30 +36,34 @@ config_path = pathlib.Path(__file__).parent.parent.absolute() / "config.yaml"
 with open(config_path) as config_yaml:
     config = yaml.load(config_yaml, Loader=yaml.FullLoader)
 
-# use token specified as env var (if exists)
-kowalski_token_env = os.environ.get("KOWALSKI_TOKEN")
-kowalski_alt_token_env = os.environ.get("KOWALSKI_ALT_TOKEN")
-if (kowalski_token_env is not None) & (kowalski_alt_token_env is not None):
-    config["kowalski"]["token"] = kowalski_token_env
-    config["kowalski"]["alt_token"] = kowalski_alt_token_env
+# use tokens specified as env vars (if exist)
+kowalski_token_env = os.environ.get("KOWALSKI_INSTANCE_TOKEN")
+gloria_token_env = os.environ.get("GLORIA_INSTANCE_TOKEN")
+melman_token_env = os.environ.get("MELMAN_INSTANCE_TOKEN")
+
+if kowalski_token_env is not None:
+    config["kowalski"]["hosts"]["kowalski"]["token"] = kowalski_token_env
+if gloria_token_env is not None:
+    config["kowalski"]["hosts"]["gloria"]["token"] = gloria_token_env
+if melman_token_env is not None:
+    config["kowalski"]["hosts"]["melman"]["token"] = melman_token_env
 
 timeout = config['kowalski']['timeout']
 
-gloria = Kowalski(**config['kowalski'], verbose=False)
-melman = Kowalski(
-    token=config['kowalski']['token'],
-    protocol="https",
-    host="melman.caltech.edu",
-    port=443,
-    timeout=timeout,
-)
-kowalski = Kowalski(
-    token=config['kowalski']['alt_token'],
-    protocol="https",
-    host="kowalski.caltech.edu",
-    port=443,
-    timeout=timeout,
-)
+hosts = [
+    x
+    for x in config['kowalski']['hosts']
+    if config['kowalski']['hosts'][x]['token'] is not None
+]
+instances = {
+    host: {
+        'protocol': config['kowalski']['protocol'],
+        'port': config['kowalski']['port'],
+        'host': f'{host}.caltech.edu',
+        'token': config['kowalski']['hosts'][host]['token'],
+    }
+    for host in hosts
+}
 
 source_catalog = config['kowalski']['collections']['sources']
 alerts_catalog = config['kowalski']['collections']['alerts']
@@ -69,12 +73,12 @@ ext_catalog_info = config['feature_generation']['external_catalog_features']
 cesium_feature_list = config['feature_generation']['cesium_features']
 period_algorithms = config['feature_generation']['period_algorithms']
 
-kowalski_instances = {'kowalski': kowalski, 'gloria': gloria, 'melman': melman}
+kowalski_instances = Kowalski(timeout=timeout, instances=instances)
 
 
 def drop_close_bright_stars(
     id_dct: dict,
-    kowalski_instance: Kowalski,
+    kowalski_instances: Kowalski,
     catalog: str = gaia_catalog,
     query_radius_arcsec: float = 300.0,
     xmatch_radius_arcsec: float = 2.0,
@@ -88,7 +92,7 @@ def drop_close_bright_stars(
     Use Gaia to identify and drop sources that are too close to bright stars
 
     :param id_dct: one quadrant's worth of id-coordinate pairs (dict)
-    :param kowalski_instance: authenticated instance of a Kowalski database
+    :param kowalski_instances: authenticated instances of Kowalski databases
     :param catalog: name of catalog to use [currently only supports Gaia catalogs] (str)
     :param query_radius_arcsec: size of cone search radius to search for bright stars.
         Default is 300 corresponding with approximate maximum from A. Drake's exclusion radius (float)
@@ -151,15 +155,18 @@ def drop_close_bright_stars(
             },
         }
 
-        q = kowalski_instance.query(query)
+        responses = kowalski_instances.query(query)
+        for name in responses.keys():
+            if len(responses[name]) > 0:
+                response = responses[name]
+                if response.get("status", "error") == "success":
+                    gaia_results = response.get("data")
+                    gaia_results_dct.update(gaia_results[catalog])
 
-        gaia_results = q.get('data')
-        gaia_results_dct.update(gaia_results[catalog])
+            print('Identifying sources too close to bright stars...')
 
-        print('Identifying sources too close to bright stars...')
-
-        # Loop over each id to compare with query results
-        query_result = np.array(gaia_results_dct['quad'])
+            # Loop over each id to compare with query results
+            query_result = np.array(gaia_results_dct['quad'])
 
     else:
         n_sources = len(id_dct)
@@ -216,10 +223,17 @@ def drop_close_bright_stars(
                     for dct in radec_split_list
                 ]
 
-                q = kowalski_instance.batch_query(queries, n_treads=8)
-                for batch_result in q:
-                    gaia_results = batch_result['data'][catalog]
-                    gaia_results_dct.update(gaia_results)
+                responses = kowalski_instances.query(
+                    queries=queries, use_batch_query=True, max_n_threads=Ncore
+                )
+                for name in responses.keys():
+                    if len(responses[name]) > 0:
+                        response_list = responses[name]
+                        for response in response_list:
+                            if response.get("status", "error") == "success":
+                                gaia_results = response.get('data').get(catalog)
+                                gaia_results_dct.update(gaia_results)
+
             else:
                 # Get Gaia EDR3 ID, G mag, BP-RP, and coordinates
                 query = {
@@ -248,9 +262,13 @@ def drop_close_bright_stars(
                         "filter": {},
                     },
                 }
-                q = kowalski_instance.query(query)
-                gaia_results = q['data'][catalog]
-                gaia_results_dct.update(gaia_results)
+                responses = kowalski_instances.query(query)
+                for name in responses.keys():
+                    if len(responses[name]) > 0:
+                        response = responses[name]
+                        if response.get("status", "error") == "success":
+                            gaia_results = response.get('data').get(catalog)
+                            gaia_results_dct.update(gaia_results)
         query_result = gaia_results_dct
 
     if len(query_result) > 0:
@@ -366,8 +384,6 @@ def drop_close_bright_stars(
     if save:
         with open(str(BASE_DIR / save_filename), 'w') as f:
             json.dump(id_dct_keep, f)
-        # save_df = pd.DataFrame.from_dict(id_dct_keep, orient='index')
-        # write_parquet(save_df, str(BASE_DIR / save_filename))
 
     print(f"Dropped {len(id_dct) - len(id_dct_keep)} sources.")
     return id_dct_keep
@@ -411,7 +427,7 @@ def generate_features(
     gaia_catalog: str = gaia_catalog,
     bright_star_query_radius_arcsec: float = 300.0,
     xmatch_radius_arcsec: float = 2.0,
-    kowalski_instances: dict = kowalski_instances,
+    kowalski_instances: Kowalski = kowalski_instances,
     limit: int = 10000,
     period_algorithms: dict = period_algorithms,
     period_batch_size: int = 1000,
@@ -447,14 +463,14 @@ def generate_features(
     :param gaia_catalog*: name of Kowalski catalog containing Gaia data (str)
     :param bright_star_query_radius_arcsec: maximum angular distance from ZTF sources to query nearby bright stars in Gaia (float)
     :param xmatch_radius_arcsec: maximum angular distance from ZTF sources to match external catalog sources (float)
-    :param kowalski_instances*: dictionary containing {names of Kowalski instances : authenticated penquins.Kowalski objects} (dict)
+    :param kowalski_instances*: authenticated instances of Kowalski databases (penquins.Kowalski)
     :param limit: maximum number of sources to process in batch queries / statistics calculations (int)
     :param period_algorithms*: dictionary containing names of period algorithms to run. Normally specified in config - if specified here, should be a (list)
     :param period_batch_size: maximum number of sources to simultaneously perform period finding (int)
     :param doCPU: flag to run config-specified CPU period algorithms (bool)
     :param doGPU: flag to run config-specified GPU period algorithms (bool)
     :param samples_per_peak: number of samples per periodogram peak (int)
-    :param doScaleMinPeriod: for period finding, scale min period based on min_cadence_minutes (bool). Otherwise, set --max_freq to desired value
+    :param doScaleMinPeriod: for period finding, scale min period based on min_cadence_minutes [otherwise, min P = 3 min] (bool)
     :param doRemoveTerrestrial: remove terrestrial frequencies from period-finding analysis (bool)
     :param Ncore: number of CPU cores to parallelize queries (int)
     :param field: ZTF field to run (int)
@@ -473,7 +489,6 @@ def generate_features(
     :param doSpecificIDs: flag to perform feature generation for ztf_id column in config-specified file (bool)
     :param skipCloseSources: flag to skip removal of sources too close to bright stars via Gaia (bool)
     :param top_n_periods: number of ELS, ECE periods to pass to EAOV if using ELS_ECE_EAOV algorithm (int)
-    :param max_freq: maximum frequency [1 / days] to use for period finding (float). Overridden by --doScaleMinPeriod
 
     :return feature_df: dataframe containing generated features
 
@@ -511,7 +526,7 @@ def generate_features(
         _, lst = get_ids_loop(
             get_field_ids,
             catalog=source_catalog,
-            kowalski_instance=kowalski_instances['melman'],
+            kowalski_instances=kowalski_instances,
             limit=limit,
             field=field,
             ccd_range=ccd,
@@ -526,10 +541,12 @@ def generate_features(
             # Each index of lst corresponds to a different ccd/quad combo
             feature_gen_source_dict = drop_close_bright_stars(
                 lst[0],
-                kowalski_instance=kowalski_instances['gloria'],
+                kowalski_instances=kowalski_instances,
                 catalog=gaia_catalog,
                 query_radius_arcsec=bright_star_query_radius_arcsec,
                 xmatch_radius_arcsec=xmatch_radius_arcsec,
+                limit=limit,
+                Ncore=Ncore,
             )
         else:
             feature_gen_source_dict = lst[0]
@@ -608,13 +625,12 @@ def generate_features(
                 }
 
             lst = [dct_for_lst]
-
             print(f'Loaded ZTF IDs for {len(lst[0])} sources.')
 
             # Each index of lst corresponds to a different ccd/quad combo
             feature_gen_source_dict = drop_close_bright_stars(
                 lst[0],
-                kowalski_instance=kowalski_instances['gloria'],
+                kowalski_instances=kowalski_instances,
                 catalog=gaia_catalog,
                 query_radius_arcsec=bright_star_query_radius_arcsec,
                 xmatch_radius_arcsec=xmatch_radius_arcsec,
@@ -638,11 +654,12 @@ def generate_features(
     feature_gen_ids = [x for x in feature_gen_source_dict.keys()]
 
     lcs = get_lightcurves_via_ids(
-        kowalski_instance=kowalski_instances['melman'],
+        kowalski_instances=kowalski_instances,
         ids=feature_gen_ids,
         catalog=source_catalog,
         limit_per_query=lc_limit,
         Ncore=Ncore,
+        get_basic_data=True,
     )
 
     # Remake feature_gen_source_dict if some light curves are missing
@@ -664,6 +681,7 @@ def generate_features(
             print(f"{count} done")
         if count == len(lcs):
             print(f"{count} done")
+
         _id = lc['_id']
         lc_unflagged = [x for x in lc['data'] if x['catflags'] == 0]
         flt = lc['filter']
@@ -761,10 +779,9 @@ def generate_features(
         # Define frequency grid using largest LC time baseline
         if doScaleMinPeriod:
             fmin, fmax = 2 / baseline, 1 / (
-                2 * min_cadence_minutes / 1440.0
+                2 * min_cadence_minutes / 1440
             )  # Nyquist frequency given minimum cadence converted to days
         else:
-            # Default minimum period is 30 min
             fmin, fmax = 2 / baseline, max_freq
 
         df = 1.0 / (samples_per_peak * baseline)
@@ -781,7 +798,6 @@ def generate_features(
                 [0.0005, 0.0006],  # 5 y
                 [0.005, 0.006],  # 0.5 y
                 [3e-2, 4e-2],  # 30 d
-                [4.95, 5.05],  # 0.2 d
                 [3.95, 4.05],  # 0.25 d
                 [2.95, 3.05],  # 0.33 d
                 [1.95, 2.05],  # 0.5 d
@@ -871,13 +887,11 @@ def generate_features(
                         )
 
                     else:
-                        # Different workflow if nesting algorithms
                         p_vals = [p['period'] for p in periods]
                         p_stats = [p['data'] for p in periods]
                         all_periods[algorithm] = np.concatenate(
                             [all_periods[algorithm], p_vals]
                         )
-
                         if algorithm == 'ELS_periodogram':
                             # Maximum statistic is best for ELS; select top N
                             topN_significance_indices_ELS = [
@@ -891,7 +905,6 @@ def generate_features(
                                 for ps in p_stats
                             ]
                         elif algorithm == 'EAOV_periodogram':
-                            # Combine top ELS, ECE results by source
                             ELS_ECE_top_indices = np.concatenate(
                                 [
                                     topN_significance_indices_ELS,
@@ -899,25 +912,20 @@ def generate_features(
                                 ],
                                 axis=1,
                             )
-
-                            # Ensure no duplicate periods
                             ELS_ECE_top_indices = [
                                 np.unique(x) for x in ELS_ECE_top_indices
                             ]
 
-                            # Determine where EAOV statistic is maximum among the options given by ELS/ECE
                             best_index_of_indices = [
                                 np.argmax(p_stats[i][ELS_ECE_top_indices[i]])
                                 for i in range(len(p_stats))
                             ]
 
-                            # The above index is only to the local list, we need the index to the freqs array
                             best_indices = [
                                 ELS_ECE_top_indices[i][best_index_of_indices[i]]
                                 for i in range(len(ELS_ECE_top_indices))
                             ]
 
-                            # Assign ELS_ECE_EAOV periods
                             all_periods['ELS_ECE_EAOV'] = np.concatenate(
                                 [
                                     all_periods['ELS_ECE_EAOV'],
@@ -925,7 +933,6 @@ def generate_features(
                                 ]
                             )
 
-                            # Assign ELS_ECE_EAOV significances using full EAOV significance value at that period
                             all_significances['ELS_ECE_EAOV'] = np.concatenate(
                                 [
                                     all_significances['ELS_ECE_EAOV'],
@@ -936,7 +943,6 @@ def generate_features(
                                 ]
                             )
 
-                            # Assign pdots from full EAOV run
                             all_pdots['ELS_ECE_EAOV'] = np.concatenate(
                                 [
                                     all_pdots['ELS_ECE_EAOV'],
@@ -1031,7 +1037,7 @@ def generate_features(
         # Get ZTF alert stats
         alert_stats_dct = alertstats.get_ztf_alert_stats(
             feature_dict,
-            kowalski_instance=kowalski_instances['kowalski'],
+            kowalski_instances=kowalski_instances,
             radius_arcsec=xmatch_radius_arcsec,
             limit=limit,
             Ncore=Ncore,
@@ -1045,7 +1051,7 @@ def generate_features(
         # Add crossmatches to Gaia, AllWISE and PS1 (by default, see config.yaml)
         feature_dict = external_xmatch.xmatch(
             feature_dict,
-            kowalski_instances['gloria'],
+            kowalski_instances,
             catalog_info=ext_catalog_info,
             radius_arcsec=xmatch_radius_arcsec,
             limit=limit,
@@ -1218,7 +1224,7 @@ if __name__ == "__main__":
         "--doScaleMinPeriod",
         action='store_true',
         default=False,
-        help="if set, scale min period using min_cadence_minutes. Otherwise, set --max_freq to desired value",
+        help="if set, scale min period using min_cadence_minutes",
     )
     parser.add_argument(
         "--doRemoveTerrestrial",
