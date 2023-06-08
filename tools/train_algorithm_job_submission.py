@@ -179,7 +179,7 @@ if __name__ == '__main__':
     subDir = os.path.join(slurmDir, filetype)
     subfile = os.path.join(subDir, '%s.sub' % filetype)
 
-    _, tags_remaining_to_run = filter_completed(
+    tags_remaining_to_complete, tags_remaining_to_run = filter_completed(
         tags, group, algorithm, sweep=sweep, reset_running=reset_running
     )
     njobs = len(tags_remaining_to_run)
@@ -218,10 +218,10 @@ if __name__ == '__main__':
             time.sleep(args.wait_time_minutes * 60)
 
             # Filter completed runs, redefine njobs using tags_remaininig_to_complete
-            _, tags_remaining_to_run = filter_completed(
+            tags_remaining_to_complete, tags_remaining_to_run = filter_completed(
                 tags_remaining_to_run, group, algorithm, sweep=sweep
             )
-            njobs = len(tags_remaining_to_run)
+            njobs = len(tags_remaining_to_complete)
             print('%d jobs remaining...' % njobs)
 
             # Compute difference in njobs to count available instances
