@@ -446,6 +446,12 @@ if __name__ == "__main__":
         default="bhealy",
         help="HPC username",
     )
+    parser.add_argument(
+        "--submit_interval_minutes",
+        type=float,
+        default=1.0,
+        help="Time to wait between job submissions (minutes)",
+    )
 
     args = parser.parse_args()
 
@@ -645,7 +651,7 @@ if __name__ == "__main__":
     if not args.doSubmitLoop:
         if args.runParallel:
             fid.write(
-                '%s/generate_features_job_submission.py --dirname %s --filename %s --doSubmit --runParallel --max_instances %s --wait_time_minutes %s --user %s\n'
+                '%s/generate_features_job_submission.py --dirname %s --filename %s --doSubmit --runParallel --max_instances %s --wait_time_minutes %s --user %s --submit_interval_minutes %s\n'
                 % (
                     BASE_DIR / 'tools',
                     dirpath,
@@ -653,11 +659,12 @@ if __name__ == "__main__":
                     args.max_instances,
                     args.wait_time_minutes,
                     args.user,
+                    args.submit_interval_minutes,
                 )
             )
         else:
             fid.write(
-                '%s/generate_features_job_submission.py --dirname %s --filename %s --doSubmit --max_instances %s --wait_time_minutes %s --user %s\n'
+                '%s/generate_features_job_submission.py --dirname %s --filename %s --doSubmit --max_instances %s --wait_time_minutes %s --user %s --submit_interval_minutes %s\n'
                 % (
                     BASE_DIR / 'tools',
                     dirpath,
@@ -665,6 +672,7 @@ if __name__ == "__main__":
                     args.max_instances,
                     args.wait_time_minutes,
                     args.user,
+                    args.submit_interval_minutes,
                 )
             )
     else:

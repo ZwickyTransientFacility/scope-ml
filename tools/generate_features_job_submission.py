@@ -81,6 +81,12 @@ def parse_commandline():
         default=False,
         help="If set, reset the 'running' status of all tags",
     )
+    parser.add_argument(
+        "--submit_interval_minutes",
+        type=float,
+        default=1.0,
+        help="Time to wait between job submissions (minutes)",
+    )
 
     args = parser.parse_args()
 
@@ -149,7 +155,16 @@ def filter_completed(df, resultsDir, filename, reset_running=False):
     return df_toComplete, df_toRun
 
 
-def run_job(df, quadrant_index, resultsDir, filename, runParallel=False):
+def run_job(
+    df,
+    quadrant_index,
+    resultsDir,
+    filename,
+    runParallel=False,
+    submit_interval_minutes=1.0,
+):
+    # Don't hit kowalski with too many simultaneous queries
+    time.sleep(submit_interval_minutes * 60)
 
     row = df.iloc[quadrant_index]
     field, ccd, quadrant = int(row["field"]), int(row["ccd"]), int(row["quadrant"])
@@ -241,6 +256,7 @@ if __name__ == '__main__':
                         resultsDir,
                         filename,
                         runParallel=args.runParallel,
+                        submit_interval_minutes=args.submit_interval_minutes,
                     )
                     counter += 1
 
@@ -291,6 +307,7 @@ if __name__ == '__main__':
                     resultsDir,
                     filename,
                     runParallel=args.runParallel,
+                    submit_interval_minutes=args.submit_interval_minutes,
                 )
         else:
             print('Canceled loop submission.')
