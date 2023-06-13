@@ -36,7 +36,7 @@ with open(config_path) as config_yaml:
 period_suffix = config['features']['info']['period_suffix']
 
 # Load training set
-trainingSetPath = config['training']['dataset']
+trainingSetPath = BASE_DIR + '/' + config['training']['dataset']
 if trainingSetPath.endswith('.parquet'):
     try:
         TRAINING_SET = read_parquet(trainingSetPath)
