@@ -25,12 +25,6 @@ def parse_commandline():
         help="Directory name for training slurm scripts",
     )
     parser.add_argument(
-        "--scriptname",
-        type=str,
-        default='get_all_preds.sh',
-        help="inference script name",
-    )
-    parser.add_argument(
         "-f", "--filetype", default="slurm", help="Type of job submission file"
     )
     parser.add_argument(
@@ -76,12 +70,10 @@ if __name__ == '__main__':
 
     dir_path = os.path.dirname(os.path.realpath(__file__))
 
-    scriptname = args.scriptname
     filetype = args.filetype
     dirname = args.dirname
 
     slurmDir = str(BASE_DIR / dirname)
-    scriptpath = str(BASE_DIR / scriptname)
 
     fields = config['inference']['fields_to_run']
     algorithm = args.algorithm
