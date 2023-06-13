@@ -1149,6 +1149,7 @@ class Scope:
         scale_features: str = 'min_max',
         feature_directory: str = 'features',
         write_csv: bool = False,
+        batch_size: int = 100000,
         **kwargs,
     ):
         """
@@ -1159,7 +1160,8 @@ class Scope:
         :param algorithm: algorithm to use in script (str)
         :param scale_features: method to scale features (str, currently "min_max" or "median_std")
         :param feature_directory: name of directory containing downloaded or generated features (str)
-        :param write_csv: if True, write CSV file in addition to HDF5 (bool)
+        :param write_csv: if True, write CSV file in addition to parquet (bool)
+        :param batch_size: batch size to use when reading feature files (int)
 
         :return:
         Saves shell script to use when running inference
@@ -1212,7 +1214,7 @@ class Scope:
                     model_class_names_str += f'{tag} '
 
                 script.write(
-                    f'echo -n "Running inference..." && python tools/inference.py --paths_models {paths_models_str} --model_class_names {model_class_names_str} --field $1 --whole_field --flag_ids --scale_features {scale_features} --feature_directory {feature_directory} --period_suffix {period_suffix} {addtl_args} && echo "done"\n'
+                    f'echo -n "Running inference..." && python tools/inference.py --paths_models {paths_models_str} --model_class_names {model_class_names_str} --field $1 --whole_field --flag_ids --scale_features {scale_features} --feature_directory {feature_directory} --period_suffix {period_suffix} --batch_size {batch_size} {addtl_args} && echo "done"\n'
                 )
 
             elif algorithm in ['XGB', 'xgb', 'XGBoost', 'xgboost', 'XGBOOST']:
@@ -1230,7 +1232,7 @@ class Scope:
                     model_class_names_str += f'{tag} '
 
                 script.write(
-                    f'echo -n "Running inference..." && python tools/inference.py --paths_models {paths_models_str} --model_class_names {model_class_names_str} --scale_features {scale_features} --feature_directory {feature_directory} --period_suffix {period_suffix} --xgb_model --field $1 --whole_field --flag_ids {addtl_args} && echo "done"\n'
+                    f'echo -n "Running inference..." && python tools/inference.py --paths_models {paths_models_str} --model_class_names {model_class_names_str} --scale_features {scale_features} --feature_directory {feature_directory} --period_suffix {period_suffix} --batch_size {batch_size} --xgb_model --field $1 --whole_field --flag_ids {addtl_args} && echo "done"\n'
                 )
 
             else:

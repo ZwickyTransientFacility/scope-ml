@@ -142,10 +142,18 @@ def clean_data(
                 missing_dict[id.astype(str)] += [feature]  # add feature to dict
 
     # impute missing values as specified in config
-    # (Should already be complete to save time here)
-    features_df = impute_features(
-        features_df, self_impute=True, period_suffix=period_suffix
-    )
+    try:
+        features_df = impute_features(
+            features_df, self_impute=True, period_suffix=period_suffix
+        )
+    except KeyError:
+        print(
+            'KeyError during self-imputation - imputing features using training set specified in config.yaml'
+        )
+        print()
+        features_df = impute_features(
+            features_df, self_impute=False, period_suffix=period_suffix
+        )
 
     if flag_ids:
         os.makedirs(os.path.dirname(filename), exist_ok=True)
@@ -178,6 +186,7 @@ def run_inference(
     feature_file_prefix: str = 'generated_features',
     period_suffix: str = None,
     no_write_metadata: bool = False,
+    batch_size: int = 100000,
     **kwargs,
 ):
     """
@@ -223,6 +232,8 @@ def run_inference(
         suffix of column containing period to save with inference results
     no_write_metadata: bool
         if True, do not write metadata [useful for testing] (bool)
+    batch_size: int
+        batch size to use when reading feature files (int)
 
     Returns
     =======
@@ -316,7 +327,7 @@ def run_inference(
 
     ts = time.time()
     DS = ds.dataset(features_filename, format='parquet')
-    generator = DS.to_batches()
+    generator = DS.to_batches(batch_size=batch_size)
     te = time.time()
     if time_run:
         print(
@@ -692,6 +703,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--no_write_metadata", action='store_true', help="flag to not write metadata"
     )
+    parser.add_argument(
+        "--batch_size",
+        type=int,
+        default=100000,
+        help="batch size to use when reading feature files",
+    )
 
     args = parser.parse_args()
 
@@ -714,4 +731,5 @@ if __name__ == "__main__":
         feature_directory=args.feature_directory,
         period_suffix=args.period_suffix,
         no_write_metadata=args.no_write_metadata,
+        batch_size=args.batch_size,
     )
