@@ -40,12 +40,6 @@ def parse_commandline():
         help="HPC username",
     )
     parser.add_argument(
-        "--group_name",
-        type=str,
-        default=None,
-        help="Group name",
-    )
-    parser.add_argument(
         "--algorithm",
         type=str,
         default='dnn',
@@ -85,14 +79,11 @@ if __name__ == '__main__':
     scriptname = args.scriptname
     filetype = args.filetype
     dirname = args.dirname
-    sweep = args.sweep
-    reset_running = args.reset_running
 
     slurmDir = str(BASE_DIR / dirname)
     scriptpath = str(BASE_DIR / scriptname)
 
     fields = config['inference']['fields_to_run']
-    group = args.group_name
     algorithm = args.algorithm
 
     subDir = os.path.join(slurmDir, filetype)
