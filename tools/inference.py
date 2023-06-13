@@ -38,19 +38,19 @@ period_suffix = config['features']['info']['period_suffix']
 
 # Load training set
 trainingSetPath = BASE_DIR / config['training']['dataset']
-if trainingSetPath.endswith('.parquet'):
+if trainingSetPath.suffix == '.parquet':
     try:
         TRAINING_SET = read_parquet(trainingSetPath)
     except FileNotFoundError:
         warnings.warn('Training set file not found.')
         TRAINING_SET = []
-elif trainingSetPath.endswith('.h5'):
+elif trainingSetPath.suffix == '.h5':
     try:
         TRAINING_SET = read_hdf(trainingSetPath)
     except FileNotFoundError:
         warnings.warn('Training set file not found.')
         TRAINING_SET = []
-elif trainingSetPath.endswith('.csv'):
+elif trainingSetPath.suffix == '.csv':
     try:
         TRAINING_SET = pd.read_csv(trainingSetPath)
     except FileNotFoundError:
@@ -115,7 +115,7 @@ def clean_data(
     # file to store flagged ids and features with missing values
     if not whole_field:
         filename = (
-            BASE_DIR
+            str(BASE_DIR)
             + f"/preds_{algorithm}/field_"
             + str(field)
             + "/ccd_"
@@ -126,7 +126,7 @@ def clean_data(
         )
     else:
         filename = (
-            BASE_DIR
+            str(BASE_DIR)
             + f"/preds_{algorithm}/field_"
             + str(field)
             + f"/field_{field}_flagged.json"
