@@ -108,7 +108,6 @@ if __name__ == '__main__':
         # Only run jobs from tags_remaining_to_run list
         run_job(
             field,
-            algorithm,
         )
 
     os.system(f"squeue -u {args.user}")
