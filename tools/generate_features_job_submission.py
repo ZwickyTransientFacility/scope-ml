@@ -230,17 +230,18 @@ if __name__ == '__main__':
     )
     njobs = len(df_to_run)
     nchoice = njobs
-    print('%d jobs remaining...' % njobs)
+    print('%d jobs remaining to complete...' % njobs)
+    print('%d jobs remaining to queue...' % nchoice)
 
     if args.doSubmit:
         counter = 0
         status_njobs = njobs
         diff_njobs = 0
         # Redefine max instances if fewer jobs remain
-        new_max_instances = np.min([args.max_instances, njobs])
+        new_max_instances = np.min([args.max_instances, nchoice])
         size = new_max_instances
         final_round = False
-        if size == njobs:
+        if size == nchoice:
             final_round = True
         while njobs > 0:
             # Limit number of parallel jobs for Kowalski stability
@@ -280,7 +281,8 @@ if __name__ == '__main__':
                 )
                 njobs = len(df_to_complete)
                 nchoice = len(df_to_run)
-                print('%d jobs remaining...' % njobs)
+                print('%d jobs remaining to complete...' % njobs)
+                print('%d jobs remaining to queue...' % nchoice)
 
                 # Compute difference in njobs to count available instances
                 diff_njobs = status_njobs - njobs
@@ -290,9 +292,9 @@ if __name__ == '__main__':
                 counter -= diff_njobs
 
                 # Define size of the next quadrant_indices array
-                size = np.min([new_max_instances - counter, njobs])
+                size = np.min([new_max_instances - counter, nchoice])
                 # Signal to stop looping when the last set of jobs is queued
-                if size == njobs:
+                if size == nchoice:
                     final_round = True
 
     elif args.doSubmitLoop:
