@@ -49,9 +49,10 @@ def filter_completed(fields, algorithm):
     for field in fields:
         searchDir = BASE_DIR / f'preds_{algorithm}' / f'field_{field}'
         searchDir.mkdir(parents=True, exist_ok=True)
-        has_files = any(searchDir.iterdir())
+        generator = searchDir.iterdir()
+        has_parquet = [x.suffix == '.parquet' for x in generator]
 
-        if has_files:
+        if has_parquet:
             fields.remove(field)
 
     print('Models remaining to run: ', len(fields))

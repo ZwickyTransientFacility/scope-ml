@@ -319,6 +319,9 @@ def run_inference(
     ccd_collection = np.array([])
     quad_collection = np.array([])
     filter_collection = np.array([])
+    gaia_edr3_id_collection = np.array([], dtype=np.int64)
+    allwise_id_collection = np.array([], dtype=np.int64)
+    ps1_dr1_id_collection = np.array([], dtype=np.int64)
     preds_collection = []
     filename = kwargs.get("output", default_outfile)
 
@@ -366,6 +369,18 @@ def run_inference(
         )
         quad_collection = np.concatenate(
             [quad_collection, features['quad'].astype("Int64").values]
+        )
+        gaia_edr3_id_collection = np.concatenate(
+            [
+                gaia_edr3_id_collection,
+                features['Gaia_EDR3___id'].fillna(0).astype("Int64"),
+            ]
+        )
+        allwise_id_collection = np.concatenate(
+            [allwise_id_collection, features['AllWISE___id'].fillna(0).astype("Int64")]
+        )
+        ps1_dr1_id_collection = np.concatenate(
+            [ps1_dr1_id_collection, features['PS1_DR1___id'].fillna(0).astype("Int64")]
         )
         try:
             filter_collection = np.concatenate(
@@ -595,10 +610,9 @@ def run_inference(
     if 'fritz_name' in features.columns:
         preds_df['obj_id'] = features['fritz_name']
 
-    preds_df['Gaia_EDR3___id'] = features['Gaia_EDR3___id'].fillna(0).astype("Int64")
-    preds_df['AllWISE___id'] = features['AllWISE___id'].fillna(0).astype("Int64")
-    preds_df['PS1_DR1___id'] = features['PS1_DR1___id'].fillna(0).astype("Int64")
-
+    preds_df['Gaia_EDR3___id'] = gaia_edr3_id_collection
+    preds_df['AllWISE___id'] = allwise_id_collection
+    preds_df['PS1_DR1___id'] = ps1_dr1_id_collection
     preds_df['ra'] = ra_collection
     preds_df['dec'] = dec_collection
     preds_df['period'] = period_collection
