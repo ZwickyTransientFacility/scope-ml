@@ -1170,7 +1170,8 @@ class Scope:
                     --algorithm='dnn' --feature_directory='generated_features'
         """
 
-        path = str(pathlib.Path(__file__).parent.absolute() / filename)
+        base_path = pathlib.Path(__file__).parent.absolute()
+        path = str(base_path / filename)
         group_path = (
             pathlib.Path(__file__).parent.absolute()
             / f'models_{algorithm}'
@@ -1208,13 +1209,11 @@ class Scope:
                         [file for file in tag_file_gen], key=os.path.getctime
                     ).name
 
-                    paths_models_str += (
-                        f'models_{algorithm}/{group_name}/{tag}/{most_recent_file} '
-                    )
+                    paths_models_str += f'{str(base_path)}/models_{algorithm}/{group_name}/{tag}/{most_recent_file} '
                     model_class_names_str += f'{tag} '
 
                 script.write(
-                    f'echo -n "Running inference..." && python tools/inference.py --paths_models {paths_models_str} --model_class_names {model_class_names_str} --field $1 --whole_field --flag_ids --scale_features {scale_features} --feature_directory {feature_directory} --period_suffix {period_suffix} --batch_size {batch_size} {addtl_args} && echo "done"\n'
+                    f'echo -n "Running inference..." && python {str(base_path)}/tools/inference.py --paths_models {paths_models_str} --model_class_names {model_class_names_str} --field $1 --whole_field --flag_ids --scale_features {scale_features} --feature_directory {feature_directory} --period_suffix {period_suffix} --batch_size {batch_size} {addtl_args} && echo "done"\n'
                 )
 
             elif algorithm in ['XGB', 'xgb', 'XGBoost', 'xgboost', 'XGBOOST']:
@@ -1226,13 +1225,11 @@ class Scope:
                         [file for file in tag_file_gen], key=os.path.getctime
                     ).name
 
-                    paths_models_str += (
-                        f'models_{algorithm}/{group_name}/{tag}/{most_recent_file} '
-                    )
+                    paths_models_str += f'{str(base_path)}/models_{algorithm}/{group_name}/{tag}/{most_recent_file} '
                     model_class_names_str += f'{tag} '
 
                 script.write(
-                    f'echo -n "Running inference..." && python tools/inference.py --paths_models {paths_models_str} --model_class_names {model_class_names_str} --scale_features {scale_features} --feature_directory {feature_directory} --period_suffix {period_suffix} --batch_size {batch_size} --xgb_model --field $1 --whole_field --flag_ids {addtl_args} && echo "done"\n'
+                    f'echo -n "Running inference..." && python {str(base_path)}/tools/inference.py --paths_models {paths_models_str} --model_class_names {model_class_names_str} --scale_features {scale_features} --feature_directory {feature_directory} --period_suffix {period_suffix} --batch_size {batch_size} --xgb_model --field $1 --whole_field --flag_ids {addtl_args} && echo "done"\n'
                 )
 
             else:

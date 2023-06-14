@@ -12,35 +12,6 @@ with open(config_path) as config_yaml:
     config = yaml.load(config_yaml, Loader=yaml.FullLoader)
 
 
-def parse_training_script(script_path):
-    with open(script_path, 'r') as f:
-        lines = f.readlines()
-
-    # Set defaults
-    tags = []
-    group = 'experiment'
-    algorithm = 'dnn'
-
-    for line in lines:
-        if 'scope.py train' in line:
-            line_info = line.removeprefix('./scope.py train').split()
-            for arg in line_info:
-                if '--tag' in arg:
-                    tag = arg.split('=')[1]
-                    tags += [tag]
-                    line_info.remove(arg)
-
-                if '--group' in arg:
-                    group = arg.split('=')[1]
-                    line_info.remove(arg)
-
-                if '--algorithm' in arg:
-                    algorithm = arg.split('=')[1]
-                    line_info.remove(arg)
-
-    return tags, group, algorithm, line_info
-
-
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
@@ -48,19 +19,19 @@ if __name__ == "__main__":
     parser.add_argument(
         "--scriptname",
         type=str,
-        default='train_script.sh',
-        help="Training script filename within scope directory",
+        default='get_all_preds.sh',
+        help="Inference script filename within scope directory",
     )
     parser.add_argument(
         "--dirname",
         type=str,
-        default='training',
+        default='inference',
         help="Directory name for slurm scripts/logs",
     )
     parser.add_argument(
         "--job_name",
         type=str,
-        default='train',
+        default='run_inference',
         help="job name",
     )
     parser.add_argument(
@@ -89,7 +60,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--Ncore",
-        default=4,
+        default=8,
         type=int,
         help="number of cores to request for computing",
     )
@@ -126,7 +97,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--time",
         type=str,
-        default='12:00:00',
+        default='24:00:00',
         help="Walltime for instance",
     )
     parser.add_argument(
@@ -148,53 +119,27 @@ if __name__ == "__main__":
         help="Name of python environment to activate",
     )
     parser.add_argument(
-        "--generateTrainingFile",
-        action='store_true',
-        default=False,
-        help="if set, generate a list of labels and job numbers, save to slurm.dat",
-    )
-    parser.add_argument(
         "--user",
         type=str,
         default="bhealy",
         help="HPC username",
     )
     parser.add_argument(
-        "--max_instances",
-        type=int,
-        default=20,
-        help="Max number of instances to run in parallel",
-    )
-    parser.add_argument(
-        "--wait_time_minutes",
-        type=float,
-        default=5.0,
-        help="Time to wait between job status checks (minutes)",
-    )
-    parser.add_argument(
-        "--submit_interval_seconds",
-        type=float,
-        default=5.0,
-        help="Time to wait between job submissions (seconds)",
-    )
-    parser.add_argument(
-        "--sweep",
-        action='store_true',
-        default=False,
-        help="If set, job submission runs filter_completed in different directory",
+        "--algorithm",
+        type=str,
+        default="dnn",
+        help="dnn or xgb",
     )
 
     args = parser.parse_args()
 
     scriptname = args.scriptname
-
     script_path = BASE_DIR / scriptname
-    _, group, algorithm, line_info = parse_training_script(script_path)
+
+    algorithm = args.algorithm
 
     dirname = f"{algorithm}_{args.dirname}"
     jobname = f"{args.job_name}_{algorithm}"
-    if args.sweep:
-        jobname += "_sweep"
 
     dirpath = BASE_DIR / dirname
     os.makedirs(dirpath, exist_ok=True)
@@ -228,12 +173,10 @@ if __name__ == "__main__":
             fid.write('module add cuda\n')
         fid.write(f'source activate {args.python_env_name}\n')
 
-    fid.write(
-        str(BASE_DIR / 'scope.py train ') + "--tag=$TID " + " ".join(line_info) + '\n'
-    )
+    fid.write(f"{script_path} $FID" + '\n')
     fid.close()
 
-    # Secondary script to manage job submission using train_algorithm_job_submission.py
+    # Secondary script to manage job submission using run_inference_job_submission.py
     # (Python code can also be run interactively)
     fid = open(os.path.join(slurmDir, 'slurm_submission.sub'), 'w')
     fid.write('#!/bin/bash\n')
@@ -254,30 +197,14 @@ if __name__ == "__main__":
         fid.write('module add slurm\n')
         fid.write(f'source activate {args.python_env_name}\n')
 
-    if args.sweep:
-        fid.write(
-            '%s/train_algorithm_job_submission.py --dirname=%s --scriptname=%s --user=%s --max_instances=%s --wait_time_minutes=%s --submit_interval_seconds=%s --sweep\n'
-            % (
-                BASE_DIR / 'tools',
-                dirname,
-                scriptname,
-                args.user,
-                args.max_instances,
-                args.wait_time_minutes,
-                args.submit_interval_seconds,
-            )
+    fid.write(
+        '%s/run_inference_job_submission.py --dirname=%s --scriptname=%s --user=%s --algorithm=%s\n'
+        % (
+            BASE_DIR / 'tools',
+            dirname,
+            scriptname,
+            args.user,
+            algorithm,
         )
-    else:
-        fid.write(
-            '%s/train_algorithm_job_submission.py --dirname=%s --scriptname=%s --user=%s --max_instances=%s --wait_time_minutes=%s --submit_interval_seconds=%s\n'
-            % (
-                BASE_DIR / 'tools',
-                dirname,
-                scriptname,
-                args.user,
-                args.max_instances,
-                args.wait_time_minutes,
-                args.submit_interval_seconds,
-            )
-        )
+    )
     fid.close()

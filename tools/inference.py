@@ -25,31 +25,32 @@ import argparse
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 warnings.filterwarnings('ignore')
 
-BASE_DIR = os.path.dirname(__file__)
+# BASE_DIR = os.path.dirname(__file__)
+BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
 JUST = 50
 
 
-config_path = pathlib.Path(__file__).parent.parent.absolute() / "config.yaml"
+config_path = BASE_DIR / "config.yaml"
 with open(config_path) as config_yaml:
     config = yaml.load(config_yaml, Loader=yaml.FullLoader)
 
 period_suffix = config['features']['info']['period_suffix']
 
 # Load training set
-trainingSetPath = config['training']['dataset']
-if trainingSetPath.endswith('.parquet'):
+trainingSetPath = BASE_DIR / config['training']['dataset']
+if trainingSetPath.suffix == '.parquet':
     try:
         TRAINING_SET = read_parquet(trainingSetPath)
     except FileNotFoundError:
         warnings.warn('Training set file not found.')
         TRAINING_SET = []
-elif trainingSetPath.endswith('.h5'):
+elif trainingSetPath.suffix == '.h5':
     try:
         TRAINING_SET = read_hdf(trainingSetPath)
     except FileNotFoundError:
         warnings.warn('Training set file not found.')
         TRAINING_SET = []
-elif trainingSetPath.endswith('.csv'):
+elif trainingSetPath.suffix == '.csv':
     try:
         TRAINING_SET = pd.read_csv(trainingSetPath)
     except FileNotFoundError:
@@ -114,8 +115,8 @@ def clean_data(
     # file to store flagged ids and features with missing values
     if not whole_field:
         filename = (
-            BASE_DIR
-            + f"/../preds_{algorithm}/field_"
+            str(BASE_DIR)
+            + f"/preds_{algorithm}/field_"
             + str(field)
             + "/ccd_"
             + str(ccd).zfill(2)
@@ -125,8 +126,8 @@ def clean_data(
         )
     else:
         filename = (
-            BASE_DIR
-            + f"/../preds_{algorithm}/field_"
+            str(BASE_DIR)
+            + f"/preds_{algorithm}/field_"
             + str(field)
             + f"/field_{field}_flagged.json"
         )
@@ -255,19 +256,19 @@ def run_inference(
         algorithm = 'dnn'
 
     if field == 'specific_ids':
-        default_features_file = BASE_DIR + f"/../{feature_directory}/specific_ids"
+        default_features_file = str(BASE_DIR / f"{feature_directory}/specific_ids")
     else:
         field = int(field)
         # default file location for source ids
         if whole_field:
             default_features_file = (
-                BASE_DIR + f"/../{feature_directory}/field_" + str(field)
+                str(BASE_DIR) + f"/{feature_directory}/field_" + str(field)
             )
         else:
             if feature_directory == 'features':
                 default_features_file = (
-                    BASE_DIR
-                    + f"/../{feature_directory}/field_"
+                    str(BASE_DIR)
+                    + f"/{feature_directory}/field_"
                     + str(field)
                     + "/ccd_"
                     + str(ccd).zfill(2)
@@ -277,8 +278,8 @@ def run_inference(
                 )
             else:
                 default_features_file = (
-                    BASE_DIR
-                    + f"/../{feature_directory}/field_"
+                    str(BASE_DIR)
+                    + f"/{feature_directory}/field_"
                     + str(field)
                     + f"/{feature_file_prefix}_"
                     + "field_"
@@ -291,10 +292,10 @@ def run_inference(
                 )
 
     features_filename = kwargs.get("features_filename", default_features_file)
-    features_filename = os.path.join(BASE_DIR, features_filename)
+    # features_filename = os.path.join(str(BASE_DIR), features_filename)
 
     out_dir = os.path.join(
-        os.path.dirname(__file__), f"{BASE_DIR}/../preds_{algorithm}/"
+        os.path.dirname(__file__), f"{str(BASE_DIR)}/preds_{algorithm}/"
     )
 
     if not whole_field:
@@ -318,6 +319,9 @@ def run_inference(
     ccd_collection = np.array([])
     quad_collection = np.array([])
     filter_collection = np.array([])
+    gaia_edr3_id_collection = np.array([], dtype=np.int64)
+    allwise_id_collection = np.array([], dtype=np.int64)
+    ps1_dr1_id_collection = np.array([], dtype=np.int64)
     preds_collection = []
     filename = kwargs.get("output", default_outfile)
 
@@ -365,6 +369,18 @@ def run_inference(
         )
         quad_collection = np.concatenate(
             [quad_collection, features['quad'].astype("Int64").values]
+        )
+        gaia_edr3_id_collection = np.concatenate(
+            [
+                gaia_edr3_id_collection,
+                features['Gaia_EDR3___id'].fillna(0).astype("Int64"),
+            ]
+        )
+        allwise_id_collection = np.concatenate(
+            [allwise_id_collection, features['AllWISE___id'].fillna(0).astype("Int64")]
+        )
+        ps1_dr1_id_collection = np.concatenate(
+            [ps1_dr1_id_collection, features['PS1_DR1___id'].fillna(0).astype("Int64")]
         )
         try:
             filter_collection = np.concatenate(
@@ -594,10 +610,9 @@ def run_inference(
     if 'fritz_name' in features.columns:
         preds_df['obj_id'] = features['fritz_name']
 
-    preds_df['Gaia_EDR3___id'] = features['Gaia_EDR3___id'].fillna(0).astype("Int64")
-    preds_df['AllWISE___id'] = features['AllWISE___id'].fillna(0).astype("Int64")
-    preds_df['PS1_DR1___id'] = features['PS1_DR1___id'].fillna(0).astype("Int64")
-
+    preds_df['Gaia_EDR3___id'] = gaia_edr3_id_collection
+    preds_df['AllWISE___id'] = allwise_id_collection
+    preds_df['PS1_DR1___id'] = ps1_dr1_id_collection
     preds_df['ra'] = ra_collection
     preds_df['dec'] = dec_collection
     preds_df['period'] = period_collection
