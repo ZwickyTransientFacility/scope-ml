@@ -1209,9 +1209,7 @@ class Scope:
                         [file for file in tag_file_gen], key=os.path.getctime
                     ).name
 
-                    paths_models_str += (
-                        f'models_{algorithm}/{group_name}/{tag}/{most_recent_file} '
-                    )
+                    paths_models_str += f'{str(base_path)}/models_{algorithm}/{group_name}/{tag}/{most_recent_file} '
                     model_class_names_str += f'{tag} '
 
                 script.write(
