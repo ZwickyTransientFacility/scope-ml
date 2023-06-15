@@ -14,7 +14,7 @@ To prepare, you should:
 
   ```shell script
   git clone git@github.com:<yourname>/scope && cd scope
-  git remote add upstream git@github.com:ZwickyTransientFacility/scope
+  git remote add upstream https://github.com/ZwickyTransientFacility/scope.git
   ```
 
 Then, for each feature you wish to contribute, create a pull request:
