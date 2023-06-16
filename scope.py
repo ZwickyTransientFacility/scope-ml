@@ -1770,6 +1770,7 @@ class Scope:
         """
         import uuid
         from tools import generate_features, get_quad_ids, get_features, inference
+        from scope.fritz import get_lightcurves_via_coords
 
         # Test feature generation
         with status("Test generate_features"):
@@ -1801,6 +1802,12 @@ class Scope:
                 / test_feature_directory
                 / f"field_{test_field}"
                 / f"{test_feature_filename}_field_{test_field}_ccd_{test_ccd}_quad_{test_quad}.parquet"
+            )
+
+        with status("Test get_lightcurves_via_coords"):
+            print()
+            _ = get_lightcurves_via_coords(
+                kowalski_instances=self.kowalski, ra=40.0, dec=50.0, radius=2.0
             )
 
         with status("Test get_cone_ids"):

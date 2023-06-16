@@ -71,6 +71,7 @@ BASE_URL = f"{config['fritz']['protocol']}://{config['fritz']['host']}/"
 MAX_ATTEMPTS = config['fritz']['max_attempts']
 SLEEP_TIME = config['fritz']['sleep_time']
 fritz_token = config['fritz']['token']
+default_catalog = config['kowalski']['collections']['sources']
 
 
 def api(
@@ -138,27 +139,14 @@ def get_lightcurves_via_coords(
     ra,
     dec,
     radius=2.0,
-    catalog=None,
+    catalog=default_catalog,
     program_id_selector=list([1, 2, 3]),
     limit_per_query=1000,
     Ncore=1,
     get_basic_data=False,
 ):
 
-    query = {"query_type": "info", "query": {"command": "catalog_names"}}
-    available_catalog_names = kowalski_instances.query(query=query).get("data")
-    # expose only the ZTF light curves for now
-    available_catalogs = [
-        catalog for catalog in available_catalog_names if "ZTF_sources" in catalog
-    ]
-
-    if catalog is None:
-        # simply select last catalog
-        catalog = available_catalogs[-1]
-        print(f'Using {catalog} catalog for light curves.')
-
-    # executing a cone search
-    # grab id's first
+    light_curve_ids = []
     query = {
         "query_type": "near",
         "query": {
@@ -178,15 +166,21 @@ def get_lightcurves_via_coords(
         },
     }
 
-    response = kowalski_instances.query(query=query)
-    if response.get("status", "error") == "success":
-        light_curve_ids = [
-            item["_id"] for item in response.get("data")[catalog]["query_coords"]
-        ]
-        if len(light_curve_ids) == 0:
-            return None
-        else:
-            print("Found %d lightcurves" % len(light_curve_ids))
+    responses = kowalski_instances.query(query=query)
+    for name in responses.keys():
+        if len(responses[name]) > 0:
+            response = responses[name]
+            if response.get("status", "error") == "success":
+                lc_ids = [
+                    item["_id"]
+                    for item in response.get("data")[catalog]["query_coords"]
+                ]
+                light_curve_ids += lc_ids
+
+    if len(light_curve_ids) == 0:
+        return None
+    else:
+        print("Found %d lightcurves" % len(light_curve_ids))
 
     return get_lightcurves_via_ids(
         kowalski_instances,
