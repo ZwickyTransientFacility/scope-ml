@@ -3,6 +3,7 @@ import os
 import pathlib
 import argparse
 import yaml
+import numpy as np
 
 BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
 
@@ -46,17 +47,20 @@ def parse_commandline():
 
 def filter_completed(fields, algorithm):
 
+    fields_copy = fields.copy()
+
     for field in fields:
         searchDir = BASE_DIR / f'preds_{algorithm}' / f'field_{field}'
         searchDir.mkdir(parents=True, exist_ok=True)
         generator = searchDir.iterdir()
-        has_parquet = [x.suffix == '.parquet' for x in generator]
+        has_parquet = np.sum([x.suffix == '.parquet' for x in generator]) > 0
 
         if has_parquet:
-            fields.remove(field)
+            fields_copy.remove(field)
 
-    print('Models remaining to run: ', len(fields))
-    return fields
+    print('Models remaining to run: ', len(fields_copy))
+
+    return fields_copy
 
 
 def run_job(field):
