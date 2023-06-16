@@ -71,7 +71,7 @@ BASE_URL = f"{config['fritz']['protocol']}://{config['fritz']['host']}/"
 MAX_ATTEMPTS = config['fritz']['max_attempts']
 SLEEP_TIME = config['fritz']['sleep_time']
 fritz_token = config['fritz']['token']
-default_catalog = config['kowalski']['collections']['sources']
+default_catalog = config['kowalski']['collections'].get('sources')
 
 
 def api(
@@ -145,6 +145,11 @@ def get_lightcurves_via_coords(
     Ncore=1,
     get_basic_data=False,
 ):
+
+    if catalog is None:
+        raise ValueError(
+            'No catalog specified. Please add one to config.yaml under kowalski: collectons: sources:'
+        )
 
     light_curve_ids = []
     query = {
