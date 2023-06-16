@@ -86,8 +86,6 @@ if __name__ == '__main__':
     subDir = os.path.join(slurmDir, filetype)
     subfile = os.path.join(subDir, '%s.sub' % filetype)
 
-    print(fields)
-
     fields_remaining = filter_completed(
         fields,
         algorithm,
