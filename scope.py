@@ -1769,7 +1769,13 @@ class Scope:
         :return:
         """
         import uuid
-        from tools import generate_features, get_quad_ids, get_features, inference
+        from tools import (
+            generate_features,
+            get_quad_ids,
+            get_features,
+            inference,
+            combine_preds,
+        )
         from scope.fritz import get_lightcurves_via_coords
 
         # Test feature generation
@@ -2036,6 +2042,9 @@ class Scope:
                     period_suffix=period_suffix,
                     no_write_metadata=True,
                 )
+
+            with status("Test combine_preds"):
+                combine_preds.combine_preds(specific_field=0, save=False)
 
             with status("Test select_fritz_sample"):
                 print()
