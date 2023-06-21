@@ -1,43 +1,69 @@
-import fire
+#!/usr/bin/env python
 import pandas as pd
-import glob
 import os
+import pathlib
+import argparse
+from scope.utils import read_parquet, write_parquet
+
+BASE_DIR = pathlib.Path(__file__).parent.absolute()
 
 
-def run(ccd: int, quad: int, **kwargs):
+def combine_preds(
+    combined_preds_dirname='preds_dnn_xgb',
+):
     """
-    USAGE:  python combine_preds.py --ccd 1 --quad 1 --verbose
+    Combine DNN and XGB preds for ingestion into Kowalski
+
+    :param combined_preds_dirname: directory name to use for combined preds (str)
+
     """
-    verbose = kwargs.get("verbose", True)
 
-    df_collection = []
+    field_paths_dnn = [x for x in (BASE_DIR / 'preds_dnn').glob('field_*')]
+    fields_dnn = [x.name for x in field_paths_dnn]
+    fields_dnn_dict = {
+        fields_dnn[i]: field_paths_dnn[i] for i in range(len(fields_dnn))
+    }
 
-    for i, filename in enumerate(
-        glob.glob("preds/ccd_" + str(ccd).zfill(2) + f"_quad_{quad}/*.csv")
-    ):
-        if (not filename.endswith("all_preds.csv")) and (
-            not filename.endswith("features.csv")
-        ):
-            df_temp = pd.read_csv(filename)
-            # df_temp = pd.read_pickle(filename)
-            if i != 0:
-                df_temp.drop("_id", axis=1, inplace=True)
-            df_temp.reset_index(inplace=True, drop=True)
-            # print(df_temp)
-            df_collection += [df_temp]
+    field_paths_xgb = [x for x in (BASE_DIR / 'preds_xgb').glob('field_*')]
+    fields_xgb = [x.name for x in field_paths_xgb]
+    fields_xgb_dict = {
+        fields_xgb[i]: field_paths_xgb[i] for i in range(len(fields_xgb))
+    }
 
-    df = pd.concat(df_collection, axis=1)
-    if verbose:
-        print(df)
-    os.makedirs("preds/all_preds/", exist_ok=True)
+    os.makedirs(BASE_DIR / combined_preds_dirname, exist_ok=True)
+    counter = 0
+    for field in fields_dnn_dict.keys():
+        if field in fields_xgb_dict.keys():
+            try:
+                dnn_preds = read_parquet(fields_dnn_dict[field] / f"{field}.parquet")
+                xgb_preds = read_parquet(fields_xgb_dict[field] / f"{field}.parquet")
+            except FileNotFoundError:
+                print(f'Parquet file not found for field {field}')
+                continue
 
-    df.to_csv(
-        "preds/ccd_" + str(ccd).zfill(2) + f"_quad_{quad}/all_preds.csv", index=False
-    )
-    df.to_csv(
-        "preds/all_preds/ccd_" + str(ccd).zfill(2) + f"_quad_{quad}.csv", index=False
-    )
+            counter += 1
+            dnn_columns = [x for x in dnn_preds.columns]
+            dnn_columns.remove('_id')
+            xgb_columns = [x for x in xgb_preds.columns]
+            new_xgb_columns = [x for x in xgb_columns if (x not in dnn_columns)]
+            xgb_preds_new = xgb_preds[new_xgb_columns]
+
+            combined_preds = pd.merge(dnn_preds, xgb_preds_new, on='_id')
+            write_parquet(
+                combined_preds, BASE_DIR / combined_preds_dirname / f"{field}.parquet"
+            )
 
 
 if __name__ == "__main__":
-    fire.Fire(run)
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--combined_preds_dirname",
+        type=str,
+        default='preds_dnn_xgb',
+        help="dirname in which to save combined preds",
+    )
+    args = parser.parse_args()
+
+    combine_preds(
+        combined_preds_dirname=args.combined_preds_dirname,
+    )
