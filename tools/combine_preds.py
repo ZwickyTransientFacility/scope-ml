@@ -17,6 +17,8 @@ def combine_preds(
     Combine DNN and XGB preds for ingestion into Kowalski
 
     :param combined_preds_dirname: directory name to use for combined preds (str)
+    :param specific_field: number of specific field to run (str, useful for testing)
+    :param save: if True, save combined preds (bool, useful for testing)
 
     """
     if specific_field is not None:
@@ -56,8 +58,6 @@ def combine_preds(
             xgb_preds_new = xgb_preds[new_xgb_columns]
 
             combined_preds = pd.merge(dnn_preds, xgb_preds_new, on='_id')
-            print(len(combined_preds))
-            print(combined_preds.columns)
             if save:
                 write_parquet(
                     combined_preds,
