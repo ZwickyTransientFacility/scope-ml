@@ -27,6 +27,7 @@ import warnings
 from cesium.featurize import time_series, featurize_single_ts
 import json
 from joblib import Parallel, delayed
+from scipy.stats import circmean
 
 
 BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
@@ -111,18 +112,18 @@ def drop_close_bright_stars(
     coords = np.array(
         [x['radec_geojson']['coordinates'] for x in id_dct.values()]
     ).transpose()
+
     sources_ra = coords[0] + 180.0
     sources_dec = coords[1]
+    SC = SkyCoord(sources_ra, sources_dec, unit=[u.deg, u.deg])
 
-    min_ra = np.min(sources_ra) - query_radius_arcsec / 3600.0
-    max_ra = np.max(sources_ra) + query_radius_arcsec / 3600.0
-    min_dec = np.min(sources_dec) - query_radius_arcsec / 3600.0
-    max_dec = np.max(sources_dec) + query_radius_arcsec / 3600.0
+    ctr_ra = circmean(sources_ra * np.pi / 180.0) * 180.0 / np.pi
+    ctr_dec = np.mean(sources_dec)
+    ctr_SC = SkyCoord(ctr_ra, ctr_dec, unit=[u.deg, u.deg])
 
-    ctr_ra = np.mean([min_ra, max_ra])
-    ctr_dec = np.mean([min_dec, max_dec])
-
-    max_cone_radius = np.max([max_dec - ctr_dec, max_ra - ctr_ra]) * 3600 * np.sqrt(2)
+    max_cone_radius = (
+        np.max(SC.separation(ctr_SC)).to(u.arcsec) + query_radius_arcsec * u.arcsec
+    ).value
 
     id_dct_keep = id_dct.copy()
 
