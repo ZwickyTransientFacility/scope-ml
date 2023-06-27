@@ -455,6 +455,7 @@ def generate_features(
     skipCloseSources: bool = False,
     top_n_periods: int = 50,
     max_freq: float = 48.0,
+    fg_dataset: str = None,
 ):
     """
     Generate features for ZTF light curves
@@ -490,6 +491,7 @@ def generate_features(
     :param doSpecificIDs: flag to perform feature generation for ztf_id column in config-specified file (bool)
     :param skipCloseSources: flag to skip removal of sources too close to bright stars via Gaia (bool)
     :param top_n_periods: number of ELS, ECE periods to pass to EAOV if using ELS_ECE_EAOV algorithm (int)
+    :param fg_dataset*: path to parquet, hdf5 or csv file containing specific sources for feature generation (str)
 
     :return feature_df: dataframe containing generated features
 
@@ -553,9 +555,11 @@ def generate_features(
             feature_gen_source_dict = lst[0]
     else:
         if not skipCloseSources:
-            # Read ztf_id column from csv, hdf5 or parquet file specified in config entry
-            fg_sources_config = config['feature_generation']['dataset']
-            fg_sources_path = str(BASE_DIR / fg_sources_config)
+            # Read ztf_id column from csv, hdf5 or parquet file specified in config entry/kwargs
+            if fg_dataset is None:
+                fg_dataset = config['feature_generation']['dataset']
+
+            fg_sources_path = str(BASE_DIR / fg_dataset)
 
             if fg_sources_path.endswith('.parquet'):
                 fg_sources = read_parquet(fg_sources_path)
@@ -1320,6 +1324,12 @@ if __name__ == "__main__":
         default=48.0,
         help="maximum frequency [1 / days] to use for period finding. Overridden by --doScaleMinPeriod",
     )
+    parser.add_argument(
+        "--fg_dataset",
+        type=str,
+        default=None,
+        help="path to parquet, hdf5 or csv file containing specific sources for feature generation",
+    )
 
     args = parser.parse_args()
 
@@ -1356,4 +1366,5 @@ if __name__ == "__main__":
         skipCloseSources=args.skipCloseSources,
         top_n_periods=args.top_n_periods,
         max_freq=args.max_freq,
+        fg_dataset=args.fg_dataset,
     )
