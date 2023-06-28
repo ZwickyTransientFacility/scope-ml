@@ -24,7 +24,7 @@ def parse_training_script(script_path):
     for line in lines:
         if 'scope.py train' in line:
             line_info = line.removeprefix('./scope.py train').split()
-            for arg in line_info:
+            for arg in line_info.copy():
                 if '--tag' in arg:
                     tag = arg.split('=')[1]
                     tags += [tag]
