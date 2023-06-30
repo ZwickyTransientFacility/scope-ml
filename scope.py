@@ -1485,15 +1485,13 @@ class Scope:
         if fields in ['all', 'All', 'ALL']:
             gen_fields = os.walk(preds_path)
             fields = [x for x in gen_fields][0][1]
-        elif fields == 'specific_ids':
-            fields = ['field_specific_ids']
+            print(f'Generating Fritz sample from {len(fields)} fields:')
+        elif 'specific_ids' in fields:
+            fields = [f'field_{fields}']
+            print('Generating Fritz sample from specific ids across multiple fields:')
         else:
             fields = [f'field_{f}' for f in fields]
-
-        if 'field_specific_ids' not in fields:
             print(f'Generating Fritz sample from {len(fields)} fields:')
-        else:
-            print('Generating Fritz sample from specific ids across multiple fields:')
 
         column_nums = []
 

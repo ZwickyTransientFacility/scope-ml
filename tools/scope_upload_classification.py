@@ -14,14 +14,49 @@ from datetime import datetime
 import numpy as np
 import os
 
-RADIUS_ARCSEC = 2
 UPLOAD_BATCHSIZE = 10
 OBJ_ID_BATCHSIZE = 10
+
+config_path = pathlib.Path(__file__).parent.parent.absolute() / "config.yaml"
+with open(config_path) as config_yaml:
+    config = yaml.load(config_yaml, Loader=yaml.FullLoader)
+
+# use tokens specified as env vars (if exist)
+kowalski_token_env = os.environ.get("KOWALSKI_INSTANCE_TOKEN")
+gloria_token_env = os.environ.get("GLORIA_INSTANCE_TOKEN")
+melman_token_env = os.environ.get("MELMAN_INSTANCE_TOKEN")
+
+# Set up Kowalski instance connection
+if kowalski_token_env is not None:
+    config["kowalski"]["hosts"]["kowalski"]["token"] = kowalski_token_env
+if gloria_token_env is not None:
+    config["kowalski"]["hosts"]["gloria"]["token"] = gloria_token_env
+if melman_token_env is not None:
+    config["kowalski"]["hosts"]["melman"]["token"] = melman_token_env
+
+timeout = config['kowalski']['timeout']
+
+hosts = [
+    x
+    for x in config['kowalski']['hosts']
+    if config['kowalski']['hosts'][x]['token'] is not None
+]
+instances = {
+    host: {
+        'protocol': config['kowalski']['protocol'],
+        'port': config['kowalski']['port'],
+        'host': f'{host}.caltech.edu',
+        'token': config['kowalski']['hosts'][host]['token'],
+    }
+    for host in hosts
+}
+
+kowalski_instances = Kowalski(timeout=timeout, instances=instances)
 
 
 def upload_classification(
     file: str,
-    gloria,
+    kowalski_instances: Kowalski,
     group_ids: list,
     classification: list,
     taxonomy_map: str,
@@ -42,11 +77,12 @@ def upload_classification(
     result_filetag: str = 'fritzUpload',
     result_format: str = 'parquet',
     replace_classifications: bool = False,
+    radius_arcsec: float = 2.0,
 ):
     """
     Upload labels to Fritz
     :param file: path to .csv, .h5 or .parquet file containing labels (str)
-    :param gloria: Gloria object
+    :param kowalski_instances: authenticated kowalski instances (penquins.Kowalski)
     :param group_ids: list of group ids on Fritz for upload target location [int, int, ...]
     :param classification: list of classifications [str, str, ...]
     :param taxonomy_map: if classification is ['read'], path to JSON file containing taxonomy mapping (str)
@@ -66,6 +102,7 @@ def upload_classification(
     :result_filetag: tag to append to input filename after upload (str)
     :result_format: format of resulting uploaded file (str)
     :replace_classifications: if True, delete each object's existing classifications before posting new ones (bool)
+    :radius_arcsec: photometry search radius for uploaded sources (float)
     """
 
     # read in file to csv
@@ -162,7 +199,7 @@ def upload_classification(
             obj_id = None
             # get object id
             response = api(
-                "GET", f"/api/sources?&ra={ra}&dec={dec}&radius={RADIUS_ARCSEC/3600}"
+                "GET", f"/api/sources?&ra={ra}&dec={dec}&radius={radius_arcsec/3600}"
             )
             data = response.json().get('data')
 
@@ -227,14 +264,14 @@ def upload_classification(
                 warnings.warn('Cannot skip new source - saving.')
             post_source = len(existing_source) == 0
             obj_id = save_newsource(
-                gloria,
+                kowalski_instances,
                 group_ids,
                 ra,
                 dec,
                 obj_id=obj_id,
                 period=period,
                 return_id=True,
-                radius=RADIUS_ARCSEC,
+                radius=radius_arcsec,
                 post_source=post_source,
                 skip_phot=skip_phot,
             )
@@ -497,11 +534,6 @@ def upload_classification(
 
 
 if __name__ == "__main__":
-    # setup connection to gloria to get the lightcurves
-    config_path = pathlib.Path(__file__).parent.parent.absolute() / "config.yaml"
-    with open(config_path) as config_yaml:
-        config = yaml.load(config_yaml, Loader=yaml.FullLoader)
-    gloria = Kowalski(**config['kowalski'], verbose=False)
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--file", help="dataset with .csv, .h5 or .parquet extension")
@@ -625,12 +657,19 @@ if __name__ == "__main__":
         help="If set, delete each object's existing classifications before posting new ones.",
     )
 
+    parser.add_argument(
+        "--radius_arcsec",
+        type=float,
+        default=2.0,
+        help="Photometry search radius for uploaded sources",
+    )
+
     args = parser.parse_args()
 
     # upload classification objects
     upload_classification(
         args.file,
-        gloria,
+        kowalski_instances,
         args.group_ids,
         args.classification,
         args.taxonomy_map,
@@ -651,4 +690,5 @@ if __name__ == "__main__":
         args.result_filetag,
         args.result_format,
         args.replace_classifications,
+        args.radius_arcsec,
     )

@@ -255,8 +255,12 @@ def run_inference(
     else:
         algorithm = 'dnn'
 
-    if field == 'specific_ids':
-        default_features_file = str(BASE_DIR / f"{feature_directory}/specific_ids")
+    if type(field) == str:
+        if 'specific_ids' in field:
+            default_features_file = str(
+                BASE_DIR
+                / f"{feature_directory}/specific_ids/gen_gcn_features_{field}.parquet"
+            )
     else:
         field = int(field)
         # default file location for source ids
@@ -292,7 +296,6 @@ def run_inference(
                 )
 
     features_filename = kwargs.get("features_filename", default_features_file)
-    # features_filename = os.path.join(str(BASE_DIR), features_filename)
 
     out_dir = os.path.join(
         os.path.dirname(__file__), f"{str(BASE_DIR)}/preds_{algorithm}/"
@@ -327,7 +330,9 @@ def run_inference(
 
     os.makedirs(os.path.dirname(filename), exist_ok=True)
     if os.path.isfile(f'{filename}.parquet'):
-        raise FileExistsError('Preds file for this field (/ccd/quad) already exists.')
+        warnings.warn(
+            'Preds file for this field (/ccd/quad) already exists. Overwriting...'
+        )
 
     ts = time.time()
     DS = ds.dataset(features_filename, format='parquet')

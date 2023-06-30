@@ -1,0 +1,226 @@
+{
+    "vnv":
+        {"fritz_label": "variable",
+          "taxonomy_id": 1017
+        },
+
+    "pnp":
+        {"fritz_label": "periodic",
+          "taxonomy_id": 1017
+        },
+
+    "puls":
+        {"fritz_label": "Pulsating",
+          "taxonomy_id": 1015
+        },
+
+    "rrlyr":
+        {"fritz_label": "RR Lyrae",
+          "taxonomy_id": 1015
+        },
+
+    "ceph":
+        {"fritz_label": "Cepheid",
+          "taxonomy_id": 1015
+        },
+
+    "mp":
+        {"fritz_label": "multi periodic",
+          "taxonomy_id": 1017
+        },
+
+    "sin":
+        {"fritz_label": "sinusoidal",
+          "taxonomy_id": 1017
+        },
+
+    "nonvar":
+        {"fritz_label": "non-variable",
+          "taxonomy_id": 1017
+        },
+
+    "bogus":
+        {"fritz_label": "bogus",
+          "taxonomy_id": 1017
+        },
+
+    "bright":
+        {"fritz_label": "bright star",
+          "taxonomy_id": 1017
+        },
+
+    "longt":
+        {"fritz_label": "long timescale",
+          "taxonomy_id": 1017
+        },
+
+    "i":
+        {"fritz_label": "irregular",
+          "taxonomy_id": 1017
+        },
+
+    "e":
+        {"fritz_label": "eclipsing",
+          "taxonomy_id": 1017
+        },
+
+    "ew":
+        {"fritz_label": "EW",
+          "taxonomy_id": 1017
+        },
+
+    "fla":
+        {"fritz_label": "flaring",
+          "taxonomy_id": 1017
+        },
+
+    "bis":
+        {"fritz_label": "Eclipsing",
+          "taxonomy_id": 1015
+        },
+
+    "emsms":
+        {"fritz_label": "detached MS-MS",
+          "taxonomy_id": 1015
+        },
+
+    "wuma":
+        {"fritz_label": "W Ursae Maj",
+          "taxonomy_id": 1015
+        },
+
+    "rrab":
+        {"fritz_label": "RRab",
+          "taxonomy_id": 1015
+        },
+
+    "rrc":
+        {"fritz_label": "RRc",
+          "taxonomy_id": 1015
+        },
+
+    "dscu":
+        {"fritz_label": "Delta Scuti",
+          "taxonomy_id": 1015
+        },
+
+    "rrd":
+        {"fritz_label": "RRd",
+          "taxonomy_id": 1015
+        },
+
+    "ceph2":
+        {"fritz_label": "Population II Cepheid",
+          "taxonomy_id": 1015
+        },
+
+    "rscvn":
+        {"fritz_label": "RS CVn",
+        "taxonomy_id": 1015
+        },
+
+    "eb":
+        {"fritz_label": "EB",
+          "taxonomy_id": 1017
+        },
+
+    "blyr":
+        {"fritz_label": "Beta Lyrae",
+          "taxonomy_id": 1015
+        },
+
+    "saw":
+        {"fritz_label": "sawtooth",
+          "taxonomy_id": 1017
+        },
+
+    "ea":
+        {"fritz_label": "EA",
+          "taxonomy_id": 1017
+        },
+
+    "yso":
+        {"fritz_label": "YSO",
+          "taxonomy_id": 1015
+        },
+
+    "wp":
+        {"fritz_label": "wrong period",
+          "taxonomy_id": 1017
+        },
+
+    "agn":
+        {"fritz_label": "AGN",
+          "taxonomy_id": 1015
+        },
+
+    "lpv":
+        {"fritz_label": "LPV",
+          "taxonomy_id": 1015
+        },
+
+    "mir":
+        {"fritz_label": "Mira",
+          "taxonomy_id": 1015
+        },
+
+    "hp":
+        {"fritz_label": "half period",
+          "taxonomy_id": 1017
+        },
+
+    "srv":
+        {"fritz_label": "Semiregular",
+          "taxonomy_id": 1015
+        },
+
+    "osarg":
+        {"fritz_label": "OSARG",
+          "taxonomy_id": 1015
+        },
+
+    "el":
+        {"fritz_label": "ellipsoidal",
+          "taxonomy_id": 1017
+        },
+
+    "blend":
+      {"fritz_label": "blend",
+        "taxonomy_id": 1017
+      },
+
+    "cv":
+      {"fritz_label": "Cataclysmic",
+        "taxonomy_id": 1015
+      },
+
+    "wvir":
+      {"fritz_label": "W Vir",
+        "taxonomy_id": 1015
+      },
+
+    "rrblz":
+      {"fritz_label": "Blazhko",
+        "taxonomy_id": 1015
+      },
+
+    "blher":
+      {"fritz_label": "BL Her",
+        "taxonomy_id": 1015
+      },
+
+    "dip":
+      {"fritz_label": "dipping",
+        "taxonomy_id": 1017
+      },
+
+    "dp":
+      {"fritz_label": "double period",
+        "taxonomy_id": 1017
+      },
+
+    "ext":
+      {"fritz_label": "extended",
+        "taxonomy_id": 1017
+      }
+    }
