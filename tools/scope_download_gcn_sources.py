@@ -21,41 +21,46 @@ config_path = BASE_DIR / "config.yaml"
 with open(config_path) as config_yaml:
     config = yaml.load(config_yaml, Loader=yaml.FullLoader)
 
-# use token specified as env var (if exists)
-kowalski_token_env = os.environ.get("KOWALSKI_TOKEN")
-kowalski_alt_token_env = os.environ.get("KOWALSKI_ALT_TOKEN")
-if (kowalski_token_env is not None) & (kowalski_alt_token_env is not None):
-    config["kowalski"]["token"] = kowalski_token_env
-    config["kowalski"]["alt_token"] = kowalski_alt_token_env
+# use tokens specified as env vars (if exist)
+kowalski_token_env = os.environ.get("KOWALSKI_INSTANCE_TOKEN")
+gloria_token_env = os.environ.get("GLORIA_INSTANCE_TOKEN")
+melman_token_env = os.environ.get("MELMAN_INSTANCE_TOKEN")
+
+# Set up Kowalski instance connection
+if kowalski_token_env is not None:
+    config["kowalski"]["hosts"]["kowalski"]["token"] = kowalski_token_env
+if gloria_token_env is not None:
+    config["kowalski"]["hosts"]["gloria"]["token"] = gloria_token_env
+if melman_token_env is not None:
+    config["kowalski"]["hosts"]["melman"]["token"] = melman_token_env
 
 timeout = config['kowalski']['timeout']
 
-gloria = Kowalski(**config['kowalski'], verbose=False)
-melman = Kowalski(
-    token=config['kowalski']['token'],
-    protocol="https",
-    host="melman.caltech.edu",
-    port=443,
-    timeout=timeout,
-)
-kowalski = Kowalski(
-    token=config['kowalski']['alt_token'],
-    protocol="https",
-    host="kowalski.caltech.edu",
-    port=443,
-    timeout=timeout,
-)
+hosts = [
+    x
+    for x in config['kowalski']['hosts']
+    if config['kowalski']['hosts'][x]['token'] is not None
+]
+instances = {
+    host: {
+        'protocol': config['kowalski']['protocol'],
+        'port': config['kowalski']['port'],
+        'host': f'{host}.caltech.edu',
+        'token': config['kowalski']['hosts'][host]['token'],
+    }
+    for host in hosts
+}
+
+kowalski_instances = Kowalski(timeout=timeout, instances=instances)
 
 source_catalog = config['kowalski']['collections']['sources']
-
-kowalski_instances = {'kowalski': kowalski, 'gloria': gloria, 'melman': melman}
 
 
 def download_gcn_sources(
     dateobs: str,
     group_ids: list = [],
     days_range: float = 7.0,
-    radius_arcsec: float = 2.0,
+    radius_arcsec: float = 0.5,
     save_filename: str = 'tools/fritzDownload/specific_ids_GCN_sources',
 ):
     """
@@ -68,6 +73,9 @@ def download_gcn_sources(
     :param save_filename: filename to save source ids/coordinates (str)
 
     """
+
+    # Colons can confuse the file system; replace them for saving
+    save_dateobs = dateobs.replace(':', '-')
 
     dateobs_datetime = datetime.strptime(dateobs, '%Y-%m-%dT%H:%M:%S')
     endDate_datetime = dateobs_datetime + timedelta(days=days_range)
@@ -83,6 +91,11 @@ def download_gcn_sources(
     response = api('GET', '/api/sources', data=data)
     data = response.json().get('data')
     status = response.json().get('status')
+    message = response.json().get('message')
+
+    if status == 'error':
+        print("Error during query: ", message)
+        return None
 
     # Determine number of pages
     allMatches = data.get('totalMatches')
@@ -119,8 +132,10 @@ def download_gcn_sources(
     else:
         if allMatches is None:
             print('Check if query successfully completed. Status: ', status)
+            return None
         elif allMatches == 0:
             print('No sources found.')
+            return None
 
     print('Finding ZTF sources around GCN source coords...')
 
@@ -133,24 +148,30 @@ def download_gcn_sources(
         ra_list=ra_list,
         dec_list=dec_list,
         catalog=source_catalog,
-        kowalski_instance=kowalski_instances['melman'],
+        kowalski_instances=kowalski_instances,
         max_distance=radius_arcsec,
         distance_units='arcsec',
         get_coords=True,
     )
 
-    ids = ids.drop_duplicates('_id').reset_index(drop=True)
-    ids.rename({'_id': 'ztf_id', 'obj_id': 'fritz_name'}, axis=1, inplace=True)
+    if len(ids) > 0:
+        ids = ids.drop_duplicates('_id').reset_index(drop=True)
+        ids.rename({'_id': 'ztf_id', 'obj_id': 'fritz_name'}, axis=1, inplace=True)
 
-    write_parquet(ids, str(BASE_DIR / f"{save_filename}.parquet"))
+        write_parquet(ids, str(BASE_DIR / f"{save_filename}.{save_dateobs}.parquet"))
 
-    coord_col = ids['coordinates']
-    ids['radec_geojson'] = [row['radec_geojson'] for row in coord_col]
-    ids.drop('coordinates', axis=1, inplace=True)
+        coord_col = ids['coordinates']
+        ids['radec_geojson'] = [row['radec_geojson'] for row in coord_col]
+        ids.drop('coordinates', axis=1, inplace=True)
 
-    ids = ids.set_index('ztf_id').to_dict(orient='index')
-    with open(str(BASE_DIR / f"{save_filename}.json"), 'w') as f:
-        json.dump(ids, f)
+        ids = ids.set_index('ztf_id').to_dict(orient='index')
+        with open(str(BASE_DIR / f"{save_filename}.{save_dateobs}.json"), 'w') as f:
+            json.dump(ids, f)
+    else:
+        print('No associated ZTF sources found.')
+        ids = None
+
+    return ids
 
 
 if __name__ == '__main__':
@@ -171,7 +192,7 @@ if __name__ == '__main__':
     parser.add_argument(
         "--radius_arcsec",
         type=float,
-        default=2.0,
+        default=0.5,
         help="radius around new sources to search for existing ZTF sources",
     )
     parser.add_argument(
