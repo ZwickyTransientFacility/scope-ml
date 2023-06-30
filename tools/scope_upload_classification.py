@@ -114,6 +114,11 @@ def upload_classification(
         all_sources = read_parquet(file)
     else:
         raise TypeError('Input file must be csv, h5 or parquet format.')
+
+    if len(all_sources) == 0:
+        warnings.warn("No sources to upload.")
+        return
+
     columns = all_sources.columns
     sources = all_sources.copy()
 
