@@ -72,8 +72,8 @@ def query_gcn_events(
                             'numPerPage': NUM_PER_PAGE,
                             'pageNumber': pageNum,
                         },  # page numbers start at 1
-                    )
-                    page_data = page_response.json().get('data')
+                    ).json()
+                    page_data = page_response.get('data')
                     events = page_data.get('events')
                     gcn_events.extend([x for x in events])
 
@@ -81,7 +81,13 @@ def query_gcn_events(
             raise ValueError('Query error - no data returned.')
 
     else:
-        gcn_events = [{"dateobs": dateobs}]
+        response = api('GET', f'/api/gcn_event/{dateobs}').json()
+        if response.get('status', 'error') == 'success':
+            event = response.get('data')
+            gcn_events = [event]
+        else:
+            warnings.warn("Unsuccessful query.")
+            return
 
     for event in gcn_events:
         dateobs = event["dateobs"]
