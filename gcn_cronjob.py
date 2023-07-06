@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+# When setting up crontab, ensure that PYTHONPATH is specified in the cron environment
+# This can be done by adding a line before your cron job (e.g. PYTHONPATH = /path/to/scope)
 from scope.fritz import api
 from datetime import datetime, timedelta
 import argparse
@@ -37,6 +39,7 @@ def query_gcn_events(
     agg_method: str = 'mean',
     dnn_preds_directory: str = 'GCN_dnn',
     xgb_preds_directory: str = 'GCN_xgb',
+    path_to_python: str = '~/miniforge3/envs/scope-env/bin/python',
 ):
 
     if dateobs is None:
@@ -148,7 +151,6 @@ def query_gcn_events(
             has_new_sources = False
             print(f"Event {dateobs} has no new sources.")
 
-        # if has_new_sources | rerun:
         if ids is not None:
             features_file = (
                 BASE_DIR
@@ -160,7 +162,7 @@ def query_gcn_events(
                     f"scp {filepath} {username}@login.expanse.sdsc.edu:/home/{username}/scope/tools/fritzDownload/."
                 )
                 os.system(
-                    f'ssh -t {username}@login.expanse.sdsc.edu \
+                    f'ssh -tt {username}@login.expanse.sdsc.edu \
                     "source .bash_profile && \
                     cd scope/{generated_features_dirname}/slurm && \
                     sbatch --wait --export=DOBS={save_dateobs},DS={filepath.name} {partition}_slurm.sub"'
@@ -208,20 +210,20 @@ def query_gcn_events(
                             "Consolidating DNN and XGB classification results for Fritz..."
                         )
                         os.system(
-                            f"{BASE_DIR}/scope.py select_fritz_sample --fields='{save_dateobs}_specific_ids' --group='DR16' --algorithm='xgb' \
+                            f"{path_to_python} {BASE_DIR}/scope.py select_fritz_sample --fields='{save_dateobs}_specific_ids' --group='DR16' --algorithm='xgb' \
                                 --probability_threshold=0 --consol_filename='inference_results_{save_dateobs}' --al_directory='GCN' \
                                 --al_filename='GCN_sources_{save_dateobs}' --write_consolidation_results --select_top_n --doAllSources --write_csv"
                         )
 
                         os.system(
-                            f"{BASE_DIR}/scope.py select_fritz_sample --fields='{save_dateobs}_specific_ids' --group='nobalance_DR16_DNN' --algorithm='dnn' \
+                            f"{path_to_python} {BASE_DIR}/scope.py select_fritz_sample --fields='{save_dateobs}_specific_ids' --group='nobalance_DR16_DNN' --algorithm='dnn' \
                                 --probability_threshold=0 --consol_filename='inference_results_{save_dateobs}' --al_directory='GCN' \
                                 --al_filename='GCN_sources_{save_dateobs}' --write_consolidation_results --select_top_n --doAllSources --write_csv"
                         )
 
                         print("Combining DNN and XGB preds...")
                         os.system(
-                            f"{BASE_DIR}/tools/combine_preds.py --dateobs {save_dateobs} --combined_preds_dirname {combined_preds_dirname}/{save_dateobs} \
+                            f"{path_to_python} {BASE_DIR}/tools/combine_preds.py --dateobs {save_dateobs} --combined_preds_dirname {combined_preds_dirname}/{save_dateobs} \
                                   --merge_dnn_xgb --write_csv --p_threshold {p_threshold} --agg_method {agg_method} --dnn_directory {dnn_preds_directory} \
                                   --xgb_directory {xgb_preds_directory}"
                         )
@@ -229,8 +231,8 @@ def query_gcn_events(
                     if not doNotPost:
                         print(f"Uploading classifications with p > {p_threshold}.")
                         os.system(
-                            f"{BASE_DIR}/tools/scope_upload_classification.py --file {combined_preds_dirname}/{save_dateobs}/merged_GCN_sources_{save_dateobs}.parquet \
-                                --classification read --taxonomy_map {taxonomy_map} --skip_phot --use_existing_obj_id --group_ids {post_group_ids_str} --radius_arcsec {radius_arcsec} \
+                            f"{path_to_python} {BASE_DIR}/tools/scope_upload_classification.py --file {BASE_DIR}/{combined_preds_dirname}/{save_dateobs}/merged_GCN_sources_{save_dateobs}.parquet \
+                                --classification read --taxonomy_map {BASE_DIR}/{taxonomy_map} --skip_phot --use_existing_obj_id --group_ids {post_group_ids_str} --radius_arcsec {radius_arcsec} \
                                 --p_threshold {p_threshold}"
                         )
 
@@ -350,6 +352,12 @@ if __name__ == '__main__':
         default='GCN_xgb',
         help="dirname in which xgb preds preds are saved",
     )
+    parser.add_argument(
+        "--path_to_python",
+        type=str,
+        default='~/miniforge3/envs/scope-env/bin/python',
+        help="path to python within scope environment (run 'which python' while your scope environment is active to find)",
+    )
 
     args = parser.parse_args()
 
@@ -371,4 +379,5 @@ if __name__ == '__main__':
         agg_method=args.agg_method,
         dnn_preds_directory=args.dnn_preds_directory,
         xgb_preds_directory=args.xgb_preds_directory,
+        path_to_python=args.path_to_python,
     )
