@@ -439,6 +439,8 @@ class XGB(AbstractClassifier):
         with open(output_path / config_name, 'w') as f:
             f.write(cfg)
 
+        stats_dct = {}
+
         # Save diagnostic plots
         for name in names:
             if plot:
@@ -450,6 +452,7 @@ class XGB(AbstractClassifier):
                 cmpdf = tag + '_cm.pdf'
                 recallpdf = tag + '_recall.pdf'
                 rocpdf = tag + '_roc.pdf'
+                stats_json = tag + '_stats.json'
 
                 max_num_features = kwargs.get('max_num_features', 8)
 
@@ -466,13 +469,17 @@ class XGB(AbstractClassifier):
 
                 if self.meta[f'cm_{name}'] is not None:
                     cname = tag.split('.')[0]
-                    make_confusion_matrix(
+                    accuracy, precision, recall, f1_score = make_confusion_matrix(
                         self.meta[f'cm_{name}'],
                         figsize=(8, 6),
                         cbar=False,
                         percent=False,
                         categories=['not ' + cname, cname],
                     )
+                    stats_dct['accuracy'] = accuracy
+                    stats_dct['precision'] = precision
+                    stats_dct['recall'] = recall
+                    stats_dct['f1_score'] = f1_score
                     sns.set_context('talk')
                     plt.title(cname)
                     plt.savefig(path / cmpdf, bbox_inches='tight')
@@ -486,6 +493,7 @@ class XGB(AbstractClassifier):
                     fpr, tpr, _ = roc_curve(y_compare, y_pred)
                     roc_auc = auc(fpr, tpr)
                     precision, recall, _ = precision_recall_curve(y_compare, y_pred)
+                    stats_dct['roc_auc'] = roc_auc
 
                     plot_roc(fpr, tpr, roc_auc)
                     plt.savefig(path / rocpdf, bbox_inches='tight')
@@ -494,3 +502,6 @@ class XGB(AbstractClassifier):
                     plot_pr(recall, precision)
                     plt.savefig(path / recallpdf, bbox_inches='tight')
                     plt.close()
+
+                with open(path / stats_json, 'w') as f:
+                    json.dump(stats_dct, f)
