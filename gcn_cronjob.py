@@ -251,7 +251,7 @@ if __name__ == '__main__':
 
     parser.add_argument(
         "--daysAgo",
-        default=14.0,
+        default=7.0,
         type=float,
         help="Number of days before today to query GCN events",
     )
