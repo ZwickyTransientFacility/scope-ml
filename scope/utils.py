@@ -40,6 +40,8 @@ import json as JSON
 from sklearn.impute import KNNImputer
 import seaborn as sns
 
+BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
+
 
 def load_config(config_path: Union[str, pathlib.Path]):
     """
@@ -513,9 +515,7 @@ def impute_features(
     **kwargs,
 ):
     # Load config file
-    config = load_config(
-        pathlib.Path(__file__).parent.parent.absolute() / "config.yaml"
-    )
+    config = load_config(BASE_DIR / "config.yaml")
 
     period_suffix = kwargs.get(
         'period_suffix', config['features']['info']['period_suffix']
@@ -525,7 +525,7 @@ def impute_features(
         referenceSet = features_df.copy()
     else:
         # Load training set
-        trainingSetPath = config['training']['dataset']
+        trainingSetPath = str(BASE_DIR / config['training']['dataset'])
         if trainingSetPath.endswith('.parquet'):
             trainingSet = read_parquet(trainingSetPath)
         elif trainingSetPath.endswith('.h5'):
@@ -899,6 +899,8 @@ def make_confusion_matrix(
 
     if title:
         plt.title(title)
+
+    return accuracy, precision, recall, f1_score
 
 
 def plot_roc(fpr, tpr, roc_auc):
