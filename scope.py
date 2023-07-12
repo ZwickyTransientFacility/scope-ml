@@ -1768,8 +1768,112 @@ class Scope:
 
         yield final_toPost
 
+    def test_limited(self):
+        """
+        Test workflows that do not require a kowalski connection
+
+        :return:
+        """
+        import uuid
+
+        # create a mock dataset and check that the training pipeline works
+        dataset = f"{uuid.uuid4().hex}_orig.csv"
+        path_mock = pathlib.Path(__file__).parent.absolute() / "data" / "training"
+        group_mock = 'scope_test_limited'
+
+        try:
+            with status('Test training'):
+                print()
+
+                period_suffix = 'LS'
+
+                if not path_mock.exists():
+                    path_mock.mkdir(parents=True, exist_ok=True)
+
+                all_feature_names = self.config["features"]["ontological"]
+                feature_names_orig = [
+                    key
+                    for key in all_feature_names
+                    if forgiving_true(all_feature_names[key]['include'])
+                ]
+
+                feature_names = feature_names_orig.copy()
+                if not ((period_suffix is None) | (period_suffix == 'None')):
+                    periodic_bool = [
+                        all_feature_names[x]['periodic'] for x in feature_names
+                    ]
+                    for j, name in enumerate(feature_names):
+                        if periodic_bool[j]:
+                            feature_names[j] = f'{name}_{period_suffix}'
+
+                class_names = [
+                    self.config["training"]["classes"][class_name]["label"]
+                    for class_name in self.config["training"]["classes"]
+                ]
+
+                entries = []
+                for i in range(1000):
+                    entry = {
+                        **{
+                            feature_name: np.random.normal(0, 0.1)
+                            for feature_name in feature_names_orig
+                        },
+                        **{
+                            class_name: np.random.choice([0, 1])
+                            for class_name in class_names
+                        },
+                        **{"non-variable": np.random.choice([0, 1])},
+                        **{"dmdt": np.abs(np.random.random((26, 26))).tolist()},
+                    }
+                    entries.append(entry)
+
+                df_mock_orig = pd.DataFrame.from_records(entries)
+                df_mock_orig.to_csv(path_mock / dataset, index=False)
+
+                algorithms = ['xgb', 'dnn']
+                model_paths = []
+
+                # Train twice: once on Kowalski features, once on generated features with different periodic feature names
+                for algorithm in algorithms:
+                    tag = "vnv"
+                    if algorithm == 'xgb':
+                        extension = 'json'
+                    elif algorithm == 'dnn':
+                        extension = 'h5'
+                    time_tag = self.train(
+                        tag=tag,
+                        path_dataset=path_mock / dataset,
+                        batch_size=32,
+                        epochs=3,
+                        verbose=True,
+                        save=True,
+                        test=True,
+                        algorithm=algorithm,
+                        skip_cv=True,
+                        group=group_mock,
+                    )
+                    path_model = (
+                        pathlib.Path(__file__).parent.absolute()
+                        / f"models_{algorithm}"
+                        / group_mock
+                        / tag
+                        / f"{tag}.{time_tag}.{extension}"
+                    )
+                    model_paths += [path_model]
+
+            print('model_paths', model_paths)
+
+        finally:
+            # clean up after thyself
+            (path_mock / dataset).unlink()
+
+            # Remove trained model artifacts, but keep models_xgb and models_dnn directories
+            for path in model_paths:
+                shutil.rmtree(path.parent.parent)
+
     def test(self, doGPU=False):
-        """Test different workflows
+        """
+        Test different workflows
 
         :return:
         """
@@ -1868,7 +1972,7 @@ class Scope:
         dataset_orig = f"{uuid.uuid4().hex}_orig.csv"
         dataset = f"{uuid.uuid4().hex}.csv"
         path_mock = pathlib.Path(__file__).parent.absolute() / "data" / "training"
-        group_mock = 'experiment'
+        group_mock = 'scope_test'
 
         try:
             with status('Test training'):
@@ -1958,6 +2062,7 @@ class Scope:
                         test=True,
                         algorithm=algorithm,
                         skip_cv=True,
+                        group=group_mock,
                     )
                     path_model = (
                         pathlib.Path(__file__).parent.absolute()
@@ -1986,6 +2091,7 @@ class Scope:
                         algorithm=algorithm,
                         skip_cv=True,
                         period_suffix=period_suffix,
+                        group=group_mock,
                     )
                     path_model = (
                         pathlib.Path(__file__).parent.absolute()
