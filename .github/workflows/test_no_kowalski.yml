@@ -1,4 +1,4 @@
-name: test-no-kowalski
+name: Run tests without Kowalski
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 jobs:
-  lint:
+  test:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
