@@ -1674,7 +1674,7 @@ training:
       label: sinusoidal
       features: phenomenological
       threshold: 0.7
-      balance: 7
+      balance:
       weight_per_class: false
       batch_size: 32
       amsgrad: 0.0003503
@@ -1684,7 +1684,7 @@ training:
       label: ellipsoidal
       features: phenomenological
       threshold: 0.7
-      balance: 20
+      balance:
       weight_per_class: false
       batch_size: 16
       amsgrad: 0.001602
@@ -1694,7 +1694,7 @@ training:
       label: sawtooth
       features: phenomenological
       threshold: 0.7
-      balance: 14
+      balance:
       weight_per_class: false
       batch_size: 16
       amsgrad: 0.002117
@@ -1704,7 +1704,7 @@ training:
       label: multi periodic
       features: phenomenological
       threshold: 0.7
-      balance: 72
+      balance:
       weight_per_class: false
       batch_size: 4
       amsgrad: 0.0009331
@@ -1714,7 +1714,7 @@ training:
       label: long timescale
       features: phenomenological
       threshold: 0.7
-      balance: 4
+      balance:
       weight_per_class: false
       amsgrad: 0.002464
       epsilon: 7.828e-8
@@ -1732,7 +1732,7 @@ training:
       label: EA
       features: phenomenological
       threshold: 0.7
-      balance: 9
+      balance:
       weight_per_class: true
       batch_size: 32
       amsgrad: 0.002106
@@ -1742,7 +1742,7 @@ training:
       label: EB
       features: phenomenological
       threshold: 0.7
-      balance: 6
+      balance:
       weight_per_class: false
       batch_size: 32
       amsgrad: 0.001482
@@ -1761,7 +1761,7 @@ training:
       label: wrong period
       features: phenomenological
       threshold: 0.7
-      balance: 11
+      balance:
       weight_per_class: false
       batch_size: 8
       amsgrad: 0.001258
@@ -1771,7 +1771,7 @@ training:
       label: half period
       features: phenomenological
       threshold: 0.7
-      balance: 82
+      balance:
       weight_per_class: false
       batch_size: 4
       amsgrad: 0.001203
@@ -1781,7 +1781,7 @@ training:
       label: double period
       features: phenomenological
       threshold: 0.7
-      balance: 82
+      balance:
       weight_per_class: false
       amsgrad: 0.002407
       epsilon: 3.069e-8
@@ -1790,7 +1790,7 @@ training:
       label: irregular
       features: phenomenological
       threshold: 0.7
-      balance: 3
+      balance:
       weight_per_class: false
       amsgrad: 0.001389
       epsilon: 6.620e-8
@@ -1799,7 +1799,7 @@ training:
       label: flaring
       features: phenomenological
       threshold: 0.7
-      balance: 6
+      balance:
       weight_per_class: false
       batch_size: 32
       amsgrad: 0.0005241
@@ -1809,7 +1809,7 @@ training:
       label: dipping
       features: phenomenological
       threshold: 0.7
-      balance: 312
+      balance:
       weight_per_class: false
       batch_size: 2
       amsgrad: 0.001263
@@ -1819,7 +1819,7 @@ training:
       label: bogus
       features: phenomenological
       threshold: 0.7
-      balance: 10
+      balance:
       weight_per_class: false
       batch_size: 16
       amsgrad: 0.001224
@@ -1829,7 +1829,7 @@ training:
       label: extended
       features: phenomenological
       threshold: 0.7
-      balance: 126
+      balance:
       weight_per_class: false
       batch_size: 2
       amsgrad: 0.002583
@@ -1839,7 +1839,7 @@ training:
       label: blend
       features: phenomenological
       threshold: 0.7
-      balance: 54
+      balance:
       weight_per_class: false
       batch_size: 4
       amsgrad: 0.0006385
@@ -1849,7 +1849,7 @@ training:
       label: bright star
       features: phenomenological
       threshold: 0.7
-      balance: 80
+      balance:
       weight_per_class: false
       batch_size: 4
       amsgrad: 0.0004591
@@ -1859,14 +1859,14 @@ training:
       label: ccd artifact
       features: phenomenological
       threshold: 0.7
-      balance: 2.5
+      balance:
       weight_per_class: true
     # ontological classes
     agn:
       label: AGN
       features: ontological
       threshold: 0.7
-      balance: 33
+      balance:
       weight_per_class: false
       batch_size: 4
       amsgrad: 0.0001084
@@ -1885,7 +1885,7 @@ training:
       label: BL Her
       features: ontological
       threshold: 0.7
-      balance: 196
+      balance:
       weight_per_class: false
       batch_size: 2
       amsgrad: 0.00283
@@ -1895,7 +1895,7 @@ training:
       label: Beta Lyr
       features: ontological
       threshold: 0.7
-      balance: 6
+      balance:
       weight_per_class: false
       batch_size: 32
       amsgrad: 0.002989
@@ -1905,13 +1905,13 @@ training:
       label: compact binary
       features: ontological
       threshold: 0.7
-      balance: 2.5
+      balance:
       weight_per_class: true
     ceph:
       label: Cepheid
       features: ontological
       threshold: 0.7
-      balance: 12
+      balance:
       weight_per_class: false
       batch_size: 16
       amsgrad: 0.0003948
@@ -1921,7 +1921,7 @@ training:
       label: Cepheid type-II
       features: ontological
       threshold: 0.7
-      balance: 66
+      balance:
       weight_per_class: false
       batch_size: 4
       amsgrad: 0.002885
@@ -1931,7 +1931,7 @@ training:
       label: CV
       features: ontological
       threshold: 0.7
-      balance: 10
+      balance:
       weight_per_class: false
       amsgrad: 0.001594
       epsilon: 4.780e-8
@@ -1940,7 +1940,7 @@ training:
       label: Delta Scu
       features: ontological
       threshold: 0.7
-      balance: 6
+      balance:
       weight_per_class: false
       amsgrad: 0.00003541
       epsilon: 2.910e-9
@@ -1949,7 +1949,7 @@ training:
       label: detached eclipsing MS-MS
       features: ontological
       threshold: 0.7
-      balance: 4
+      balance:
       weight_per_class: false
       amsgrad: 0.002309
       epsilon: 7.012e-8
@@ -1958,19 +1958,19 @@ training:
       label: F
       features: ontological
       threshold: 0.7
-      balance: 2.5
+      balance:
       weight_per_class: true
     hwvir:
       label: eclipsing sdB+dM (HW Vir)
       features: ontological
       threshold: 0.7
-      balance: 2.5
+      balance:
       weight_per_class: true
     lpv:
       label: LPV
       features: ontological
       threshold: 0.7
-      balance: 5
+      balance:
       weight_per_class: false
       amsgrad: 0.0004493
       epsilon: 9.229e-8
@@ -1979,7 +1979,7 @@ training:
       label: Mira
       features: ontological
       threshold: 0.7
-      balance: 70
+      balance:
       weight_per_class: false
       batch_size: 4
       amsgrad: 0.0004852
@@ -1989,19 +1989,19 @@ training:
       label: eclipsing WD+dM (NN Ser)
       features: ontological
       threshold: 0.7
-      balance: 2.5
+      balance:
       weight_per_class: true
     o:
       label: O
       features: ontological
       threshold: 0.7
-      balance: 2.5
+      balance:
       weight_per_class: true
     osarg:
       label: OSARG
       features: ontological
       threshold: 0.7
-      balance: 8
+      balance:
       weight_per_class: false
       batch_size: 32
       amsgrad: 0.001104
@@ -2020,13 +2020,13 @@ training:
       label: Redback pulsar
       features: ontological
       threshold: 0.7
-      balance: 2.5
+      balance:
       weight_per_class: true
     rrlyr:
       label: RR Lyrae
       features: ontological
       threshold: 0.7
-      balance: 6
+      balance:
       weight_per_class: false
       amsgrad: 0.001245
       epsilon: 4.840e-8
@@ -2035,7 +2035,7 @@ training:
       label: RR Lyrae ab
       features: ontological
       threshold: 0.7
-      balance: 4
+      balance:
       weight_per_class: false
       amsgrad: 0.001047
       epsilon: 4.307e-8
@@ -2044,7 +2044,7 @@ training:
       label: RR Lyrae c
       features: ontological
       threshold: 0.7
-      balance: 3
+      balance:
       weight_per_class: false
       amsgrad: 0.002501
       epsilon: 7.619e-8
@@ -2053,7 +2053,7 @@ training:
       label: RR Lyrae d
       features: ontological
       threshold: 0.7
-      balance: 35
+      balance:
       weight_per_class: false
       batch_size: 4
       amsgrad: 0.001336
@@ -2063,7 +2063,7 @@ training:
       label: RR Lyrae Blazhko
       features: ontological
       threshold: 0.7
-      balance: 228
+      balance:
       weight_per_class: false
       batch_size: 2
       amsgrad: 0.002507
@@ -2073,7 +2073,7 @@ training:
       label: RS CVn
       features: ontological
       threshold: 0.7
-      balance: 12
+      balance:
       weight_per_class: false
       batch_size: 16
       amsgrad: 0.002394
@@ -2083,13 +2083,13 @@ training:
       label: RV Tau
       features: ontological
       threshold: 0.7
-      balance: 2.5
+      balance:
       weight_per_class: true
     srv:
       label: SRV
       features: ontological
       threshold: 0.7
-      balance: 20
+      balance:
       weight_per_class: false
       batch_size: 8
       amsgrad: 0.001237
@@ -2108,7 +2108,7 @@ training:
       label: W Virginis
       features: ontological
       threshold: 0.7
-      balance: 240
+      balance:
       weight_per_class: false
       batch_size: 2
       amsgrad: 0.000135
@@ -2118,7 +2118,7 @@ training:
       label: YSO
       features: ontological
       threshold: 0.7
-      balance: 7
+      balance:
       weight_per_class: false
       amsgrad: 0.0009407
       epsilon: 3.372e-8
