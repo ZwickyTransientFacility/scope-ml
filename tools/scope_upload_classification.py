@@ -78,6 +78,7 @@ def upload_classification(
     result_format: str = 'parquet',
     replace_classifications: bool = False,
     radius_arcsec: float = 2.0,
+    no_ml: bool = False,
 ):
     """
     Upload labels to Fritz
@@ -103,6 +104,7 @@ def upload_classification(
     :result_format: format of resulting uploaded file (str)
     :replace_classifications: if True, delete each object's existing classifications before posting new ones (bool)
     :radius_arcsec: photometry search radius for uploaded sources (float)
+    :no_ml: if True, posted classifications are not noted to originate from an ML classifier (bool)
     """
 
     # read in file to csv
@@ -374,6 +376,7 @@ def upload_classification(
                         "group_ids": group_ids,
                         "vote": post_upvote,
                         "label": check_labelled_box,
+                        "ml": not no_ml,
                     }
                     if cls not in existing_classes:
                         # post all non-duplicate classifications
@@ -669,6 +672,13 @@ if __name__ == "__main__":
         help="Photometry search radius for uploaded sources",
     )
 
+    parser.add_argument(
+        "--no_ml",
+        action='store_true',
+        default=False,
+        help="If set, posted classifications are not noted to originate from an ML classifier.",
+    )
+
     args = parser.parse_args()
 
     # upload classification objects
@@ -696,4 +706,5 @@ if __name__ == "__main__":
         args.result_format,
         args.replace_classifications,
         args.radius_arcsec,
+        args.no_ml,
     )

@@ -315,6 +315,8 @@ inputs:
 19. --result_filetag: name of tag appended to the result filename. Default is 'fritzUpload'.
 20. --result_format : result file format; one of csv, h5 or parquet. Default is parquet.
 21. --replace_classifications : flag to delete each source's existing classifications before posting new ones.
+22. --radius_arcsec: photometry search radius for uploaded sources.
+23. --no_ml: flag to post classifications that do not originate from an ML classifier.
 
 process:
 0. include Kowalski host, port, protocol, and token or username+password in config.yaml
