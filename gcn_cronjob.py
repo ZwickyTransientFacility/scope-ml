@@ -11,6 +11,7 @@ import os
 from scope.utils import read_parquet
 import numpy as np
 import warnings
+import json
 
 
 BASE_DIR = pathlib.Path(__file__).parent.absolute()
@@ -22,7 +23,7 @@ with open(config_path) as config_yaml:
 
 
 def query_gcn_events(
-    daysAgo=14.0,
+    daysAgo=7.0,
     query_group_ids: list = [],
     post_group_ids: list = [1544],
     days_range: float = 7.0,
@@ -40,7 +41,31 @@ def query_gcn_events(
     dnn_preds_directory: str = 'GCN_dnn',
     xgb_preds_directory: str = 'GCN_xgb',
     path_to_python: str = '~/miniforge3/envs/scope-env/bin/python',
+    checkpoint_filename: str = 'gcn_sources_checkpoint.json',
+    checkpoint_refresh_days: float = 30.0,
+    ignore_checkpoint: bool = False,
 ):
+
+    currentDate = datetime.utcnow()
+    current_dt = currentDate.strftime("%Y-%m-%dT%H:%M:%S")
+
+    checkpoint_path = BASE_DIR / checkpoint_filename
+
+    chk_deleted = False
+    if checkpoint_path.exists():
+        with open(checkpoint_path) as f:
+            checkpoint_dict = json.load(f)
+        chk_startDate = datetime.strptime(
+            checkpoint_dict['start_dt'], "%Y-%m-%dT%H:%M:%S"
+        )
+        # Delete checkpoint file if start date is too far in past
+        # (Avoids endlessly growing id list)
+        chk_diff = currentDate - chk_startDate
+        if chk_diff.seconds / 86400.0 > checkpoint_refresh_days:
+            checkpoint_path.unlink()
+            chk_deleted = True
+    if (not checkpoint_path.exists()) | (chk_deleted):
+        checkpoint_dict = {'start_dt': current_dt, 'sources': {'gw': [], 'grb': []}}
 
     if dateobs is None:
         utcnow = datetime.utcnow()
@@ -96,11 +121,14 @@ def query_gcn_events(
         dateobs = event["dateobs"]
         tags = event["tags"]
 
+        chk_dict_keys = []
         # Set group(s) for classifications
         if ("GRB" in tags) | ("Fermi" in tags):
+            chk_dict_keys.append('grb')
             # Gamma Ray Bursts group on Fritz
             post_group_ids = [48]
         if "GW" in tags:
+            chk_dict_keys.append('gw')
             if 1544 not in post_group_ids:
                 # EM+GW group on Fritz
                 post_group_ids.append(1544)
@@ -131,6 +159,14 @@ def query_gcn_events(
             save_filename=save_filename,
         )
 
+        sources_to_run = False
+        if ids is not None:
+            for key in chk_dict_keys:
+                for id in ids:
+                    if (id not in checkpoint_dict['sources'][key]) | ignore_checkpoint:
+                        sources_to_run = True
+                        checkpoint_dict['sources'][key].append(id)
+
         try:
             current_sources = read_parquet(filepath)
             new_sources = current_sources.copy().set_index('ztf_id')
@@ -151,7 +187,11 @@ def query_gcn_events(
             has_new_sources = False
             print(f"Event {dateobs} has no new sources.")
 
-        if ids is not None:
+        if sources_to_run:
+            if ignore_checkpoint:
+                print('Processing all new sources, ignoring checkpoint list...')
+            else:
+                print('Processing sources missing from checkpoint list...')
             features_file = (
                 BASE_DIR
                 / f"{generated_features_dirname}/specific_ids/gen_gcn_features_{save_dateobs}_specific_ids.parquet"
@@ -243,7 +283,13 @@ def query_gcn_events(
 
             else:
                 warnings.warn("Features file does not exist.")
+
+        else:
+            print('No unclassified sources to run.')
         print()
+
+    with open(checkpoint_path, 'w') as f:
+        json.dump(checkpoint_dict, f)
 
 
 if __name__ == '__main__':
@@ -358,6 +404,23 @@ if __name__ == '__main__':
         default='~/miniforge3/envs/scope-env/bin/python',
         help="path to python within scope environment (run 'which python' while your scope environment is active to find)",
     )
+    parser.add_argument(
+        "--checkpoint_filename",
+        type=str,
+        default='gcn_sources_checkpoint.json',
+        help="filename containing source ids already classified",
+    )
+    parser.add_argument(
+        "--checkpoint_refresh_days",
+        type=float,
+        default=30.0,
+        help="days after checkpoint start_date to delete json file and re-generate",
+    )
+    parser.add_argument(
+        "--ignore_checkpoint",
+        action='store_true',
+        help="If set, ignore current classified sources listed in checkpoint file (bool)",
+    )
 
     args = parser.parse_args()
 
@@ -380,4 +443,7 @@ if __name__ == '__main__':
         dnn_preds_directory=args.dnn_preds_directory,
         xgb_preds_directory=args.xgb_preds_directory,
         path_to_python=args.path_to_python,
+        checkpoint_filename=args.checkpoint_filename,
+        checkpoint_refresh_days=args.checkpoint_refresh_days,
+        ignore_checkpoint=args.ignore_checkpoint,
     )
