@@ -94,6 +94,11 @@ class Scope:
                 pathlib.Path(__file__).parent.absolute() / "config.yaml"
             )
 
+            self.base_path = pathlib.Path(__file__).parent.absolute()
+            self.default_path_dataset = (
+                self.base_path / self.config['training']['dataset']
+            )
+
             # use tokens specified as env vars (if exist)
             kowalski_token_env = os.environ.get("KOWALSKI_INSTANCE_TOKEN")
             gloria_token_env = os.environ.get("GLORIA_INSTANCE_TOKEN")
@@ -537,7 +542,7 @@ class Scope:
     def train(
         self,
         tag: str,
-        path_dataset: Union[str, pathlib.Path],
+        path_dataset: Union[str, pathlib.Path] = None,
         algorithm: str = 'DNN',
         gpu: Optional[int] = None,
         verbose: bool = False,
@@ -573,6 +578,9 @@ class Scope:
         from scope.nn import DNN
         from scope.xgb import XGB
         from scope.utils import Dataset
+
+        if path_dataset is None:
+            path_dataset = self.default_path_dataset
 
         label_params = self.config["training"]["classes"][tag]
         train_config_xgb = self.config["training"]['xgboost']
@@ -1174,7 +1182,7 @@ class Scope:
                     --algorithm='dnn' --feature_directory='generated_features'
         """
 
-        base_path = pathlib.Path(__file__).parent.absolute()
+        base_path = self.base_path
         path = str(base_path / filename)
         group_path = (
             pathlib.Path(__file__).parent.absolute()
@@ -1472,7 +1480,7 @@ class Scope:
                     ./scope.py select_fritz_sample --fields='specific_ids' --group='DR16' --algorithm='xgb' --probability_threshold=0.9 --consol_filename='inference_results_specific_ids' --al_directory='GCN' --al_filename='GCN_sources' --write_consolidation_results --select_top_n --doAllSources --write_csv
 
         """
-        base_path = pathlib.Path(__file__).parent.absolute()
+        base_path = self.base_path
         if algorithm in ['DNN', 'NN', 'dnn', 'nn']:
             algorithm = 'dnn'
         elif algorithm in ['XGB', 'xgb', 'XGBoost', 'xgboost', 'XGBOOST']:
