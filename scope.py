@@ -90,11 +90,10 @@ class Scope:
         with status("Checking configuration"):
             check_configs(config_wildcards=["config.*yaml"])
 
-            self.config = load_config(
-                pathlib.Path(__file__).parent.absolute() / "config.yaml"
-            )
-
             self.base_path = pathlib.Path(__file__).parent.absolute()
+
+            self.config = load_config(self.base_path / "config.yaml")
+
             self.default_path_dataset = (
                 self.base_path / self.config['training']['dataset']
             )
