@@ -1037,7 +1037,7 @@ class Scope:
                     ./scope.py create_training_script --filename='train_xgb.sh' --algorithm='xgb' --min_count=100 \
                     --add_keywords='--save --plot --batch_size=32 --group=groupname'
         """
-        path = str(pathlib.Path(__file__).parent.absolute() / filename)
+        path = str(self.base_path / filename)
 
         phenom_tags = []
         ontol_tags = []
@@ -1048,7 +1048,7 @@ class Scope:
 
         if path_dataset is None:
             dataset_name = self.config['training']['dataset']
-            path_dataset = str(pathlib.Path(__file__).parent.absolute() / dataset_name)
+            path_dataset = str(self.base_path / dataset_name)
 
         if path_dataset.endswith('.parquet'):
             dataset = read_parquet(path_dataset)
@@ -1183,11 +1183,7 @@ class Scope:
 
         base_path = self.base_path
         path = str(base_path / filename)
-        group_path = (
-            pathlib.Path(__file__).parent.absolute()
-            / f'models_{algorithm}'
-            / group_name
-        )
+        group_path = base_path / f'models_{algorithm}' / group_name
 
         addtl_args = ''
         if write_csv:
