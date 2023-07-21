@@ -25,7 +25,6 @@ import argparse
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 warnings.filterwarnings('ignore')
 
-# BASE_DIR = os.path.dirname(__file__)
 BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
 JUST = 50
 
@@ -255,14 +254,19 @@ def run_inference(
     else:
         algorithm = 'dnn'
 
-    if type(field) == str:
+    try:
+        field = int(field)
+        int_field = True
+    except ValueError:
+        int_field = False
+
+    if not int_field:
         if 'specific_ids' in field:
             default_features_file = str(
                 BASE_DIR
                 / f"{feature_directory}/specific_ids/gen_gcn_features_{field}.parquet"
             )
     else:
-        field = int(field)
         # default file location for source ids
         if whole_field:
             default_features_file = (
@@ -646,7 +650,6 @@ def run_inference(
 
 
 if __name__ == "__main__":
-    # fire.Fire(run)
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
