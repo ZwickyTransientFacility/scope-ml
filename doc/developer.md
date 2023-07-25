@@ -1,72 +1,50 @@
 # Installation/Developer Guidelines
 
-## How to contribute
+## Initial steps
 
-Contributions to `scope` are made through [GitHub Pull Requests](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/about-pull-requests), a set of proposed commits (or patches).
+- Create your own fork the [scope repository](https://github.com/ZwickyTransientFacility/scope) by clicking the "fork" button. Then, decide whether you would like to use HTTPS (easier for beginners) or SSH.
+- Following one set of instructions below, clone (download) your copy of the repository, and set up a remote called `upstream` that points to the main `scope` repository.
 
-To prepare, you should:
+### HTTPS:
 
-- Create your own fork the [scope repository](https://github.com/ZwickyTransientFacility/scope) by clicking the "fork" button.
+```shell script
+git clone https://github.com/<yourname>/scope.git && cd scope
+git remote add upstream https://github.com/ZwickyTransientFacility/scope.git
+```
+
+### SSH:
 
 - [Set up SSH authentication with GitHub](https://help.github.com/en/github/authenticating-to-github/connecting-to-github-with-ssh).
 
-- Clone (download) your copy of the repository, and set up a remote called `upstream` that points to the main `scope` repository.
-
-  ```shell script
-  git clone git@github.com:<yourname>/scope && cd scope
-  git remote add upstream https://github.com/ZwickyTransientFacility/scope.git
-  ```
-
-Then, for each feature you wish to contribute, create a pull request:
-
-1. Download the latest version of `scope`, and create a new branch for your work.
-
-   Here, let's say we want to contribute some documentation fixes; we'll call our branch `rewrite-contributor-guide`.
-
-   ```shell script
-   git checkout main
-   git pull upstream main
-   git checkout -b rewrite-contributor-guide
-   ```
-
-2. Make modifications to `scope` and commit your changes using `git add` and `git commit`.
-Each commit message should consist of a summary line and a longer description, e.g.:
-
-   ```text
-   Rewrite the contributor guide
-   While reading through the contributor guide, I noticed several places
-   in which instructions were out of order. I therefore reorganized all
-   sections to follow logically, and fixed several grammar mistakes along
-   the way.
-   ```
-
-3. When ready, push your branch to GitHub:
-
-   ```shell script
-   git push origin rewrite-contributor-guide
-   ```
-
-   Once the branch is uploaded, GitHub should print a URL for turning your branch into a pull request.
-   Open that URL in your browser, write an informative title and description for your pull request, and submit it.
-
-4. The team will now review your contribution, and suggest changes.
-*To simplify review, please limit pull requests to one logical set of changes.*
-To incorporate changes recommended by the reviewers, commit edits to your branch, and push to the branch again
-(there is no need to re-create the pull request, it will automatically track modifications to your branch).
-
-5. Sometimes, while you were working on your feature, the `main` branch is updated with new commits, potentially
-resulting in conflicts with your feature branch. The are two ways to resolve this situation - merging and rebasing,
-please look [here](https://www.atlassian.com/git/tutorials/merging-vs-rebasing) for a detailed discussion.
-While both ways are acceptable, since we are squashing commits from a PR before merging, we prefer the first option:
-
-    ```shell script
-    git merge rewrite-contributor-guide upstream/main
-    ```
-Developers may merge `main` into their branch as many times as they want to.
-
-6. Once the pull request has been reviewed and approved by at least two team members, it will be merged into `scope`.
+```shell script
+git clone git@github.com:<yourname>/scope.git && cd scope
+git remote add upstream git@github.com:ZwickyTransientFacility/scope.git
+```
 
 ## Setting up your environment (Windows/Linux/macOS)
+
+#### Use a package manager for installation
+
+We currently recommend running `scope` with Python 3.10. You may want to begin your installation by creating/activating a virtual environment, for example using conda. We specifically recommend installing miniforge3 (https://github.com/conda-forge/miniforge).
+
+Once you have a package manager installed, run:
+
+```bash
+conda create -n scope-env -c conda-forge python=3.10 healpy
+conda activate scope-env
+```
+
+#### Update your `PYTHONPATH`
+
+Ensure that Python can import from `scope` by modifying the `PYTHONPATH` environment variable. Use a simple text editor like `nano` to modify the appropriate file (depending on which shell you are using). For example, if using bash, run `nano ~/.bash_profile` and add the following line:
+
+```bash
+export PYTHONPATH="$PYTHONPATH:$HOME/scope"
+```
+
+Save the updated file (`Ctrl+O` in `nano`) and close/reopen your terminal for this change to be recognized. Then `cd` back into scope and activate your `scope-env` again.
+
+#### Install pre-commit
 
 We use `black` to format the code and `flake8` to verify that code complies with [PEP8](https://www.python.org/dev/peps/pep-0008/).
 Please install our pre-commit hook as follows:
@@ -84,38 +62,18 @@ The pre-commit hook will lint *changes* made to the source.
 
 ---
 
-We currently recommend running `scope` with Python 3.10. You may want to create/activate a virtual environment, for example using conda:
+### Instructions for macOS (ARM64/Apple Silicon only)
 
-```bash
-conda create -n scope-env -c conda-forge python=3.10 healpy
-conda activate scope-env
-```
-
-Ensure that Python can import from `scope` by modifying the `PYTHONPATH` environment variable, e.g. by adding the following to `~/.bash_profile`:
-
-```bash
-export PYTHONPATH="$PYTHONPATH:$HOME/scope"
-```
-
----
-
-### Instructions for macOS (ARM64)
-
-Skip to the next section if using Windows/Linux or macOS (AMD64).
-
-#### Use miniforge3 to install packages
-
-There have been issues with Anaconda on Macs with Apple Silicon. We recommend using miniforge3 (`https://github.com/conda-forge/miniforge`), which is a conda environment specifically adapted to the newest Macs.
+Skip to the next section if using Windows/Linux or macOS (AMD64/Intel).
 
 #### Install tensorflow for macOS/Apple Silicon
 
 You will need to install the correct version of tensorflow for the ARM64 architecture used by Macs with Apple Silicon. Apple provides an effective version here: `https://developer.apple.com/metal/tensorflow-plugin/`.
 
-To install tensorflow for macOS, run:
+To install tensorflow for macOS (including a version that runs on GPUs), run:
 ```bash
-conda install -c apple tensorflow-deps
-python -m pip install tensorflow-macos
-python -m pip install tensorflow-metal
+pip install tensorflow-macos
+pip install tensorflow-metal
 ```
 
 #### Modify remaining requirements
@@ -162,7 +120,7 @@ cp config.defaults.yaml config.yaml
 Edit config.yaml to include Kowalski instance and Fritz tokens in the associated empty `token:` fields.
 
 #### Testing
-Run `./scope.py test` to test your installation. Note that for the test to pass, you will need access to the Kowalski database.
+Run `./scope.py test` to test your installation. Note that for the test to pass, you will need access to the Kowalski database. If you do not have Kowalski access, you can run `./scope.py test_limited` to run a more limited (but still useful) set of tests.
 
 #### Troubleshooting
 Upon encountering installation/testing errors, manually install the package in question using  `conda install xxx` , and remove it from `.requirements/dev.txt`. After that, re-run `pip install -r requirements.txt` to continue.
@@ -176,6 +134,57 @@ Upon encountering installation/testing errors, manually install the package in q
    - For `cesium`, try to install from the source (https://cesium-ml.org/docs/install.html#from-source) within `scope`. If you will not be running feature generation, this is not a critical error, but there will be points in the code that fail (e.g. `scope.py test`, `tools/generate_features.py`)
 
 If the installation continues to raise errors, update the conda environment and try again.
+
+### How to contribute
+
+Contributions to `scope` are made through [GitHub Pull Requests](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/about-pull-requests), a set of proposed commits (or patches):
+
+1. Download the latest version of `scope`, and create a new branch for your work.
+
+   Here, let's say we want to contribute some documentation fixes; we'll call our branch `rewrite-contributor-guide`.
+
+   ```shell script
+   git checkout main
+   git pull upstream main
+   git checkout -b rewrite-contributor-guide
+   ```
+
+2. Make modifications to `scope` and commit your changes using `git add` and `git commit`.
+Each commit message should consist of a summary line and a longer description, e.g.:
+
+   ```text
+   Rewrite the contributor guide
+   While reading through the contributor guide, I noticed several places
+   in which instructions were out of order. I therefore reorganized all
+   sections to follow logically, and fixed several grammar mistakes along
+   the way.
+   ```
+
+1. When ready, push your branch to GitHub:
+
+   ```shell script
+   git push origin rewrite-contributor-guide
+   ```
+
+   Once the branch is uploaded, GitHub should print a URL for turning your branch into a pull request.
+   Open that URL in your browser, write an informative title and description for your pull request, and submit it.
+
+2. The team will now review your contribution, and suggest changes.
+*To simplify review, please limit pull requests to one logical set of changes.*
+To incorporate changes recommended by the reviewers, commit edits to your branch, and push to the branch again
+(there is no need to re-create the pull request, it will automatically track modifications to your branch).
+
+1. Sometimes, while you were working on your feature, the `main` branch is updated with new commits, potentially
+resulting in conflicts with your feature branch. The are two ways to resolve this situation - merging and rebasing,
+please look [here](https://www.atlassian.com/git/tutorials/merging-vs-rebasing) for a detailed discussion.
+While both ways are acceptable, since we are squashing commits from a PR before merging, we prefer the first option:
+
+    ```shell script
+    git merge rewrite-contributor-guide upstream/main
+    ```
+Developers may merge `main` into their branch as many times as they want to.
+
+1. Once the pull request has been reviewed and approved by at least one team member, it will be merged into `scope`.
 
 ## Contributing Field Guide sections
 
