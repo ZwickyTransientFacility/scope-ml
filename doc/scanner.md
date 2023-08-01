@@ -1,4 +1,4 @@
-# SCoPe Guide for Fritz Scanners
+# Guide for Fritz Scanners
 This page is a guide the SCoPe classification process. It contains sections on the classification taxonomies we use, definitions of each classification that may be posted to Fritz, An explanation of the binary classifier algorithms we train and the workflow we run on transient candidates, and plots of each classifer's current precision and recall scores.
 
 ## Two classification taxonomies

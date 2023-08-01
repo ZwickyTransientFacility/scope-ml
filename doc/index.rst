@@ -7,4 +7,5 @@ ZTF Variable Source Classification Project
    field_guide
    usage
    developer
+   scanner
    license
