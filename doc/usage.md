@@ -240,6 +240,41 @@ inputs:
 16. --runParallel : flag to run jobs in parallel using slurm [recommended]. Otherwise, run in series on a single instance
 17. --user : if using slurm, your username. This will be used to periodically run `squeue` and list your running jobs (str)
 
+## Running automated analyses
+The primary deliverable of SCoPe is a catalog of variable source classifications across all of ZTF. Since ZTF contains billions of light curves, this catalog requires significant compute resources to assemble. We may still want to study ZTF's expansive collection of data with SCoPe before the classification catalog is complete. For example, SCoPe classifiers can be applied to the realm of transient follow-up.
+
+It is useful to know the classifications of any persistent ZTF sources that are close to transient candidates on the sky. Once SCoPe's primary deliverable is complete, obtaining these classifications will involve a straightforward database query. Presently, however, we must run the SCoPe workflow on a custom list of sources repeatedly to account for the rapidly changing landscape of transient events. See "Guide for Fritz Scanners" for a more detailed explanation of the workflow itself. This section continues with a discussion of how the automated analysis in `gcn_cronjob.py` is implemented using `cron`.
+
+### `cron` job basics
+`cron` runs scripts at specific time intervals in a simple environment. While this simplicity fosters compatibility between different operating systems, the trade-off is that some extra steps are required to run scripts compared to more familiar coding environments (e.g. within `scope-env` for this project).
+
+To set up a `cron` job, first run `EDITOR=emacs crontab -e`. You can replace `emacs` with your text editor of choice as long as it is installed on your machine. This command will open a text file in which to place `cron` commands. An example command is as follows:
+```bash
+0 */2 * * * ~/scope/gcn_cronjob.py > ~/scope/log_gcn_cronjob.txt 2>&1
+
+```
+Above, the `0 */2 * * *` means that this command will run every two hours, on minute 0 of that hour. Time increments increase from left to right; in this example, the five numbers are minute, hour, day (of month), month, day (of week). The `*/2` means that the hour has to be divisible by 2 for the job to run. Check out [crontab.guru](https://crontab.guru) to learn more about `cron` timing syntax.
+
+Next in the line, `~/scope/gcn_cronjob.py` is the command that gets run. The `>` character forwards the output from the command (e.g. what your script prints) into a log file in a specific location (here `~/scope/log_gcn_cronjob.txt`). Finally, the `2>&1` suppresses 'emails' from `cron` about the status of your job (unnecessary since the log is being saved to the user-specified file).
+
+Save the text file once you finish modifying it to install the cron job. **Ensure that the last line of your file is a newline to avoid issues when running.** Your computer may pop up a window to which you should respond in the affirmative in order to successfully initialize the job. To check which `cron` jobs have been installed, run `crontab -l`. To uninstall your jobs, run `crontab -r`.
+
+### Additional details for `cron` environment
+Because `cron` runs in a simple environment, the usual details of environment setup and paths cannot be overlooked. In order for the above job to work, we need to add more information when we run `EDITOR=emacs crontab -e`. The lines below will produce a successful run:
+
+```
+PYTHONPATH = ~/scope
+
+0 */2 * * * /opt/homebrew/bin/gtimeout 2h ~/miniforge3/envs/scope-env/bin/python ~/scope/gcn_cronjob.py > ~/scope/log_gcn_cronjob.txt 2>&1
+
+```
+In the first line above, the `PYTHONPATH` environment variable is defined to include the `scope` directory. Without this line, any code that imports from `scope` will throw an error, since the user's usual `PYTHONPATH` variable is not accessed in the `cron` environment.
+
+The second line begins with the familiar `cron` timing pattern described above. It continues by specifying the a maximum runtime of 2 hours before timing out using the `gtimeout` command. On a Mac, this can be installed with `homebrew` by running `brew install coreutils`. Note that the full path to `gtimeout` must be specified. After the timeout comes the call to the `gcn_cronjob.py` script. Note that the usual `#/usr/bin/env python` line at the top of SCoPe's python scripts does not work within the `cron` environment. Instead, `python` must be explicitly specified, and in order to have access to the modules installed in `scope-env` we must provide a full path like the one above (`~/miniforge3/envs/scope-env/bin/python`). The line concludes by sending the script's output to a dedicated log file. This file gets overwritten each time the script runs.
+
+### Check if `cron` job is running
+It can be useful to know whether the script within a cron job is currently running. One way to do this for `gcn_cronjob.py` is to run the command `ps aux | grep gcn_cronjob.py`. This will always return one item (representing the command you just ran), but if the script is currently running you will see more than one item.
+
 
 ## Scope Download Classification
 inputs:
