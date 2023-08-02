@@ -59,7 +59,7 @@ instances = {
 kowalski_instances = Kowalski(timeout=timeout, instances=instances)
 
 
-def make_phot_plot(photometry, dirname='phot_plots', s=5):
+def make_phot_plot(photometry, dirname='phot_plots', figsize=(10, 5), s=5, dpi=300):
     obj_id = photometry['obj_id']
     ra = np.mean(photometry['ra'])
     dec = np.mean(photometry['dec'])
@@ -75,7 +75,7 @@ def make_phot_plot(photometry, dirname='phot_plots', s=5):
     figpath = os.path.join(str(BASE_DIR), dirname)
     os.makedirs(figpath, exist_ok=True)
 
-    fig = plt.figure(figsize=(12, 6))
+    fig = plt.figure(figsize=figsize)
 
     for uf in ['ztfg', 'ztfr', 'ztfi']:
         filt_mask = [x == uf for x in filt]
@@ -108,7 +108,7 @@ def make_phot_plot(photometry, dirname='phot_plots', s=5):
     plt.ylabel('AB mag')
     plt.title(f'{ztf_name}')
     plt.legend(ncol=3)
-    fig.savefig(f"{figpath}/{obj_id}.pdf", bbox_inches='tight')
+    fig.savefig(f"{figpath}/{obj_id}.png", bbox_inches='tight', dpi=dpi)
 
 
 def upload_classification(
