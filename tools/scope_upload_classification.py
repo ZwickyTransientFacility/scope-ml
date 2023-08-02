@@ -3,7 +3,7 @@ import argparse
 import json as JSON
 import pandas as pd
 from penquins import Kowalski
-from scope.fritz import save_newsource, api
+from scope.fritz import save_newsource, api, radec_to_iau_name
 from scope.utils import read_hdf, read_parquet, write_hdf, write_parquet
 import math
 import warnings
@@ -13,11 +13,16 @@ from tools import scope_manage_annotation
 from datetime import datetime
 import numpy as np
 import os
+import matplotlib.pyplot as plt
 
 UPLOAD_BATCHSIZE = 10
 OBJ_ID_BATCHSIZE = 10
 
-config_path = pathlib.Path(__file__).parent.parent.absolute() / "config.yaml"
+plt.rcParams['font.size'] = 13
+
+BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
+
+config_path = BASE_DIR / "config.yaml"
 with open(config_path) as config_yaml:
     config = yaml.load(config_yaml, Loader=yaml.FullLoader)
 
@@ -54,6 +59,58 @@ instances = {
 kowalski_instances = Kowalski(timeout=timeout, instances=instances)
 
 
+def make_phot_plot(photometry, dirname='phot_plots', s=5):
+    obj_id = photometry['obj_id']
+    ra = np.mean(photometry['ra'])
+    dec = np.mean(photometry['dec'])
+    mjd = photometry['mjd']
+    mag = photometry['mag']
+
+    min_mag = np.min(mag)
+    max_mag = np.max(mag)
+
+    filt = photometry['filter']
+    ztf_name = radec_to_iau_name(ra, dec, prefix="ZTFJ")
+
+    figpath = os.path.join(str(BASE_DIR), dirname)
+    os.makedirs(figpath, exist_ok=True)
+
+    fig = plt.figure(figsize=(12, 6))
+
+    for uf in ['ztfg', 'ztfr', 'ztfi']:
+        filt_mask = [x == uf for x in filt]
+        if np.sum(filt_mask) > 0:
+
+            mjd_filt = np.array(mjd)[filt_mask]
+            mag_filt = np.array(mag)[filt_mask]
+
+            if uf == 'ztfg':
+                current_color = 'green'
+                current_marker = '.'
+            elif uf == 'ztfr':
+                current_color = 'red'
+                current_marker = 'D'
+            elif uf == 'ztfi':
+                current_color = 'gold'
+                current_marker = 's'
+
+            plt.scatter(
+                mjd_filt,
+                mag_filt,
+                color=current_color,
+                label=uf,
+                marker=current_marker,
+                s=s,
+            )
+
+    plt.ylim(max_mag + 1.0, min_mag - 1.0)
+    plt.xlabel('MJD')
+    plt.ylabel('AB mag')
+    plt.title(f'{ztf_name}')
+    plt.legend(ncol=3)
+    fig.savefig(f"{figpath}/{obj_id}.pdf", bbox_inches='tight')
+
+
 def upload_classification(
     file: str,
     kowalski_instances: Kowalski,
@@ -79,6 +136,8 @@ def upload_classification(
     replace_classifications: bool = False,
     radius_arcsec: float = 2.0,
     no_ml: bool = False,
+    post_phot_as_comment: bool = False,
+    phot_dirname: str = 'phot_plots',
 ):
     """
     Upload labels to Fritz
@@ -93,7 +152,7 @@ def upload_classification(
     :param classification_origin: origin of classifications (str)
     :post_survey_id: if True, post survey_id from input dataset (bool)
     :skip_phot: if True, only upload groups and classifications (no photometry) (bool)
-    :p_threshold: classification probabilties must be >= this number to post (float)
+    :p_threshold: classification probabilities must be >= this number to post (float)
     :match_ids: if True, match ZTF source ids when searching existing sources (bool)
     :use_existing_obj_id: if True, source obj_id from input dataset (bool)
     :post_upvote: if True, post upvote to new classifications (bool)
@@ -105,6 +164,8 @@ def upload_classification(
     :replace_classifications: if True, delete each object's existing classifications before posting new ones (bool)
     :radius_arcsec: photometry search radius for uploaded sources (float)
     :no_ml: if True, posted classifications are not noted to originate from an ML classifier (bool)
+    :post_phot_as_comment: if True, post photometry as a comment on the source (bool)
+    :phot_dirname: Name of directory in which to save photometry plots (str)
     """
 
     # read in file to csv
@@ -266,22 +327,43 @@ def upload_classification(
         print(f"object {index} id:", obj_id)
 
         # save_newsource can only be skipped if source exists in all specified groups
-        if (len(existing_source) == 0) | (not skip_phot) | (n_missing_groups > 0):
+        if (
+            (len(existing_source) == 0)
+            | (not skip_phot)
+            | (n_missing_groups > 0)
+            | post_phot_as_comment
+        ):
             if ((len(existing_source) == 0) | (n_missing_groups > 0)) & (skip_phot):
                 warnings.warn('Cannot skip new source - saving.')
             post_source = len(existing_source) == 0
-            obj_id = save_newsource(
-                kowalski_instances,
-                group_ids,
-                ra,
-                dec,
-                obj_id=obj_id,
-                period=period,
-                return_id=True,
-                radius=radius_arcsec,
-                post_source=post_source,
-                skip_phot=skip_phot,
-            )
+            if not post_phot_as_comment:
+                obj_id = save_newsource(
+                    kowalski_instances,
+                    group_ids,
+                    ra,
+                    dec,
+                    obj_id=obj_id,
+                    period=period,
+                    return_id=True,
+                    radius=radius_arcsec,
+                    post_source=post_source,
+                    skip_phot=skip_phot,
+                )
+            else:
+                obj_id, photometry = save_newsource(
+                    kowalski_instances,
+                    group_ids,
+                    ra,
+                    dec,
+                    obj_id=obj_id,
+                    period=period,
+                    return_id=True,
+                    return_phot=True,
+                    radius=radius_arcsec,
+                    post_source=post_source,
+                    skip_phot=skip_phot,
+                )
+            make_phot_plot(photometry, dirname=phot_dirname)
 
         data_groups = []
         data_classes = []
@@ -581,102 +663,100 @@ if __name__ == "__main__":
         const=True,
         help="Skip photometry upload, only post groups and classifications.",
     )
-
     parser.add_argument(
         "--post_survey_id",
         action='store_true',
         help="If set, post survey_id from input dataset.",
     )
-
     parser.add_argument(
         "--survey_id_origin",
         type=str,
         default='SCoPe_xmatch',
         help="Annotation origin for survey ID",
     )
-
     parser.add_argument(
         "--p_threshold",
         type=float,
         default=0.0,
         help="Classification probability >= this number to upload",
     )
-
     parser.add_argument(
         "--match_ids",
         action='store_true',
         default=False,
         help="If set, match input and existing sources using ZTF source IDs.",
     )
-
     parser.add_argument(
         "--use_existing_obj_id",
         action='store_true',
         default=False,
         help="If set, source obj_id from input dataset.",
     )
-
     parser.add_argument(
         "--post_upvote",
         action='store_true',
         default=False,
         help="If set, post upvote to new classifications.",
     )
-
     parser.add_argument(
         "--check_labelled_box",
         action='store_true',
         default=False,
         help="If set, check 'labelled' box for source.",
     )
-
     parser.add_argument(
         "--write_obj_id",
         action='store_true',
         default=False,
         help="If set, write obj_ids corresponding to each uploaded source.",
     )
-
     parser.add_argument(
         "--result_dir",
         type=str,
         default='fritzUpload',
         help="Directory to save upload results",
     )
-
     parser.add_argument(
         "--result_filetag",
         type=str,
         default='fritzUpload',
         help="Directory to save upload results",
     )
-
     parser.add_argument(
         "--result_format",
         type=str,
         default='parquet',
         help="Format of result file: parquet, h5 or csv",
     )
-
     parser.add_argument(
         "--replace_classifications",
         action='store_true',
         default=False,
         help="If set, delete each object's existing classifications before posting new ones.",
     )
-
     parser.add_argument(
         "--radius_arcsec",
         type=float,
         default=2.0,
         help="Photometry search radius for uploaded sources",
     )
-
     parser.add_argument(
         "--no_ml",
         action='store_true',
         default=False,
         help="If set, posted classifications are not noted to originate from an ML classifier.",
+    )
+    parser.add_argument(
+        "--post_phot_as_comment",
+        action='store_true',
+        default=False,
+        help="If set, post photometry plot as a comment on the source.",
+    )
+    parser.add_argument(
+        "--phot_dirname",
+        type=str,
+        default='phot_plots',
+        help="Name of directory in which to save photometry plots",
     )
 
     args = parser.parse_args()
@@ -707,4 +787,6 @@ if __name__ == "__main__":
         args.replace_classifications,
         args.radius_arcsec,
         args.no_ml,
+        args.post_phot_as_comment,
+        args.phot_dirname,
     )

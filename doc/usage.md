@@ -352,6 +352,8 @@ inputs:
 21. --replace_classifications : flag to delete each source's existing classifications before posting new ones.
 22. --radius_arcsec: photometry search radius for uploaded sources.
 23. --no_ml: flag to post classifications that do not originate from an ML classifier.
+24. --post_phot_as_comment: flag to post photometry as a comment on the source (bool)
+25. --phot_dirname: name of directory in which to save photometry plots (str)
 
 process:
 0. include Kowalski host, port, protocol, and token or username+password in config.yaml
