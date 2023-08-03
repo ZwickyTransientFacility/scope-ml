@@ -493,6 +493,16 @@ def upload_classification(
             if (comment is not None) | post_phot_as_comment:
                 if post_phot_as_comment:
                     comment = f"ZTF source within {np.round(radius_arcsec, 1)} arcsec of {obj_id}"
+                    plot_bytes = open(attachment_path, 'rb')
+                    plot_base64 = base64.b64encode(plot_bytes.read())
+                    attachment = {
+                        "body": plot_base64.decode(),
+                        "name": pathlib.Path(attachment_path).name,
+                    }
+                    comment_json = {"text": comment, "attachment": attachment}
+                else:
+                    comment_json = {"text": comment}
+
                 # get comment text
                 response_comments = api("GET", f"/api/sources/{obj_id}/comments")
                 data_comments = response_comments.json().get("data")
@@ -502,21 +512,11 @@ def upload_classification(
                 for entry in data_comments:
                     existing_comments += [entry['text']]
 
-                plot_bytes = open(attachment_path, 'rb')
-                plot_base64 = base64.b64encode(plot_bytes.read())
-                attachment = {
-                    "body": plot_base64.decode(),
-                    "name": pathlib.Path(attachment_path).name,
-                }
-
                 # post all non-duplicate comments
                 if comment not in existing_comments:
-                    json = {
-                        "text": comment,
-                        "group_ids": group_ids,
-                        "attachment": attachment,
-                    }
-                    response = api("POST", f"/api/sources/{obj_id}/comments", json)
+                    response = api(
+                        "POST", f"/api/sources/{obj_id}/comments", comment_json
+                    )
 
             # Post ZTF ID as annotation
             if post_survey_id:
