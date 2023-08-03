@@ -326,6 +326,7 @@ def save_newsource(
     post_source=True,
     period=None,
     return_id=False,
+    return_phot=False,
     skip_phot=False,
 ):
 
@@ -444,7 +445,11 @@ def save_newsource(
             max_attempts=MAX_ATTEMPTS,
         )
 
-    if return_id is True:
+    if return_id & return_phot:
+        return obj_id, photometry
+    elif return_id:
         return obj_id
+    elif return_phot:
+        return photometry
     else:
         return None

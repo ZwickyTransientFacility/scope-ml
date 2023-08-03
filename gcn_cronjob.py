@@ -269,11 +269,13 @@ def query_gcn_events(
                         )
 
                     if not doNotPost:
-                        print(f"Uploading classifications with p > {p_threshold}.")
+                        print(
+                            f"Uploading classifications with p > {p_threshold}. Posting light curves as comments."
+                        )
                         os.system(
                             f"{path_to_python} {BASE_DIR}/tools/scope_upload_classification.py --file {BASE_DIR}/{combined_preds_dirname}/{save_dateobs}/merged_GCN_sources_{save_dateobs}.parquet \
                                 --classification read --taxonomy_map {BASE_DIR}/{taxonomy_map} --skip_phot --use_existing_obj_id --group_ids {post_group_ids_str} --radius_arcsec {radius_arcsec} \
-                                --p_threshold {p_threshold}"
+                                --p_threshold {p_threshold} --post_phot_as_comment"
                         )
 
                     print(f"Finished for {dateobs}.")
