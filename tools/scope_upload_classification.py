@@ -61,7 +61,15 @@ kowalski_instances = Kowalski(timeout=timeout, instances=instances)
 
 
 def make_phot_plot(
-    photometry, classifications=[], dirname='phot_plots', figsize=(6, 4), s=3, dpi=300
+    photometry,
+    classifications=[],
+    phasefold=False,
+    period=1.0,
+    t0=58000.0,
+    dirname='phot_plots',
+    figsize=(6, 4),
+    s=3,
+    dpi=300,
 ):
     obj_id = photometry['obj_id']
     ra = np.mean(photometry['ra'])
@@ -87,6 +95,8 @@ def make_phot_plot(
             mjd_filt = np.array(mjd)[filt_mask]
             mag_filt = np.array(mag)[filt_mask]
 
+            phase_filt = (mjd_filt - t0) / period - np.floor((mjd_filt - t0) / period)
+
             if uf == 'ztfg':
                 current_color = 'green'
                 current_marker = '.'
@@ -97,17 +107,26 @@ def make_phot_plot(
                 current_color = 'gold'
                 current_marker = 's'
 
-            plt.scatter(
-                mjd_filt - 58000,
-                mag_filt,
-                color=current_color,
-                label=uf,
-                marker=current_marker,
-                s=s,
-            )
+            if not phasefold:
+                plt.scatter(
+                    mjd_filt - t0,
+                    mag_filt,
+                    color=current_color,
+                    label=uf,
+                    marker=current_marker,
+                    s=s,
+                )
+            else:
+                plt.scatter(
+                    phase_filt,
+                    mag_filt,
+                    color=current_color,
+                    label=uf,
+                    marker=current_marker,
+                    s=s,
+                )
 
     plt.ylim(max_mag + 1.0, min_mag - 1.0)
-    plt.xlabel('MJD - 58000')
     plt.ylabel('AB mag')
 
     cls_str = ''
@@ -116,10 +135,17 @@ def make_phot_plot(
             cls_str += f"{cls}, "
         else:
             cls_str += cls
-    plt.title(f'{ztf_name}\n({cls_str})')
     plt.legend(ncol=3)
 
-    attachment_path = f"{figpath}/{obj_id}.png"
+    if not phasefold:
+        plt.title(f'{ztf_name}\n({cls_str})')
+        plt.xlabel('MJD - 58000')
+        attachment_path = f"{figpath}/{obj_id}.png"
+    else:
+        plt.title(f'{ztf_name} (period = {np.round(period, 2)})\n({cls_str})')
+        plt.xlabel('Phase')
+        attachment_path = f"{figpath}/{obj_id}_phasefold.png"
+
     fig.savefig(attachment_path, bbox_inches='tight', dpi=dpi)
 
     return attachment_path
@@ -151,6 +177,7 @@ def upload_classification(
     radius_arcsec: float = 2.0,
     no_ml: bool = False,
     post_phot_as_comment: bool = False,
+    post_phasefolded_phot: bool = False,
     phot_dirname: str = 'phot_plots',
 ):
     """
@@ -179,6 +206,7 @@ def upload_classification(
     :radius_arcsec: photometry search radius for uploaded sources (float)
     :no_ml: if True, posted classifications are not noted to originate from an ML classifier (bool)
     :post_phot_as_comment: if True, post photometry as a comment on the source (bool)
+    :post_phasefolded_phot: if True, post phase-folded photometry as comment in addition to time series (bool)
     :phot_dirname: Name of directory in which to save photometry plots (str)
     """
 
@@ -195,6 +223,11 @@ def upload_classification(
     if len(all_sources) == 0:
         warnings.warn("No sources to upload.")
         return
+
+    if post_phasefolded_phot & (not post_phot_as_comment):
+        warnings.warn(
+            "Must set --post_phot_as_comment to post photometry plots as comments."
+        )
 
     columns = all_sources.columns
     sources = all_sources.copy()
@@ -461,6 +494,14 @@ def upload_classification(
                 attachment_path = make_phot_plot(
                     photometry, classifications=cls_list, dirname=phot_dirname
                 )
+                if post_phasefolded_phot & (period is not None):
+                    attachment_path_phasefold = make_phot_plot(
+                        photometry,
+                        classifications=cls_list,
+                        phasefold=True,
+                        period=period,
+                        dirname=phot_dirname,
+                    )
 
             # allow classification assignment to be skipped
             if classification is not None:
@@ -491,18 +532,6 @@ def upload_classification(
                             dict_list += [json]
 
             if (comment is not None) | post_phot_as_comment:
-                if post_phot_as_comment:
-                    comment = f"ZTF source within {np.round(radius_arcsec, 1)} arcsec of {obj_id}"
-                    plot_bytes = open(attachment_path, 'rb')
-                    plot_base64 = base64.b64encode(plot_bytes.read())
-                    attachment = {
-                        "body": plot_base64.decode(),
-                        "name": pathlib.Path(attachment_path).name,
-                    }
-                    comment_json = {"text": comment, "attachment": attachment}
-                else:
-                    comment_json = {"text": comment}
-
                 # get comment text
                 response_comments = api("GET", f"/api/sources/{obj_id}/comments")
                 data_comments = response_comments.json().get("data")
@@ -512,11 +541,44 @@ def upload_classification(
                 for entry in data_comments:
                     existing_comments += [entry['text']]
 
+                comment_list = []
+                if post_phot_as_comment:
+                    comment = f"ZTF source within {np.round(radius_arcsec, 1)} arcsec of {obj_id}: time series"
+                    plot_bytes = open(attachment_path, 'rb')
+                    plot_base64 = base64.b64encode(plot_bytes.read())
+                    attachment = {
+                        "body": plot_base64.decode(),
+                        "name": pathlib.Path(attachment_path).name,
+                    }
+                    comment_json = {"text": comment, "attachment": attachment}
+                    comment_list += [comment_json]
+
+                    if post_phasefolded_phot & (period is not None):
+                        comment_phasefold = f"ZTF source within {np.round(radius_arcsec, 1)} arcsec of {obj_id}: phase-folded"
+                        plot_bytes_phasefold = open(attachment_path_phasefold, 'rb')
+                        plot_base64_phasefold = base64.b64encode(
+                            plot_bytes_phasefold.read()
+                        )
+                        attachment_phasefold = {
+                            "body": plot_base64_phasefold.decode(),
+                            "name": pathlib.Path(attachment_path_phasefold).name,
+                        }
+                        comment_json_phasefold = {
+                            "text": comment_phasefold,
+                            "attachment": attachment_phasefold,
+                        }
+                        comment_list += [comment_json_phasefold]
+
+                else:
+                    comment_json = {"text": comment}
+                    comment_list += [comment_json]
+
                 # post all non-duplicate comments
-                if comment not in existing_comments:
-                    response = api(
-                        "POST", f"/api/sources/{obj_id}/comments", comment_json
-                    )
+                for comment in comment_list:
+                    if comment['text'] not in existing_comments:
+                        response = api(
+                            "POST", f"/api/sources/{obj_id}/comments", comment
+                        )
 
             # Post ZTF ID as annotation
             if post_survey_id:
@@ -782,6 +844,12 @@ if __name__ == "__main__":
         help="If set, post photometry plot as a comment on the source.",
     )
     parser.add_argument(
+        "--post_phasefolded_phot",
+        action='store_true',
+        default=False,
+        help="if set, post phase-folded photometry as comment in addition to time series",
+    )
+    parser.add_argument(
         "--phot_dirname",
         type=str,
         default='phot_plots',
@@ -817,5 +885,6 @@ if __name__ == "__main__":
         args.radius_arcsec,
         args.no_ml,
         args.post_phot_as_comment,
+        args.post_phasefolded_phot,
         args.phot_dirname,
     )
