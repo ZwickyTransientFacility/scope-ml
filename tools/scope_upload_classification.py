@@ -14,11 +14,12 @@ from datetime import datetime
 import numpy as np
 import os
 import matplotlib.pyplot as plt
+import base64
 
 UPLOAD_BATCHSIZE = 10
 OBJ_ID_BATCHSIZE = 10
 
-plt.rcParams['font.size'] = 13
+plt.rcParams['font.size'] = 12
 
 BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
 
@@ -59,7 +60,9 @@ instances = {
 kowalski_instances = Kowalski(timeout=timeout, instances=instances)
 
 
-def make_phot_plot(photometry, dirname='phot_plots', figsize=(10, 5), s=5, dpi=300):
+def make_phot_plot(
+    photometry, classifications=[], dirname='phot_plots', figsize=(6, 4), s=3, dpi=300
+):
     obj_id = photometry['obj_id']
     ra = np.mean(photometry['ra'])
     dec = np.mean(photometry['dec'])
@@ -95,7 +98,7 @@ def make_phot_plot(photometry, dirname='phot_plots', figsize=(10, 5), s=5, dpi=3
                 current_marker = 's'
 
             plt.scatter(
-                mjd_filt,
+                mjd_filt - 58000,
                 mag_filt,
                 color=current_color,
                 label=uf,
@@ -104,11 +107,22 @@ def make_phot_plot(photometry, dirname='phot_plots', figsize=(10, 5), s=5, dpi=3
             )
 
     plt.ylim(max_mag + 1.0, min_mag - 1.0)
-    plt.xlabel('MJD')
+    plt.xlabel('MJD - 58000')
     plt.ylabel('AB mag')
-    plt.title(f'{ztf_name}')
+
+    cls_str = ''
+    for i, cls in enumerate(classifications):
+        if i != len(classifications) - 1:
+            cls_str += f"{cls}, "
+        else:
+            cls_str += cls
+    plt.title(f'{ztf_name}\n({cls_str})')
     plt.legend(ncol=3)
-    fig.savefig(f"{figpath}/{obj_id}.png", bbox_inches='tight', dpi=dpi)
+
+    attachment_path = f"{figpath}/{obj_id}.png"
+    fig.savefig(attachment_path, bbox_inches='tight', dpi=dpi)
+
+    return attachment_path
 
 
 def upload_classification(
@@ -363,7 +377,6 @@ def upload_classification(
                     post_source=post_source,
                     skip_phot=skip_phot,
                 )
-            make_phot_plot(photometry, dirname=phot_dirname)
 
         data_groups = []
         data_classes = []
@@ -444,6 +457,10 @@ def upload_classification(
                         remaining_classes.remove(exst_cls)
                     existing_classes = remaining_classes
 
+            attachment_path = make_phot_plot(
+                photometry, classifications=cls_list, dirname=phot_dirname
+            )
+
             # allow classification assignment to be skipped
             if classification is not None:
                 for cls in cls_list:
@@ -472,7 +489,9 @@ def upload_classification(
                         if len(groups_to_post) > 0:
                             dict_list += [json]
 
-            if comment is not None:
+            if (comment is not None) | post_phot_as_comment:
+                if post_phot_as_comment:
+                    comment = f"ZTF source within {np.round(radius_arcsec, 1)} arcsec of {obj_id}"
                 # get comment text
                 response_comments = api("GET", f"/api/sources/{obj_id}/comments")
                 data_comments = response_comments.json().get("data")
@@ -482,10 +501,19 @@ def upload_classification(
                 for entry in data_comments:
                     existing_comments += [entry['text']]
 
+                plot_bytes = open(attachment_path, 'rb')
+                plot_base64 = base64.b64encode(plot_bytes.read())
+                attachment = {
+                    "body": plot_base64.decode(),
+                    "name": pathlib.Path(attachment_path).name,
+                }
+
                 # post all non-duplicate comments
                 if comment not in existing_comments:
                     json = {
                         "text": comment,
+                        "group_ids": group_ids,
+                        "attachment": attachment,
                     }
                     response = api("POST", f"/api/sources/{obj_id}/comments", json)
 
