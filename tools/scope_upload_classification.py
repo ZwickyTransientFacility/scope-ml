@@ -457,9 +457,10 @@ def upload_classification(
                         remaining_classes.remove(exst_cls)
                     existing_classes = remaining_classes
 
-            attachment_path = make_phot_plot(
-                photometry, classifications=cls_list, dirname=phot_dirname
-            )
+            if post_phot_as_comment:
+                attachment_path = make_phot_plot(
+                    photometry, classifications=cls_list, dirname=phot_dirname
+                )
 
             # allow classification assignment to be skipped
             if classification is not None:
