@@ -163,9 +163,11 @@ def query_gcn_events(
         if ids is not None:
             for key in chk_dict_keys:
                 for id in ids:
-                    if (id not in checkpoint_dict['sources'][key]) | ignore_checkpoint:
+                    if id not in checkpoint_dict['sources'][key]:
                         sources_to_run = True
                         checkpoint_dict['sources'][key].append(id)
+                    elif ignore_checkpoint:
+                        sources_to_run = True
 
         try:
             current_sources = read_parquet(filepath)
