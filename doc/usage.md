@@ -260,10 +260,10 @@ Next in the line, `~/scope/gcn_cronjob.py` is the command that gets run. The `>`
 Save the text file once you finish modifying it to install the cron job. **Ensure that the last line of your file is a newline to avoid issues when running.** Your computer may pop up a window to which you should respond in the affirmative in order to successfully initialize the job. To check which `cron` jobs have been installed, run `crontab -l`. To uninstall your jobs, run `crontab -r`.
 
 ### Additional details for `cron` environment
-Because `cron` runs in a simple environment, the usual details of environment setup and paths cannot be overlooked. In order for the above job to work, we need to add more information when we run `EDITOR=emacs crontab -e`. The lines below will produce a successful run:
+Because `cron` runs in a simple environment, the usual details of environment setup and paths cannot be overlooked. In order for the above job to work, we need to add more information when we run `EDITOR=emacs crontab -e`. The lines below will produce a successful run (if SCoPe is installed in your home directory):
 
 ```
-PYTHONPATH = ~/scope
+PYTHONPATH = /Users/username/scope
 
 0 */2 * * * /opt/homebrew/bin/gtimeout 2h ~/miniforge3/envs/scope-env/bin/python ~/scope/gcn_cronjob.py > ~/scope/log_gcn_cronjob.txt 2>&1
 
