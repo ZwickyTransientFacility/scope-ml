@@ -79,5 +79,5 @@ The following SCoPe workflow currently runs every two hours as a cron job:
 
 ## Classifier performance
 The bar plots below show the precision and recall metrics for the DNN and XGB classifiers. 'Missing' bars indicate classifiers which did not have enough examples to train successfully.
-![DNN performance](data/DNN_performance.png)
-![XGB performance](data/XGB_performance.png)
+<img src="data/DNN_performance.png" alt="dnn classifier precision/recall" width="900"/>
+<img src="data/XGB_performance.png" alt="xgb classifier precision/recall" width="900"/>
