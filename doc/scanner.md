@@ -75,6 +75,7 @@ The following SCoPe workflow currently runs every two hours as a cron job:
 - For classifications having a mean probability ≥ 0.7, post to the candidate page.
   - SCoPe classifications will be color-coded with blue text (instead of the default black) and will be preceded by the `ML: ` prefix.
   - ***Note that these classifications do not pertain to the candidate itself, but persistent ZTF sources within 0.5 arcsec.***
+  - The time series and phase-folded ZTF light curves used for classification are posted as comments on their associated candidate.
 
 
 ## Classifier performance
