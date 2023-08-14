@@ -43,16 +43,9 @@ Refer to `./scope.py train --help` for details.
 but could also be overridden with optional `scope.py train` arguments, e.g.
 `./scope.py train ... --batch_size=32 --threshold=0.6 ...`.
 
-- The pipeline uses the `ScopeNet` models defined in `scope.nn` as subclassed `tf.keras.models.Model`'s.
+- The pipeline uses the `DNN` models defined in `scope.nn` using the tensorflow's `keras` functional API.
 - The `Dataset` class defined in `scope.utils` hides the complexity of our dataset handling "under the rug".
-- Datasets and pre-trained models could be fetched from the GCS with the `scope.py` tool:
-
-```sh
-./scope.py fetch-datasets
-./scope.py fetch-models
-```
-
-  This requires permissions to access the `gs://ztf-scope` bucket. Alternatively, you can request access to a Google Drive folder containing the latest trained models [here](https://drive.google.com/drive/folders/1_oLBxveioKtw7LyMJfism745USe9tEGZ?usp=sharing).
+- You can request access to a Google Drive folder containing the latest trained models [here](https://drive.google.com/drive/folders/1_oLBxveioKtw7LyMJfism745USe9tEGZ?usp=sharing).
 
 - Feature name sets are specified in `config.yaml` under `features`.
   These are referenced in `config.yaml` under `training.classes.<class>.features`.
