@@ -42,7 +42,7 @@ def query_gcn_events(
     xgb_preds_directory: str = 'GCN_xgb',
     path_to_python: str = '~/miniforge3/envs/scope-env/bin/python',
     checkpoint_filename: str = 'gcn_sources_checkpoint.json',
-    checkpoint_refresh_days: float = 30.0,
+    checkpoint_refresh_days: float = 180.0,
     ignore_checkpoint: bool = False,
 ):
 
@@ -417,7 +417,7 @@ if __name__ == '__main__':
     parser.add_argument(
         "--checkpoint_refresh_days",
         type=float,
-        default=30.0,
+        default=180.0,
         help="days after checkpoint start_date to delete json file and re-generate",
     )
     parser.add_argument(
