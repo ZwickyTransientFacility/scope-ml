@@ -282,27 +282,27 @@ inputs:
 | n_ztf_alerts | Number of ZTF alerts for this source |
 | period | Period determined by subscripted algorithms (e.g. ELS_ECE_EAOV) |
 | significance | Significance of period |
-| AllWISE_w1mpro | AllWISE $W1$ mag |
-| AllWISE_w1sigmpro	| AllWISE $W1$ mag error |
-| AllWISE_w2mpro | AllWISE $W2$ mag |
-| AllWISE_w2sigmpro | AllWISE $W2$ mag error |
-| AllWISE_w3mpro | AllWISE $W3$ mag |
-| AllWISE_w4mpro | AllWISE $W4$ mag |
+| AllWISE_w1mpro | AllWISE W1 mag |
+| AllWISE_w1sigmpro	| AllWISE W1 mag error |
+| AllWISE_w2mpro | AllWISE W2 mag |
+| AllWISE_w2sigmpro | AllWISE W2 mag error |
+| AllWISE_w3mpro | AllWISE W3 mag |
+| AllWISE_w4mpro | AllWISE W4 mag |
 | Gaia_EDR3__parallax | Gaia parallax |
-| Gaia_EDR3__phot_bp_mean_mag | Gaia $BP$ mag |
-| Gaia_EDR3__phot_bp_rp_excess_factor | Gaia $BP-RP$ excess factor |
-| Gaia_EDR3__phot_g_mean_mag | Gaia $G$ mag |
-| Gaia_EDR3__phot_rp_mean_mag | Gaia $RP$ mag |
-| PS1_DR1__gMeanPSFMag | PS1 $g$ mag |
-| PS1_DR1__gMeanPSFMagErr | PS1 $g$ mag error |
-| PS1_DR1__rMeanPSFMag | PS1 $r$ mag |
-| PS1_DR1__rMeanPSFMagErr | PS1 $r$ mag error |
-| PS1_DR1__iMeanPSFMag | PS1 $i$ mag |
-| PS1_DR1__iMeanPSFMagErr | PS1 $i$ mag error |
-| PS1_DR1__zMeanPSFMag | PS1 $z$ mag |
-| PS1_DR1__zMeanPSFMagErr | PS1 $z$ mag error |
-| PS1_DR1__yMeanPSFMag | PS1 $y$ mag |
-| PS1_DR1__yMeanPSFMagErr | PS1 $y$ mag error |
+| Gaia_EDR3__phot_bp_mean_mag | Gaia BP mag |
+| Gaia_EDR3__phot_bp_rp_excess_factor | Gaia BP-RP excess factor |
+| Gaia_EDR3__phot_g_mean_mag | Gaia G mag |
+| Gaia_EDR3__phot_rp_mean_mag | Gaia RP mag |
+| PS1_DR1__gMeanPSFMag | PS1 g mag |
+| PS1_DR1__gMeanPSFMagErr | PS1 g mag error |
+| PS1_DR1__rMeanPSFMag | PS1 r mag |
+| PS1_DR1__rMeanPSFMagErr | PS1 r mag error |
+| PS1_DR1__iMeanPSFMag | PS1 i mag |
+| PS1_DR1__iMeanPSFMagErr | PS1 i mag error |
+| PS1_DR1__zMeanPSFMag | PS1 z mag |
+| PS1_DR1__zMeanPSFMagErr | PS1 z mag error |
+| PS1_DR1__yMeanPSFMag | PS1 y mag |
+| PS1_DR1__yMeanPSFMagErr | PS1 y mag error |
 
 ## Running automated analyses
 The primary deliverable of SCoPe is a catalog of variable source classifications across all of ZTF. Since ZTF contains billions of light curves, this catalog requires significant compute resources to assemble. We may still want to study ZTF's expansive collection of data with SCoPe before the classification catalog is complete. For example, SCoPe classifiers can be applied to the realm of transient follow-up.
