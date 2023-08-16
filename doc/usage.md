@@ -233,6 +233,77 @@ inputs:
 16. --runParallel : flag to run jobs in parallel using slurm [recommended]. Otherwise, run in series on a single instance
 17. --user : if using slurm, your username. This will be used to periodically run `squeue` and list your running jobs (str)
 
+## Feature definitions
+### Selected phenomenological feature definitions
+
+| name | definition |
+| ---- | ---------- |
+|ad |	Anderson-Darling statistic |
+|chi2red | Reduced chi^2 |
+|f1_BIC	| Bayesian information criterion, first order (Fourier analysis) |
+|f1_a	| a coefficient, first order (Fourier analysis) |
+|f1_amp	| Amplitude, first order (Fourier analysis) |
+|f1_b	| b coefficient (Fourier analysis) |
+|f1_phi0 | Zero-phase, first order (Fourier analysis) |
+|f1_power	| Power, first order (Fourier analysis) |
+|f1_relamp1	| Relative amplitude, first order (Fourier analysis) |
+|f1_relamp2	| Relative amplitude, second order (Fourier analysis) |
+|f1_relamp3	| Relative amplitude, third order (Fourier analysis) |
+|f1_relamp4	| Relative amplitude, fourth order (Fourier analysis) |
+|f1_relphi1	| Relative phase, first order (Fourier analysis) |
+|f1_relphi2	| Relative phase, second order (Fourier analysis) |
+|f1_relphi3	| Relative phase, third order (Fourier analysis) |
+|f1_relphi4	| Relative phase, fourth order (Fourier analysis) |
+|i60r	| Mag ratio between 20th, 80th percentiles |
+|i70r	| Mag ratio between 15th, 85th percentiles |
+|i80r	| Mag ratio between 10th, 90th percentiles |
+|i90r	| Mag ratio between 5th, 95th percentiles |
+|inv_vonneumannratio | Inverse of Von Neumann ratio |
+|iqr | Mag ratio between 25th, 75th percentiles |
+|median	| Median magnitude |
+|median_abs_dev	| Median absolute deviation of magnitudes |
+|norm_excess_var | Normalized excess variance |
+|norm_peak_to_peak_amp | Normalized peak-to-peak amplitude |
+|roms | Root of mean magnitudes squared |
+|skew | Skew of magnitudes |
+|smallkurt | Kurtosis of magnitudes |
+|stetson_j | Stetson J coefficient |
+|stetson_k | Stetson K coefficient |
+|sw | Shapiro-Wilk statistic |
+|welch_i | Welch I statistic |
+|wmean | Weighted mean of magtnidues |
+|wstd | Weighted standard deviation of magnitudes |
+|dmdt | Magnitude-time histograms (26x26) |
+
+### Selected ontological feature definitions
+| name | definition |
+| ---- | ---------- |
+| mean_ztf_alert_braai | Mean significance of ZTF alerts for this source |
+| n_ztf_alerts | Number of ZTF alerts for this source |
+| period | Period determined by subscripted algorithms (e.g. ELS_ECE_EAOV) |
+| significance | Significance of period |
+| AllWISE_w1mpro | AllWISE $W1$ mag |
+| AllWISE_w1sigmpro	| AllWISE $W1$ mag error |
+| AllWISE_w2mpro | AllWISE $W2$ mag |
+| AllWISE_w2sigmpro | AllWISE $W2$ mag error |
+| AllWISE_w3mpro | AllWISE $W3$ mag |
+| AllWISE_w4mpro | AllWISE $W4$ mag |
+| Gaia_EDR3__parallax | Gaia parallax |
+| Gaia_EDR3__phot_bp_mean_mag | Gaia $BP$ mag |
+| Gaia_EDR3__phot_bp_rp_excess_factor | Gaia $BP-RP$ excess factor |
+| Gaia_EDR3__phot_g_mean_mag | Gaia $G$ mag |
+| Gaia_EDR3__phot_rp_mean_mag | Gaia $RP$ mag |
+| PS1_DR1__gMeanPSFMag | PS1 $g$ mag |
+| PS1_DR1__gMeanPSFMagErr | PS1 $g$ mag error |
+| PS1_DR1__rMeanPSFMag | PS1 $r$ mag |
+| PS1_DR1__rMeanPSFMagErr | PS1 $r$ mag error |
+| PS1_DR1__iMeanPSFMag | PS1 $i$ mag |
+| PS1_DR1__iMeanPSFMagErr | PS1 $i$ mag error |
+| PS1_DR1__zMeanPSFMag | PS1 $z$ mag |
+| PS1_DR1__zMeanPSFMagErr | PS1 $z$ mag error |
+| PS1_DR1__yMeanPSFMag | PS1 $y$ mag |
+| PS1_DR1__yMeanPSFMagErr | PS1 $y$ mag error |
+
 ## Running automated analyses
 The primary deliverable of SCoPe is a catalog of variable source classifications across all of ZTF. Since ZTF contains billions of light curves, this catalog requires significant compute resources to assemble. We may still want to study ZTF's expansive collection of data with SCoPe before the classification catalog is complete. For example, SCoPe classifiers can be applied to the realm of transient follow-up.
 
