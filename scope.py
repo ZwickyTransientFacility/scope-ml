@@ -1148,6 +1148,47 @@ class Scope:
                     ]
                 )
 
+    def assemble_training_stats(
+        self,
+        group_name: str = 'experiment',
+        algorithm: str = 'dnn',
+        set_name: str = 'val',
+        importance_directory: str = 'xgb_feature_importance',
+        stats_directory: str = 'stats',
+    ):
+        base_path = self.base_path
+        group_path = base_path / f'models_{algorithm}' / group_name
+
+        if algorithm in ['xgb', 'xgboost', 'XGB', 'XGBoost']:
+            importance_path = base_path / importance_directory
+            importance_path.mkdir(exist_ok=True)
+
+            # XGB feature importance
+            labels = [x for x in group_path.iterdir() if x.name != '.DS_Store']
+            statpaths = []
+            for label in labels:
+                statpaths.append(
+                    [x for x in label.glob(f'*plots/{set_name}/*impvars.json')][0]
+                )
+
+            for statpath in statpaths:
+                strpath = str(statpath)
+                os.system(f'cp {strpath} {importance_path}/.')
+
+        # DNN/XGB stats
+        stats_path = base_path / f"{algorithm}_{stats_directory}"
+        stats_path.mkdir(exist_ok=True)
+        labels = [x for x in group_path.iterdir() if x.name != '.DS_Store']
+        statpaths = []
+        for label in labels:
+            statpaths.append(
+                [x for x in label.glob(f'*plots/{set_name}/*stats.json')][0]
+            )
+
+        for statpath in statpaths:
+            strpath = str(statpath)
+            os.system(f'cp {strpath} {stats_path}/.')
+
     def create_inference_script(
         self,
         filename: str = 'get_all_preds_dnn.sh',
