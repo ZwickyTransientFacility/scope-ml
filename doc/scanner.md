@@ -25,6 +25,7 @@ The first taxonomy is ontological and contains specific kinds of astrophysical s
 | RS CVn | `rscvn` | RS CVn binary |
 | RRab | `rrab` | RR Lyr ab star |
 | RRc | `rrc` | RR Lyr c star |
+| RRd | `rrd` | RR Lyr d star |
 | Mira | `mir` | Mira variable star |
 | SRV | `srv` | Semi-regular variable star |
 | OSARG | `osarg` | OGLE small-amplitude red giant star |
