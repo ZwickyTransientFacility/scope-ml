@@ -25,7 +25,6 @@ The first taxonomy is ontological and contains specific kinds of astrophysical s
 | RS CVn | `rscvn` | RS CVn binary |
 | RRab | `rrab` | RR Lyr ab star |
 | RRc | `rrc` | RR Lyr c star |
-| RRd | `rrd` | RR Lyr d star |
 | Mira | `mir` | Mira variable star |
 | SRV | `srv` | Semi-regular variable star |
 | OSARG | `osarg` | OGLE small-amplitude red giant star |
@@ -42,11 +41,13 @@ In consideration of the importance of having some information about a source (ev
 | irregular | `i` | irregular variability |
 | eclipsing | `e` | eclipsing phenomenology |
 | sinusoidal | `sin` | sinusoidal phenomenology |
+| sawtooth | `saw` | sawtooth phenomenology |
 | long timescale | `longt` | long timescale variability |
 | flaring | `fla` | flaring phenomenology |
 | EA | `ea` | EA eclipsing phenomenology |
 | EB | `eb` | EB eclipsing phenomenology |
 | EW | `ew` | EW eclipsing phenomenology |
+| blend | `blend` | blended sources phenomenology |
 
 *Refer to the field guide for more information about these classes.*
 
