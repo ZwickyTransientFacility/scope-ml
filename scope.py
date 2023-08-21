@@ -845,6 +845,21 @@ class Scope:
                     amsgrad=amsgrad,
                 )
 
+            if plot:
+                tf.keras.utils.plot_model(
+                    classifier.model,
+                    to_file=self.base_path / "DNN.pdf",
+                    show_shapes=True,
+                    show_dtype=False,
+                    show_layer_names=False,
+                    rankdir="TB",
+                    expand_nested=False,
+                    dpi=300,
+                    layer_range=None,
+                    show_layer_activations=True,
+                    show_trainable=False,
+                )
+
             if verbose:
                 print(classifier.model.summary())
 

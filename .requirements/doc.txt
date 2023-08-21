@@ -18,3 +18,4 @@ numpy>=1.23,<1.24
 cesium>=0.11.1
 xgboost>=1.7.5
 seaborn>=0.12.2
+pydot>=1.4.2
