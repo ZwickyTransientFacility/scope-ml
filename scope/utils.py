@@ -263,9 +263,15 @@ def plot_periods(
     number_of_bins: Optional[int] = 20,
     title: Optional[str] = None,
     save: Optional[Union[str, pathlib.Path]] = None,
+    period_suffix: Optional[str] = None,
 ):
     """Plot a histogram of periods for the sample"""
     # plot the H-R diagram for 1 M stars within 200 pc from the Sun
+
+    period_colname = 'period'
+    if not ((period_suffix is None) | (period_suffix == 'None')):
+        period_colname = f"{period_colname}_{period_suffix}"
+
     plt.rc("text", usetex=True)
 
     # make figure
@@ -283,17 +289,17 @@ def plot_periods(
     else:
         if loglimits:
             edges = np.linspace(
-                np.log10(0.9 * np.min(features["period"])),
-                np.log10(1.1 * np.max(features["period"])),
+                np.log10(0.9 * np.min(features[period_colname])),
+                np.log10(1.1 * np.max(features[period_colname])),
                 number_of_bins,
             )
         else:
             edges = np.linspace(
-                0.9 * np.min(features["period"]),
-                1.1 * np.max(features["period"]),
+                0.9 * np.min(features[period_colname]),
+                1.1 * np.max(features[period_colname]),
                 number_of_bins,
             )
-    hist, bin_edges = np.histogram(features["period"], bins=edges)
+    hist, bin_edges = np.histogram(features[period_colname], bins=edges)
     hist = hist / np.sum(hist)
     bins = (bin_edges[1:] + bin_edges[:-1]) / 2.0
     ax.plot(bins, hist, linestyle="-", drawstyle="steps")
@@ -516,10 +522,9 @@ def impute_features(
 ):
     # Load config file
     config = load_config(BASE_DIR / "config.yaml")
+    period_suffix_config = config['features']['info']['period_suffix']
 
-    period_suffix = kwargs.get(
-        'period_suffix', config['features']['info']['period_suffix']
-    )
+    period_suffix = kwargs.get('period_suffix', period_suffix_config)
 
     if self_impute:
         referenceSet = features_df.copy()
@@ -949,7 +954,11 @@ class Dataset(object):
         self.verbose = verbose
         self.target = None
 
-        period_suffix = kwargs.get('period_suffix', None)
+        # Load config file
+        self.config = load_config(BASE_DIR / "config.yaml")
+        self.period_suffix_config = self.config['features']['info']['period_suffix']
+
+        period_suffix = kwargs.get('period_suffix', self.period_suffix_config)
 
         if algorithm in ['DNN', 'NN', 'dnn', 'nn']:
             self.algorithm = 'dnn'

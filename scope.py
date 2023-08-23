@@ -143,6 +143,7 @@ class Scope:
         catalog: str = None,
         max_distance: Union[float, int] = 5.0,
         distance_units: str = "arcsec",
+        period_suffix: str = None,
     ) -> pd.DataFrame:
         """Get nearest source in feature set for a set of given positions
 
@@ -157,6 +158,10 @@ class Scope:
         if catalog is None:
             catalog = self.config["kowalski"]["collections"]["features"]
 
+        period_colname = 'period'
+        if not ((period_suffix is None) | (period_suffix == 'None')):
+            period_colname = f"{period_colname}_{period_suffix}"
+
         features_dct = {}
         query = {
             "query_type": "near",
@@ -168,7 +173,7 @@ class Scope:
                     catalog: {
                         "filter": {},
                         "projection": {
-                            "period": 1,
+                            period_colname: 1,
                             "ra": 1,
                             "dec": 1,
                         },
@@ -371,6 +376,8 @@ class Scope:
             plot_periods,
         )
 
+        period_suffix_config = self.config['features']['info']['period_suffix']
+
         # generate taxonomy.html
         with status("Generating taxonomy visualization"):
             path_static = pathlib.Path(__file__).parent.absolute() / "doc" / "_static"
@@ -410,7 +417,9 @@ class Scope:
             for golden_set in golden_sets.glob("*.csv"):
                 golden_set_name = golden_set.stem
                 positions = pd.read_csv(golden_set).to_numpy().tolist()
-                features = self._get_features(positions=positions)
+                features = self._get_features(
+                    positions=positions, period_suffix=period_suffix_config
+                )
 
                 if len(features) == 0:
                     print(f"No features for {golden_set_name}")
@@ -424,6 +433,7 @@ class Scope:
                     limits=limits,
                     loglimits=loglimits,
                     save=path_doc_data / f"period__{golden_set_name}",
+                    period_suffix=period_suffix_config,
                 )
 
         # example skymaps for all Golden sets
@@ -1844,7 +1854,7 @@ class Scope:
             with status('Test training'):
                 print()
 
-                period_suffix = 'LS'
+                period_suffix_config = self.config['features']['info']['period_suffix']
 
                 if not path_mock.exists():
                     path_mock.mkdir(parents=True, exist_ok=True)
@@ -1857,13 +1867,15 @@ class Scope:
                 ]
 
                 feature_names = feature_names_orig.copy()
-                if not ((period_suffix is None) | (period_suffix == 'None')):
+                if not (
+                    (period_suffix_config is None) | (period_suffix_config == 'None')
+                ):
                     periodic_bool = [
                         all_feature_names[x]['periodic'] for x in feature_names
                     ]
                     for j, name in enumerate(feature_names):
                         if periodic_bool[j]:
-                            feature_names[j] = f'{name}_{period_suffix}'
+                            feature_names[j] = f'{name}_{period_suffix_config}'
 
                 class_names = [
                     self.config["training"]["classes"][class_name]["label"]
@@ -1875,7 +1887,7 @@ class Scope:
                     entry = {
                         **{
                             feature_name: np.random.normal(0, 0.1)
-                            for feature_name in feature_names_orig
+                            for feature_name in feature_names
                         },
                         **{
                             class_name: np.random.choice([0, 1])
@@ -1998,7 +2010,7 @@ class Scope:
             _, lst = get_quad_ids.get_ids_loop(
                 get_quad_ids.get_field_ids,
                 catalog=src_catalog,
-                field=298,
+                field=297,
                 ccd_range=3,
                 quad_range=4,
                 limit=10,
@@ -2012,7 +2024,7 @@ class Scope:
                 get_features.get_features,
                 source_ids=lst[0],
                 features_catalog=self.config['kowalski']['collections']['features'],
-                field=298,
+                field=297,
                 limit_per_query=5,
                 max_sources=10,
                 save=False,
@@ -2037,7 +2049,8 @@ class Scope:
             with status('Test training'):
                 print()
 
-                period_suffix = 'LS'
+                period_suffix_config = self.config['features']['info']['period_suffix']
+                period_suffix_2 = 'LS'
 
                 if not path_mock.exists():
                     path_mock.mkdir(parents=True, exist_ok=True)
@@ -2049,14 +2062,25 @@ class Scope:
                     if forgiving_true(all_feature_names[key]['include'])
                 ]
 
+                feature_names_new = feature_names_orig.copy()
+                if not (
+                    (period_suffix_config is None) | (period_suffix_config == 'None')
+                ):
+                    periodic_bool = [
+                        all_feature_names[x]['periodic'] for x in feature_names_new
+                    ]
+                    for j, name in enumerate(feature_names_new):
+                        if periodic_bool[j]:
+                            feature_names_new[j] = f'{name}_{period_suffix_config}'
+
                 feature_names = feature_names_orig.copy()
-                if not ((period_suffix is None) | (period_suffix == 'None')):
+                if not ((period_suffix_2 is None) | (period_suffix_2 == 'None')):
                     periodic_bool = [
                         all_feature_names[x]['periodic'] for x in feature_names
                     ]
                     for j, name in enumerate(feature_names):
                         if periodic_bool[j]:
-                            feature_names[j] = f'{name}_{period_suffix}'
+                            feature_names[j] = f'{name}_{period_suffix_2}'
 
                 class_names = [
                     self.config["training"]["classes"][class_name]["label"]
@@ -2068,7 +2092,7 @@ class Scope:
                     entry = {
                         **{
                             feature_name: np.random.normal(0, 0.1)
-                            for feature_name in feature_names_orig
+                            for feature_name in feature_names_new
                         },
                         **{
                             class_name: np.random.choice([0, 1])
@@ -2149,7 +2173,7 @@ class Scope:
                         test=True,
                         algorithm=algorithm,
                         skip_cv=True,
-                        period_suffix=period_suffix,
+                        period_suffix=period_suffix_2,
                         group=group_mock,
                     )
                     path_model = (
@@ -2195,7 +2219,7 @@ class Scope:
                     trainingSet=df_mock,
                     feature_directory=test_feature_directory,
                     feature_file_prefix=test_feature_filename,
-                    period_suffix=period_suffix,
+                    period_suffix=period_suffix_2,
                     no_write_metadata=True,
                 )
                 print()
@@ -2209,7 +2233,7 @@ class Scope:
                     xgb_model=True,
                     feature_directory=test_feature_directory,
                     feature_file_prefix=test_feature_filename,
-                    period_suffix=period_suffix,
+                    period_suffix=period_suffix_2,
                     no_write_metadata=True,
                 )
 
