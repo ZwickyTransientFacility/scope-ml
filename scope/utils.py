@@ -516,10 +516,9 @@ def impute_features(
 ):
     # Load config file
     config = load_config(BASE_DIR / "config.yaml")
+    period_suffix_config = config['features']['info']['period_suffix']
 
-    period_suffix = kwargs.get(
-        'period_suffix', config['features']['info']['period_suffix']
-    )
+    period_suffix = kwargs.get('period_suffix', period_suffix_config)
 
     if self_impute:
         referenceSet = features_df.copy()
@@ -949,7 +948,11 @@ class Dataset(object):
         self.verbose = verbose
         self.target = None
 
-        period_suffix = kwargs.get('period_suffix', None)
+        # Load config file
+        self.config = load_config(BASE_DIR / "config.yaml")
+        self.period_suffix_config = self.config['features']['info']['period_suffix']
+
+        period_suffix = kwargs.get('period_suffix', self.period_suffix_config)
 
         if algorithm in ['DNN', 'NN', 'dnn', 'nn']:
             self.algorithm = 'dnn'

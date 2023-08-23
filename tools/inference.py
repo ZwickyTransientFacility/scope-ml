@@ -33,7 +33,7 @@ config_path = BASE_DIR / "config.yaml"
 with open(config_path) as config_yaml:
     config = yaml.load(config_yaml, Loader=yaml.FullLoader)
 
-period_suffix = config['features']['info']['period_suffix']
+period_suffix_config = config['features']['info']['period_suffix']
 
 # Load training set
 trainingSetPath = BASE_DIR / config['training']['dataset']
@@ -80,7 +80,7 @@ def clean_data(
     flag_ids=False,
     whole_field=False,
     algorithm='dnn',
-    period_suffix=None,
+    period_suffix=period_suffix_config,
 ):
     '''
     Impute missing values in features data
@@ -184,7 +184,7 @@ def run_inference(
     trainingSet: str = 'use_config',
     feature_directory: str = 'features',
     feature_file_prefix: str = 'generated_features',
-    period_suffix: str = None,
+    period_suffix: str = period_suffix_config,
     no_write_metadata: bool = False,
     batch_size: int = 100000,
     **kwargs,
@@ -720,7 +720,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--period_suffix",
         type=str,
-        default=period_suffix,
+        default=period_suffix_config,
         help="suffix of column containing period to save with inference results",
     )
     parser.add_argument(
