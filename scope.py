@@ -143,6 +143,7 @@ class Scope:
         catalog: str = None,
         max_distance: Union[float, int] = 5.0,
         distance_units: str = "arcsec",
+        period_suffix: str = None,
     ) -> pd.DataFrame:
         """Get nearest source in feature set for a set of given positions
 
@@ -157,6 +158,10 @@ class Scope:
         if catalog is None:
             catalog = self.config["kowalski"]["collections"]["features"]
 
+        period_colname = 'period'
+        if not ((period_suffix is None) | (period_suffix == 'None')):
+            period_colname = f"{period_colname}_{period_suffix}"
+
         features_dct = {}
         query = {
             "query_type": "near",
@@ -168,7 +173,7 @@ class Scope:
                     catalog: {
                         "filter": {},
                         "projection": {
-                            "period": 1,
+                            period_colname: 1,
                             "ra": 1,
                             "dec": 1,
                         },
@@ -371,6 +376,8 @@ class Scope:
             plot_periods,
         )
 
+        period_suffix_config = self.config['features']['info']['period_suffix']
+
         # generate taxonomy.html
         with status("Generating taxonomy visualization"):
             path_static = pathlib.Path(__file__).parent.absolute() / "doc" / "_static"
@@ -410,7 +417,9 @@ class Scope:
             for golden_set in golden_sets.glob("*.csv"):
                 golden_set_name = golden_set.stem
                 positions = pd.read_csv(golden_set).to_numpy().tolist()
-                features = self._get_features(positions=positions)
+                features = self._get_features(
+                    positions=positions, period_suffix=period_suffix_config
+                )
 
                 if len(features) == 0:
                     print(f"No features for {golden_set_name}")
@@ -424,6 +433,7 @@ class Scope:
                     limits=limits,
                     loglimits=loglimits,
                     save=path_doc_data / f"period__{golden_set_name}",
+                    period_suffix=period_suffix_config,
                 )
 
         # example skymaps for all Golden sets
