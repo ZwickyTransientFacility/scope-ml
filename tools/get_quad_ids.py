@@ -201,7 +201,7 @@ def get_cone_ids(
     obj_id_list: list,
     ra_list: list,
     dec_list: list,
-    catalog: str = 'ZTF_source_features_DR5',
+    catalog: str = 'ZTF_source_features_DR16',
     kowalski_instances=kowalski_instances,
     max_distance: float = 2.0,
     distance_units: str = "arcsec",
@@ -347,7 +347,10 @@ def get_field_ids(
         "quad": {"$eq": quad},
     }
     if minobs > 0:
-        filter["nobs"] = {"$gte": minobs}
+        if 'sources' in catalog:
+            filter["nobs"] = {"$gte": minobs}
+        elif 'features' in catalog:
+            filter["n"] = {"$gte": minobs}
 
     projection = {"_id": 1}
     if get_coords:
@@ -424,8 +427,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--catalog",
-        help="catalog (default: ZTF_source_features_DR5)",
-        default='ZTF_source_features_DR5',
+        help="catalog (default: ZTF_source_features_DR16)",
+        default='ZTF_source_features_DR16',
     )
     parser.add_argument(
         "--output",

@@ -7,7 +7,7 @@ Not all light curve variability pertains to a source's intrinsic astrophysical n
 ![ZTF bogus](data/bogus_2.png)
 
 #### Description
-The first light curve above demonstrates a saturation ghost artifact, and the second light curve suffers from another kind of artifact. These artifacts were identified and affected data masked after ZTF began, but data in earlier releases (such as the above from DR5) were not retroactively masked. This produces the apparent cutoff in variability after a certain point in time.
+The first light curve above demonstrates a saturation ghost artifact, and the second light curve suffers from another kind of artifact. These artifacts were identified and affected data masked after ZTF began, but data from earlier releases were not retroactively masked. This produces the apparent cutoff in variability after a certain point in time.
 
 #### Light curve characteristics
 The light curves appear to be "flaring" with departures from the median by multiple magnitudes which suddenly stop in later data. This cutoff corresponds to the time when a new method of processing the data was used to mask affected points.
