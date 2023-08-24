@@ -28,7 +28,7 @@ def get_highscoring_objects(
     q = {
         "query_type": "find",
         "query": {
-            "catalog": "ZTF_source_classifications_DR5",
+            "catalog": "ZTF_source_classifications_DR16",
             "filter": {
                 condition: [
                     {'%s_xgb' % otype: {'$gt': limit_xgb}},
@@ -50,7 +50,7 @@ def get_stats(G, ids):
         {
             "query_type": "find",
             "query": {
-                "catalog": "ZTF_source_features_DR5",
+                "catalog": "ZTF_source_features_DR16",
                 "filter": {'_id': i},
                 "projection": {},
             },

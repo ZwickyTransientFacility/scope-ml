@@ -86,7 +86,7 @@ kowalski_instances = Kowalski(timeout=timeout, instances=instances)
 def get_features_loop(
     func,
     source_ids: List[int],
-    features_catalog: str = "ZTF_source_features_DR5",
+    features_catalog: str = "ZTF_source_features_DR16",
     verbose: bool = False,
     whole_field: bool = True,
     field: int = 291,
@@ -181,7 +181,7 @@ def get_features_loop(
 
 def get_features(
     source_ids: List[int],
-    features_catalog: str = "ZTF_source_features_DR5",
+    features_catalog: str = "ZTF_source_features_DR16",
     verbose: bool = False,
     limit_per_query: int = 1000,
     impute_missing_features: bool = False,
@@ -225,19 +225,22 @@ def get_features(
                         raise ValueError(f"No data found for source ids {source_ids}")
 
         df_temp = pd.DataFrame(source_data)
-        if (projection == {}) | ("dmdt" in projection):
-            df_temp = df_temp.astype(dtype=dtypes)
-        df_collection += [df_temp]
-        try:
-            dmdt_temp = np.expand_dims(
-                np.array([d for d in df_temp['dmdt'].values]), axis=-1
-            )
-        except Exception as e:
-            # Print dmdt error if using the default projection or user requests the feature
+
+        if len(df_temp) > 0:
             if (projection == {}) | ("dmdt" in projection):
-                print("Error", e)
-                print(df_temp)
-        dmdt_collection += [dmdt_temp]
+                df_temp = df_temp.astype(dtype=dtypes)
+
+            df_collection += [df_temp]
+            try:
+                dmdt_temp = np.expand_dims(
+                    np.array([d for d in df_temp['dmdt'].values]), axis=-1
+                )
+            except Exception as e:
+                # Print dmdt error if using the default projection or user requests the feature
+                if (projection == {}) | ("dmdt" in projection):
+                    print("Error", e)
+                    print(df_temp)
+            dmdt_collection += [dmdt_temp]
 
         if ((id + 1) * limit_per_query) >= len(source_ids):
             print(f'{len(source_ids)} done')
