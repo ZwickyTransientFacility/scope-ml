@@ -32,13 +32,24 @@
 
 - Download features for all sources in a field:
 ```sh
-./tools/get_features.py --field=<field_number> --whole_field
+./tools/get_features.py --field 301 --whole-field
 ```
 
 - Download features for all sources in a field, imputing missing features using the strategies in `config.yaml`:
 ```sh
-./tools/get_features.py --field=<field_number> --whole_field --impute_missing_features
+./tools/get_features.py --field 301 --whole-field --impute-missing-features
 ```
+
+- Download features for a range of ccd/quads individually:
+```sh
+./tools/get_features.py --field 301 --ccd-range 1 2 --quad-range 3 4
+```
+
+- Download features for a single pair of ccd/quad:
+```sh
+./tools/get_features.py --field 301 --ccd-range 1 --quad-range 2
+```
+
 
 ## Training deep learning models
 
