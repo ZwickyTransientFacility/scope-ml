@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-import fire
 import numpy as np
 import pandas as pd
 import pathlib
@@ -12,6 +11,7 @@ import h5py
 from scope.utils import write_parquet, impute_features
 from datetime import datetime
 import pyarrow.dataset as ds
+import argparse
 
 BASE_DIR = os.path.dirname(__file__)
 JUST = 50
@@ -102,9 +102,57 @@ def get_features_loop(
     suffix: str = None,
     save: bool = True,
 ):
-    '''
-    Loop over get_features.py to save at specified checkpoints.
-    '''
+    """
+    Get the features of all sources in a field.
+
+    Parameters
+    ==========
+    func: function
+        function over which to loop (get_features)
+    source_ids: list
+        list of source ids for feature queries
+    features_catalog: str
+        Name of Kowalski collection to query for features
+    verbose: bool
+        verbose if set
+    whole_field: bool
+        If True, get features of all sources in the field, else get features of a particular quad
+    field: int
+        Field number.
+    ccd: int
+        CCD (between 1 and 16)
+    quad: int
+        Quadrand; (between 1 and 4)
+    limit_per_query: int
+        Number of sources to query at a time.
+    max_sources: int
+        Number of sources to save in single file.
+    impute_missing_features: bool
+        if True, impute missing features using strategies in config file.
+    self_impute: bool
+        if True, impute features using self-imputation; otherwise use training set in config file.
+    restart: bool
+        if True, restart the querying of features even if file exists.
+    write_csv: bool
+        if True, writes results as csv file in addition to parquet.
+    projection: dict
+        mongoDB projection of columns to return.
+    suffix: str
+        Suffix to add to saved feature file.
+    save: bool
+        if True, save results
+
+    Returns
+    =======
+    df: pandas.DataFrame
+        DataFrame containing features
+    outfile: str
+        filepath to saved features, if applicable
+
+    Stores the features in a file at the following location:
+        features/field_<field>/field_<field>.parquet
+    or  features/field_<field>/field_<field>.csv
+    """
 
     if not whole_field:
         outfile = (
@@ -191,6 +239,32 @@ def get_features(
 ):
     '''
     Get features of all ids present in the field in one file.
+
+    Parameters
+    ==========
+    source_ids: list
+        list of source ids for feature queries
+    features_catalog: str
+        Name of Kowalski collection to query for features
+    verbose: bool
+        verbose if set
+    limit_per_query: int
+        Number of sources to query at a time.
+    impute_missing_features: bool
+        if True, impute missing features using strategies in config file.
+    self_impute: bool
+        if True, impute features using self-imputation; otherwise use training set in config file.
+    dtypes: dict
+        dictionary containing dtypes for each feature (see features: ontological: in config.yaml)
+    projection: dict
+        mongoDB projection of columns to return.
+
+    Returns
+    =======
+    df: pandas.DataFrame
+        DataFrame containing features
+    dmdt: numpy.Array
+        dmdt histograms (also included in df)
     '''
 
     id = 0
@@ -271,47 +345,7 @@ def get_features(
     return df, dmdt
 
 
-def run(**kwargs):
-    """
-    Get the features of all sources in a field.
-
-    Parameters
-    ==========
-    field: int
-        Field number.
-    ccd_range: int, list
-        CCD range; single int or list of two ints between 1 and 16 (default range is [1,16])
-    quad_range: int, list
-        Quadrant range; single int or list of two ints between 1 and 4 (default range is [1,4])
-    limit_per_query: int
-        Number of sources to query at a time.
-    max_sources: int
-        Number of sources to save in single file.
-    features_catalog: str
-        Name of Kowalski collection to query for features
-    whole_field: bool
-        If True, get features of all sources in the field, else get features of a particular quad.
-    start: int
-        Start index of the sources to query. (to be used with whole_field)
-    end: int
-        End index of the sources to query. (to be used with whole_field)
-    restart: bool
-        if True, restart the querying of features even if file exists.
-    write_results: bool
-        if True, write results and make necessary directories.
-    write_csv: bool
-        if True, writes results as csv file in addition to parquet.
-    column_list: list
-        List of strings for each column to return from Kowalski collection.
-    suffix: str
-        Suffix to add to saved feature file.
-    Returns
-    =======
-    Stores the features in a file at the following location:
-        features/field_<field>/field_<field>.parquet
-    or  features/field_<field>/field_<field>.csv
-    """
-
+if __name__ == "__main__":
     DEFAULT_FIELD = 291
     DEFAULT_CCD_RANGE = [1, 16]
     DEFAULT_QUAD_RANGE = [1, 4]
@@ -320,38 +354,153 @@ def run(**kwargs):
     features_catalog = config['kowalski']['collections']['features']
     DEFAULT_CATALOG = features_catalog
 
-    field = kwargs.get("field", DEFAULT_FIELD)
-    ccd_range = kwargs.get("ccd_range", DEFAULT_CCD_RANGE)
-    quad_range = kwargs.get("quad_range", DEFAULT_QUAD_RANGE)
-    limit_per_query = kwargs.get("limit_per_query", DEFAULT_LIMIT)
-    max_sources = kwargs.get("max_sources", DEFAULT_SAVE_BATCHSIZE)
-    features_catalog = kwargs.get("features_catalog", DEFAULT_CATALOG)
-    whole_field = kwargs.get("whole_field", False)
-    start = kwargs.get("start", None)
-    end = kwargs.get("end", None)
-    restart = kwargs.get("restart", False)
-    write_results = kwargs.get("write_results", True)
-    write_csv = kwargs.get("write_csv", False)
-    column_list = kwargs.get("column_list", None)
-    suffix = kwargs.get("suffix", None)
-    impute_missing_features = kwargs.get("impute_missing_features", False)
-    self_impute = kwargs.get("self_impute", True)
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "--field",
+        type=int,
+        help="field number",
+        default=DEFAULT_FIELD,
+    )
+    parser.add_argument(
+        "--ccd-range",
+        type=int,
+        nargs='+',
+        default=DEFAULT_CCD_RANGE,
+        help="ccd range; single int or list of two ints between 1 and 16 (default range is [1,16])",
+    )
+    parser.add_argument(
+        "--quad-range",
+        type=int,
+        nargs='+',
+        default=DEFAULT_QUAD_RANGE,
+        help="quad range; single int or list of two ints between 1 and 4 (default range is [1,4])",
+    )
+    parser.add_argument(
+        "--limit-per-query",
+        type=int,
+        default=DEFAULT_LIMIT,
+        help="number of rows to return (default 10000)",
+    )
+    parser.add_argument(
+        "--max-sources",
+        type=int,
+        default=DEFAULT_SAVE_BATCHSIZE,
+        help="Number of sources to save in single file",
+    )
+    parser.add_argument(
+        "--features-catalog",
+        type=str,
+        help="features catalog (default: ZTF_source_features_DR16)",
+        default=DEFAULT_CATALOG,
+    )
+    parser.add_argument(
+        "--whole-field",
+        action="store_true",
+        help="if passed as argument, store all features in one file",
+    )
+    parser.add_argument(
+        "--start",
+        type=int,
+        help="Start index of the sources to query (to be used with whole_field)",
+        default=None,
+    )
+    parser.add_argument(
+        "--end",
+        type=int,
+        help="End index of the sources to query. (to be used with whole_field)",
+        default=None,
+    )
+    parser.add_argument(
+        "--restart",
+        action='store_true',
+        help="if set, restart the querying of features even if file exists",
+    )
+    parser.add_argument(
+        "--no-write-results",
+        action='store_true',
+        help="if set, do not write results or make necessary directories",
+    )
+    parser.add_argument(
+        "--write-csv",
+        action='store_true',
+        help="if set, writes results as csv file in addition to parquet",
+    )
+    parser.add_argument(
+        "--column-list",
+        type=str,
+        nargs='+',
+        help="List of column names to return from Kowalski collection",
+        default=None,
+    )
+    parser.add_argument(
+        "--suffix",
+        type=str,
+        default=None,
+        help="Suffix to add to saved feature file",
+    )
+    parser.add_argument(
+        "--impute-missing-features",
+        action='store_true',
+        help="if set, impute missing features using strategies in config file",
+    )
+    parser.add_argument(
+        "--no-self-impute",
+        action='store_true',
+        help="if set, impute features using training set in config file, rather than self-imputation",
+    )
+    parser.add_argument(
+        "--tm",
+        action='store_true',
+        help="if set, report timing of different parts of the code to run",
+    )
+    parser.add_argument(
+        "--verbose",
+        action='store_true',
+        help="verbose",
+    )
+
+    args = parser.parse_args()
+
+    field = args.field
+    ccd_range = args.ccd_range
+    quad_range = args.quad_range
+    limit_per_query = args.limit_per_query
+    max_sources = args.max_sources
+    features_catalog = args.features_catalog
+    whole_field = args.whole_field
+    start = args.start
+    end = args.end
+    restart = args.restart
+    write_results = not args.no_write_results
+    write_csv = args.write_csv
+    column_list = args.column_list
+    suffix = args.suffix
+    impute_missing_features = args.impute_missing_features
+    self_impute = not args.no_self_impute
+    tm = args.tm
+    verbose = args.verbose
 
     projection = {}
     if column_list is not None:
         keys = [name for name in column_list]
         projection = {k: 1 for k in keys}
 
-    if type(ccd_range) == int:
-        ccd_range = [ccd_range, ccd_range]
-    if type(quad_range) == int:
-        quad_range = [quad_range, quad_range]
+    if (len(ccd_range) not in [1, 2]) | (len(quad_range) not in [1, 2]):
+        raise ValueError(
+            "Please specify 1 or 2 integers for --ccd-range and --quad-range"
+        )
+
+    if len(ccd_range) == 1:
+        ccd_range = [ccd_range[0], ccd_range[0]]
+    if len(quad_range) == 1:
+        quad_range = [quad_range[0], quad_range[0]]
 
     iter_dct = {}
 
     if not whole_field:
-        for ccd in range(ccd_range[0], ccd_range[1] + 1):
-            for quad in range(quad_range[0], quad_range[1] + 1):
+        for ccd in range(np.min(ccd_range), np.max(ccd_range) + 1):
+            for quad in range(np.min(quad_range), np.max(quad_range) + 1):
                 default_file = (
                     "../ids/field_"
                     + str(field)
@@ -373,10 +522,8 @@ def run(**kwargs):
         else:
             ccd_quad = (0, 0)
             print(f'Getting features for field {field}...')
-        default_file = v
-        source_ids_filename = kwargs.get("source_ids_filename", default_file)
+        source_ids_filename = v
 
-        tm = kwargs.get("time", False)
         filename = os.path.join(BASE_DIR, source_ids_filename)
 
         ts = time.time()
@@ -393,7 +540,6 @@ def run(**kwargs):
                 + " s"
             )
 
-        verbose = kwargs.get("verbose", False)
         if verbose:
             print(f"{len(source_ids)} total source ids")
 
@@ -429,7 +575,3 @@ def run(**kwargs):
                 self_impute=self_impute,
                 projection=projection,
             )
-
-
-if __name__ == "__main__":
-    fire.Fire(run)
