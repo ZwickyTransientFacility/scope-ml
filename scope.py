@@ -726,6 +726,10 @@ class Scope:
         colsample_bytree_stop = colsample_bytree_config[1]
         colsample_bytree_step = colsample_bytree_config[2]
 
+        # confusion matrix plotting parameters:
+        cm_include_count = kwargs.get("cm_include_count", False)
+        cm_include_percent = kwargs.get("cm_include_percent", False)
+
         # seed: random seed
         seed = train_config_xgb['other_training_params'].get('seed', 42)
 
@@ -1031,6 +1035,8 @@ class Scope:
                 output_path=str(output_path / tag),
                 tag=f"{tag}.{time_tag}",
                 plot=plot,
+                cm_include_count=cm_include_count,
+                cm_include_percent=cm_include_percent,
             )
 
             return time_tag
