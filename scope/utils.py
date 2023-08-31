@@ -794,6 +794,7 @@ def make_confusion_matrix(
     figsize=None,
     cmap='Blues',
     title=None,
+    annotate_scores=False,
 ):
     '''
     CONFUSION MATRIX CODE ADAPTED FROM https://github.com/DTrimarchi10/confusion_matrix (Dennis Trimarchi)
@@ -844,9 +845,7 @@ def make_confusion_matrix(
         group_counts = blanks
 
     if percent:
-        group_percentages = [
-            "{0:.2%}".format(value) for value in cf.flatten() / np.sum(cf)
-        ]
+        group_percentages = [np.round(value, 2) for value in cf.flatten() / np.sum(cf)]
     else:
         group_percentages = blanks
 
@@ -856,6 +855,7 @@ def make_confusion_matrix(
     ]
     box_labels = np.asarray(box_labels).reshape(cf.shape[0], cf.shape[1])
 
+    stats_text = ""
     # CODE TO GENERATE SUMMARY STATISTICS & TEXT FOR SUMMARY STATS
     if sum_stats:
         # Accuracy is sum of diagonal divided by total observations
@@ -867,13 +867,12 @@ def make_confusion_matrix(
             precision = cf[1, 1] / sum(cf[:, 1])
             recall = cf[1, 1] / sum(cf[1, :])
             f1_score = 2 * precision * recall / (precision + recall)
-            stats_text = "\n\nAccuracy={:0.3f}\nPrecision={:0.3f}\nRecall={:0.3f}\nF1 Score={:0.3f}".format(
-                accuracy, precision, recall, f1_score
-            )
-        else:
+            if annotate_scores:
+                stats_text = "\n\nAccuracy={:0.3f}\nPrecision={:0.3f}\nRecall={:0.3f}\nF1 Score={:0.3f}".format(
+                    accuracy, precision, recall, f1_score
+                )
+        elif annotate_scores:
             stats_text = "\n\nAccuracy={:0.3f}".format(accuracy)
-    else:
-        stats_text = ""
 
     # SET FIGURE PARAMETERS ACCORDING TO OTHER ARGUMENTS
     if figsize is None:

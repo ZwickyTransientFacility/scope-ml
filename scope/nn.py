@@ -506,7 +506,7 @@ class DNN(AbstractClassifier):
         self.meta[f'y_{name}'] = y_eval
 
         # Generate confusion matrix
-        self.meta[f'cm_{name}'] = confusion_matrix(y_eval, y_pred)
+        self.meta[f'cm_{name}'] = confusion_matrix(y_eval, y_pred, normalize='all')
 
         return self.model.evaluate(eval_dataset, **kwargs)
 
@@ -535,6 +535,9 @@ class DNN(AbstractClassifier):
         output_format: str = "h5",
         plot: bool = False,
         names: list = ['train', 'val', 'test'],
+        cm_include_count: bool = False,
+        cm_include_percent: bool = True,
+        annotate_scores: bool = False,
         **kwargs,
     ):
 
@@ -569,8 +572,10 @@ class DNN(AbstractClassifier):
                         self.meta[f'cm_{name}'],
                         figsize=(8, 6),
                         cbar=False,
-                        percent=False,
+                        count=cm_include_count,
+                        percent=cm_include_percent,
                         categories=['not ' + cname, cname],
+                        annotate_scores=annotate_scores,
                     )
                     stats_dct['accuracy'] = accuracy
                     stats_dct['precision'] = precision

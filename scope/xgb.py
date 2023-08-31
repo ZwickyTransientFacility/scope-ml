@@ -388,7 +388,7 @@ class XGB(AbstractClassifier):
         self.meta[f'y_{name}'] = y_eval
 
         # Generate confusion matrix
-        self.meta[f'cm_{name}'] = confusion_matrix(y_eval, y_pred)
+        self.meta[f'cm_{name}'] = confusion_matrix(y_eval, y_pred, normalize='all')
 
         return self.model.eval(d_eval, f'd{name}', **kwargs)
 
@@ -422,6 +422,9 @@ class XGB(AbstractClassifier):
         output_format: str = "json",
         plot: bool = False,
         names: list = ['train', 'val', 'test'],
+        cm_include_count=False,
+        cm_include_percent=True,
+        annotate_scores=False,
         **kwargs,
     ):
         if output_format not in ["json"]:
@@ -463,9 +466,12 @@ class XGB(AbstractClassifier):
                     json.dump(self.meta['importance'], f)
 
                 _ = xgb.plot_importance(
-                    self.model, max_num_features=max_num_features, grid=False
+                    self.model,
+                    max_num_features=max_num_features,
+                    grid=False,
+                    show_values=False,
                 )
-                plt.title(tag + ' Feature Importance')
+                plt.title(tag.split('.')[0])
                 plt.savefig(path / impvars, bbox_inches='tight')
                 plt.close()
 
@@ -475,8 +481,10 @@ class XGB(AbstractClassifier):
                         self.meta[f'cm_{name}'],
                         figsize=(8, 6),
                         cbar=False,
-                        percent=False,
+                        count=cm_include_count,
+                        percent=cm_include_percent,
                         categories=['not ' + cname, cname],
+                        annotate_scores=annotate_scores,
                     )
                     stats_dct['accuracy'] = accuracy
                     stats_dct['precision'] = precision
