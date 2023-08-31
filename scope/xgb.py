@@ -424,6 +424,7 @@ class XGB(AbstractClassifier):
         names: list = ['train', 'val', 'test'],
         cm_include_count=False,
         cm_include_percent=True,
+        annotate_scores=False,
         **kwargs,
     ):
         if output_format not in ["json"]:
@@ -483,6 +484,7 @@ class XGB(AbstractClassifier):
                         count=cm_include_count,
                         percent=cm_include_percent,
                         categories=['not ' + cname, cname],
+                        annotate_scores=annotate_scores,
                     )
                     stats_dct['accuracy'] = accuracy
                     stats_dct['precision'] = precision

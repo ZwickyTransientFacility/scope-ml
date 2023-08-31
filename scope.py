@@ -728,7 +728,8 @@ class Scope:
 
         # confusion matrix plotting parameters:
         cm_include_count = kwargs.get("cm_include_count", False)
-        cm_include_percent = kwargs.get("cm_include_percent", False)
+        cm_include_percent = kwargs.get("cm_include_percent", True)
+        annotate_scores = kwargs.get("annotate_scores", False)
 
         # seed: random seed
         seed = train_config_xgb['other_training_params'].get('seed', 42)
@@ -1037,6 +1038,7 @@ class Scope:
                 plot=plot,
                 cm_include_count=cm_include_count,
                 cm_include_percent=cm_include_percent,
+                annotate_scores=annotate_scores,
             )
 
             return time_tag

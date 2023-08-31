@@ -537,6 +537,7 @@ class DNN(AbstractClassifier):
         names: list = ['train', 'val', 'test'],
         cm_include_count: bool = False,
         cm_include_percent: bool = True,
+        annotate_scores: bool = False,
         **kwargs,
     ):
 
@@ -574,6 +575,7 @@ class DNN(AbstractClassifier):
                         count=cm_include_count,
                         percent=cm_include_percent,
                         categories=['not ' + cname, cname],
+                        annotate_scores=annotate_scores,
                     )
                     stats_dct['accuracy'] = accuracy
                     stats_dct['precision'] = precision
