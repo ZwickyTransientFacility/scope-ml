@@ -920,6 +920,8 @@ class Scope:
             X_test = ds.df_ds.loc[indexes['test']][features]
             y_test = ds.target[indexes['test']]
 
+            scale_pos_weight = class_weight[1] / class_weight[0]
+
             # Add code to train XGB algorithm
             classifier = XGB(name=tag)
             classifier.setup(
@@ -932,6 +934,7 @@ class Scope:
                 eval_metric=eval_metric,
                 early_stopping_rounds=early_stopping_rounds,
                 num_boost_round=num_boost_round,
+                scale_pos_weight=scale_pos_weight,
             )
             classifier.train(
                 X_train,
