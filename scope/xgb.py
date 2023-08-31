@@ -28,6 +28,7 @@ class XGB(AbstractClassifier):
         eval_metric='auc',
         early_stopping_rounds=10,
         num_boost_round=999,
+        scale_pos_weight=1.0,
         **kwargs,
     ):
         #  removed for now:
@@ -42,6 +43,7 @@ class XGB(AbstractClassifier):
             'colsample_bytree': colsample_bytree,
             'objective': objective,
             'eval_metric': eval_metric,
+            'scale_pos_weight': scale_pos_weight,
         }
 
         self.meta['early_stopping_rounds'] = early_stopping_rounds
