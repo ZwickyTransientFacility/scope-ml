@@ -1098,32 +1098,6 @@ class Dataset(object):
             w_neg = ~w_pos
         index_neg = self.df_ds.loc[w_neg].index
 
-        # balance positive and negative examples?
-        index_dropped = None
-        if balance:
-            underrepresented = min(np.sum(w_pos), np.sum(w_neg))
-            overrepresented = max(np.sum(w_pos), np.sum(w_neg))
-            sample_size = int(min(overrepresented, underrepresented * balance))
-            if neg > pos:
-                index_neg = (
-                    self.df_ds.loc[w_neg].sample(n=sample_size, random_state=1).index
-                )
-                index_dropped = self.df_ds.loc[
-                    list(set(self.df_ds.loc[w_neg].index) - set(index_neg))
-                ].index
-            else:
-                index_pos = (
-                    self.df_ds.loc[w_pos].sample(n=sample_size, random_state=1).index
-                )
-                index_dropped = self.df_ds.loc[
-                    list(set(self.df_ds.loc[w_pos].index) - set(index_pos))
-                ].index
-        if self.verbose:
-            log(
-                "Number of examples to use in training:"
-                f"\n  Positive: {len(index_pos)}\n  Negative: {len(index_neg)}\n"
-            )
-
         ds_indexes = index_pos.to_list() + index_neg.to_list()
 
         # Train/validation/test split (we will use an 81% / 9% / 10% data split by default):
@@ -1134,6 +1108,58 @@ class Dataset(object):
         train_indexes, val_indexes = train_test_split(
             train_indexes, shuffle=True, test_size=val_size, random_state=random_state
         )
+
+        # balance positive and negative examples for training set
+        # (Do not do this for val or test sets - we want an unchanging set of examples to evaluate model performance)
+        index_dropped = None
+        w_pos_train = w_pos[train_indexes]
+        w_neg_train = w_neg[train_indexes]
+        if balance:
+            underrepresented = min(np.sum(w_pos_train), np.sum(w_neg_train))
+            overrepresented = max(np.sum(w_pos_train), np.sum(w_neg_train))
+            sample_size = int(min(overrepresented, underrepresented * balance))
+            if neg > pos:
+                index_neg = (
+                    self.df_ds.loc[train_indexes]
+                    .loc[w_neg_train]
+                    .sample(n=sample_size, random_state=1)
+                    .index
+                )
+                index_dropped = (
+                    self.df_ds.loc[train_indexes]
+                    .loc[
+                        list(
+                            set(self.df_ds.loc[train_indexes].loc[w_neg_train].index)
+                            - set(index_neg)
+                        )
+                    ]
+                    .index
+                )
+                index_pos = self.df_ds.loc[train_indexes].loc[w_pos_train].index
+            else:
+                index_pos = (
+                    self.df_ds.loc[train_indexes]
+                    .loc[w_pos_train]
+                    .sample(n=sample_size, random_state=1)
+                    .index
+                )
+                index_dropped = (
+                    self.df_ds.loc[train_indexes]
+                    .loc[
+                        list(
+                            set(self.df_ds.loc[train_indexes].loc[w_pos_train].index)
+                            - set(index_pos)
+                        )
+                    ]
+                    .index
+                )
+                index_neg = self.df_ds.loc[train_indexes].loc[w_neg_train].index
+            train_indexes = np.concatenate([index_pos, index_neg])
+        if self.verbose:
+            log(
+                "Number of examples to use in training:"
+                f"\n  Positive: {len(index_pos)}\n  Negative: {len(index_neg)}\n"
+            )
 
         # Normalize features (dmdt's are already L2-normalized) (?using only the training samples?).
         # Obviously, the same norms will have to be applied at the testing and serving stages.
