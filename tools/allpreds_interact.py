@@ -46,8 +46,8 @@ def allpreds_interact(
 
     path_to_preds = pathlib.Path(path_to_preds)
 
-    dnn_preds = glob.glob(path_to_preds / 'preds_dnn/*')
-    xgb_preds = glob.glob(path_to_preds / 'preds_xgb/*')
+    dnn_preds = glob.glob(str(path_to_preds / 'preds_dnn/*'))
+    xgb_preds = glob.glob(str(path_to_preds / 'preds_xgb/*'))
 
     preds_dnn = pd.DataFrame([])
     preds_xgb = pd.DataFrame([])
