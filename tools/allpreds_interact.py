@@ -1,18 +1,21 @@
+#!/usr/bin/env python
 import argparse
-import os
+import pathlib
 import yaml
 import glob
 import code
 import pandas as pd
-
-# import numpy as np
 from scope.utils import read_parquet  # , write_parquet
 
-BASE_DIR = os.path.dirname(__file__).parent.parent.absolute()
+BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
 
 config_path = BASE_DIR / "config.yaml"
 with open(config_path) as config_yaml:
     config = yaml.load(config_yaml, Loader=yaml.FullLoader)
+
+default_path_to_preds = config['inference']['path_to_preds']
+if default_path_to_preds is None:
+    default_path_to_preds = '.'
 
 
 def allpreds_interact(
@@ -37,10 +40,14 @@ def allpreds_interact(
         842,
         852,
         853,
-    ]
+    ],
+    path_to_preds=default_path_to_preds,
 ):
-    dnn_preds = glob.glob(BASE_DIR / 'preds_dnn/*')
-    xgb_preds = glob.glob(BASE_DIR / 'preds_xgb/*')
+
+    path_to_preds = pathlib.Path(path_to_preds)
+
+    dnn_preds = glob.glob(path_to_preds / 'preds_dnn/*')
+    xgb_preds = glob.glob(path_to_preds / 'preds_xgb/*')
 
     preds_dnn = pd.DataFrame([])
     preds_xgb = pd.DataFrame([])
@@ -102,6 +109,14 @@ if __name__ == "__main__":
         ],
         help="Fields to include",
     )
+    parser.add_argument(
+        "--path_to_preds",
+        type=str,
+        default=default_path_to_preds,
+    )
     args = parser.parse_args()
 
-    allpreds_interact(fields=args.fields)
+    allpreds_interact(
+        fields=args.fields,
+        path_to_preds=args.path_to_preds,
+    )
