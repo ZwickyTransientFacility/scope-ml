@@ -10,59 +10,6 @@ from requests.exceptions import InvalidJSONError, JSONDecodeError
 from urllib3.exceptions import ProtocolError
 
 
-def get_highscoring_objects(
-    G,
-    otype='vnv',
-    condition="$or",
-    limit=0.9,
-    limit_dnn=None,
-    limit_xgb=None,
-):
-
-    if limit_dnn is None:
-        limit_dnn = limit
-    if limit_xgb is None:
-        limit_xgb = limit
-
-    # example
-    q = {
-        "query_type": "find",
-        "query": {
-            "catalog": "ZTF_source_classifications_DR16",
-            "filter": {
-                condition: [
-                    {'%s_xgb' % otype: {'$gt': limit_xgb}},
-                    {'%s_dnn' % otype: {'$gt': limit_dnn}},
-                ],
-            },
-            "projection": {},
-        },
-        "kwargs": {},
-    }
-
-    r = G.query(q)
-
-    return pd.DataFrame(r['data'])
-
-
-def get_stats(G, ids):
-    qs = [
-        {
-            "query_type": "find",
-            "query": {
-                "catalog": "ZTF_source_features_DR16",
-                "filter": {'_id': i},
-                "projection": {},
-            },
-            "kwargs": {},
-        }
-        for i in ids
-    ]
-    rs = G.batch_query(qs, n_treads=32)
-
-    return pd.DataFrame([s['data'][0] for s in rs])
-
-
 # define the baseurl and set the fritz token to connect
 config_path = pathlib.Path(__file__).parent.parent.absolute() / "config.yaml"
 with open(config_path) as config_yaml:
@@ -111,6 +58,12 @@ def api(
             continue
 
     return response
+
+
+# Get up-to-date ZTF instrument id
+name = 'ZTF'
+response_instruments = api('GET', 'api/instrument', max_attempts=MAX_ATTEMPTS)
+instrument_data = response_instruments.json().get('data')
 
 
 def radec_to_iau_name(ra: float, dec: float, prefix: str = "ZTFJ"):
@@ -371,12 +324,6 @@ def save_newsource(
     df_photometry = (
         df_photometry.dropna().drop_duplicates('uexpid').reset_index(drop=True)
     )
-    # Get up-to-date ZTF instrument id
-    name = 'ZTF'
-
-    response_instruments = api('GET', 'api/instrument', max_attempts=MAX_ATTEMPTS)
-
-    instrument_data = response_instruments.json().get('data')
 
     for instrument in instrument_data:
         if instrument['name'] == name:
@@ -432,18 +379,30 @@ def save_newsource(
             return None
 
     if period is not None:
-        # upload the period if it is provided
-        data = {
-            "origin": "uploadedperiod",
-            "group_ids": group_ids,
-            "data": {'period': period},
-        }
-        response = api(
-            "POST",
-            "api/sources/%s/annotations" % obj_id,
-            data=data,
-            max_attempts=MAX_ATTEMPTS,
+        response_anotations = api(
+            'GET', 'api/sources/%s/annotations' % obj_id, max_attempts=MAX_ATTEMPTS
         )
+
+        annotations_data = response_anotations.json().get('data')
+
+        has_period_annotation = False
+        for annotation in annotations_data:
+            if annotation['origin'] == 'uploadedperiod':
+                has_period_annotation = True
+
+        if not has_period_annotation:
+            # upload the period if it is provided and there is not already a period annotation
+            data = {
+                "origin": "uploadedperiod",
+                "group_ids": group_ids,
+                "data": {'period': period},
+            }
+            response = api(
+                "POST",
+                "api/sources/%s/annotations" % obj_id,
+                data=data,
+                max_attempts=MAX_ATTEMPTS,
+            )
 
     if return_id & return_phot:
         return obj_id, photometry
@@ -453,3 +412,56 @@ def save_newsource(
         return photometry
     else:
         return None
+
+
+def get_highscoring_objects(
+    G,
+    otype='vnv',
+    condition="$or",
+    limit=0.9,
+    limit_dnn=None,
+    limit_xgb=None,
+):
+
+    if limit_dnn is None:
+        limit_dnn = limit
+    if limit_xgb is None:
+        limit_xgb = limit
+
+    # example
+    q = {
+        "query_type": "find",
+        "query": {
+            "catalog": "ZTF_source_classifications_DR16",
+            "filter": {
+                condition: [
+                    {'%s_xgb' % otype: {'$gt': limit_xgb}},
+                    {'%s_dnn' % otype: {'$gt': limit_dnn}},
+                ],
+            },
+            "projection": {},
+        },
+        "kwargs": {},
+    }
+
+    r = G.query(q)
+
+    return pd.DataFrame(r['data'])
+
+
+def get_stats(G, ids):
+    qs = [
+        {
+            "query_type": "find",
+            "query": {
+                "catalog": "ZTF_source_features_DR16",
+                "filter": {'_id': i},
+                "projection": {},
+            },
+            "kwargs": {},
+        }
+        for i in ids
+    ]
+    rs = G.batch_query(qs, n_treads=32)
+
+    return pd.DataFrame([s['data'][0] for s in rs])
