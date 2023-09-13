@@ -2,6 +2,7 @@
 import pandas as pd
 import os
 import pathlib
+import yaml
 import argparse
 import numpy as np
 import json
@@ -9,8 +10,18 @@ from scope.utils import read_parquet, write_parquet
 
 BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
 
+config_path = BASE_DIR / "config.yaml"
+with open(config_path) as config_yaml:
+    config = yaml.load(config_yaml, Loader=yaml.FullLoader)
+
+try:
+    DEFAULT_PREDS_PATH = pathlib.Path(config['inference']['path_to_preds'])
+except TypeError:
+    DEFAULT_PREDS_PATH = BASE_DIR
+
 
 def combine_preds(
+    path_to_preds: pathlib.PosixPath = DEFAULT_PREDS_PATH,
     combined_preds_dirname: str = 'preds_dnn_xgb',
     specific_field: str = None,
     dateobs: str = None,
@@ -33,6 +44,9 @@ def combine_preds(
     if (specific_field is not None) & (dateobs is not None):
         raise ValueError("Please specify only one of --specific_field and --dateobs.")
 
+    if type(path_to_preds) == str:
+        path_to_preds = pathlib.Path(path_to_preds)
+
     if specific_field is not None:
         glob_input = f"field_{specific_field}"
     elif dateobs is not None:
@@ -42,7 +56,7 @@ def combine_preds(
     else:
         glob_input = 'field_*[!specific_ids]'
 
-    field_paths_dnn = [x for x in (BASE_DIR / dnn_directory).glob(glob_input)]
+    field_paths_dnn = [x for x in (path_to_preds / dnn_directory).glob(glob_input)]
     if dateobs is not None:
         fields_dnn = [x.name for x in field_paths_dnn if dateobs in x.name]
     else:
@@ -51,7 +65,7 @@ def combine_preds(
         fields_dnn[i]: field_paths_dnn[i] for i in range(len(fields_dnn))
     }
 
-    field_paths_xgb = [x for x in (BASE_DIR / xgb_directory).glob(glob_input)]
+    field_paths_xgb = [x for x in (path_to_preds / xgb_directory).glob(glob_input)]
     if dateobs is not None:
         fields_xgb = [x.name for x in field_paths_xgb if dateobs in x.name]
     else:
@@ -61,7 +75,7 @@ def combine_preds(
     }
 
     if save:
-        os.makedirs(BASE_DIR / combined_preds_dirname, exist_ok=True)
+        os.makedirs(path_to_preds / combined_preds_dirname, exist_ok=True)
     counter = 0
     print(f"Processing {len(fields_dnn_dict)} fields/files...")
     for field in fields_dnn_dict.keys():
@@ -131,15 +145,17 @@ def combine_preds(
             if save:
                 write_parquet(
                     preds_to_save,
-                    BASE_DIR / combined_preds_dirname / f"{field}.parquet",
+                    path_to_preds / combined_preds_dirname / f"{field}.parquet",
                 )
                 if write_csv:
                     preds_to_save.to_csv(
-                        BASE_DIR / combined_preds_dirname / f"{field}.csv", index=False
+                        path_to_preds / combined_preds_dirname / f"{field}.csv",
+                        index=False,
                     )
                 if meta_dict is not None:
                     with open(
-                        BASE_DIR / combined_preds_dirname / f"{field}_meta.json", 'w'
+                        path_to_preds / combined_preds_dirname / f"{field}_meta.json",
+                        'w',
                     ) as f:
                         json.dump(meta_dict, f)
 
@@ -148,6 +164,12 @@ def combine_preds(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--path_to_preds",
+        type=pathlib.PosixPath,
+        default=DEFAULT_PREDS_PATH,
+        help="path to directories of existing and combined preds",
+    )
     parser.add_argument(
         "--combined_preds_dirname",
         type=str,
@@ -208,6 +230,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     combine_preds(
+        path_to_preds=args.path_to_preds,
         combined_preds_dirname=args.combined_preds_dirname,
         specific_field=args.specific_field,
         dateobs=args.dateobs,
