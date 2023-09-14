@@ -60,12 +60,6 @@ def api(
     return response
 
 
-# Get up-to-date ZTF instrument id
-name = 'ZTF'
-response_instruments = api('GET', 'api/instrument', max_attempts=MAX_ATTEMPTS)
-instrument_data = response_instruments.json().get('data')
-
-
 def radec_to_iau_name(ra: float, dec: float, prefix: str = "ZTFJ"):
     """Transform R.A./Decl. in degrees to IAU-style hexadecimal designations."""
     if not 0.0 <= ra < 360.0:
@@ -281,6 +275,7 @@ def save_newsource(
     return_id=False,
     return_phot=False,
     skip_phot=False,
+    instrument_id=1,
 ):
 
     # get the lightcurves
@@ -324,11 +319,6 @@ def save_newsource(
     df_photometry = (
         df_photometry.dropna().drop_duplicates('uexpid').reset_index(drop=True)
     )
-
-    for instrument in instrument_data:
-        if instrument['name'] == name:
-            instrument_id = instrument['id']
-            break
 
     photometry = {
         "obj_id": obj_id,
