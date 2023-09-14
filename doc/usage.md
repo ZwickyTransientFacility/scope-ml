@@ -443,6 +443,7 @@ inputs:
 24. --post_phot_as_comment: flag to post photometry as a comment on the source (bool)
 25. --post_phasefolded_phot: flag to post phase-folded photometry as comment in addition to time series (bool)
 26. --phot_dirname: name of directory in which to save photometry plots (str)
+27. --instrument_name: name of instrument used for observations (str)
 
 process:
 0. include Kowalski host, port, protocol, and token or username+password in config.yaml

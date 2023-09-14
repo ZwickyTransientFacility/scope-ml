@@ -179,6 +179,7 @@ def upload_classification(
     post_phot_as_comment: bool = False,
     post_phasefolded_phot: bool = False,
     phot_dirname: str = 'phot_plots',
+    instrument_name: str = 'ZTF',
 ):
     """
     Upload labels to Fritz
@@ -208,6 +209,7 @@ def upload_classification(
     :post_phot_as_comment: if True, post photometry as a comment on the source (bool)
     :post_phasefolded_phot: if True, post phase-folded photometry as comment in addition to time series (bool)
     :phot_dirname: Name of directory in which to save photometry plots (str)
+    :instrument_name: Name of instrument used for observations (str)
     """
 
     # read in file to csv
@@ -255,6 +257,16 @@ def upload_classification(
             tax_map = JSON.load(f)
 
         classes = [key for key in tax_map.keys()]  # define list of columns to examine
+
+    # Get up-to-date ZTF instrument id
+    name = instrument_name
+    response_instruments = api('GET', 'api/instrument')
+    instrument_data = response_instruments.json().get('data')
+
+    for instrument in instrument_data:
+        if instrument['name'] == name:
+            instrument_id = instrument['id']
+            break
 
     dict_list = []
     obj_id_dict = {}
@@ -395,6 +407,7 @@ def upload_classification(
                     radius=radius_arcsec,
                     post_source=post_source,
                     skip_phot=skip_phot,
+                    instrument_id=instrument_id,
                 )
             else:
                 obj_id, photometry = save_newsource(
@@ -409,6 +422,7 @@ def upload_classification(
                     radius=radius_arcsec,
                     post_source=post_source,
                     skip_phot=skip_phot,
+                    instrument_id=instrument_id,
                 )
 
         data_groups = []
@@ -855,6 +869,12 @@ if __name__ == "__main__":
         default='phot_plots',
         help="Name of directory in which to save photometry plots",
     )
+    parser.add_argument(
+        "--instrument_name",
+        type=str,
+        default='ZTF',
+        help="Name of instrument used for observations",
+    )
 
     args = parser.parse_args()
 
@@ -887,4 +907,5 @@ if __name__ == "__main__":
         args.post_phot_as_comment,
         args.post_phasefolded_phot,
         args.phot_dirname,
+        args.instrument_name,
     )
