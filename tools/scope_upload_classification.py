@@ -259,12 +259,11 @@ def upload_classification(
         classes = [key for key in tax_map.keys()]  # define list of columns to examine
 
     # Get up-to-date ZTF instrument id
-    name = instrument_name
     response_instruments = api('GET', 'api/instrument')
     instrument_data = response_instruments.json().get('data')
 
     for instrument in instrument_data:
-        if instrument['name'] == name:
+        if instrument['name'] == instrument_name:
             instrument_id = instrument['id']
             break
 
