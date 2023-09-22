@@ -747,6 +747,9 @@ def generate_features(
 
         except ValueError:
             feature_dict.pop(_id)
+            if _id in keep_id_list:
+                keep_id_list.remove(_id)
+                tme_dict.pop(_id)
 
     basicStats = Parallel(n_jobs=Ncore)(
         delayed(lcstats.calc_basic_stats)(id, vals['tme'])
