@@ -52,6 +52,10 @@ alerts_catalog = config['kowalski']['collections']['alerts']
 gaia_catalog = config['kowalski']['collections']['gaia']
 ext_catalog_info = config['feature_generation']['external_catalog_features']
 cesium_feature_list = config['feature_generation']['cesium_features']
+path_to_features = config['feature_generation']['path_to_features']
+
+if path_to_features is not None:
+    BASE_DIR = pathlib.Path(path_to_features)
 
 
 def check_quads_for_sources(

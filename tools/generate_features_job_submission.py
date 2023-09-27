@@ -16,6 +16,9 @@ with open(config_path) as config_yaml:
     config = yaml.load(config_yaml, Loader=yaml.FullLoader)
 
 fields_to_run = config['feature_generation']['fields_to_run']
+path_to_features = config['feature_generation']['path_to_features']
+if path_to_features is not None:
+    BASE_DIR = pathlib.Path(path_to_features)
 
 
 def parse_commandline():

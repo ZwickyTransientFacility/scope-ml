@@ -73,6 +73,10 @@ dmdt_ints = config['feature_generation']['dmdt_ints']
 ext_catalog_info = config['feature_generation']['external_catalog_features']
 cesium_feature_list = config['feature_generation']['cesium_features']
 period_algorithms = config['feature_generation']['period_algorithms']
+path_to_features = config['feature_generation']['path_to_features']
+
+if path_to_features is not None:
+    BASE_DIR = pathlib.Path(path_to_features)
 
 kowalski_instances = Kowalski(timeout=timeout, instances=instances)
 
