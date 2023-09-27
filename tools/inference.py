@@ -26,12 +26,21 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 warnings.filterwarnings('ignore')
 
 BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
+BASE_DIR_FEATS = pathlib.Path(__file__).parent.parent.absolute()
+BASE_DIR_PREDS = pathlib.Path(__file__).parent.parent.absolute()
 JUST = 50
-
 
 config_path = BASE_DIR / "config.yaml"
 with open(config_path) as config_yaml:
     config = yaml.load(config_yaml, Loader=yaml.FullLoader)
+
+path_to_features = config['feature_generation']['path_to_features']
+path_to_preds = config['inference']['path_to_preds']
+
+if path_to_features is not None:
+    BASE_DIR_FEATS = pathlib.Path(path_to_features)
+if path_to_preds is not None:
+    BASE_DIR_PREDS = pathlib.Path(path_to_preds)
 
 period_suffix_config = config['features']['info']['period_suffix']
 
@@ -114,7 +123,7 @@ def clean_data(
     # file to store flagged ids and features with missing values
     if not whole_field:
         filename = (
-            str(BASE_DIR)
+            str(BASE_DIR_PREDS)
             + f"/preds_{algorithm}/field_"
             + str(field)
             + "/ccd_"
@@ -125,7 +134,7 @@ def clean_data(
         )
     else:
         filename = (
-            str(BASE_DIR)
+            str(BASE_DIR_PREDS)
             + f"/preds_{algorithm}/field_"
             + str(field)
             + f"/field_{field}_flagged.json"
@@ -263,19 +272,19 @@ def run_inference(
     if not int_field:
         if 'specific_ids' in field:
             default_features_file = str(
-                BASE_DIR
+                BASE_DIR_FEATS
                 / f"{feature_directory}/specific_ids/gen_gcn_features_{field}.parquet"
             )
     else:
         # default file location for source ids
         if whole_field:
             default_features_file = (
-                str(BASE_DIR) + f"/{feature_directory}/field_" + str(field)
+                str(BASE_DIR_FEATS) + f"/{feature_directory}/field_" + str(field)
             )
         else:
             if feature_directory == 'features':
                 default_features_file = (
-                    str(BASE_DIR)
+                    str(BASE_DIR_FEATS)
                     + f"/{feature_directory}/field_"
                     + str(field)
                     + "/ccd_"
@@ -286,7 +295,7 @@ def run_inference(
                 )
             else:
                 default_features_file = (
-                    str(BASE_DIR)
+                    str(BASE_DIR_FEATS)
                     + f"/{feature_directory}/field_"
                     + str(field)
                     + f"/{feature_file_prefix}_"
@@ -302,7 +311,7 @@ def run_inference(
     features_filename = kwargs.get("features_filename", default_features_file)
 
     out_dir = os.path.join(
-        os.path.dirname(__file__), f"{str(BASE_DIR)}/preds_{algorithm}/"
+        os.path.dirname(__file__), f"{str(BASE_DIR_PREDS)}/preds_{algorithm}/"
     )
 
     if not whole_field:
