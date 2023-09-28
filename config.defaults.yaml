@@ -1366,7 +1366,7 @@ feature_generation:
   dataset: tools/fritzDownload/merged_classifications_features.parquet
   # Once generate_features.py is run with --doSpecificIDs, a file will be saved with the default name below.
   # Set --skipCloseSources to load the file below and skip the idenfication of close sources:
-  ids_skipGaia: tools/fritzDownload/specific_ids_dropCloseSources.json
+  ids_skipGaia: specific_ids_dropCloseSources.json
   period_algorithms:
     CPU:
       - LS

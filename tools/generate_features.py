@@ -598,7 +598,7 @@ def generate_features(
         else:
             # Load pre-saved dataset if Gaia analysis already complete
             fg_sources_config = config['feature_generation']['ids_skipGaia']
-            fg_sources_path = str(BASE_DIR / fg_sources_config)
+            fg_sources_path = str(BASE_DIR / dirname / fg_sources_config)
 
             if fg_sources_path.endswith('.json'):
                 with open(fg_sources_path, 'r') as f:
