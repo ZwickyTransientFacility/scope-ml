@@ -199,9 +199,6 @@ def query_gcn_events(
                 / f"{generated_features_dirname}/specific_ids/gen_gcn_features_{save_dateobs}_specific_ids.parquet"
             )
             if (not features_file.exists()) | (has_new_sources):
-                import code
-
-                code.interact(local=locals())
                 print("Generating features on Expanse...")
                 os.system(
                     f"scp {filepath} {username}@login.expanse.sdsc.edu:/expanse/lustre/projects/umn131/{username}/{generated_features_dirname}/fg_sources/."
