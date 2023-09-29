@@ -6,11 +6,16 @@ import yaml
 import numpy as np
 
 BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
+BASE_DIR_PREDS = pathlib.Path(__file__).parent.parent.absolute()
 
 # Read config file
 config_path = BASE_DIR / "config.yaml"
 with open(config_path) as config_yaml:
     config = yaml.load(config_yaml, Loader=yaml.FullLoader)
+
+path_to_preds = config['inference']['path_to_preds']
+if path_to_preds is not None:
+    BASE_DIR_PREDS = pathlib.Path(path_to_preds)
 
 
 def parse_commandline():
@@ -23,7 +28,7 @@ def parse_commandline():
         "--dirname",
         type=str,
         default='inference',
-        help="Directory name for training slurm scripts",
+        help="Directory name for inference slurm scripts",
     )
     parser.add_argument(
         "-f", "--filetype", default="slurm", help="Type of job submission file"
@@ -50,7 +55,7 @@ def filter_completed(fields, algorithm):
     fields_copy = fields.copy()
 
     for field in fields:
-        searchDir = BASE_DIR / f'preds_{algorithm}' / f'field_{field}'
+        searchDir = BASE_DIR_PREDS / f'preds_{algorithm}' / f'field_{field}'
         searchDir.mkdir(parents=True, exist_ok=True)
         generator = searchDir.iterdir()
         has_parquet = np.sum([x.suffix == '.parquet' for x in generator]) > 0
@@ -78,7 +83,7 @@ if __name__ == '__main__':
     filetype = args.filetype
     dirname = args.dirname
 
-    slurmDir = str(BASE_DIR / dirname)
+    slurmDir = str(BASE_DIR_PREDS / dirname)
 
     fields = config['inference']['fields_to_run']
     algorithm = args.algorithm

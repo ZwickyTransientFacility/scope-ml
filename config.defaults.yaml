@@ -1358,13 +1358,15 @@ feature_stats:
 
 # Below, specify algorithms, external catalogs and features to include in generated feature lists:
 feature_generation:
+  # Path to save generated features
+  path_to_features:
   # If --doSpecificIDs is set in generate_features.py, the script will generate features for the below dataset instead of a field/ccd/quad.
   # Dataset must contain columns named "ztf_id" and "coordinates" with data in the format of these fields on Kowalski
   # Default dataset is the training set downloadable from Fritz
   dataset: tools/fritzDownload/merged_classifications_features.parquet
   # Once generate_features.py is run with --doSpecificIDs, a file will be saved with the default name below.
   # Set --skipCloseSources to load the file below and skip the idenfication of close sources:
-  ids_skipGaia: tools/fritzDownload/specific_ids_dropCloseSources.json
+  ids_skipGaia: specific_ids_dropCloseSources.json
   period_algorithms:
     CPU:
       - LS

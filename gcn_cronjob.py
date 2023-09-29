@@ -201,18 +201,18 @@ def query_gcn_events(
             if (not features_file.exists()) | (has_new_sources):
                 print("Generating features on Expanse...")
                 os.system(
-                    f"scp {filepath} {username}@login.expanse.sdsc.edu:/home/{username}/scope/tools/fritzDownload/."
+                    f"scp {filepath} {username}@login.expanse.sdsc.edu:/expanse/lustre/projects/umn131/{username}/{generated_features_dirname}/fg_sources/."
                 )
                 os.system(
                     f'ssh -tt {username}@login.expanse.sdsc.edu \
                     "source .bash_profile && \
-                    cd scope/{generated_features_dirname}/slurm && \
+                    cd /expanse/lustre/projects/umn131/{username}/{generated_features_dirname}/slurm && \
                     sbatch --wait --export=DOBS={save_dateobs},DS={filepath.name} {partition}_slurm.sub"'
                 )
                 print("Finished generating features on Expanse.")
 
                 os.system(
-                    f"rsync -avh {username}@login.expanse.sdsc.edu:/home/{username}/scope/{generated_features_dirname} {BASE_DIR}/."
+                    f"rsync -avh {username}@login.expanse.sdsc.edu:/expanse/lustre/projects/umn131/{username}/{generated_features_dirname} {BASE_DIR}/."
                 )
 
             if features_file.exists():

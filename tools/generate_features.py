@@ -73,6 +73,10 @@ dmdt_ints = config['feature_generation']['dmdt_ints']
 ext_catalog_info = config['feature_generation']['external_catalog_features']
 cesium_feature_list = config['feature_generation']['cesium_features']
 period_algorithms = config['feature_generation']['period_algorithms']
+path_to_features = config['feature_generation']['path_to_features']
+
+if path_to_features is not None:
+    BASE_DIR = pathlib.Path(path_to_features)
 
 kowalski_instances = Kowalski(timeout=timeout, instances=instances)
 
@@ -87,7 +91,8 @@ def drop_close_bright_stars(
     limit: int = 10000,
     Ncore: int = 8,
     save: bool = False,
-    save_filename: str = 'tools/fritzDownload/specific_ids_dropCloseSources.json',
+    save_directory: str = 'generated_features',
+    save_filename: str = 'specific_ids_dropCloseSources.json',
 ):
     """
     Use Gaia to identify and drop sources that are too close to bright stars
@@ -103,7 +108,8 @@ def drop_close_bright_stars(
     :param limit: if doSpecificIDs is set, max number of sources to be queries in one batch (int)
     :param Ncore: if doSpecificIDs is set, number of cores over which to parallelize queries (int)
     :param save: if set, save sources passing the close source analysis (bool)
-    :param save_filename: path/name from BASE_DIR to save sources (str)
+    :param save_directory: directory within BASE_DIR to save sources (str)
+    :param save_filename: filename to use when saving sources (str)
 
     :return id_dct_keep: dictionary containing subset of input sources far enough away from bright stars
     """
@@ -383,7 +389,8 @@ def drop_close_bright_stars(
         id_dct_keep = id_dct
 
     if save:
-        with open(str(BASE_DIR / save_filename), 'w') as f:
+        os.makedirs(BASE_DIR / save_directory, exist_ok=True)
+        with open(str(BASE_DIR / save_directory / save_filename), 'w') as f:
             json.dump(id_dct_keep, f)
 
     print(f"Dropped {len(id_dct) - len(id_dct_keep)} sources.")
@@ -591,7 +598,7 @@ def generate_features(
         else:
             # Load pre-saved dataset if Gaia analysis already complete
             fg_sources_config = config['feature_generation']['ids_skipGaia']
-            fg_sources_path = str(BASE_DIR / fg_sources_config)
+            fg_sources_path = str(BASE_DIR / dirname / fg_sources_config)
 
             if fg_sources_path.endswith('.json'):
                 with open(fg_sources_path, 'r') as f:
@@ -643,6 +650,7 @@ def generate_features(
                 limit=limit,
                 Ncore=Ncore,
                 save=not doNotSave,
+                save_directory=dirname,
             )
 
         else:

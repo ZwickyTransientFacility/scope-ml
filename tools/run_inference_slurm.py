@@ -6,11 +6,15 @@ import os
 
 
 BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
+BASE_DIR_PREDS = pathlib.Path(__file__).parent.parent.absolute()
 
 config_path = BASE_DIR / "config.yaml"
 with open(config_path) as config_yaml:
     config = yaml.load(config_yaml, Loader=yaml.FullLoader)
 
+path_to_preds = config['inference']['path_to_preds']
+if path_to_preds is not None:
+    BASE_DIR_PREDS = pathlib.Path(path_to_preds)
 
 if __name__ == "__main__":
 
@@ -141,7 +145,7 @@ if __name__ == "__main__":
     dirname = f"{algorithm}_{args.dirname}"
     jobname = f"{args.job_name}_{algorithm}"
 
-    dirpath = BASE_DIR / dirname
+    dirpath = BASE_DIR_PREDS / dirname
     os.makedirs(dirpath, exist_ok=True)
 
     slurmDir = os.path.join(dirpath, 'slurm')
