@@ -23,18 +23,18 @@ git remote add upstream git@github.com:ZwickyTransientFacility/scope.git
 
 ## Setting up your environment (Windows/Linux/macOS)
 
-#### Use a package manager for installation
+### Use a package manager for installation
 
-We currently recommend running `scope` with Python 3.10. You may want to begin your installation by creating/activating a virtual environment, for example using conda. We specifically recommend installing miniforge3 (https://github.com/conda-forge/miniforge).
+We currently recommend running `scope` with Python 3.11. You may want to begin your installation by creating/activating a virtual environment, for example using conda. We specifically recommend installing miniforge3 (https://github.com/conda-forge/miniforge).
 
 Once you have a package manager installed, run:
 
 ```bash
-conda create -n scope-env -c conda-forge python=3.10 healpy
+conda create -n scope-env -c conda-forge python=3.11 h5py
 conda activate scope-env
 ```
 
-#### Update your `PYTHONPATH`
+### Update your `PYTHONPATH`
 
 Ensure that Python can import from `scope` by modifying the `PYTHONPATH` environment variable. Use a simple text editor like `nano` to modify the appropriate file (depending on which shell you are using). For example, if using bash, run `nano ~/.bash_profile` and add the following line:
 
@@ -44,7 +44,7 @@ export PYTHONPATH="$PYTHONPATH:$HOME/scope"
 
 Save the updated file (`Ctrl+O` in `nano`) and close/reopen your terminal for this change to be recognized. Then `cd` back into scope and activate your `scope-env` again.
 
-#### Install pre-commit
+### Install pre-commit
 
 We use `black` to format the code and `flake8` to verify that code complies with [PEP8](https://www.python.org/dev/peps/pep-0008/).
 Please install our pre-commit hook as follows:
@@ -60,56 +60,14 @@ code.
 
 The pre-commit hook will lint *changes* made to the source.
 
----
-
-### Instructions for macOS (ARM64/Apple Silicon only)
-
-Skip to the next section if using Windows/Linux or macOS (AMD64/Intel).
-
-#### Install tensorflow for macOS/Apple Silicon
-
-You will need to install the correct version of tensorflow for the ARM64 architecture used by Macs with Apple Silicon. Apple provides an effective version here: `https://developer.apple.com/metal/tensorflow-plugin/`.
-
-To install tensorflow for macOS (including a version that runs on GPUs), run:
-```bash
-pip install tensorflow-macos
-pip install tensorflow-metal
-```
-
-#### Modify remaining requirements
-
-After successfully installing tensorflow-deps, tensorflow-macos, tensorflow-metal, modify the remaining software requirements before installing anything else. Overwrite the `.requirements/dev.txt` file with the updated requirements from `.requirements/dev-M1.txt` by running the following from the scope directory:
-
-```bash
-cp -f .requirements/dev-M1.txt .requirements/dev.txt
-```
-
-This removes `tensorflow` and `tensorflow-addons` from `.requirements/dev.txt` . The file should now list the following requirements:
-
-```txt
-deepdiff>=5.0
-gsutil>=4.60
-keras-tuner>=1.0.2
-matplotlib>=3.3
-pytest>=6.1.2
-questionary>=1.8.1
-scikit-learn>=0.24.1
-wandb>=0.12.1
-```
-
-Continue the installation by following the below instructions for all operating systems.
-
----
-### All Windows/Linux/macOS
-
-#### Install required packages
+## Install required packages
 
 Install the required python packages by running:
 ```bash
 pip install -r requirements.txt
 ```
 
-#### Create and modify config.yaml
+### Create and modify config.yaml
 
 From the included config.defaults.yaml, make a copy called config.yaml:
 
@@ -119,23 +77,23 @@ cp config.defaults.yaml config.yaml
 
 Edit config.yaml to include Kowalski instance and Fritz tokens in the associated empty `token:` fields.
 
-#### Testing
+### Testing
 Run `./scope.py test` to test your installation. Note that for the test to pass, you will need access to the Kowalski database. If you do not have Kowalski access, you can run `./scope.py test_limited` to run a more limited (but still useful) set of tests.
 
-#### Troubleshooting
+### Troubleshooting
 Upon encountering installation/testing errors, manually install the package in question using  `conda install xxx` , and remove it from `.requirements/dev.txt`. After that, re-run `pip install -r requirements.txt` to continue.
 
-#### Known issues
+### Known issues
 - Across all platforms, we are currently aware of `scope` dependency issues with Python 3.11.
 - Anaconda continues to cause problems with environment setup.
-- Using `pip` to install `healpy` on an arm64 Mac can raise an error upon import. We recommend including `healpy` as a requirement during the creation of your `conda` environment.
+- Using `pip` to install `healpy` on an arm64 Mac can raise an error upon import. We recommend including `h5py` as a requirement during the creation of your `conda` environment.
 - On Windows machines, `healpy` and `cesium` raise errors upon installation.
    - For `healpy`, see [this](https://healpy.readthedocs.io/en/latest/install.html#installation-on-windows-through-the-windows-subsystem-for-linux) guide for a potential workaround.
    - For `cesium`, try to install from the source (https://cesium-ml.org/docs/install.html#from-source) within `scope`. If you will not be running feature generation, this is not a critical error, but there will be points in the code that fail (e.g. `scope.py test`, `tools/generate_features.py`)
 
 If the installation continues to raise errors, update the conda environment and try again.
 
-### How to contribute
+## How to contribute
 
 Contributions to `scope` are made through [GitHub Pull Requests](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/about-pull-requests), a set of proposed commits (or patches):
 
