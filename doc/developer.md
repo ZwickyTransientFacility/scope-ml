@@ -30,7 +30,7 @@ We currently recommend running `scope` with Python 3.11. You may want to begin y
 Once you have a package manager installed, run:
 
 ```bash
-conda create -n scope-env -c conda-forge python=3.11 h5py
+conda create -n scope-env -c conda-forge python=3.11
 conda activate scope-env
 ```
 
