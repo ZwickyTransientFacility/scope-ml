@@ -125,6 +125,7 @@ def find_periods(
                 periods_best.flatten(),
                 significances.flatten(),
             )
+            print(algorithm, periods_best)
 
         elif (
             (algorithm == "ECE_periodogram")
@@ -270,6 +271,8 @@ def find_periods(
                 periods_best.append(period)
                 significances.append(significance)
 
+                print('LS', period)
+
         elif algorithm == "CE":
             for ii, data in enumerate(lightcurves):
                 if np.mod(ii, 1) == 0:
@@ -291,6 +294,8 @@ def find_periods(
                 periods_best.append(period)
                 significances.append(significance)
 
+                print('CE', period)
+
         elif algorithm == "AOV":
             for ii, data in enumerate(lightcurves):
                 if np.mod(ii, 10) == 0:
@@ -306,11 +311,13 @@ def find_periods(
                     copy[:, 1],
                     copy[:, 2],
                     fstop=np.max(1.0 / periods),
-                    fstep=1 / periods[0],
+                    fstep=np.diff(1.0 / periods)[1],
                 )
 
                 significance = np.abs(np.mean(aov) - np.max(aov)) / np.std(aov)
                 period = periods[np.argmax(aov)]
+
+                print('AOV', period)
 
                 periods_best.append(period)
                 significances.append(significance)
