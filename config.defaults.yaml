@@ -1371,7 +1371,7 @@ feature_generation:
     CPU:
       - LS
       - CE
-      - AOV
+      #- AOV
     GPU:
       # If ELS_ECE_EAOV is set, period finding will be run using a nested approach which passes the top N ELS and ECE periods to EAOV.
       # Individual ELS, ECE and EAOV periods will also be saved.
