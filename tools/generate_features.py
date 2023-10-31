@@ -894,7 +894,7 @@ def generate_features(
                         freqs_to_remove=freqs_to_remove,
                         phase_bins=20,
                         mag_bins=10,
-                        # Ncore=Ncore, # CPU parallelization to be added
+                        Ncore=Ncore,
                     )
 
                     if not do_nested_GPU_algorithms:

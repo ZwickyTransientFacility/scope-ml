@@ -1,6 +1,7 @@
 import numpy as np
 import fast_histogram
 import warnings
+from joblib import Parallel, delayed
 
 
 def find_periods(
@@ -15,7 +16,7 @@ def find_periods(
     freqs_to_remove=None,
     phase_bins=20,
     mag_bins=10,
-    # Ncore=4, # todo: parallelize CPU period algorithms
+    Ncore=8,
 ):
 
     if (
@@ -125,7 +126,6 @@ def find_periods(
                 periods_best.flatten(),
                 significances.flatten(),
             )
-            print(algorithm, periods_best)
 
         elif (
             (algorithm == "ECE_periodogram")
@@ -271,8 +271,6 @@ def find_periods(
                 periods_best.append(period)
                 significances.append(significance)
 
-                print('LS', period)
-
         elif algorithm == "CE":
             for ii, data in enumerate(lightcurves):
                 if np.mod(ii, 1) == 0:
@@ -282,10 +280,10 @@ def find_periods(
                 copy[:, 1] = (copy[:, 1] - np.min(copy[:, 1])) / (
                     np.max(copy[:, 1]) - np.min(copy[:, 1])
                 )
-                entropies = []
-                for period in periods:
-                    entropy = CE(period, data=copy, xbins=phase_bins, ybins=mag_bins)
-                    entropies.append(entropy)
+                entropies = Parallel(n_jobs=Ncore)(
+                    delayed(CE)(period, copy, phase_bins, mag_bins)
+                    for period in periods
+                )
                 significance = np.abs(np.mean(entropies) - np.min(entropies)) / np.std(
                     entropies
                 )
@@ -294,11 +292,9 @@ def find_periods(
                 periods_best.append(period)
                 significances.append(significance)
 
-                print('CE', period)
-
         elif algorithm == "AOV":
             for ii, data in enumerate(lightcurves):
-                if np.mod(ii, 10) == 0:
+                if np.mod(ii, 1) == 0:
                     print("%d/%d" % (ii, len(lightcurves)))
 
                 copy = np.ma.copy(data).T
@@ -317,8 +313,6 @@ def find_periods(
                 significance = np.abs(np.mean(aov) - np.max(aov)) / np.std(aov)
                 period = periods[np.argmax(aov)]
 
-                print('AOV', period)
-
                 periods_best.append(period)
                 significances.append(significance)
 
@@ -326,7 +320,7 @@ def find_periods(
             from AOV_cython import aov as pyaov
 
             for ii, data in enumerate(lightcurves):
-                if np.mod(ii, 10) == 0:
+                if np.mod(ii, 1) == 0:
                     print("%d/%d" % (ii, len(lightcurves)))
 
                 copy = np.ma.copy(data).T
