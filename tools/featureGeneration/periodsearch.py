@@ -251,8 +251,8 @@ def find_periods(
             from astropy.timeseries import LombScargle
 
             for ii, data in enumerate(lightcurves):
-                if np.mod(ii, 1) == 0:
-                    print("%d/%d" % (ii, len(lightcurves)))
+                if (np.mod(ii, 10) == 0) | ((ii + 1) == len(lightcurves)):
+                    print("%d/%d" % (ii + 1, len(lightcurves)))
                 copy = np.ma.copy(data).T
                 nrows, _ = copy.shape
 
@@ -273,8 +273,8 @@ def find_periods(
 
         elif algorithm == "CE":
             for ii, data in enumerate(lightcurves):
-                if np.mod(ii, 1) == 0:
-                    print("%d/%d" % (ii, len(lightcurves)))
+                if (np.mod(ii, 10) == 0) | ((ii + 1) == len(lightcurves)):
+                    print("%d/%d" % (ii + 1, len(lightcurves)))
 
                 copy = np.ma.copy(data).T
                 copy[:, 1] = (copy[:, 1] - np.min(copy[:, 1])) / (
@@ -294,8 +294,8 @@ def find_periods(
 
         elif algorithm == "AOV":
             for ii, data in enumerate(lightcurves):
-                if np.mod(ii, 1) == 0:
-                    print("%d/%d" % (ii, len(lightcurves)))
+                if (np.mod(ii, 10) == 0) | ((ii + 1) == len(lightcurves)):
+                    print("%d/%d" % (ii + 1, len(lightcurves)))
 
                 copy = np.ma.copy(data).T
                 copy[:, 1] = (copy[:, 1] - np.min(copy[:, 1])) / (
@@ -320,8 +320,8 @@ def find_periods(
             from AOV_cython import aov as pyaov
 
             for ii, data in enumerate(lightcurves):
-                if np.mod(ii, 1) == 0:
-                    print("%d/%d" % (ii, len(lightcurves)))
+                if (np.mod(ii, 10) == 0) | ((ii + 1) == len(lightcurves)):
+                    print("%d/%d" % (ii + 1, len(lightcurves)))
 
                 copy = np.ma.copy(data).T
                 copy[:, 1] = (copy[:, 1] - np.min(copy[:, 1])) / (
