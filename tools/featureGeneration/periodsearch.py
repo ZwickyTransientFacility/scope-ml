@@ -1,6 +1,7 @@
 import numpy as np
 import fast_histogram
 import warnings
+from joblib import Parallel, delayed
 
 
 def find_periods(
@@ -15,7 +16,7 @@ def find_periods(
     freqs_to_remove=None,
     phase_bins=20,
     mag_bins=10,
-    # Ncore=4, # todo: parallelize CPU period algorithms
+    Ncore=8,
 ):
 
     if (
@@ -250,8 +251,8 @@ def find_periods(
             from astropy.timeseries import LombScargle
 
             for ii, data in enumerate(lightcurves):
-                if np.mod(ii, 1) == 0:
-                    print("%d/%d" % (ii, len(lightcurves)))
+                if (np.mod(ii, 10) == 0) | ((ii + 1) == len(lightcurves)):
+                    print("%d/%d" % (ii + 1, len(lightcurves)))
                 copy = np.ma.copy(data).T
                 nrows, _ = copy.shape
 
@@ -272,17 +273,17 @@ def find_periods(
 
         elif algorithm == "CE":
             for ii, data in enumerate(lightcurves):
-                if np.mod(ii, 1) == 0:
-                    print("%d/%d" % (ii, len(lightcurves)))
+                if (np.mod(ii, 10) == 0) | ((ii + 1) == len(lightcurves)):
+                    print("%d/%d" % (ii + 1, len(lightcurves)))
 
                 copy = np.ma.copy(data).T
                 copy[:, 1] = (copy[:, 1] - np.min(copy[:, 1])) / (
                     np.max(copy[:, 1]) - np.min(copy[:, 1])
                 )
-                entropies = []
-                for period in periods:
-                    entropy = CE(period, data=copy, xbins=phase_bins, ybins=mag_bins)
-                    entropies.append(entropy)
+                entropies = Parallel(n_jobs=Ncore)(
+                    delayed(CE)(period, copy, phase_bins, mag_bins)
+                    for period in periods
+                )
                 significance = np.abs(np.mean(entropies) - np.min(entropies)) / np.std(
                     entropies
                 )
@@ -293,8 +294,8 @@ def find_periods(
 
         elif algorithm == "AOV":
             for ii, data in enumerate(lightcurves):
-                if np.mod(ii, 10) == 0:
-                    print("%d/%d" % (ii, len(lightcurves)))
+                if (np.mod(ii, 10) == 0) | ((ii + 1) == len(lightcurves)):
+                    print("%d/%d" % (ii + 1, len(lightcurves)))
 
                 copy = np.ma.copy(data).T
                 copy[:, 1] = (copy[:, 1] - np.min(copy[:, 1])) / (
@@ -306,7 +307,7 @@ def find_periods(
                     copy[:, 1],
                     copy[:, 2],
                     fstop=np.max(1.0 / periods),
-                    fstep=1 / periods[0],
+                    fstep=np.diff(1.0 / periods)[1],
                 )
 
                 significance = np.abs(np.mean(aov) - np.max(aov)) / np.std(aov)
@@ -319,8 +320,8 @@ def find_periods(
             from AOV_cython import aov as pyaov
 
             for ii, data in enumerate(lightcurves):
-                if np.mod(ii, 10) == 0:
-                    print("%d/%d" % (ii, len(lightcurves)))
+                if (np.mod(ii, 10) == 0) | ((ii + 1) == len(lightcurves)):
+                    print("%d/%d" % (ii + 1, len(lightcurves)))
 
                 copy = np.ma.copy(data).T
                 copy[:, 1] = (copy[:, 1] - np.min(copy[:, 1])) / (
