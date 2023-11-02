@@ -20,6 +20,8 @@ kowalski:
     classifications: ZTF_source_classifications_DR16
     # Current alerts (on kowalski)
     alerts: ZTF_alerts
+  # If cutting off queried light curves at a given data release, enter the max MJD (JD - 2400000.5) below
+  max_timestamp_mjd:
 fritz:
   token:
   protocol: https

@@ -155,6 +155,8 @@ def get_lightcurves_via_ids(
     get_basic_data=False,
 ):
 
+    cutoff_mjd = config['kowalski']['max_timestamp_mjd']
+
     itr = 0
     lcs = []
     Nsources = len(ids)
@@ -187,6 +189,10 @@ def get_lightcurves_via_ids(
     while True:
         Nqueries = int(np.ceil(Nsources / limit_per_query))
 
+        time_filter = {"$gt": 0.0}
+        if cutoff_mjd is not None:
+            time_filter["$lte"] = 2400000.5 + cutoff_mjd
+
         queries = [
             {
                 "query_type": "find",
@@ -199,6 +205,7 @@ def get_lightcurves_via_ids(
                         "data.programid": {
                             "$in": program_id_selector,
                         },
+                        "data.hjd": time_filter,
                     },
                     "projection": projection,
                 },
