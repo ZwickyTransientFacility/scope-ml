@@ -1008,7 +1008,7 @@ def generate_features(
             pdot_dict['Ones'] = np.ones(len(tme_collection))
 
         for algorithm in period_algorithms:
-            if (algorithm != 'ELS_ECE_EAOV') & (algorithm != 'LS_CE_AOV'):
+            if algorithm not in ["ELS_ECE_EAOV", "LS_CE_AOV"]:
                 algorithm_name = algorithm.split('_')[0]
             else:
                 algorithm_name = algorithm
@@ -1029,7 +1029,7 @@ def generate_features(
 
         print(f'Computing Fourier stats for {len(period_dict)} algorithms...')
         for algorithm in period_algorithms:
-            if (algorithm != 'ELS_ECE_EAOV') & (algorithm != 'LS_CE_AOV'):
+            if algorithm not in ["ELS_ECE_EAOV", "LS_CE_AOV"]:
                 algorithm_name = algorithm.split('_')[0]
             else:
                 algorithm_name = algorithm
