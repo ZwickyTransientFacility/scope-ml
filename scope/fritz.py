@@ -155,7 +155,7 @@ def get_lightcurves_via_ids(
     get_basic_data=False,
 ):
 
-    cutoff_mjd = config['kowalski']['max_timestamp_mjd']
+    cutoff_hjd = config['kowalski']['max_timestamp_hjd']
 
     itr = 0
     lcs = []
@@ -190,8 +190,8 @@ def get_lightcurves_via_ids(
         Nqueries = int(np.ceil(Nsources / limit_per_query))
 
         time_filter = {"$gt": 0.0}
-        if cutoff_mjd is not None:
-            time_filter["$lte"] = 2400000.5 + cutoff_mjd
+        if cutoff_hjd is not None:
+            time_filter["$lte"] = 2400000.5 + cutoff_hjd
 
         queries = [
             {

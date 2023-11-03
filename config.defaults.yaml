@@ -20,8 +20,9 @@ kowalski:
     classifications: ZTF_source_classifications_DR16
     # Current alerts (on kowalski)
     alerts: ZTF_alerts
-  # If cutting off queried light curves at a given data release, enter the max MJD (JD - 2400000.5) below
-  max_timestamp_mjd:
+  # If cutting off light curve at a given data release, enter the max HJD below
+  # (JD - 2400000.5 corrected for Earth/Sun light travel time)
+  max_timestamp_hjd:
 fritz:
   token:
   protocol: https
