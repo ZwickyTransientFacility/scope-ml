@@ -191,7 +191,7 @@ def get_lightcurves_via_ids(
 
         time_filter = {"$gt": 0.0}
         if cutoff_hjd is not None:
-            time_filter["$lte"] = 2400000.5 + cutoff_hjd
+            time_filter["$lte"] = cutoff_hjd
 
         queries = [
             {

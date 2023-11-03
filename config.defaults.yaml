@@ -21,7 +21,7 @@ kowalski:
     # Current alerts (on kowalski)
     alerts: ZTF_alerts
   # If cutting off light curve at a given data release, enter the max HJD below
-  # (JD - 2400000.5 corrected for Earth/Sun light travel time)
+  # (JD corrected for Earth/Sun light travel time)
   max_timestamp_hjd:
 fritz:
   token:
