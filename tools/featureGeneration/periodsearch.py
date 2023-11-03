@@ -19,13 +19,15 @@ def find_periods(
     Ncore=8,
 ):
 
-    if (
-        doRemoveTerrestrial
-        and (freqs_to_remove is not None)
-        and not (algorithm == "LS")
-    ):
+    fr0 = np.min(freqs)
+    fstep = np.diff(freqs)[0]
+    fstop = np.max(freqs) + fstep
+
+    if doRemoveTerrestrial and (freqs_to_remove is not None):
+        indexes = []
         for pair in freqs_to_remove:
             idx = np.where((freqs < pair[0]) | (freqs > pair[1]))[0]
+            indexes += [idx]
             freqs = freqs[idx]
 
     periods_best, significances = [], []
@@ -247,7 +249,7 @@ def find_periods(
 
         periods = 1 / freqs
 
-        if algorithm == "LS":
+        if "LS" in algorithm:
             from astropy.timeseries import LombScargle
 
             for ii, data in enumerate(lightcurves):
@@ -268,10 +270,15 @@ def find_periods(
                 idx = np.argmin(fap)
                 significance = 1.0 / fap[idx]
                 period = 1.0 / freqs[idx]
-                periods_best.append(period)
+
+                if "periodogram" in algorithm:
+                    periods_best.append({'period': period, 'data': 1.0 / fap})
+                else:
+                    periods_best.append(period)
+
                 significances.append(significance)
 
-        elif algorithm == "CE":
+        elif "CE" in algorithm:
             for ii, data in enumerate(lightcurves):
                 if (np.mod(ii, 10) == 0) | ((ii + 1) == len(lightcurves)):
                     print("%d/%d" % (ii + 1, len(lightcurves)))
@@ -289,10 +296,20 @@ def find_periods(
                 )
                 period = periods[np.argmin(entropies)]
 
-                periods_best.append(period)
+                if "periodogram" in algorithm:
+                    periods_best.append(
+                        {
+                            'period': period,
+                            'data': np.abs(np.mean(entropies) - entropies)
+                            / np.std(entropies),
+                        }
+                    )
+                else:
+                    periods_best.append(period)
+
                 significances.append(significance)
 
-        elif algorithm == "AOV":
+        elif "AOV" in algorithm:
             for ii, data in enumerate(lightcurves):
                 if (np.mod(ii, 10) == 0) | ((ii + 1) == len(lightcurves)):
                     print("%d/%d" % (ii + 1, len(lightcurves)))
@@ -306,14 +323,28 @@ def find_periods(
                     copy[:, 0],
                     copy[:, 1],
                     copy[:, 2],
-                    fstop=np.max(1.0 / periods),
-                    fstep=np.diff(1.0 / periods)[1],
+                    fstop=fstop,
+                    fstep=fstep,
+                    fr0=fr0,
                 )
+
+                if doRemoveTerrestrial and (freqs_to_remove is not None):
+                    for idx in indexes:
+                        aov = aov[idx]
 
                 significance = np.abs(np.mean(aov) - np.max(aov)) / np.std(aov)
                 period = periods[np.argmax(aov)]
 
-                periods_best.append(period)
+                if "periodogram" in algorithm:
+                    periods_best.append(
+                        {
+                            'period': period,
+                            'data': np.abs(np.mean(aov) - aov) / np.std(aov),
+                        }
+                    )
+                else:
+                    periods_best.append(period)
+
                 significances.append(significance)
 
         elif algorithm == "AOV_cython":

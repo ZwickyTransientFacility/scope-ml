@@ -208,7 +208,7 @@ inputs:
 28. --quadrant_index : number of job in quadrant file to run (int)
 29. --doSpecificIDs: flag to perform feature generation for ztf_id column in config-specified file (bool)
 30. --skipCloseSources: flag to skip removal of sources too close to bright stars via Gaia (bool)
-31. --top_n_periods: number of ELS, ECE periods to pass to EAOV if using ELS_ECE_EAOV algorithm (int)
+31. --top_n_periods: number of (E)LS, (E)CE periods to pass to (E)AOV if using (E)LS_(E)CE_(E)AOV algorithm (int)
 32. --max_freq: maximum frequency [1 / days] to use for period finding (float). Overridden by --doScaleMinPeriod
 
 output:

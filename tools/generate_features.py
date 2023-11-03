@@ -497,7 +497,7 @@ def generate_features(
     :param quadrant_index: number of job in quadrant file to run (int)
     :param doSpecificIDs: flag to perform feature generation for ztf_id column in config-specified file (bool)
     :param skipCloseSources: flag to skip removal of sources too close to bright stars via Gaia (bool)
-    :param top_n_periods: number of ELS, ECE periods to pass to EAOV if using ELS_ECE_EAOV algorithm (int)
+    :param top_n_periods: number of (E)LS, (E)CE periods to pass to (E)AOV if using (E)LS_(E)CE_(E)AOV algorithm (int)
     :param fg_dataset*: path to parquet, hdf5 or csv file containing specific sources for feature generation (str)
 
     :return feature_df: dataframe containing generated features
@@ -836,7 +836,7 @@ def generate_features(
         period_dict = {}
         significance_dict = {}
         pdot_dict = {}
-        do_nested_GPU_algorithms = False
+        do_nested_algorithms = False
         if doCPU or doGPU:
             if doCPU and doGPU:
                 raise KeyError('Please set only one of --doCPU or --doGPU.')
@@ -847,7 +847,17 @@ def generate_features(
                     'ECE_periodogram',
                     'EAOV_periodogram',
                 ]
-                do_nested_GPU_algorithms = True
+                do_nested_algorithms = True
+                warnings.warn(
+                    'Performing nested ELS/ECE -> EAOV period search. Other algorithms in config will be ignored.'
+                )
+            elif 'LS_CE_AOV' in period_algorithms:
+                period_algorithms = [
+                    'LS_periodogram',
+                    'CE_periodogram',
+                    'AOV_periodogram',
+                ]
+                do_nested_algorithms = True
                 warnings.warn(
                     'Performing nested ELS/ECE -> EAOV period search. Other algorithms in config will be ignored.'
                 )
@@ -862,11 +872,16 @@ def generate_features(
             all_significances = {algorithm: [] for algorithm in period_algorithms}
             all_pdots = {algorithm: [] for algorithm in period_algorithms}
 
-            if do_nested_GPU_algorithms:
+            if do_nested_algorithms:
+                if doGPU:
+                    nested_key = 'ELS_ECE_EAOV'
+                elif doCPU:
+                    nested_key = 'LS_CE_AOV'
+
                 # Additional entry for nested algorithm
-                all_periods['ELS_ECE_EAOV'] = []
-                all_significances['ELS_ECE_EAOV'] = []
-                all_pdots['ELS_ECE_EAOV'] = []
+                all_periods[nested_key] = []
+                all_significances[nested_key] = []
+                all_pdots[nested_key] = []
 
             print(
                 f'Running {len(period_algorithms)} period algorithms for {len(feature_dict)} sources in batches of {period_batch_size}...'
@@ -897,7 +912,7 @@ def generate_features(
                         Ncore=Ncore,
                     )
 
-                    if not do_nested_GPU_algorithms:
+                    if not do_nested_algorithms:
                         all_periods[algorithm] = np.concatenate(
                             [all_periods[algorithm], periods]
                         )
@@ -908,19 +923,25 @@ def generate_features(
                         all_periods[algorithm] = np.concatenate(
                             [all_periods[algorithm], p_vals]
                         )
-                        if algorithm == 'ELS_periodogram':
-                            # Maximum statistic is best for ELS; select top N
+                        if (algorithm == 'ELS_periodogram') | (
+                            algorithm == 'LS_periodogram'
+                        ):
+                            # Maximum statistic is best for ELS/LS; select top N
                             topN_significance_indices_ELS = [
                                 np.argsort(ps.flatten())[::-1][:top_n_periods]
                                 for ps in p_stats
                             ]
-                        elif algorithm == 'ECE_periodogram':
-                            # Minimum statistic is best for ECE; select top N
+                        elif (algorithm == 'ECE_periodogram') | (
+                            algorithm == 'CE_periodogram'
+                        ):
+                            # Minimum statistic is best for ECE/CE; select top N
                             topN_significance_indices_ECE = [
                                 np.argsort(ps.flatten())[:top_n_periods]
                                 for ps in p_stats
                             ]
-                        elif algorithm == 'EAOV_periodogram':
+                        elif (algorithm == 'EAOV_periodogram') | (
+                            algorithm == 'AOV_periodogram'
+                        ):
                             ELS_ECE_top_indices = np.concatenate(
                                 [
                                     topN_significance_indices_ELS,
@@ -942,16 +963,16 @@ def generate_features(
                                 for i in range(len(ELS_ECE_top_indices))
                             ]
 
-                            all_periods['ELS_ECE_EAOV'] = np.concatenate(
+                            all_periods[nested_key] = np.concatenate(
                                 [
-                                    all_periods['ELS_ECE_EAOV'],
+                                    all_periods[nested_key],
                                     1 / freqs_no_terrestrial[best_indices],
                                 ]
                             )
 
-                            all_significances['ELS_ECE_EAOV'] = np.concatenate(
+                            all_significances[nested_key] = np.concatenate(
                                 [
-                                    all_significances['ELS_ECE_EAOV'],
+                                    all_significances[nested_key],
                                     [
                                         p_stats[i].flatten()[best_indices[i]]
                                         for i in range(len(best_indices))
@@ -959,9 +980,9 @@ def generate_features(
                                 ]
                             )
 
-                            all_pdots['ELS_ECE_EAOV'] = np.concatenate(
+                            all_pdots[nested_key] = np.concatenate(
                                 [
-                                    all_pdots['ELS_ECE_EAOV'],
+                                    all_pdots[nested_key],
                                     pdots,
                                 ]
                             )
@@ -975,8 +996,8 @@ def generate_features(
             significance_dict = all_significances
             pdot_dict = all_pdots
 
-            if do_nested_GPU_algorithms:
-                period_algorithms += ['ELS_ECE_EAOV']
+            if do_nested_algorithms:
+                period_algorithms += [nested_key]
 
         else:
             warnings.warn("Skipping period finding; setting all periods to 1.0 d.")
@@ -987,7 +1008,7 @@ def generate_features(
             pdot_dict['Ones'] = np.ones(len(tme_collection))
 
         for algorithm in period_algorithms:
-            if algorithm != 'ELS_ECE_EAOV':
+            if algorithm not in ["ELS_ECE_EAOV", "LS_CE_AOV"]:
                 algorithm_name = algorithm.split('_')[0]
             else:
                 algorithm_name = algorithm
@@ -1008,7 +1029,7 @@ def generate_features(
 
         print(f'Computing Fourier stats for {len(period_dict)} algorithms...')
         for algorithm in period_algorithms:
-            if algorithm != 'ELS_ECE_EAOV':
+            if algorithm not in ["ELS_ECE_EAOV", "LS_CE_AOV"]:
                 algorithm_name = algorithm.split('_')[0]
             else:
                 algorithm_name = algorithm
@@ -1327,7 +1348,7 @@ if __name__ == "__main__":
         "--top_n_periods",
         type=int,
         default=50,
-        help="number of ELS, ECE periods to pass to EAOV if using ELS_ECE_EAOV algorithm",
+        help="number of (E)LS, (E)CE periods to pass to (E)AOV if using (E)LS_(E)CE_(E)AOV algorithm",
     )
     parser.add_argument(
         "--max_freq",
