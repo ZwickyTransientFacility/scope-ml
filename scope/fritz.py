@@ -91,12 +91,16 @@ def get_lightcurves_via_coords(
     limit_per_query=1000,
     Ncore=1,
     get_basic_data=False,
+    max_timestamp_hjd=None,
 ):
 
     if catalog is None:
         raise ValueError(
             'No catalog specified. Please add one to config.yaml under kowalski: collectons: sources:'
         )
+
+    if max_timestamp_hjd is None:
+        max_timestamp_hjd = config['kowalski']['max_timestamp_hjd']
 
     light_curve_ids = []
     query = {
@@ -142,6 +146,7 @@ def get_lightcurves_via_coords(
         limit_per_query=limit_per_query,
         Ncore=Ncore,
         get_basic_data=get_basic_data,
+        max_timestamp_hjd=max_timestamp_hjd,
     )
 
 
@@ -153,9 +158,11 @@ def get_lightcurves_via_ids(
     limit_per_query=1000,
     Ncore=1,
     get_basic_data=False,
+    max_timestamp_hjd=None,
 ):
 
-    cutoff_hjd = config['kowalski']['max_timestamp_hjd']
+    if max_timestamp_hjd is None:
+        max_timestamp_hjd = config['kowalski']['max_timestamp_hjd']
 
     itr = 0
     lcs = []
@@ -190,8 +197,8 @@ def get_lightcurves_via_ids(
         Nqueries = int(np.ceil(Nsources / limit_per_query))
 
         time_filter = {"$gt": 0.0}
-        if cutoff_hjd is not None:
-            time_filter["$lte"] = cutoff_hjd
+        if max_timestamp_hjd is not None:
+            time_filter["$lte"] = max_timestamp_hjd
 
         queries = [
             {
