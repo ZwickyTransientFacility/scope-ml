@@ -210,6 +210,8 @@ inputs:
 30. --skipCloseSources: flag to skip removal of sources too close to bright stars via Gaia (bool)
 31. --top_n_periods: number of (E)LS, (E)CE periods to pass to (E)AOV if using (E)LS_(E)CE_(E)AOV algorithm (int)
 32. --max_freq: maximum frequency [1 / days] to use for period finding (float). Overridden by --doScaleMinPeriod
+33. --fg_dataset*: path to parquet, hdf5 or csv file containing specific sources for feature generation (str)
+34. --max_timestamp_hjd*: maximum timestamp of queried light curves, HJD (float)
 
 output:
 feature_df : dataframe containing generated features

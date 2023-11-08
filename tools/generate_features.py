@@ -463,6 +463,7 @@ def generate_features(
     top_n_periods: int = 50,
     max_freq: float = 48.0,
     fg_dataset: str = None,
+    max_timestamp_hjd: float = None,
 ):
     """
     Generate features for ZTF light curves
@@ -498,7 +499,9 @@ def generate_features(
     :param doSpecificIDs: flag to perform feature generation for ztf_id column in config-specified file (bool)
     :param skipCloseSources: flag to skip removal of sources too close to bright stars via Gaia (bool)
     :param top_n_periods: number of (E)LS, (E)CE periods to pass to (E)AOV if using (E)LS_(E)CE_(E)AOV algorithm (int)
+    :param max_freq: maximum frequency [1 / days] to use for period finding. Overridden by --doScaleMinPeriod (float)
     :param fg_dataset*: path to parquet, hdf5 or csv file containing specific sources for feature generation (str)
+    :param max_timestamp_hjd*: maximum timestamp of queried light curves, HJD (float)
 
     :return feature_df: dataframe containing generated features
 
@@ -673,6 +676,7 @@ def generate_features(
         limit_per_query=lc_limit,
         Ncore=Ncore,
         get_basic_data=True,
+        max_timestamp_hjd=max_timestamp_hjd,
     )
 
     # Remake feature_gen_source_dict if some light curves are missing
@@ -1362,6 +1366,11 @@ if __name__ == "__main__":
         default=None,
         help="path to parquet, hdf5 or csv file containing specific sources for feature generation",
     )
+    parser.add_argument(
+        "--max_timestamp_hjd",
+        type=float,
+        help="maximum timestamp for queried light curves (HJD)",
+    )
 
     args = parser.parse_args()
 
@@ -1399,4 +1408,5 @@ if __name__ == "__main__":
         top_n_periods=args.top_n_periods,
         max_freq=args.max_freq,
         fg_dataset=args.fg_dataset,
+        max_timestamp_hjd=args.max_timestamp_hjd,
     )
