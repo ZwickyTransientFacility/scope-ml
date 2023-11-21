@@ -157,6 +157,7 @@ def get_lightcurves_via_ids(
     program_id_selector=list([1, 2, 3]),
     limit_per_query=1000,
     Ncore=1,
+    get_ids_coords_only=False,
     get_basic_data=False,
     max_timestamp_hjd=None,
 ):
@@ -168,7 +169,13 @@ def get_lightcurves_via_ids(
     lcs = []
     Nsources = len(ids)
 
-    if get_basic_data:
+    if get_ids_coords_only:
+        # Only retrieve ids and coordinates
+        projection = {
+            "_id": 1,
+            "coordinates.radec_geojson.coordinates": 1,
+        }
+    elif get_basic_data:
         # Only retrive basic data (esp. for feature generation)
         projection = {
             "_id": 1,

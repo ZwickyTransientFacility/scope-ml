@@ -1195,8 +1195,7 @@ def generate_features(
     return feature_df
 
 
-if __name__ == "__main__":
-
+def get_parser():
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
@@ -1371,7 +1370,12 @@ if __name__ == "__main__":
         type=float,
         help="maximum timestamp for queried light curves (HJD)",
     )
+    return parser
 
+
+if __name__ == "__main__":
+
+    parser = get_parser()
     args = parser.parse_args()
 
     # call generate_features

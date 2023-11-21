@@ -658,8 +658,7 @@ def run_inference(
     return preds_df, final_outfile
 
 
-if __name__ == "__main__":
-
+def get_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--paths_models", type=str, nargs='+', help="path(s) to model(s)"
@@ -741,7 +740,12 @@ if __name__ == "__main__":
         default=100000,
         help="batch size to use when reading feature files",
     )
+    return parser
 
+
+if __name__ == "__main__":
+
+    parser = get_parser()
     args = parser.parse_args()
 
     run_inference(
