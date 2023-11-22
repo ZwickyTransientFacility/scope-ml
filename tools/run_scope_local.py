@@ -308,13 +308,13 @@ if __name__ == "__main__":
         "--path-dataset",
         type=str,
         default=None,
-        help="path to parquet, hdf5 or csv file containing specific sources",
+        help="path (from base scope directory or fully qualified) to parquet, hdf5 or csv file containing specific sources",
     )
     parser.add_argument(
         "--cone-radius-arcsec",
         type=float,
         default=2.0,
-        help="radius of cone search query for ZTF lightcurve IDs",
+        help="radius of cone search query for ZTF lightcurve IDs, if inputting ra/dec",
     )
     parser.add_argument(
         "--save-sources-filepath",
@@ -326,13 +326,13 @@ if __name__ == "__main__":
         "--algorithms",
         type=str,
         nargs='+',
-        help="algorithms to run (ordered corresponding to --group-names)",
+        help="ML algorithms to run (currently dnn/xgb)",
     )
     parser.add_argument(
         "--group-names",
         type=str,
         nargs='+',
-        help="group names of trained models",
+        help="group names of trained models (with order corresponding to --algorithms input)",
     )
 
     args = parser.parse_args()

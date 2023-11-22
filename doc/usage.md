@@ -365,6 +365,25 @@ The second line begins with the familiar `cron` timing pattern described above. 
 ### Check if `cron` job is running
 It can be useful to know whether the script within a cron job is currently running. One way to do this for `gcn_cronjob.py` is to run the command `ps aux | grep gcn_cronjob.py`. This will always return one item (representing the command you just ran), but if the script is currently running you will see more than one item.
 
+## Local feature generation/inference
+SCoPe contains a script that runs local feature generation and inference on sources specified in an input file. Example input files are contained within the `tools` directory (`local_scope_radec.csv` and `local_scope_ztfid.csv`). After receiving either ra/dec coordinates or ZTF light curve IDs (plus an object ID for each entry), the `run_scope_local.py` script will generate features and run inference using existing trained models, saving the results to timestamped directories. This script accepts most arguments from `generate_features.py` and `inference.py`. Additional inputs specific to this script are listed below.
+
+inputs:
+1. --path-dataset : path (from base scope directory or fully qualified) to parquet, hdf5 or csv file containing specific sources (str)
+2. --cone-radius-arcsec : radius of cone search query for ZTF lightcurve IDs, if inputting ra/dec (float)
+3. --save-sources-filepath : path to parquet, hdf5 or csv file to save specific sources (str)
+4. --algorithms : ML algorithms to run (currently dnn/xgb)
+5. --group-names : group names of trained models (with order corresponding to --algorithms input)
+
+output:
+current_dt : formatted datetime string used to label output directories
+
+### Example usage
+```
+./run_scope_local.py --path-dataset tools/local_scope_ztfid.csv --doCPU --doRemoveTerrestrial --scale_features min_max --group-names DR16_stats nobalance_DR16_DNN_stats --algorithms xgb
+
+./run_scope_local.py --path-dataset tools/local_scope_radec.csv --doCPU --write_csv --doRemoveTerrestrial --group-names DR16_stats nobalance_DR16_DNN_stats --algorithms xgb dnn
+```
 
 ## Scope Download Classification
 inputs:
