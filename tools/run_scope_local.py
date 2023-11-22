@@ -294,6 +294,8 @@ def run_scope_local(
             batch_size=kwargs.get("batch_size"),
         )
 
+    return current_dt
+
 
 if __name__ == "__main__":
     parser_generate_features = generate_features.get_parser()
