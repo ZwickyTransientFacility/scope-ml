@@ -192,7 +192,7 @@ def run_inference(
     scale_features: str = 'min_max',
     trainingSet: str = 'use_config',
     feature_directory: str = 'features',
-    feature_file_prefix: str = 'generated_features',
+    feature_file_prefix: str = 'gen_features',
     period_suffix: str = period_suffix_config,
     no_write_metadata: bool = False,
     batch_size: int = 100000,
@@ -273,7 +273,7 @@ def run_inference(
         if 'specific_ids' in field:
             default_features_file = str(
                 BASE_DIR_FEATS
-                / f"{feature_directory}/specific_ids/gen_gcn_features_{field}.parquet"
+                / f"{feature_directory}/specific_ids/{feature_file_prefix}_{field}.parquet"
             )
     else:
         # default file location for source ids
@@ -658,8 +658,92 @@ def run_inference(
     return preds_df, final_outfile
 
 
+def get_parser_minimal():
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument(
+        "--paths_models", type=str, nargs='+', help="path(s) to model(s)"
+    )
+    parser.add_argument(
+        "--model_class_names", type=str, nargs='+', help="name(s) of model class(es)"
+    )
+    parser.add_argument(
+        "--whole_field", action='store_true', help="flag to run on whole field"
+    )
+    parser.add_argument(
+        "--flag_ids",
+        action='store_true',
+        help="flag to flag ids having features with missing values",
+    )
+    parser.add_argument(
+        "--xgb_model", action='store_true', help="flag to evaluate using XGBoost models"
+    )
+    parser.add_argument("--verbose", action='store_true', help="verbose flag")
+    parser.add_argument(
+        "--time_run",
+        action='store_true',
+        help="flag to time the inference run and print results",
+    )
+    parser.add_argument(
+        "--write_csv",
+        action='store_true',
+        help="flag to write CSV file in addition to parquet",
+    )
+    parser.add_argument(
+        "--float_convert_types",
+        type=tuple,
+        default=(64, 32),
+        help="Existing and final float types for feature conversion",
+    )
+    parser.add_argument(
+        "--feature_stats",
+        type=str,
+        default=None,
+        help="set to 'config' to read feature stats from config file",
+    )
+    parser.add_argument(
+        "--scale_features",
+        type=str,
+        default='min_max',
+        help="method to use to scale features",
+    )
+    parser.add_argument(
+        "--trainingSet",
+        type=str,
+        default='use_config',
+        help="usually set to 'use_config'. A DataFrame can also be passed in, but this is not recommended.",
+    )
+    parser.add_argument(
+        "--feature_directory",
+        type=str,
+        default='features',
+        help="name of directory containing features",
+    )
+    parser.add_argument(
+        "--feature_file_prefix",
+        type=str,
+        default='gen_features',
+        help="prefix of feature filename",
+    )
+    parser.add_argument(
+        "--period_suffix",
+        type=str,
+        default=period_suffix_config,
+        help="suffix of column containing period to save with inference results",
+    )
+    parser.add_argument(
+        "--no_write_metadata", action='store_true', help="flag to not write metadata"
+    )
+    parser.add_argument(
+        "--batch_size",
+        type=int,
+        default=100000,
+        help="batch size to use when reading feature files",
+    )
+    return parser
+
+
 def get_parser():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument(
         "--paths_models", type=str, nargs='+', help="path(s) to model(s)"
     )
@@ -726,6 +810,12 @@ def get_parser():
         help="name of directory containing features",
     )
     parser.add_argument(
+        "--feature_file_prefix",
+        type=str,
+        default='gen_features',
+        help="prefix of feature filename",
+    )
+    parser.add_argument(
         "--period_suffix",
         type=str,
         default=period_suffix_config,
@@ -765,6 +855,7 @@ if __name__ == "__main__":
         scale_features=args.scale_features,
         trainingSet=args.trainingSet,
         feature_directory=args.feature_directory,
+        feature_file_prefix=args.feature_file_prefix,
         period_suffix=args.period_suffix,
         no_write_metadata=args.no_write_metadata,
         batch_size=args.batch_size,

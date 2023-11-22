@@ -880,7 +880,9 @@ def generate_features(
                 if doGPU:
                     nested_key = 'ELS_ECE_EAOV'
                 elif doCPU:
-                    nested_key = 'LS_CE_AOV'
+                    nested_key = 'ELS_ECE_EAOV'
+                    # Note: name of CPU period algorithms is currently the same as for GPU algorithms
+                    # nested_key = 'LS_CE_AOV'
 
                 # Additional entry for nested algorithm
                 all_periods[nested_key] = []
@@ -1196,7 +1198,7 @@ def generate_features(
 
 
 def get_parser():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(add_help=False)
 
     parser.add_argument(
         "--source_catalog",

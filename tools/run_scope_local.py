@@ -61,6 +61,15 @@ def run_scope_local(
 
     cone_radius_arcsec = kwargs.get("cone_radius_arcsec", 2.0)
     save_sources_filepath = kwargs.get("save_sources_filepath", "sources.parquet")
+    algorithms = kwargs.get("algorithms", [])
+
+    for algorithm in algorithms:
+        if algorithm in ['XGB', 'xgb', 'XGBoost', 'xgboost', 'XGBOOST']:
+            algorithm = 'xgb'
+        elif algorithm in ['dnn', 'DNN', 'nn', 'NN']:
+            algorithm = 'dnn'
+    group_names = kwargs.get("group_names", [])
+    alg_grp_dict = dict(zip(algorithms, group_names))
 
     # Read file located in base scope directory unless fully-qualified path is given
     if path_dataset[0] != '/':
@@ -188,6 +197,10 @@ def run_scope_local(
     else:
         raise ValueError("Must save sources in .parquet, .h5 or .csv format.")
 
+    fg_dirname = f"{kwargs.get('dirname')}_{current_dt}"
+    fg_filename = f"{kwargs.get('filename')}_{current_dt}"
+    inference_field = f"{current_dt}_specific_ids"
+
     # Generate features
     print("Running feature generation...")
     generate_features.generate_features(
@@ -210,8 +223,8 @@ def run_scope_local(
         quad=kwargs.get("quad"),
         min_n_lc_points=kwargs.get("min_n_lc_points"),
         min_cadence_minutes=kwargs.get("min_cadence_minutes"),
-        dirname=kwargs.get("dirname"),
-        filename=f"{kwargs.get('filename')}_{current_dt}",
+        dirname=fg_dirname,
+        filename=fg_filename,
         doCesium=kwargs.get("doCesium"),
         doNotSave=kwargs.get("doNotSave"),
         stop_early=kwargs.get("stop_early"),
@@ -226,36 +239,68 @@ def run_scope_local(
         max_timestamp_hjd=kwargs.get("max_timestamp_hjd"),
     )
 
-    # Run inference using trained models
-    inference.run_inference(
-        paths_models=kwargs.get("paths_models"),  # replace
-        model_class_names=kwargs.get("model_class_names"),  # replace
-        field="specific_ids",
-        ccd=kwargs.get("ccd"),
-        quad=kwargs.get("quad"),
-        whole_field=kwargs.get("whole_field"),
-        flag_ids=kwargs.get("flag_ids"),
-        xgb_model=kwargs.get("xgb_model"),
-        verbose=kwargs.get("verbose"),
-        time_run=kwargs.get("time_run"),
-        write_csv=kwargs.get("write_csv"),
-        float_convert_types=kwargs.get("float_convert_types"),
-        feature_stats=kwargs.get("feature_stats"),
-        scale_features=kwargs.get("scale_features"),
-        trainingSet=kwargs.get("trainingSet"),
-        feature_directory=kwargs.get("feature_directory"),
-        period_suffix=kwargs.get("period_suffix"),
-        no_write_metadata=kwargs.get("no_write_metadata"),
-        batch_size=kwargs.get("batch_size"),
-    )
+    for key in alg_grp_dict.keys():
+        paths_models = []
+        model_class_names = []
+        alg = key
+        grp = alg_grp_dict[alg]
+
+        group_path = BASE_DIR / f'models_{alg}' / grp
+        gen = os.walk(group_path)
+        model_tags = [tag[1] for tag in gen]
+        model_tags = model_tags[0]
+
+        # Identify trained models for given algorithm
+        if alg == 'dnn':
+            for tag in model_tags:
+                tag_file_gen = (group_path / tag).glob('*.h5')
+                most_recent_file = max(
+                    [file for file in tag_file_gen], key=os.path.getctime
+                ).name
+                paths_models.append(
+                    f'{str(BASE_DIR)}/models_{alg}/{grp}/{tag}/{most_recent_file}'
+                )
+                model_class_names.append(f'{tag}')
+        elif alg == 'xgb':
+            for tag in model_tags:
+                tag_file_gen = (group_path / tag).glob('*.json')
+                most_recent_file = max(
+                    [file for file in tag_file_gen], key=os.path.getctime
+                ).name
+                paths_models.append(
+                    f'{str(BASE_DIR)}/models_{alg}/{grp}/{tag}/{most_recent_file}'
+                )
+                model_class_names.append(f'{tag}')
+
+        # Run inference using trained models
+        inference.run_inference(
+            paths_models=paths_models,
+            model_class_names=model_class_names,
+            field=inference_field,
+            whole_field=True,
+            flag_ids=kwargs.get("flag_ids"),
+            xgb_model=(alg == 'xgb'),
+            verbose=kwargs.get("verbose"),
+            time_run=kwargs.get("time_run"),
+            write_csv=kwargs.get("write_csv"),
+            float_convert_types=kwargs.get("float_convert_types"),
+            feature_stats=kwargs.get("feature_stats"),
+            scale_features=kwargs.get("scale_features"),
+            trainingSet=kwargs.get("trainingSet"),
+            feature_directory=fg_dirname,
+            feature_file_prefix=kwargs.get("feature_file_prefix"),
+            period_suffix=kwargs.get("period_suffix"),
+            no_write_metadata=kwargs.get("no_write_metadata"),
+            batch_size=kwargs.get("batch_size"),
+        )
 
 
 if __name__ == "__main__":
     parser_generate_features = generate_features.get_parser()
-    parser_inference = inference.get_parser()
+    parser_inference = inference.get_parser_minimal()
 
     parser = argparse.ArgumentParser(
-        parents=[parser_generate_features, parser_inference], add_help=False
+        parents=[parser_generate_features, parser_inference]
     )
     parser.add_argument(
         "--path-dataset",
@@ -274,6 +319,18 @@ if __name__ == "__main__":
         type=str,
         default="sources.parquet",
         help="path to parquet, hdf5 or csv file to save specific sources",
+    )
+    parser.add_argument(
+        "--algorithms",
+        type=str,
+        nargs='+',
+        help="algorithms to run (ordered corresponding to --group-names)",
+    )
+    parser.add_argument(
+        "--group-names",
+        type=str,
+        nargs='+',
+        help="group names of trained models",
     )
 
     args = parser.parse_args()
