@@ -880,7 +880,9 @@ def generate_features(
                 if doGPU:
                     nested_key = 'ELS_ECE_EAOV'
                 elif doCPU:
-                    nested_key = 'LS_CE_AOV'
+                    nested_key = 'ELS_ECE_EAOV'
+                    # Note: name of CPU period algorithms is currently the same as for GPU algorithms
+                    # nested_key = 'LS_CE_AOV'
 
                 # Additional entry for nested algorithm
                 all_periods[nested_key] = []
@@ -1195,9 +1197,8 @@ def generate_features(
     return feature_df
 
 
-if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser()
+def get_parser():
+    parser = argparse.ArgumentParser(add_help=False)
 
     parser.add_argument(
         "--source_catalog",
@@ -1371,7 +1372,12 @@ if __name__ == "__main__":
         type=float,
         help="maximum timestamp for queried light curves (HJD)",
     )
+    return parser
 
+
+if __name__ == "__main__":
+
+    parser = get_parser()
     args = parser.parse_args()
 
     # call generate_features
