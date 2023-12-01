@@ -55,7 +55,7 @@ def check_configs(config_wildcards: Sequence = ("config.*yaml",)):
     :param config_wildcards:
     :return:
     """
-    path = pathlib.Path(__file__).parent.absolute()
+    path = pathlib.Path(__file__).parent.parent.absolute()
 
     for config_wildcard in config_wildcards:
         config = config_wildcard.replace("*", "")
@@ -90,12 +90,12 @@ class Scope:
         with status("Checking configuration"):
             check_configs(config_wildcards=["config.*yaml"])
 
-            self.base_path = pathlib.Path(__file__).parent.absolute()
+            self.base_path = pathlib.Path(__file__).parent.parent.absolute()
 
             self.config = load_config(self.base_path / "config.yaml")
 
             self.default_path_dataset = (
-                self.base_path / self.config['training']['dataset']
+                self.base_path / self.config["training"]["dataset"]
             )
 
             # use tokens specified as env vars (if exist)
@@ -113,15 +113,15 @@ class Scope:
 
             hosts = [
                 x
-                for x in self.config['kowalski']['hosts']
-                if self.config['kowalski']['hosts'][x]['token'] is not None
+                for x in self.config["kowalski"]["hosts"]
+                if self.config["kowalski"]["hosts"][x]["token"] is not None
             ]
             instances = {
                 host: {
-                    'protocol': self.config['kowalski']['protocol'],
-                    'port': self.config['kowalski']['port'],
-                    'host': f'{host}.caltech.edu',
-                    'token': self.config['kowalski']['hosts'][host]['token'],
+                    "protocol": self.config["kowalski"]["protocol"],
+                    "port": self.config["kowalski"]["port"],
+                    "host": f"{host}.caltech.edu",
+                    "token": self.config["kowalski"]["hosts"][host]["token"],
                 }
                 for host in hosts
             }
@@ -158,8 +158,8 @@ class Scope:
         if catalog is None:
             catalog = self.config["kowalski"]["collections"]["features"]
 
-        period_colname = 'period'
-        if not ((period_suffix is None) | (period_suffix == 'None')):
+        period_colname = "period"
+        if not ((period_suffix is None) | (period_suffix == "None")):
             period_colname = f"{period_colname}_{period_suffix}"
 
         features_dct = {}
@@ -186,7 +186,7 @@ class Scope:
             if len(responses[name]) > 0:
                 response = responses[name]
                 if response.get("status", "error") == "success":
-                    features_response = response.get('data').get(catalog)
+                    features_response = response.get("data").get(catalog)
                     features_dct.update(features_response)
         features_nearest = [v[0] for k, v in features_response.items() if len(v) > 0]
         df = pd.DataFrame.from_records(features_nearest)
@@ -246,7 +246,7 @@ class Scope:
             if len(responses[name]) > 0:
                 response = responses[name]
                 if response.get("status", "error") == "success":
-                    gaia_response = response.get('data').get(catalog)
+                    gaia_response = response.get("data").get(catalog)
                     gaia_dct.update(gaia_response)
         gaia_nearest = [v[0] for k, v in gaia_dct.items() if len(v) > 0]
         df = pd.DataFrame.from_records(gaia_nearest)
@@ -320,7 +320,7 @@ class Scope:
             if len(responses[name]) > 0:
                 response = responses[name]
                 if response.get("status", "error") == "success":
-                    lcs = response.get('data').get(catalog).get('target')
+                    lcs = response.get("data").get(catalog).get("target")
                     light_curves_raw += lcs
 
         light_curves = []
@@ -376,11 +376,13 @@ class Scope:
             plot_periods,
         )
 
-        period_suffix_config = self.config['features']['info']['period_suffix']
+        period_suffix_config = self.config["features"]["info"]["period_suffix"]
 
         # generate taxonomy.html
         with status("Generating taxonomy visualization"):
-            path_static = pathlib.Path(__file__).parent.absolute() / "doc" / "_static"
+            path_static = (
+                pathlib.Path(__file__).parent.parent.absolute() / "doc" / "_static"
+            )
             if not path_static.exists():
                 path_static.mkdir(parents=True, exist_ok=True)
             tdtax.write_viz(
@@ -410,10 +412,14 @@ class Scope:
 
         # example periods
         with status("Generating example period histograms"):
-            path_doc_data = pathlib.Path(__file__).parent.absolute() / "doc" / "data"
+            path_doc_data = (
+                pathlib.Path(__file__).parent.parent.absolute() / "doc" / "data"
+            )
 
             # stored as ra/decs in csv format under /data/golden
-            golden_sets = pathlib.Path(__file__).parent.absolute() / "data" / "golden"
+            golden_sets = (
+                pathlib.Path(__file__).parent.parent.absolute() / "data" / "golden"
+            )
             for golden_set in golden_sets.glob("*.csv"):
                 golden_set_name = golden_set.stem
                 positions = pd.read_csv(golden_set).to_numpy().tolist()
@@ -438,15 +444,19 @@ class Scope:
 
         # example skymaps for all Golden sets
         with status("Generating skymaps diagrams for Golden sets"):
-            path_doc_data = pathlib.Path(__file__).parent.absolute() / "doc" / "data"
+            path_doc_data = (
+                pathlib.Path(__file__).parent.parent.absolute() / "doc" / "data"
+            )
 
             path_gaia_density = (
-                pathlib.Path(__file__).parent.absolute()
+                pathlib.Path(__file__).parent.parent.absolute()
                 / "data"
                 / "Gaia_hp8_densitymap.fits"
             )
             # stored as ra/decs in csv format under /data/golden
-            golden_sets = pathlib.Path(__file__).parent.absolute() / "data" / "golden"
+            golden_sets = (
+                pathlib.Path(__file__).parent.parent.absolute() / "data" / "golden"
+            )
             for golden_set in golden_sets.glob("*.csv"):
                 golden_set_name = golden_set.stem
                 positions = pd.read_csv(golden_set).to_numpy().tolist()
@@ -459,7 +469,9 @@ class Scope:
 
         # example light curves
         with status("Generating example light curves"):
-            path_doc_data = pathlib.Path(__file__).parent.absolute() / "doc" / "data"
+            path_doc_data = (
+                pathlib.Path(__file__).parent.parent.absolute() / "doc" / "data"
+            )
 
             for sample_object_name, sample_object in self.config["docs"][
                 "field_guide"
@@ -479,13 +491,15 @@ class Scope:
         # example HR diagrams for all Golden sets
         with status("Generating HR diagrams for Golden sets"):
             path_gaia_hr_histogram = (
-                pathlib.Path(__file__).parent.absolute()
+                pathlib.Path(__file__).parent.parent.absolute()
                 / "doc"
                 / "data"
                 / "gaia_hr_histogram.dat"
             )
             # stored as ra/decs in csv format under /data/golden
-            golden_sets = pathlib.Path(__file__).parent.absolute() / "data" / "golden"
+            golden_sets = (
+                pathlib.Path(__file__).parent.parent.absolute() / "data" / "golden"
+            )
             for golden_set in golden_sets.glob("*.csv"):
                 golden_set_name = golden_set.stem
                 positions = pd.read_csv(golden_set).to_numpy().tolist()
@@ -507,7 +521,7 @@ class Scope:
 
         :return:
         """
-        path_models = pathlib.Path(__file__).parent / "models"
+        path_models = pathlib.Path(__file__).parent.parent / "models"
         if not path_models.exists():
             path_models.mkdir(parents=True, exist_ok=True)
 
@@ -531,7 +545,7 @@ class Scope:
 
         :return:
         """
-        path_datasets = pathlib.Path(__file__).parent / "data" / "training"
+        path_datasets = pathlib.Path(__file__).parent.parent / "data" / "training"
         if not path_datasets.exists():
             path_datasets.mkdir(parents=True, exist_ok=True)
 
@@ -552,11 +566,11 @@ class Scope:
         self,
         tag: str,
         path_dataset: Union[str, pathlib.Path] = None,
-        algorithm: str = 'DNN',
+        algorithm: str = "DNN",
         gpu: Optional[int] = None,
         verbose: bool = False,
-        job_type: str = 'train',
-        group: str = 'experiment',
+        job_type: str = "train",
+        group: str = "experiment",
         run_sweeps: bool = False,
         **kwargs,
     ):
@@ -592,28 +606,28 @@ class Scope:
             path_dataset = self.default_path_dataset
 
         label_params = self.config["training"]["classes"][tag]
-        train_config_xgb = self.config["training"]['xgboost']
+        train_config_xgb = self.config["training"]["xgboost"]
 
         period_suffix = kwargs.get(
-            'period_suffix', self.config['features']['info']['period_suffix']
+            "period_suffix", self.config["features"]["info"]["period_suffix"]
         )
 
-        if algorithm in ['DNN', 'NN', 'dnn', 'nn']:
-            algorithm = 'dnn'
-        elif algorithm in ['XGB', 'xgb', 'XGBoost', 'xgboost', 'XGBOOST']:
-            algorithm = 'xgb'
+        if algorithm in ["DNN", "NN", "dnn", "nn"]:
+            algorithm = "dnn"
+        elif algorithm in ["XGB", "xgb", "XGBoost", "xgboost", "XGBOOST"]:
+            algorithm = "xgb"
         else:
-            raise ValueError('Current supported algorithms are DNN and XGB.')
+            raise ValueError("Current supported algorithms are DNN and XGB.")
 
         all_features = self.config["features"][label_params["features"]]
         features = [
             key for key in all_features if forgiving_true(all_features[key]["include"])
         ]
-        if not ((period_suffix is None) | (period_suffix == 'None')):
-            periodic_bool = [all_features[x]['periodic'] for x in features]
+        if not ((period_suffix is None) | (period_suffix == "None")):
+            periodic_bool = [all_features[x]["periodic"] for x in features]
             for j, name in enumerate(features):
                 if periodic_bool[j]:
-                    features[j] = f'{name}_{period_suffix}'
+                    features[j] = f"{name}_{period_suffix}"
 
         ds = Dataset(
             tag=tag,
@@ -638,7 +652,7 @@ class Scope:
         val_size = kwargs.get("val_size", label_params.get("val_size", 0.1))
         random_state = kwargs.get("random_state", label_params.get("random_state", 42))
         feature_stats = kwargs.get("feature_stats", None)
-        if feature_stats == 'config':
+        if feature_stats == "config":
             feature_stats = self.config.get("feature_stats", None)
 
         batch_size = kwargs.get("batch_size", label_params.get("batch_size", 64))
@@ -688,8 +702,8 @@ class Scope:
 
         # xgb-specific arguments (descriptions adapted from https://xgboost.readthedocs.io/en/stable/parameter.html and https://xgboost.readthedocs.io/en/stable/python/python_api.html)
         # max_depth: maximum depth of a tree
-        max_depth_config = train_config_xgb['gridsearch_params_start_stop_step'].get(
-            'max_depth', [3, 8, 2]
+        max_depth_config = train_config_xgb["gridsearch_params_start_stop_step"].get(
+            "max_depth", [3, 8, 2]
         )
         max_depth_start = max_depth_config[0]
         max_depth_stop = max_depth_config[1]
@@ -697,21 +711,21 @@ class Scope:
 
         # min_child_weight: minimum sum of instance weight (hessian) needed in a child
         min_child_weight_config = train_config_xgb[
-            'gridsearch_params_start_stop_step'
-        ].get('min_child_weight', [1, 6, 2])
+            "gridsearch_params_start_stop_step"
+        ].get("min_child_weight", [1, 6, 2])
         min_child_weight_start = min_child_weight_config[0]
         min_child_weight_stop = min_child_weight_config[1]
         min_child_weight_step = min_child_weight_config[2]
 
         # eta = kwargs.get("xgb_eta", 0.1)
-        eta_list = train_config_xgb['other_training_params'].get(
-            'eta_list', [0.3, 0.2, 0.1, 0.05]
+        eta_list = train_config_xgb["other_training_params"].get(
+            "eta_list", [0.3, 0.2, 0.1, 0.05]
         )
 
         # subsample: Subsample ratio of the training instances (setting to 0.5 means XGBoost would randomly sample half of the training data prior to growing trees)
         # subsample = kwargs.get("xgb_subsample", 0.7)
-        subsample_config = train_config_xgb['gridsearch_params_start_stop_step'].get(
-            'subsample', [6, 11, 2]
+        subsample_config = train_config_xgb["gridsearch_params_start_stop_step"].get(
+            "subsample", [6, 11, 2]
         )
         subsample_start = subsample_config[0]
         subsample_stop = subsample_config[1]
@@ -720,8 +734,8 @@ class Scope:
         # colsample_bytree: subsample ratio of columns when constructing each tree.
         # colsample_bytree = kwargs.get("xgb_colsample_bytree", 0.7)
         colsample_bytree_config = train_config_xgb[
-            'gridsearch_params_start_stop_step'
-        ].get('subsample', [6, 11, 2])
+            "gridsearch_params_start_stop_step"
+        ].get("subsample", [6, 11, 2])
         colsample_bytree_start = colsample_bytree_config[0]
         colsample_bytree_stop = colsample_bytree_config[1]
         colsample_bytree_step = colsample_bytree_config[2]
@@ -732,31 +746,31 @@ class Scope:
         annotate_scores = kwargs.get("annotate_scores", False)
 
         # seed: random seed
-        seed = train_config_xgb['other_training_params'].get('seed', 42)
+        seed = train_config_xgb["other_training_params"].get("seed", 42)
 
         # nfold: number of folds during cross-validation
-        nfold = train_config_xgb['other_training_params'].get('nfold', 5)
+        nfold = train_config_xgb["other_training_params"].get("nfold", 5)
 
         # metrics: evaluation metrics to use during cross-validation
-        metrics = train_config_xgb['other_training_params'].get('metrics', ['auc'])
+        metrics = train_config_xgb["other_training_params"].get("metrics", ["auc"])
 
         # objective: name of learning objective
-        objective = train_config_xgb['other_training_params'].get(
+        objective = train_config_xgb["other_training_params"].get(
             "objective", "binary:logistic"
         )
 
         # eval_metric: Evaluation metrics for validation data
-        eval_metric = train_config_xgb['other_training_params'].get(
+        eval_metric = train_config_xgb["other_training_params"].get(
             "eval_metric", "auc"
         )
 
         # early_stopping_rounds: Validation metric needs to improve at least once in every early_stopping_rounds round(s) to continue training
-        early_stopping_rounds = train_config_xgb['other_training_params'].get(
+        early_stopping_rounds = train_config_xgb["other_training_params"].get(
             "early_stopping_rounds", 10
         )
 
         # num_boost_round: Number of boosting iterations
-        num_boost_round = train_config_xgb['other_training_params'].get(
+        num_boost_round = train_config_xgb["other_training_params"].get(
             "num_boost_round", 999
         )
 
@@ -769,10 +783,12 @@ class Scope:
         time_tag = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
 
         output_path = (
-            pathlib.Path(__file__).parent.absolute() / f"models_{algorithm}" / group
+            pathlib.Path(__file__).parent.parent.absolute()
+            / f"models_{algorithm}"
+            / group
         )
 
-        if algorithm == 'dnn':
+        if algorithm == "dnn":
 
             classifier = DNN(name=tag)
 
@@ -786,17 +802,17 @@ class Scope:
                     steps_per_epoch_val=steps_per_epoch["val"],
                     train_dataset=datasets["train"],
                     val_dataset=datasets["val"],
-                    wandb_token=self.config['wandb']['token'],
+                    wandb_token=self.config["wandb"]["token"],
                 )
 
                 wandb.login(key=self.config["wandb"]["token"])
 
                 # Define sweep config
-                sweep_configuration = self.config['wandb']['sweep_config_dnn']
-                sweep_configuration['name'] = f"{group}-{tag}-{time_tag}"
+                sweep_configuration = self.config["wandb"]["sweep_config_dnn"]
+                sweep_configuration["name"] = f"{group}-{tag}-{time_tag}"
 
-                entity = self.config['wandb']['entity']
-                project = self.config['wandb']['project']
+                entity = self.config["wandb"]["entity"]
+                project = self.config["wandb"]["project"]
 
                 # Set up sweep/id
                 sweep_id = wandb.sweep(
@@ -808,27 +824,27 @@ class Scope:
                 wandb.agent(sweep_id, function=classifier.sweep)
 
                 print(
-                    'Sweep complete. Adjust hyperparameters in config file and run scope.py train again without the --run_sweeps flag.'
+                    "Sweep complete. Adjust hyperparameters in config file and run scope.py train again without the --run_sweeps flag."
                 )
 
                 # Stop sweep job
                 try:
-                    print('Stopping sweep.')
+                    print("Stopping sweep.")
                     os.system(
-                        f'python -m wandb sweep --stop {entity}/{project}/{sweep_id}'
+                        f"python -m wandb sweep --stop {entity}/{project}/{sweep_id}"
                     )
                 except Exception:
-                    print('Sweep already stopped.')
+                    print("Sweep already stopped.")
 
                 return
 
             if pre_trained_model is not None:
                 classifier.load(pre_trained_model, weights_only=weights_only)
                 model_input = classifier.model.input
-                training_set_inputs = datasets['train'].element_spec[0]
+                training_set_inputs = datasets["train"].element_spec[0]
                 # Compare input shapes with model inputs
                 print(
-                    'Comparing shapes of input features with inputs for existing model...'
+                    "Comparing shapes of input features with inputs for existing model..."
                 )
                 for inpt in model_input:
                     inpt_name = inpt.name
@@ -836,7 +852,7 @@ class Scope:
                     inpt_shape.assert_is_compatible_with(
                         training_set_inputs[inpt_name].shape
                     )
-                print('Input shapes are consistent.')
+                print("Input shapes are consistent.")
                 classifier.set_callbacks(callbacks, tag, **kwargs)
 
             else:
@@ -913,17 +929,17 @@ class Scope:
                     verbose=verbose,
                 )
 
-        elif algorithm == 'xgb':
+        elif algorithm == "xgb":
 
             # XGB-specific code
-            X_train = ds.df_ds.loc[indexes['train']][features]
-            y_train = ds.target[indexes['train']]
+            X_train = ds.df_ds.loc[indexes["train"]][features]
+            y_train = ds.target[indexes["train"]]
 
-            X_val = ds.df_ds.loc[indexes['val']][features]
-            y_val = ds.target[indexes['val']]
+            X_val = ds.df_ds.loc[indexes["val"]][features]
+            y_val = ds.target[indexes["val"]]
 
-            X_test = ds.df_ds.loc[indexes['test']][features]
-            y_test = ds.target[indexes['test']]
+            X_test = ds.df_ds.loc[indexes["test"]][features]
+            y_test = ds.target[indexes["test"]]
 
             scale_pos_weight = class_weight[1] / class_weight[0]
 
@@ -968,27 +984,27 @@ class Scope:
         if verbose:
             print("Evaluating on train/val/test sets:")
         # TODO: there should not need to be this algorithm-based split in the call to classifier.evaluate()
-        if algorithm == 'xgb':
-            stats_train = classifier.evaluate(X_train, y_train, name='train')
-            stats_val = classifier.evaluate(X_val, y_val, name='val')
-            stats_test = classifier.evaluate(X_test, y_test, name='test')
+        if algorithm == "xgb":
+            stats_train = classifier.evaluate(X_train, y_train, name="train")
+            stats_val = classifier.evaluate(X_val, y_val, name="val")
+            stats_test = classifier.evaluate(X_test, y_test, name="test")
         else:
             stats_train = classifier.evaluate(
-                datasets["train"], name='train', verbose=verbose
+                datasets["train"], name="train", verbose=verbose
             )
             stats_val = classifier.evaluate(
-                datasets["val"], name='val', verbose=verbose
+                datasets["val"], name="val", verbose=verbose
             )
             stats_test = classifier.evaluate(
-                datasets["test"], name='test', verbose=verbose
+                datasets["test"], name="test", verbose=verbose
             )
 
-        print('training stats: ', stats_train)
-        print('validation stats: ', stats_val)
+        print("training stats: ", stats_train)
+        print("validation stats: ", stats_val)
         if verbose:
-            print('test stats: ', stats_test)
+            print("test stats: ", stats_test)
 
-        if algorithm == 'DNN':
+        if algorithm == "DNN":
             param_names = (
                 "loss",
                 "tp",
@@ -1045,12 +1061,12 @@ class Scope:
 
     def create_training_script(
         self,
-        filename: str = 'train_script.sh',
-        algorithm: str = 'dnn',
+        filename: str = "train_script.sh",
+        algorithm: str = "dnn",
         min_count: int = 100,
         path_dataset: str = None,
         pre_trained_group_name: str = None,
-        add_keywords: str = '',
+        add_keywords: str = "",
         train_all: bool = False,
         **kwargs,
     ):
@@ -1079,47 +1095,47 @@ class Scope:
         ontol_tags = []
 
         period_suffix = kwargs.get(
-            'period_suffix', self.config['features']['info']['period_suffix']
+            "period_suffix", self.config["features"]["info"]["period_suffix"]
         )
 
         if path_dataset is None:
-            dataset_name = self.config['training']['dataset']
+            dataset_name = self.config["training"]["dataset"]
             path_dataset = str(self.base_path / dataset_name)
 
-        if path_dataset.endswith('.parquet'):
+        if path_dataset.endswith(".parquet"):
             dataset = read_parquet(path_dataset)
-        elif path_dataset.endswith('.h5'):
+        elif path_dataset.endswith(".h5"):
             dataset = read_hdf(path_dataset)
-        elif path_dataset.endswith('.csv'):
+        elif path_dataset.endswith(".csv"):
             dataset = pd.read_csv(path_dataset)
         else:
             raise ValueError(
-                'Dataset in config file must end with .parquet, .h5 or .csv'
+                "Dataset in config file must end with .parquet, .h5 or .csv"
             )
 
-        with open(path, 'x') as script:
+        with open(path, "x") as script:
 
-            script.write('#!/bin/bash\n')
+            script.write("#!/bin/bash\n")
 
-            for tag in self.config['training']['classes'].keys():
-                label = self.config['training']['classes'][tag]['label']
-                threshold = self.config['training']['classes'][tag]['threshold']
-                branch = self.config['training']['classes'][tag]['features']
+            for tag in self.config["training"]["classes"].keys():
+                label = self.config["training"]["classes"][tag]["label"]
+                threshold = self.config["training"]["classes"][tag]["threshold"]
+                branch = self.config["training"]["classes"][tag]["features"]
                 num_pos = np.sum(dataset[label] > threshold)
 
                 if num_pos > min_count:
                     print(
-                        f'Label {label}: {num_pos} positive examples with P > {threshold}'
+                        f"Label {label}: {num_pos} positive examples with P > {threshold}"
                     )
-                    if branch == 'phenomenological':
+                    if branch == "phenomenological":
                         phenom_tags += [tag]
                     else:
                         ontol_tags += [tag]
 
             if pre_trained_group_name is not None:
                 group_path = (
-                    pathlib.Path(__file__).parent.absolute()
-                    / f'models_{algorithm}'
+                    pathlib.Path(__file__).parent.parent.absolute()
+                    / f"models_{algorithm}"
                     / pre_trained_group_name
                 )
                 gen = os.walk(group_path)
@@ -1134,108 +1150,108 @@ class Scope:
                     set.intersection(set(ontol_tags), set(model_tags))
                 )
 
-                script.write('# Phenomenological\n')
+                script.write("# Phenomenological\n")
                 for tag in phenom_tags:
                     if tag in phenom_hasmodel:
-                        tag_file_gen = (group_path / tag).glob('*.h5')
+                        tag_file_gen = (group_path / tag).glob("*.h5")
                         most_recent_file = max(
                             [file for file in tag_file_gen], key=os.path.getctime
                         ).name
 
                         script.writelines(
-                            f'./scope.py train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --pre_trained_model=models/{pre_trained_group_name}/{tag}/{most_recent_file} --period_suffix={period_suffix} --verbose {add_keywords} \n'
+                            f"./scope.py train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --pre_trained_model=models/{pre_trained_group_name}/{tag}/{most_recent_file} --period_suffix={period_suffix} --verbose {add_keywords} \n"
                         )
 
                     elif train_all:
                         script.writelines(
-                            f'./scope.py train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --period_suffix={period_suffix} --verbose {add_keywords} \n'
+                            f"./scope.py train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --period_suffix={period_suffix} --verbose {add_keywords} \n"
                         )
 
-                script.write('# Ontological\n')
+                script.write("# Ontological\n")
                 for tag in ontol_tags:
                     if tag in ontol_hasmodel:
-                        tag_file_gen = (group_path / tag).glob('*.h5')
+                        tag_file_gen = (group_path / tag).glob("*.h5")
                         most_recent_file = max(
                             [file for file in tag_file_gen], key=os.path.getctime
                         ).name
 
                         script.writelines(
-                            f'./scope.py train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --pre_trained_model=models/{pre_trained_group_name}/{tag}/{most_recent_file} --period_suffix={period_suffix} --verbose {add_keywords} \n'
+                            f"./scope.py train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --pre_trained_model=models/{pre_trained_group_name}/{tag}/{most_recent_file} --period_suffix={period_suffix} --verbose {add_keywords} \n"
                         )
 
                     elif train_all:
                         script.writelines(
-                            f'./scope.py train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --period_suffix={period_suffix} --verbose {add_keywords} \n'
+                            f"./scope.py train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --period_suffix={period_suffix} --verbose {add_keywords} \n"
                         )
 
             else:
-                script.write('# Phenomenological\n')
+                script.write("# Phenomenological\n")
                 script.writelines(
                     [
-                        f'./scope.py train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --period_suffix={period_suffix} --verbose {add_keywords} \n'
+                        f"./scope.py train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --period_suffix={period_suffix} --verbose {add_keywords} \n"
                         for tag in phenom_tags
                     ]
                 )
-                script.write('# Ontological\n')
+                script.write("# Ontological\n")
                 script.writelines(
                     [
-                        f'./scope.py train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --period_suffix={period_suffix} --verbose {add_keywords} \n'
+                        f"./scope.py train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --period_suffix={period_suffix} --verbose {add_keywords} \n"
                         for tag in ontol_tags
                     ]
                 )
 
     def assemble_training_stats(
         self,
-        group_name: str = 'experiment',
-        algorithm: str = 'dnn',
-        set_name: str = 'val',
-        importance_directory: str = 'xgb_feature_importance',
-        stats_directory: str = 'stats',
+        group_name: str = "experiment",
+        algorithm: str = "dnn",
+        set_name: str = "val",
+        importance_directory: str = "xgb_feature_importance",
+        stats_directory: str = "stats",
     ):
         base_path = self.base_path
-        group_path = base_path / f'models_{algorithm}' / group_name
+        group_path = base_path / f"models_{algorithm}" / group_name
 
-        if algorithm in ['xgb', 'xgboost', 'XGB', 'XGBoost']:
+        if algorithm in ["xgb", "xgboost", "XGB", "XGBoost"]:
             importance_path = base_path / importance_directory
             importance_path.mkdir(exist_ok=True)
 
             # XGB feature importance
-            labels = [x for x in group_path.iterdir() if x.name != '.DS_Store']
+            labels = [x for x in group_path.iterdir() if x.name != ".DS_Store"]
             statpaths = []
             for label in labels:
                 statpaths.append(
-                    [x for x in label.glob(f'*plots/{set_name}/*impvars.json')][0]
+                    [x for x in label.glob(f"*plots/{set_name}/*impvars.json")][0]
                 )
 
             for statpath in statpaths:
                 strpath = str(statpath)
-                os.system(f'cp {strpath} {importance_path}/.')
+                os.system(f"cp {strpath} {importance_path}/.")
 
         # DNN/XGB stats
         stats_path = base_path / f"{algorithm}_{stats_directory}"
         stats_path.mkdir(exist_ok=True)
-        labels = [x for x in group_path.iterdir() if x.name != '.DS_Store']
+        labels = [x for x in group_path.iterdir() if x.name != ".DS_Store"]
         statpaths = []
         for label in labels:
             statpaths.append(
-                [x for x in label.glob(f'*plots/{set_name}/*stats.json')][0]
+                [x for x in label.glob(f"*plots/{set_name}/*stats.json")][0]
             )
 
         for statpath in statpaths:
             strpath = str(statpath)
-            os.system(f'cp {strpath} {stats_path}/.')
+            os.system(f"cp {strpath} {stats_path}/.")
 
     def create_inference_script(
         self,
-        filename: str = 'get_all_preds_dnn.sh',
-        group_name: str = 'experiment',
-        algorithm: str = 'dnn',
-        scale_features: str = 'min_max',
-        feature_directory: str = 'features',
+        filename: str = "get_all_preds_dnn.sh",
+        group_name: str = "experiment",
+        algorithm: str = "dnn",
+        scale_features: str = "min_max",
+        feature_directory: str = "features",
         write_csv: bool = False,
         batch_size: int = 100000,
         use_custom_python: bool = False,
-        path_to_python: str = '~/miniforge3/envs/scope-env/bin/python',
+        path_to_python: str = "~/miniforge3/envs/scope-env/bin/python",
         **kwargs,
     ):
         """
@@ -1260,72 +1276,72 @@ class Scope:
 
         base_path = self.base_path
         path = str(base_path / filename)
-        group_path = base_path / f'models_{algorithm}' / group_name
+        group_path = base_path / f"models_{algorithm}" / group_name
 
-        addtl_args = ''
+        addtl_args = ""
         if write_csv:
-            addtl_args += '--write_csv'
+            addtl_args += "--write_csv"
 
         gen = os.walk(group_path)
         model_tags = [tag[1] for tag in gen]
         model_tags = model_tags[0]
 
         period_suffix = kwargs.get(
-            'period_suffix', self.config['features']['info']['period_suffix']
+            "period_suffix", self.config["features"]["info"]["period_suffix"]
         )
 
         if not use_custom_python:
-            path_to_python = ''
+            path_to_python = ""
 
-        with open(path, 'x') as script:
-            script.write('#!/bin/bash\n')
+        with open(path, "x") as script:
+            script.write("#!/bin/bash\n")
             script.write(
-                '# Call script followed by field number, e.g: ./get_all_preds_dnn.sh 301\n'
+                "# Call script followed by field number, e.g: ./get_all_preds_dnn.sh 301\n"
             )
 
-            paths_models_str = ''
-            model_class_names_str = ''
+            paths_models_str = ""
+            model_class_names_str = ""
 
-            if algorithm in ['dnn', 'DNN', 'nn', 'NN']:
-                algorithm = 'dnn'
+            if algorithm in ["dnn", "DNN", "nn", "NN"]:
+                algorithm = "dnn"
                 script.write('echo "dnn inference"\n')
                 # Select most recent model for each tag
                 for tag in model_tags:
-                    tag_file_gen = (group_path / tag).glob('*.h5')
+                    tag_file_gen = (group_path / tag).glob("*.h5")
                     most_recent_file = max(
                         [file for file in tag_file_gen], key=os.path.getctime
                     ).name
 
-                    paths_models_str += f'{str(base_path)}/models_{algorithm}/{group_name}/{tag}/{most_recent_file} '
-                    model_class_names_str += f'{tag} '
+                    paths_models_str += f"{str(base_path)}/models_{algorithm}/{group_name}/{tag}/{most_recent_file} "
+                    model_class_names_str += f"{tag} "
 
                 script.write(
                     f'echo -n "Running inference..." && {path_to_python} {str(base_path)}/tools/inference.py --paths_models {paths_models_str} --model_class_names {model_class_names_str} --field $1 --whole_field --flag_ids --scale_features {scale_features} --feature_directory {feature_directory} --period_suffix {period_suffix} --batch_size {batch_size} {addtl_args} && echo "done"\n'
                 )
 
-            elif algorithm in ['XGB', 'xgb', 'XGBoost', 'xgboost', 'XGBOOST']:
-                algorithm = 'xgb'
+            elif algorithm in ["XGB", "xgb", "XGBoost", "xgboost", "XGBOOST"]:
+                algorithm = "xgb"
                 script.write('echo "xgb inference"\n')
                 for tag in model_tags:
-                    tag_file_gen = (group_path / tag).glob('*.json')
+                    tag_file_gen = (group_path / tag).glob("*.json")
                     most_recent_file = max(
                         [file for file in tag_file_gen], key=os.path.getctime
                     ).name
 
-                    paths_models_str += f'{str(base_path)}/models_{algorithm}/{group_name}/{tag}/{most_recent_file} '
-                    model_class_names_str += f'{tag} '
+                    paths_models_str += f"{str(base_path)}/models_{algorithm}/{group_name}/{tag}/{most_recent_file} "
+                    model_class_names_str += f"{tag} "
 
                 script.write(
                     f'echo -n "Running inference..." && {path_to_python} {str(base_path)}/tools/inference.py --paths_models {paths_models_str} --model_class_names {model_class_names_str} --scale_features {scale_features} --feature_directory {feature_directory} --period_suffix {period_suffix} --batch_size {batch_size} --xgb_model --field $1 --whole_field --flag_ids {addtl_args} && echo "done"\n'
                 )
 
             else:
-                raise ValueError('algorithm must be dnn or xgb')
+                raise ValueError("algorithm must be dnn or xgb")
 
     def consolidate_inference_results(
         self,
         dataset: pd.DataFrame,
-        statistic: str = 'mean',
+        statistic: str = "mean",
     ):
         """
         Consolidate inference results from multiple rows to one per source (called in select_fritz_sample)
@@ -1340,147 +1356,147 @@ class Scope:
         # Begin with Gaia EDR3 ID
         # If no Gaia ID, use AllWISE
         # If no AllWISE, use PS1
-        withGaiaID = dataset[dataset['Gaia_EDR3___id'] != 0].reset_index(drop=True)
-        nanGaiaID = dataset[dataset['Gaia_EDR3___id'] == 0].reset_index(drop=True)
+        withGaiaID = dataset[dataset["Gaia_EDR3___id"] != 0].reset_index(drop=True)
+        nanGaiaID = dataset[dataset["Gaia_EDR3___id"] == 0].reset_index(drop=True)
 
-        withAllWiseID = nanGaiaID[nanGaiaID['AllWISE___id'] != 0].reset_index(drop=True)
-        nanAllWiseID = nanGaiaID[nanGaiaID['AllWISE___id'] == 0].reset_index(drop=True)
+        withAllWiseID = nanGaiaID[nanGaiaID["AllWISE___id"] != 0].reset_index(drop=True)
+        nanAllWiseID = nanGaiaID[nanGaiaID["AllWISE___id"] == 0].reset_index(drop=True)
 
-        withPS1ID = nanAllWiseID[nanAllWiseID['PS1_DR1___id'] != 0].reset_index(
+        withPS1ID = nanAllWiseID[nanAllWiseID["PS1_DR1___id"] != 0].reset_index(
             drop=True
         )
 
         # Define columns for each subset that should not be averaged or otherwise aggregated
 
-        skipList = ['Gaia_EDR3___id', 'AllWISE___id', 'PS1_DR1___id', '_id']
+        skipList = ["Gaia_EDR3___id", "AllWISE___id", "PS1_DR1___id", "_id"]
 
         skip_mean_cols_Gaia = withGaiaID[skipList]
         skip_mean_cols_AllWise = withAllWiseID[skipList]
         skip_mean_cols_PS1 = withPS1ID[skipList]
 
         if statistic in [
-            'mean',
-            'Mean',
-            'MEAN',
-            'average',
-            'AVERAGE',
-            'Average',
-            'avg',
-            'AVG',
+            "mean",
+            "Mean",
+            "MEAN",
+            "average",
+            "AVERAGE",
+            "Average",
+            "avg",
+            "AVG",
         ]:
             groupedMeans_Gaia = (
-                withGaiaID.groupby('Gaia_EDR3___id')
+                withGaiaID.groupby("Gaia_EDR3___id")
                 .mean()
-                .drop(['_id', 'AllWISE___id', 'PS1_DR1___id'], axis=1)
+                .drop(["_id", "AllWISE___id", "PS1_DR1___id"], axis=1)
                 .reset_index()
             )
 
             groupedMeans_AllWise = (
-                withAllWiseID.groupby('AllWISE___id')
+                withAllWiseID.groupby("AllWISE___id")
                 .mean()
-                .drop(['_id', 'Gaia_EDR3___id', 'PS1_DR1___id'], axis=1)
+                .drop(["_id", "Gaia_EDR3___id", "PS1_DR1___id"], axis=1)
                 .reset_index()
             )
 
             groupedMeans_PS1 = (
-                withPS1ID.groupby('PS1_DR1___id')
+                withPS1ID.groupby("PS1_DR1___id")
                 .mean()
-                .drop(['_id', 'Gaia_EDR3___id', 'AllWISE___id'], axis=1)
+                .drop(["_id", "Gaia_EDR3___id", "AllWISE___id"], axis=1)
                 .reset_index()
             )
 
-        elif statistic in ['max', 'Max', 'MAX', 'maximum', 'Maximum', 'MAXIMUM']:
+        elif statistic in ["max", "Max", "MAX", "maximum", "Maximum", "MAXIMUM"]:
             groupedMeans_Gaia = (
-                withGaiaID.groupby('Gaia_EDR3___id')
+                withGaiaID.groupby("Gaia_EDR3___id")
                 .max()
-                .drop(['_id', 'AllWISE___id', 'PS1_DR1___id'], axis=1)
+                .drop(["_id", "AllWISE___id", "PS1_DR1___id"], axis=1)
                 .reset_index()
             )
 
             groupedMeans_AllWise = (
-                withAllWiseID.groupby('AllWISE___id')
+                withAllWiseID.groupby("AllWISE___id")
                 .max()
-                .drop(['_id', 'Gaia_EDR3___id', 'PS1_DR1___id'], axis=1)
+                .drop(["_id", "Gaia_EDR3___id", "PS1_DR1___id"], axis=1)
                 .reset_index()
             )
 
             groupedMeans_PS1 = (
-                withPS1ID.groupby('PS1_DR1___id')
+                withPS1ID.groupby("PS1_DR1___id")
                 .max()
-                .drop(['_id', 'Gaia_EDR3___id', 'AllWISE___id'], axis=1)
+                .drop(["_id", "Gaia_EDR3___id", "AllWISE___id"], axis=1)
                 .reset_index()
             )
 
-        elif statistic in ['median', 'Median', 'MEDIAN', 'med', 'MED']:
+        elif statistic in ["median", "Median", "MEDIAN", "med", "MED"]:
             groupedMeans_Gaia = (
-                withGaiaID.groupby('Gaia_EDR3___id')
+                withGaiaID.groupby("Gaia_EDR3___id")
                 .median()
-                .drop(['_id', 'AllWISE___id', 'PS1_DR1___id'], axis=1)
+                .drop(["_id", "AllWISE___id", "PS1_DR1___id"], axis=1)
                 .reset_index()
             )
 
             groupedMeans_AllWise = (
-                withAllWiseID.groupby('AllWISE___id')
+                withAllWiseID.groupby("AllWISE___id")
                 .median()
-                .drop(['_id', 'Gaia_EDR3___id', 'PS1_DR1___id'], axis=1)
+                .drop(["_id", "Gaia_EDR3___id", "PS1_DR1___id"], axis=1)
                 .reset_index()
             )
 
             groupedMeans_PS1 = (
-                withPS1ID.groupby('PS1_DR1___id')
+                withPS1ID.groupby("PS1_DR1___id")
                 .median()
-                .drop(['_id', 'Gaia_EDR3___id', 'AllWISE___id'], axis=1)
+                .drop(["_id", "Gaia_EDR3___id", "AllWISE___id"], axis=1)
                 .reset_index()
             )
 
         else:
             raise ValueError(
-                'Mean, median and max are the currently supported statistics.'
+                "Mean, median and max are the currently supported statistics."
             )
 
         # Construct new survey_id column that contains the ID used to add grouped source to the list
-        string_ids_Gaia = groupedMeans_Gaia['Gaia_EDR3___id'].astype(str)
-        groupedMeans_Gaia['survey_id'] = ["Gaia_EDR3___" + s for s in string_ids_Gaia]
+        string_ids_Gaia = groupedMeans_Gaia["Gaia_EDR3___id"].astype(str)
+        groupedMeans_Gaia["survey_id"] = ["Gaia_EDR3___" + s for s in string_ids_Gaia]
 
-        string_ids_AllWise = groupedMeans_AllWise['AllWISE___id'].astype(str)
-        groupedMeans_AllWise['survey_id'] = [
+        string_ids_AllWise = groupedMeans_AllWise["AllWISE___id"].astype(str)
+        groupedMeans_AllWise["survey_id"] = [
             "AllWISE___" + s for s in string_ids_AllWise
         ]
 
-        string_ids_PS1 = groupedMeans_PS1['PS1_DR1___id'].astype(str)
-        groupedMeans_PS1['survey_id'] = ["PS1_DR1___" + s for s in string_ids_PS1]
+        string_ids_PS1 = groupedMeans_PS1["PS1_DR1___id"].astype(str)
+        groupedMeans_PS1["survey_id"] = ["PS1_DR1___" + s for s in string_ids_PS1]
 
         # Merge averaged, non-averaged columns on obj_id
         allRows_Gaia = pd.merge(
-            groupedMeans_Gaia, skip_mean_cols_Gaia, on=['Gaia_EDR3___id']
+            groupedMeans_Gaia, skip_mean_cols_Gaia, on=["Gaia_EDR3___id"]
         )
-        noDup_ids_Gaia = allRows_Gaia.drop_duplicates('Gaia_EDR3___id')[
-            ['Gaia_EDR3___id', '_id']
+        noDup_ids_Gaia = allRows_Gaia.drop_duplicates("Gaia_EDR3___id")[
+            ["Gaia_EDR3___id", "_id"]
         ]
         groupedMeans_Gaia = pd.merge(
-            groupedMeans_Gaia, noDup_ids_Gaia, on='Gaia_EDR3___id'
+            groupedMeans_Gaia, noDup_ids_Gaia, on="Gaia_EDR3___id"
         )
-        groupedMeans_Gaia.drop('Gaia_EDR3___id', axis=1, inplace=True)
+        groupedMeans_Gaia.drop("Gaia_EDR3___id", axis=1, inplace=True)
 
         allRows_AllWise = pd.merge(
-            groupedMeans_AllWise, skip_mean_cols_AllWise, on=['AllWISE___id']
+            groupedMeans_AllWise, skip_mean_cols_AllWise, on=["AllWISE___id"]
         )
-        noDup_ids_AllWise = allRows_AllWise.drop_duplicates('AllWISE___id')[
-            ['AllWISE___id', '_id']
+        noDup_ids_AllWise = allRows_AllWise.drop_duplicates("AllWISE___id")[
+            ["AllWISE___id", "_id"]
         ]
         groupedMeans_AllWise = pd.merge(
-            groupedMeans_AllWise, noDup_ids_AllWise, on='AllWISE___id'
+            groupedMeans_AllWise, noDup_ids_AllWise, on="AllWISE___id"
         )
-        groupedMeans_AllWise.drop('AllWISE___id', axis=1, inplace=True)
+        groupedMeans_AllWise.drop("AllWISE___id", axis=1, inplace=True)
 
         allRows_PS1 = pd.merge(
-            groupedMeans_PS1, skip_mean_cols_PS1, on=['PS1_DR1___id']
+            groupedMeans_PS1, skip_mean_cols_PS1, on=["PS1_DR1___id"]
         )
-        noDup_ids_PS1 = allRows_PS1.drop_duplicates('PS1_DR1___id')[
-            ['PS1_DR1___id', '_id']
+        noDup_ids_PS1 = allRows_PS1.drop_duplicates("PS1_DR1___id")[
+            ["PS1_DR1___id", "_id"]
         ]
-        groupedMeans_PS1 = pd.merge(groupedMeans_PS1, noDup_ids_PS1, on='PS1_DR1___id')
-        groupedMeans_PS1.drop('PS1_DR1___id', axis=1, inplace=True)
+        groupedMeans_PS1 = pd.merge(groupedMeans_PS1, noDup_ids_PS1, on="PS1_DR1___id")
+        groupedMeans_PS1.drop("PS1_DR1___id", axis=1, inplace=True)
 
         # Create dataframe with one row per source
         consol_rows = pd.concat(
@@ -1490,33 +1506,33 @@ class Scope:
         # Create dataframe containing all rows (including duplicates for multiple light curves)
         all_rows = pd.concat([allRows_Gaia, allRows_AllWise, allRows_PS1])
         all_rows.drop(
-            ['Gaia_EDR3___id', 'AllWISE___id', 'PS1_DR1___id'], axis=1, inplace=True
+            ["Gaia_EDR3___id", "AllWISE___id", "PS1_DR1___id"], axis=1, inplace=True
         )
 
         # Reorder columns for better legibility
-        consol_rows = consol_rows.set_index('survey_id').reset_index()
-        all_rows = all_rows.set_index('survey_id').reset_index()
+        consol_rows = consol_rows.set_index("survey_id").reset_index()
+        all_rows = all_rows.set_index("survey_id").reset_index()
 
         return consol_rows, all_rows
 
     def select_fritz_sample(
         self,
-        fields: Union[list, str] = 'all',
-        group: str = 'experiment',
+        fields: Union[list, str] = "all",
+        group: str = "experiment",
         min_class_examples: int = 1000,
         select_top_n: bool = False,
         include_all_highprob_labels: bool = False,
         probability_threshold: float = 0.9,
-        al_directory: str = 'AL_datasets',
-        al_filename: str = 'active_learning_set',
-        algorithm: str = 'dnn',
+        al_directory: str = "AL_datasets",
+        al_filename: str = "active_learning_set",
+        algorithm: str = "dnn",
         exclude_training_sources: bool = False,
         write_csv: bool = True,
         verbose: bool = False,
-        consolidation_statistic: str = 'mean',
+        consolidation_statistic: str = "mean",
         read_consolidation_results: bool = False,
         write_consolidation_results: bool = False,
-        consol_filename: str = 'inference_results',
+        consol_filename: str = "inference_results",
         doNotSave: bool = False,
         doAllSources: bool = False,
     ):
@@ -1553,56 +1569,56 @@ class Scope:
 
         """
         base_path = self.base_path
-        if algorithm in ['DNN', 'NN', 'dnn', 'nn']:
-            algorithm = 'dnn'
-        elif algorithm in ['XGB', 'xgb', 'XGBoost', 'xgboost', 'XGBOOST']:
-            algorithm = 'xgb'
+        if algorithm in ["DNN", "NN", "dnn", "nn"]:
+            algorithm = "dnn"
+        elif algorithm in ["XGB", "xgb", "XGBoost", "xgboost", "XGBOOST"]:
+            algorithm = "xgb"
         else:
-            raise ValueError('Algorithm must be either dnn or xgb.')
+            raise ValueError("Algorithm must be either dnn or xgb.")
 
-        preds_path = base_path / f'preds_{algorithm}'
+        preds_path = base_path / f"preds_{algorithm}"
 
         # Strip extension from filename if provided
-        al_filename = al_filename.split('.')[0]
-        AL_directory_path = str(base_path / f'{al_directory}_{algorithm}' / al_filename)
+        al_filename = al_filename.split(".")[0]
+        AL_directory_path = str(base_path / f"{al_directory}_{algorithm}" / al_filename)
         os.makedirs(AL_directory_path, exist_ok=True)
 
         df_coll = []
         df_coll_allRows = []
-        if fields in ['all', 'All', 'ALL']:
+        if fields in ["all", "All", "ALL"]:
             gen_fields = os.walk(preds_path)
             fields = [x for x in gen_fields][0][1]
-            print(f'Generating Fritz sample from {len(fields)} fields:')
-        elif 'specific_ids' in fields:
-            fields = [f'field_{fields}']
-            print('Generating Fritz sample from specific ids across multiple fields:')
+            print(f"Generating Fritz sample from {len(fields)} fields:")
+        elif "specific_ids" in fields:
+            fields = [f"field_{fields}"]
+            print("Generating Fritz sample from specific ids across multiple fields:")
         else:
-            fields = [f'field_{f}' for f in fields]
-            print(f'Generating Fritz sample from {len(fields)} fields:')
+            fields = [f"field_{f}" for f in fields]
+            print(f"Generating Fritz sample from {len(fields)} fields:")
 
         column_nums = []
 
         AL_directory_PL = pathlib.Path(AL_directory_path)
-        gen = AL_directory_PL.glob(f'{consol_filename}_consol.parquet')
+        gen = AL_directory_PL.glob(f"{consol_filename}_consol.parquet")
         existing_consol_files = [str(x) for x in gen]
 
         if (read_consolidation_results) & (len(existing_consol_files) > 0):
-            print('Loading existing consolidated results...')
+            print("Loading existing consolidated results...")
             preds_df = read_parquet(existing_consol_files[0])
 
         else:
-            print('Consolidating classification probabilities to one per source...')
+            print("Consolidating classification probabilities to one per source...")
             for field in fields:
                 print(field)
-                h = read_parquet(str(preds_path / field / f'{field}.parquet'))
+                h = read_parquet(str(preds_path / field / f"{field}.parquet"))
 
                 has_obj_id = False
-                if 'obj_id' in h.columns:
+                if "obj_id" in h.columns:
                     has_obj_id = True
                     id_mapper = (
-                        h[['_id', 'obj_id']].set_index('_id').to_dict(orient='index')
+                        h[["_id", "obj_id"]].set_index("_id").to_dict(orient="index")
                     )
-                    h.drop('obj_id', axis=1, inplace=True)
+                    h.drop("obj_id", axis=1, inplace=True)
 
                 consolidated_df, all_rows_df = self.consolidate_inference_results(
                     h, statistic=consolidation_statistic
@@ -1619,20 +1635,20 @@ class Scope:
 
                 if len(np.unique(column_nums)) > 1:
                     raise ValueError(
-                        'Not all predictions have the same number of columns.'
+                        "Not all predictions have the same number of columns."
                     )
 
                 # Create consolidated dataframe (one row per source)
                 preds_df = pd.concat(df_coll, axis=0)
 
                 cols = [x for x in preds_df.columns]
-                cols.remove('_id')
-                cols.remove('survey_id')
-                agg_dct = {c: 'mean' for c in cols}
+                cols.remove("_id")
+                cols.remove("survey_id")
+                agg_dct = {c: "mean" for c in cols}
 
                 # One more groupby to combine sources across multiple fields
                 preds_df = (
-                    preds_df.groupby(['survey_id', '_id']).agg(agg_dct).reset_index()
+                    preds_df.groupby(["survey_id", "_id"]).agg(agg_dct).reset_index()
                 )
 
                 # Create dataframe including all light curves (multiple rows per source)
@@ -1640,28 +1656,28 @@ class Scope:
 
                 if not has_obj_id:
                     # Generate position-based obj_ids for Fritz
-                    raArr = [ra for ra in preds_df['ra']]
-                    decArr = [dec for dec in preds_df['dec']]
+                    raArr = [ra for ra in preds_df["ra"]]
+                    decArr = [dec for dec in preds_df["dec"]]
                     obj_ids = [radec_to_iau_name(x, y) for x, y in zip(raArr, decArr)]
                 else:
                     obj_ids = []
-                    for ID in preds_df['_id']:
-                        obj_ids += [id_mapper[ID]['obj_id']]
+                    for ID in preds_df["_id"]:
+                        obj_ids += [id_mapper[ID]["obj_id"]]
 
-                preds_df['obj_id'] = obj_ids
+                preds_df["obj_id"] = obj_ids
 
                 # Assign obj_ids to all rows
                 preds_df_allRows = pd.merge(
-                    preds_df_allRows, preds_df[['obj_id', 'survey_id']], on='survey_id'
+                    preds_df_allRows, preds_df[["obj_id", "survey_id"]], on="survey_id"
                 )
 
                 # Drop sources which are so close that they cannot be resolved by our position-based ID (~0.0004 of sources)
                 preds_df_allRows = (
-                    preds_df_allRows.set_index('obj_id')
-                    .drop(preds_df[preds_df.duplicated('obj_id')]['obj_id'])
+                    preds_df_allRows.set_index("obj_id")
+                    .drop(preds_df[preds_df.duplicated("obj_id")]["obj_id"])
                     .reset_index()
                 )
-                preds_df = preds_df.drop_duplicates('obj_id', keep=False).reset_index(
+                preds_df = preds_df.drop_duplicates("obj_id", keep=False).reset_index(
                     drop=True
                 )
 
@@ -1669,40 +1685,40 @@ class Scope:
                 if write_consolidation_results:
                     write_parquet(
                         preds_df,
-                        f'{AL_directory_path}/{consol_filename}_consol.parquet',
+                        f"{AL_directory_path}/{consol_filename}_consol.parquet",
                     )
                     write_parquet(
                         preds_df_allRows,
-                        f'{AL_directory_path}/{consol_filename}_full.parquet',
+                        f"{AL_directory_path}/{consol_filename}_full.parquet",
                     )
                     if write_csv:
                         preds_df.to_csv(
-                            f'{AL_directory_path}/{consol_filename}_consol.csv',
+                            f"{AL_directory_path}/{consol_filename}_consol.csv",
                             index=False,
                         )
                         preds_df_allRows.to_csv(
-                            f'{AL_directory_path}/{consol_filename}_full.csv',
+                            f"{AL_directory_path}/{consol_filename}_full.csv",
                             index=False,
                         )
 
         # Define non-variable class as 1 - variable
         include_nonvar = False
-        if f'vnv_{algorithm}' in preds_df.columns:
+        if f"vnv_{algorithm}" in preds_df.columns:
             include_nonvar = True
-            preds_df[f'nonvar_{algorithm}'] = np.round(
-                1 - preds_df[f'vnv_{algorithm}'], 2
+            preds_df[f"nonvar_{algorithm}"] = np.round(
+                1 - preds_df[f"vnv_{algorithm}"], 2
             )
 
         if exclude_training_sources:
             # Get training set from config file
-            training_set_config = self.config['training']['dataset']
+            training_set_config = self.config["training"]["dataset"]
             training_set_path = str(base_path / training_set_config)
 
-            if training_set_path.endswith('.parquet'):
+            if training_set_path.endswith(".parquet"):
                 training_set = read_parquet(training_set_path)
-            elif training_set_path.endswith('.h5'):
+            elif training_set_path.endswith(".h5"):
                 training_set = read_hdf(training_set_path)
-            elif training_set_path.endswith('.csv'):
+            elif training_set_path.endswith(".csv"):
                 training_set = pd.read_csv(training_set_path)
             else:
                 raise ValueError(
@@ -1710,25 +1726,25 @@ class Scope:
                 )
 
             intersec = set.intersection(
-                set(preds_df['obj_id'].values), set(training_set['obj_id'].values)
+                set(preds_df["obj_id"].values), set(training_set["obj_id"].values)
             )
-            print(f'Dropping {len(intersec)} sources already in training set...')
-            preds_df = preds_df.set_index('obj_id').drop(list(intersec)).reset_index()
+            print(f"Dropping {len(intersec)} sources already in training set...")
+            preds_df = preds_df.set_index("obj_id").drop(list(intersec)).reset_index()
 
         # Use trained model names to establish classes to train
-        gen = os.walk(base_path / f'models_{algorithm}' / group)
+        gen = os.walk(base_path / f"models_{algorithm}" / group)
         model_tags = [tag[1] for tag in gen]
         model_tags = model_tags[0]
         model_tags = np.array(model_tags)
         if include_nonvar:
-            model_tags = np.concatenate([model_tags, ['nonvar']])
+            model_tags = np.concatenate([model_tags, ["nonvar"]])
 
-        print(f'Selecting AL sample for {len(model_tags)} classes...')
+        print(f"Selecting AL sample for {len(model_tags)} classes...")
 
         toPost_df = pd.DataFrame(columns=preds_df.columns)
         completed_dict = {}
-        preds_df.set_index('obj_id', inplace=True)
-        toPost_df.set_index('obj_id', inplace=True)
+        preds_df.set_index("obj_id", inplace=True)
+        toPost_df.set_index("obj_id", inplace=True)
 
         # Fix random state to allow reproducible results
         rng = np.random.RandomState(9)
@@ -1736,17 +1752,17 @@ class Scope:
         # Reset min_class_examples if doAllSources is set
         if doAllSources:
             min_class_examples = len(preds_df)
-            print(f'Selecting sample from all sources ({min_class_examples})')
+            print(f"Selecting sample from all sources ({min_class_examples})")
 
         if not select_top_n:
             for tag in model_tags:
                 # Idenfity all sources above probability threshold
                 highprob_preds = preds_df[
-                    preds_df[f'{tag}_{algorithm}'].values >= probability_threshold
+                    preds_df[f"{tag}_{algorithm}"].values >= probability_threshold
                 ]
                 # Find existing sources in AL sample above probability threshold
                 existing_df = toPost_df[
-                    toPost_df[f'{tag}_{algorithm}'].values >= probability_threshold
+                    toPost_df[f"{tag}_{algorithm}"].values >= probability_threshold
                 ]
                 existing_count = len(existing_df)
 
@@ -1767,21 +1783,21 @@ class Scope:
                         concat_toPost_df = highprob_preds
 
                 toPost_df = pd.concat([toPost_df, concat_toPost_df], axis=0)
-                toPost_df.drop_duplicates(keep='first', inplace=True)
+                toPost_df.drop_duplicates(keep="first", inplace=True)
 
         else:
             # Select top N classifications above probability threshold for all classes
             print(
-                f'Selecting top {min_class_examples} classifications above P = {probability_threshold}...'
+                f"Selecting top {min_class_examples} classifications above P = {probability_threshold}..."
             )
 
             preds_df.reset_index(inplace=True)
             topN_df = pd.DataFrame()
-            class_list = [f'{t}_{algorithm}' for t in model_tags]
+            class_list = [f"{t}_{algorithm}" for t in model_tags]
 
             for tag in model_tags:
                 goodprob_preds = preds_df[
-                    preds_df[f'{tag}_{algorithm}'].values >= probability_threshold
+                    preds_df[f"{tag}_{algorithm}"].values >= probability_threshold
                 ]
 
                 if not include_all_highprob_labels:
@@ -1789,15 +1805,15 @@ class Scope:
                     topN_preds = (
                         goodprob_preds[
                             [
-                                'obj_id',
-                                'survey_id',
-                                'ra',
-                                'dec',
-                                'period',
-                                f'{tag}_{algorithm}',
+                                "obj_id",
+                                "survey_id",
+                                "ra",
+                                "dec",
+                                "period",
+                                f"{tag}_{algorithm}",
                             ]
                         ]
-                        .sort_values(by=f'{tag}_{algorithm}', ascending=False)
+                        .sort_values(by=f"{tag}_{algorithm}", ascending=False)
                         .iloc[:min_class_examples]
                         .reset_index(drop=True)
                     )
@@ -1806,7 +1822,7 @@ class Scope:
                     # Include not only the top N probabilities for each class but also any other classifications above probability_threshold for these sources
                     topN_preds = (
                         goodprob_preds.sort_values(
-                            by=f'{tag}_{algorithm}', ascending=False
+                            by=f"{tag}_{algorithm}", ascending=False
                         )
                         .iloc[:min_class_examples]
                         .reset_index(drop=True)
@@ -1820,26 +1836,26 @@ class Scope:
 
                 topN_df = pd.concat([topN_df, topN_preds]).reset_index(drop=True)
 
-            toPost_df = topN_df.fillna(0.0).groupby('obj_id').max().reset_index()
+            toPost_df = topN_df.fillna(0.0).groupby("obj_id").max().reset_index()
 
         for tag in model_tags:
             # Make metadata dictionary of example count per class
-            completed_dict[f'{tag}_{algorithm}'] = int(
-                np.sum(toPost_df[f'{tag}_{algorithm}'].values >= probability_threshold)
+            completed_dict[f"{tag}_{algorithm}"] = int(
+                np.sum(toPost_df[f"{tag}_{algorithm}"].values >= probability_threshold)
             )
 
         final_toPost = toPost_df.reset_index(drop=True)
 
         if not doNotSave:
             # Write parquet and csv files
-            write_parquet(final_toPost, f'{AL_directory_path}/{al_filename}.parquet')
+            write_parquet(final_toPost, f"{AL_directory_path}/{al_filename}.parquet")
             if write_csv:
                 final_toPost.to_csv(
-                    f'{AL_directory_path}/{al_filename}.csv', index=False
+                    f"{AL_directory_path}/{al_filename}.csv", index=False
                 )
 
             # Write metadata
-            meta_filepath = f'{AL_directory_path}/meta.json'
+            meta_filepath = f"{AL_directory_path}/meta.json"
             with open(meta_filepath, "w") as f:
                 try:
                     json.dump(completed_dict, f)  # dump dictionary to a json file
@@ -1858,14 +1874,16 @@ class Scope:
 
         # create a mock dataset and check that the training pipeline works
         dataset = f"{uuid.uuid4().hex}_orig.csv"
-        path_mock = pathlib.Path(__file__).parent.absolute() / "data" / "training"
-        group_mock = 'scope_test_limited'
+        path_mock = (
+            pathlib.Path(__file__).parent.parent.absolute() / "data" / "training"
+        )
+        group_mock = "scope_test_limited"
 
         try:
-            with status('Test training'):
+            with status("Test training"):
                 print()
 
-                period_suffix_config = self.config['features']['info']['period_suffix']
+                period_suffix_config = self.config["features"]["info"]["period_suffix"]
 
                 if not path_mock.exists():
                     path_mock.mkdir(parents=True, exist_ok=True)
@@ -1874,19 +1892,19 @@ class Scope:
                 feature_names_orig = [
                     key
                     for key in all_feature_names
-                    if forgiving_true(all_feature_names[key]['include'])
+                    if forgiving_true(all_feature_names[key]["include"])
                 ]
 
                 feature_names = feature_names_orig.copy()
                 if not (
-                    (period_suffix_config is None) | (period_suffix_config == 'None')
+                    (period_suffix_config is None) | (period_suffix_config == "None")
                 ):
                     periodic_bool = [
-                        all_feature_names[x]['periodic'] for x in feature_names
+                        all_feature_names[x]["periodic"] for x in feature_names
                     ]
                     for j, name in enumerate(feature_names):
                         if periodic_bool[j]:
-                            feature_names[j] = f'{name}_{period_suffix_config}'
+                            feature_names[j] = f"{name}_{period_suffix_config}"
 
                 class_names = [
                     self.config["training"]["classes"][class_name]["label"]
@@ -1912,16 +1930,16 @@ class Scope:
                 df_mock_orig = pd.DataFrame.from_records(entries)
                 df_mock_orig.to_csv(path_mock / dataset, index=False)
 
-                algorithms = ['xgb', 'dnn']
+                algorithms = ["xgb", "dnn"]
                 model_paths = []
 
                 # Train twice: once on Kowalski features, once on generated features with different periodic feature names
                 for algorithm in algorithms:
                     tag = "vnv"
-                    if algorithm == 'xgb':
-                        extension = 'json'
-                    elif algorithm == 'dnn':
-                        extension = 'h5'
+                    if algorithm == "xgb":
+                        extension = "json"
+                    elif algorithm == "dnn":
+                        extension = "h5"
                     time_tag = self.train(
                         tag=tag,
                         path_dataset=path_mock / dataset,
@@ -1935,7 +1953,7 @@ class Scope:
                         group=group_mock,
                     )
                     path_model = (
-                        pathlib.Path(__file__).parent.absolute()
+                        pathlib.Path(__file__).parent.parent.absolute()
                         / f"models_{algorithm}"
                         / group_mock
                         / tag
@@ -1943,7 +1961,7 @@ class Scope:
                     )
                     model_paths += [path_model]
 
-            print('model_paths', model_paths)
+            print("model_paths", model_paths)
 
         finally:
             # clean up after thyself
@@ -1973,8 +1991,8 @@ class Scope:
         with status("Test generate_features"):
             print()
             test_field, test_ccd, test_quad = 297, 2, 2
-            test_feature_directory = 'generated_features'
-            test_feature_filename = 'testFeatures'
+            test_feature_directory = "generated_features"
+            test_feature_filename = "testFeatures"
             n_sources = 3
 
             _ = generate_features.generate_features(
@@ -1995,7 +2013,7 @@ class Scope:
             )
 
             path_gen_features = (
-                pathlib.Path(__file__).parent.absolute()
+                pathlib.Path(__file__).parent.parent.absolute()
                 / test_feature_directory
                 / f"field_{test_field}"
                 / f"{test_feature_filename}_field_{test_field}_ccd_{test_ccd}_quad_{test_quad}.parquet"
@@ -2010,12 +2028,12 @@ class Scope:
         with status("Test get_cone_ids"):
             print()
             _ = get_quad_ids.get_cone_ids(
-                obj_id_list=['obj1', 'obj2', 'obj3'],
+                obj_id_list=["obj1", "obj2", "obj3"],
                 ra_list=[40.0, 41.0, 42.0],
                 dec_list=[50.0, 51.0, 52.0],
             )
 
-        src_catalog = self.config['kowalski']['collections']['sources']
+        src_catalog = self.config["kowalski"]["collections"]["sources"]
         with status("Test get_ids_loop and get_field_ids"):
             print()
             _, lst = get_quad_ids.get_ids_loop(
@@ -2034,7 +2052,7 @@ class Scope:
             test_ftrs, outfile = get_features.get_features_loop(
                 get_features.get_features,
                 source_ids=lst[0],
-                features_catalog=self.config['kowalski']['collections']['features'],
+                features_catalog=self.config["kowalski"]["collections"]["features"],
                 field=297,
                 limit_per_query=5,
                 max_sources=10,
@@ -2044,24 +2062,26 @@ class Scope:
             testpath = pathlib.Path(outfile)
             testpath = testpath.parent.parent
             # Use 'field_0' as test directory to avoid removing any existing data locally
-            testpath_features = testpath / 'field_0'
+            testpath_features = testpath / "field_0"
 
             if not testpath_features.exists():
                 testpath_features.mkdir(parents=True, exist_ok=True)
-            write_parquet(test_ftrs, str(testpath_features / 'field_0_iter_0.parquet'))
+            write_parquet(test_ftrs, str(testpath_features / "field_0_iter_0.parquet"))
 
         # create a mock dataset and check that the training pipeline works
         dataset_orig = f"{uuid.uuid4().hex}_orig.csv"
         dataset = f"{uuid.uuid4().hex}.csv"
-        path_mock = pathlib.Path(__file__).parent.absolute() / "data" / "training"
-        group_mock = 'scope_test'
+        path_mock = (
+            pathlib.Path(__file__).parent.parent.absolute() / "data" / "training"
+        )
+        group_mock = "scope_test"
 
         try:
-            with status('Test training'):
+            with status("Test training"):
                 print()
 
-                period_suffix_config = self.config['features']['info']['period_suffix']
-                period_suffix_2 = 'LS'
+                period_suffix_config = self.config["features"]["info"]["period_suffix"]
+                period_suffix_2 = "LS"
 
                 if not path_mock.exists():
                     path_mock.mkdir(parents=True, exist_ok=True)
@@ -2070,28 +2090,28 @@ class Scope:
                 feature_names_orig = [
                     key
                     for key in all_feature_names
-                    if forgiving_true(all_feature_names[key]['include'])
+                    if forgiving_true(all_feature_names[key]["include"])
                 ]
 
                 feature_names_new = feature_names_orig.copy()
                 if not (
-                    (period_suffix_config is None) | (period_suffix_config == 'None')
+                    (period_suffix_config is None) | (period_suffix_config == "None")
                 ):
                     periodic_bool = [
-                        all_feature_names[x]['periodic'] for x in feature_names_new
+                        all_feature_names[x]["periodic"] for x in feature_names_new
                     ]
                     for j, name in enumerate(feature_names_new):
                         if periodic_bool[j]:
-                            feature_names_new[j] = f'{name}_{period_suffix_config}'
+                            feature_names_new[j] = f"{name}_{period_suffix_config}"
 
                 feature_names = feature_names_orig.copy()
-                if not ((period_suffix_2 is None) | (period_suffix_2 == 'None')):
+                if not ((period_suffix_2 is None) | (period_suffix_2 == "None")):
                     periodic_bool = [
-                        all_feature_names[x]['periodic'] for x in feature_names
+                        all_feature_names[x]["periodic"] for x in feature_names
                     ]
                     for j, name in enumerate(feature_names):
                         if periodic_bool[j]:
-                            feature_names[j] = f'{name}_{period_suffix_2}'
+                            feature_names[j] = f"{name}_{period_suffix_2}"
 
                 class_names = [
                     self.config["training"]["classes"][class_name]["label"]
@@ -2136,16 +2156,16 @@ class Scope:
                 df_mock = pd.DataFrame.from_records(entries)
                 df_mock.to_csv(path_mock / dataset, index=False)
 
-                algorithms = ['xgb', 'dnn']
+                algorithms = ["xgb", "dnn"]
                 model_paths_orig = []
 
                 # Train twice: once on Kowalski features, once on generated features with different periodic feature names
                 for algorithm in algorithms:
                     tag = "vnv"
-                    if algorithm == 'xgb':
-                        extension = 'json'
-                    elif algorithm == 'dnn':
-                        extension = 'h5'
+                    if algorithm == "xgb":
+                        extension = "json"
+                    elif algorithm == "dnn":
+                        extension = "h5"
                     time_tag = self.train(
                         tag=tag,
                         path_dataset=path_mock / dataset_orig,
@@ -2159,7 +2179,7 @@ class Scope:
                         group=group_mock,
                     )
                     path_model = (
-                        pathlib.Path(__file__).parent.absolute()
+                        pathlib.Path(__file__).parent.parent.absolute()
                         / f"models_{algorithm}"
                         / group_mock
                         / tag
@@ -2170,10 +2190,10 @@ class Scope:
                 model_paths = []
                 for algorithm in algorithms:
                     tag = "vnv"
-                    if algorithm == 'xgb':
-                        extension = 'json'
-                    elif algorithm == 'dnn':
-                        extension = 'h5'
+                    if algorithm == "xgb":
+                        extension = "json"
+                    elif algorithm == "dnn":
+                        extension = "h5"
                     time_tag = self.train(
                         tag=tag,
                         path_dataset=path_mock / dataset,
@@ -2188,7 +2208,7 @@ class Scope:
                         group=group_mock,
                     )
                     path_model = (
-                        pathlib.Path(__file__).parent.absolute()
+                        pathlib.Path(__file__).parent.parent.absolute()
                         / f"models_{algorithm}"
                         / group_mock
                         / tag
@@ -2196,8 +2216,8 @@ class Scope:
                     )
                     model_paths += [path_model]
 
-            print('model_paths_orig', model_paths_orig)
-            print('model_paths', model_paths)
+            print("model_paths_orig", model_paths_orig)
+            print("model_paths", model_paths)
 
             with status("Test inference (queried features)"):
                 print()
@@ -2270,7 +2290,7 @@ class Scope:
                     [0],
                     probability_threshold=0.0,
                     doNotSave=True,
-                    algorithm='xgb',
+                    algorithm="xgb",
                 )
                 _ = self.select_fritz_sample(
                     [0],
@@ -2279,7 +2299,7 @@ class Scope:
                     min_class_examples=3,
                     probability_threshold=0.0,
                     doNotSave=True,
-                    algorithm='xgb',
+                    algorithm="xgb",
                 )
 
         finally:
@@ -2287,14 +2307,14 @@ class Scope:
             (path_mock / dataset_orig).unlink()
             (path_mock / dataset).unlink()
             os.remove(path_gen_features)
-            (testpath_features / 'field_0_iter_0.parquet').unlink()
+            (testpath_features / "field_0_iter_0.parquet").unlink()
             os.rmdir(testpath_features)
             (preds_filename_dnn_orig).unlink()
             (preds_filename_xgb_orig).unlink()
             (preds_filename_dnn).unlink()
             (preds_filename_xgb).unlink()
-            (preds_filename_dnn_orig.parent / 'meta.json').unlink()
-            (preds_filename_xgb_orig.parent / 'meta.json').unlink()
+            (preds_filename_dnn_orig.parent / "meta.json").unlink()
+            (preds_filename_xgb_orig.parent / "meta.json").unlink()
             os.rmdir(preds_filename_dnn_orig.parent)
             os.rmdir(preds_filename_xgb_orig.parent)
 
