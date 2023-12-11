@@ -25,6 +25,7 @@ from scope.utils import (
 from scope.fritz import radec_to_iau_name
 import json
 import shutil
+import argparse
 
 
 @contextmanager
@@ -562,26 +563,310 @@ class Scope:
         if p.returncode != 0:
             raise RuntimeError("Failed to fetch SCoPe datasets")
 
+    def parse_run_train(self):
+        parser = argparse.ArgumentParser()
+        parser.add_argument(
+            "--tag",
+            type=str,
+            help="classifier designation, refers to 'class' in config.taxonomy",
+        )
+        parser.add_argument(
+            "--path-dataset",
+            type=str,
+            help="local path to .parquet, .h5 or .csv file with the dataset",
+        )
+        parser.add_argument(
+            "--algorithm",
+            type=str,
+            default="dnn",
+            help="name of ML algorithm to use",
+        )
+        parser.add_argument(
+            "--gpu",
+            type=int,
+            help="GPU id to use, zero-based. check tf.config.list_physical_devices('GPU') for available devices",
+        )
+        parser.add_argument(
+            "--verbose",
+            action="store_true",
+            help="if set, print verbose output",
+        )
+        parser.add_argument(
+            "--job-type",
+            type=str,
+            default="train",
+            help="name of job type for WandB",
+        )
+        parser.add_argument(
+            "--group",
+            type=str,
+            default="experiment",
+            help="name of group for WandB",
+        )
+        parser.add_argument(
+            "--run-sweeps",
+            action="store_true",
+            help="if set, run WandB sweeps instead of training",
+        )
+        parser.add_argument(
+            "--period-suffix",
+            type=str,
+            help="suffix of period/Fourier features to use for training",
+        )
+        parser.add_argument(
+            "--threshold",
+            type=float,
+            help="classification threshold separating positive from negative examples",
+        )
+        parser.add_argument(
+            "--balance",
+            type=float,
+            default=-1,
+            help="factor by which to weight majority vs. minority examples",
+        )
+        parser.add_argument(
+            "--weight-per-class",
+            action="store_true",
+            help="if set, weight training data based on fraction of positive/negative samples",
+        )
+        parser.add_argument(
+            "--scale-features",
+            type=str,
+            help="method by which to scale input features (min_max or median_std)",
+        )
+        parser.add_argument(
+            "--test-size",
+            type=float,
+            help="fractional size of test set, taken from initial learning set",
+        )
+        parser.add_argument(
+            "--val-size",
+            type=float,
+            help="fractional size of val set, taken from initial learning set less test set",
+        )
+        parser.add_argument(
+            "--random-state",
+            type=int,
+            help="random seed to set",
+        )
+        parser.add_argument(
+            "--feature-stats",
+            type=str,
+            help="if set to 'config', source feature stats from values in config file. Otherwise, compute them",
+        )
+        parser.add_argument(
+            "--batch-size",
+            type=int,
+            help="batch size to use for training",
+        )
+        parser.add_argument(
+            "--shuffle-buffer-size",
+            type=int,
+            help="buffer size to use when shuffling training set",
+        )
+        parser.add_argument(
+            "--epochs",
+            type=int,
+            help="number of training epochs",
+        )
+        parser.add_argument(
+            "--float-convert-types",
+            type=int,
+            nargs=2,
+            help="convert floats from a to b bits (e.g. 64 32)",
+        )
+        parser.add_argument(
+            "--lr",
+            type=float,
+            help="dnn learning rate",
+        )
+        parser.add_argument(
+            "--beta-1",
+            type=float,
+            help="dnn beta_1",
+        )
+        parser.add_argument(
+            "--beta-2",
+            type=float,
+            help="dnn beta_2",
+        )
+        parser.add_argument(
+            "--epsilon",
+            type=float,
+            help="dnn epsilon",
+        )
+        parser.add_argument(
+            "--decay",
+            type=float,
+            help="dnn decay",
+        )
+        parser.add_argument(
+            "--momentum",
+            type=float,
+            help="dnn momentum",
+        )
+        parser.add_argument(
+            "--monitor",
+            type=float,
+            help="dnn monitor quantity",
+        )
+        parser.add_argument(
+            "--patience",
+            type=int,
+            help="dnn patience (in epochs)",
+        )
+        parser.add_argument(
+            "--callbacks",
+            type=str,
+            nargs="+",
+            help="dnn callbacks",
+        )
+        parser.add_argument(
+            "--run-eagerly",
+            action="store_true",
+            help="dnn run_eagerly",
+        )
+        parser.add_argument(
+            "--pre-trained-model",
+            type=str,
+            help="name of dnn pre-trained model to load, if any",
+        )
+        parser.add_argument(
+            "--save",
+            action="store_true",
+            help="if set, save trained model",
+        )
+        parser.add_argument(
+            "--plot",
+            action="store_true",
+            help="if set, generate/save diagnostic training plots",
+        )
+        parser.add_argument(
+            "--weights-only",
+            action="store_true",
+            help="if set and pre-trained model specified, load only weights",
+        )
+        parser.add_argument(
+            "--skip-cv",
+            action="store_true",
+            help="if set, skip XGB cross-validation",
+        )
+
+        args = parser.parse_args()
+        self.train(**vars(args))
+
+    # args to add for ds.make (override config-specified values)
+    # threshold
+    # balance
+    # weight_per_class (test this to make sure it works as intended)
+    # scale_features
+    # test_size
+    # val_size
+    # random_state
+    # feature_stats
+    # batch_size
+    # shuffle_buffer_size
+    # epochs
+    # float_convert_types
+
+    # Args to add with descriptions (or references to tf docs)
+    # lr
+    # beta_1
+    # beta_2
+    # epsilon
+    # decay
+    # amsgrad
+    # momentum
+    # monitor
+    # patience
+    # callbacks
+    # run_eagerly
+    # pre_trained_model
+    # save
+    # plot
+    # weights_only
+
     def train(
         self,
         tag: str,
         path_dataset: Union[str, pathlib.Path] = None,
-        algorithm: str = "DNN",
+        algorithm: str = "dnn",
         gpu: Optional[int] = None,
         verbose: bool = False,
         job_type: str = "train",
         group: str = "experiment",
         run_sweeps: bool = False,
+        period_suffix: str = None,
+        threshold: float = 0.7,
+        balance: Union[float, str] = -1,
+        weight_per_class=False,
+        scale_features: str = "min_max",
+        test_size: float = 0.1,
+        val_size: float = 0.1,
+        random_state: int = 42,
+        feature_stats: str = None,
+        batch_size: int = 64,
+        shuffle_buffer_size: int = 512,
+        epochs: int = 100,
+        float_convert_types: list = [64, 32],
+        lr: float = 3e-4,
+        beta_1: float = 0.9,
+        beta_2: float = 0.999,
+        epsilon: float = 1e-7,
+        decay: float = 0.0,
+        amsgrad: float = 3e-4,
+        momentum: float = 0.9,
+        monitor: str = "val_loss",
+        patience: int = 20,
+        callbacks: list = ["reduce_lr_on_plateau", "early_stopping"],
+        run_eagerly: bool = False,
+        pre_trained_model: str = None,
+        save: bool = False,
+        plot: bool = False,
+        weights_only: bool = False,
+        skip_cv: bool = False,
         **kwargs,
     ):
         """Train classifier
 
-        :param tag: classifier designation, refers to "class" in config.taxonomy
-        :param path_dataset: local path to .parquet, .h5 or .csv file with the dataset
-        :param algorithm: name of ML algorithm to use
-        :param gpu: GPU id to use, zero-based. check tf.config.list_physical_devices('GPU') for available devices
-        :param verbose:
-        :param kwargs: refer to utils.DNN.setup and utils.Dataset.make
+        :param tag: classifier designation, refers to "class" in config.taxonomy (str)
+        :param path_dataset: local path to .parquet, .h5 or .csv file with the dataset (str)
+        :param algorithm: name of ML algorithm to use (str)
+        :param gpu: GPU id to use, zero-based. check tf.config.list_physical_devices('GPU') for available devices (int)
+        :param verbose: if set, print verbose output (bool)
+        :param job_type: name of job type for WandB (str)
+        :param group: name of group for WandB (str)
+        :param run_sweeps: if set, run WandB sweeps instead of training (bool)
+        :param period_suffix: suffix of period/Fourier features to use for training (str)
+        :param threshold: classification threshold separating positive from negative examples (float)
+        :param balance: factor by which to weight majority vs. minority examples (float or None)
+        :param weight_per_class: if set, weight training data based on fraction of positive/negative samples (bool)
+        :param scale_features: method by which to scale input features [min_max or median_std] (str)
+        :param test_size: fractional size of test set, taken from initial learning set (float)
+        :param val_size: fractional size of val set, taken from learning set less test set (float)
+        :param random_state: random seed to set (int)
+        :param feature_stats: if set to 'config', source feature stats from values in config file. Otherwise, compute them (str)
+        :param batch_size: batch size to use for training (int)
+        :param shuffle_buffer_size: buffer size to use when shuffling training set (int)
+        :param epochs: number of training epochs (int)
+        :param float_convert_types: convert from a-bit to b-bit [e.g. 64 to 32] (list)
+        :param lr: dnn learning rate (float)
+        :param beta_1: dnn beta_1 (float)
+        :param beta_2: dnn beta_2 (float)
+        :param epsilon: dnn epsilon (float)
+        :param decay: dnn decay (float)
+        :param amsgrad: dnn amsgrad (float)
+        :param momentum: dnn momentum (float)
+        :param monitor: dnn monitor quantity (str)
+        :param patience: dnn patience [in epochs] (int)
+        :param callbacks: dnn callbacks (list)
+        :param run_eagerly: dnn run_eagerly (bool)
+        :param pre_trained_model: name of dnn pre-trained model to load, if any (str)
+        :param save: if set, save trained model (bool)
+        :param plot: if set, generate/save diagnostic training plots (bool)
+        :param weights_only: if set and pre-trained model specified, load only weights (bool)
+        :param skip_cv: if set, skip XGB cross-validation (bool)
+
         :return:
         """
 
@@ -605,12 +890,12 @@ class Scope:
         if path_dataset is None:
             path_dataset = self.default_path_dataset
 
-        label_params = self.config["training"]["classes"][tag]
+        config_params = self.config["training"]["classes"][tag]
+        train_config_dnn = self.config["training"]["dnn"]
         train_config_xgb = self.config["training"]["xgboost"]
 
-        period_suffix = kwargs.get(
-            "period_suffix", self.config["features"]["info"]["period_suffix"]
-        )
+        if period_suffix is None:
+            period_suffix = self.config["features"]["info"]["period_suffix"]
 
         if algorithm in ["DNN", "NN", "dnn", "nn"]:
             algorithm = "dnn"
@@ -619,7 +904,7 @@ class Scope:
         else:
             raise ValueError("Current supported algorithms are DNN and XGB.")
 
-        all_features = self.config["features"][label_params["features"]]
+        all_features = self.config["features"][config_params["features"]]
         features = [
             key for key in all_features if forgiving_true(all_features[key]["include"])
         ]
@@ -635,32 +920,72 @@ class Scope:
             features=features,
             verbose=verbose,
             algorithm=algorithm,
-            **kwargs,
+            period_suffix=period_suffix,
         )
 
-        label = label_params["label"]
+        label = config_params["label"]
 
-        # values from kwargs override those defined in config. if latter is absent, use reasonable default
-        threshold = kwargs.get("threshold", label_params.get("threshold", 0.5))
-        balance = kwargs.get("balance", label_params.get("balance", None))
-        weight_per_class = kwargs.get(
-            "weight_per_class", label_params.get("weight_per_class", False)
-        )
-        scale_features = kwargs.get("scale_features", "min_max")
-
-        test_size = kwargs.get("test_size", label_params.get("test_size", 0.1))
-        val_size = kwargs.get("val_size", label_params.get("val_size", 0.1))
-        random_state = kwargs.get("random_state", label_params.get("random_state", 42))
-        feature_stats = kwargs.get("feature_stats", None)
+        # values from argparse args override those defined in config. if latter is absent, use reasonable default
+        if threshold is None:
+            threshold = config_params.get("threshold", 0.7)
+        if balance == -1:
+            balance = config_params.get("balance", None)
+        if not weight_per_class:
+            weight_per_class = config_params.get("weight_per_class", False)
+        if scale_features is None:
+            scale_features = config_params.get("scale_features", "min_max")
+        if test_size is None:
+            test_size = config_params.get("test_size", 0.1)
+        if val_size is None:
+            val_size = config_params.get("val_size", 0.1)
+        if random_state is None:
+            random_state = config_params.get("random_state", 42)
         if feature_stats == "config":
             feature_stats = self.config.get("feature_stats", None)
+        if batch_size is None:
+            batch_size = config_params.get("batch_size", 64)
+        if shuffle_buffer_size is None:
+            shuffle_buffer_size = config_params.get("shuffle_buffer_size", 512)
+        if epochs is None:
+            epochs = config_params.get("epochs", 100)
+        if float_convert_types is None:
+            float_convert_types = config_params.get("float_convert_types", [64, 32])
 
-        batch_size = kwargs.get("batch_size", label_params.get("batch_size", 64))
-        shuffle_buffer_size = kwargs.get(
-            "shuffle_buffer_size", label_params.get("shuffle_buffer_size", 512)
-        )
-        epochs = kwargs.get("epochs", label_params.get("epochs", 100))
-        float_convert_types = kwargs.get("float_convert_types", (64, 32))
+        # Done
+        # threshold = kwargs.get("threshold", config_params.get("threshold", 0.7))
+        # balance = kwargs.get("balance", config_params.get("balance", None))
+        # weight_per_class = kwargs.get(
+        #    "weight_per_class", config_params.get("weight_per_class", False)
+        # )
+        # scale_features = kwargs.get("scale_features", "min_max")
+        # test_size = kwargs.get("test_size", config_params.get("test_size", 0.1))
+        # val_size = kwargs.get("val_size", config_params.get("val_size", 0.1))
+        # random_state = kwargs.get("random_state", config_params.get("random_state", 42))
+        # feature_stats = kwargs.get("feature_stats", None)
+        # if feature_stats == "config":
+        #    feature_stats = self.config.get("feature_stats", None)
+
+        # batch_size = kwargs.get("batch_size", config_params.get("batch_size", 64))
+        # shuffle_buffer_size = kwargs.get(
+        #    "shuffle_buffer_size", config_params.get("shuffle_buffer_size", 512)
+        # )
+        # epochs = kwargs.get("epochs", config_params.get("epochs", 100))
+        # float_convert_types = kwargs.get("float_convert_types", config_params.get("float_convert_types", [64, 32]))
+        # Done
+        # args to add for ds.make (override config-specified values)
+        # threshold
+        # balance
+        # weight_per_class
+        # scale_features
+        # test_size
+        # val_size
+        # random_state
+        # feature_stats
+        # batch_size
+        # shuffle_buffer_size
+        # epochs
+        # float_convert_types
+        # Done
 
         datasets, indexes, steps_per_epoch, class_weight = ds.make(
             target_label=label,
@@ -678,27 +1003,88 @@ class Scope:
             float_convert_types=float_convert_types,
         )
 
-        # Define default hyperparameters for model
-        dense_branch = kwargs.get("dense_branch", True)
-        conv_branch = kwargs.get("conv_branch", True)
-        loss = kwargs.get("loss", "binary_crossentropy")
-        optimizer = kwargs.get("optimizer", "adam")
-        lr = float(kwargs.get("lr", 3e-4))
-        beta_1 = kwargs.get("beta_1", 0.9)
-        beta_2 = kwargs.get("beta_2", 0.999)
-        epsilon = kwargs.get("epsilon", 1e-7)  # None?
-        decay = kwargs.get("decay", 0.0)
-        amsgrad = kwargs.get("amsgrad", 3e-4)
-        momentum = float(kwargs.get("momentum", 0.9))
-        monitor = kwargs.get("monitor", "val_loss")
-        patience = int(kwargs.get("patience", 20))
-        callbacks = kwargs.get("callbacks", ("reduce_lr_on_plateau", "early_stopping"))
-        run_eagerly = kwargs.get("run_eagerly", False)
-        pre_trained_model = kwargs.get("pre_trained_model")
-        save = kwargs.get("save", False)
-        plot = kwargs.get("plot", False)
-        weights_only = kwargs.get("weights_only", False)
-        skip_cv = kwargs.get("skip_cv", False)
+        # The 4 args below are universal for all DNN models and cannot be input as args:
+        # dense_branch
+        # conv_branch
+        # loss
+        # optimizer
+
+        # Args to add with descriptions (or references to tf docs)
+        # lr
+        # beta_1
+        # beta_2
+        # epsilon
+        # decay
+        # amsgrad
+        # momentum
+        # monitor
+        # patience
+        # callbacks
+        # run_eagerly
+        # pre_trained_model
+        # save
+        # plot
+        # weights_only
+
+        if lr is None:
+            lr = float(config_params.get("lr", 3e-4))
+        if beta_1 is None:
+            beta_1 = float(config_params.get("beta_1", 0.9))
+        if beta_2 is None:
+            beta_2 = float(config_params.get("beta_2", 0.999))
+        if epsilon is None:
+            epsilon = float(config_params.get("epsilon", 1e-7))
+        if decay is None:
+            decay = float(config_params.get("decay", 0.0))
+        if amsgrad is None:
+            amsgrad = float(config_params.get("amsgrad", 3e-4))
+        if momentum is None:
+            momentum = float(config_params.get("momentum", 0.9))
+        if monitor is None:
+            monitor = config_params.get("monitor", "val_loss")
+        if patience is None:
+            patience = int(config_params.get("patience", 20))
+        if callbacks is None:
+            callbacks = tuple(
+                config_params.get(
+                    "callbacks", ["reduce_lr_on_plateau", "early_stopping"]
+                )
+            )
+        else:
+            callbacks = tuple(callbacks)
+        if not run_eagerly:
+            run_eagerly = config_params.get("run_eagerly", False)
+        if pre_trained_model is None:
+            pre_trained_model = config_params.get("pre_trained_model")
+        if not save:
+            save = config_params.get("save", False)
+        if not plot:
+            plot = config_params.get("plot", False)
+        if not weights_only:
+            weights_only = config_params.get("weights_only", False)
+
+        # Define default parameters for all DNN models
+        dense_branch = train_config_dnn.get("dense_branch", True)
+        conv_branch = train_config_dnn.get("conv_branch", True)
+        loss = train_config_dnn.get("loss", "binary_crossentropy")
+        optimizer = train_config_dnn.get("optimizer", "adam")
+
+        # Define class-by-class hyperparameters
+        # lr = float(kwargs.get("lr", config_params.get("lr", 3e-4)))
+        # beta_1 = kwargs.get("beta_1", config_params.get("beta_1", 0.9))
+        # beta_2 = kwargs.get("beta_2", config_params.get("beta_2", 0.999))
+        # epsilon = kwargs.get("epsilon", config_params.get("epsilon", 1e-7))  # None?
+        # decay = kwargs.get("decay", config_params.get("decay", 0.0))
+        # amsgrad = kwargs.get("amsgrad", config_params.get("amsgrad", 3e-4))
+        # momentum = float(kwargs.get("momentum", config_params.get("momentum", 0.9)))
+        # monitor = kwargs.get("monitor", config_params.get("monitor", "val_loss"))
+        # patience = int(kwargs.get("patience", config_params.get("patience", 20)))
+        # callbacks = tuple(kwargs.get("callbacks", config_params.get("callbacks", ("reduce_lr_on_plateau", "early_stopping"))))
+        # run_eagerly = kwargs.get("run_eagerly", config_params.get("run_eagerly", False))
+        # pre_trained_model = kwargs.get("pre_trained_model", config_params.get("pre_trained_model"))
+        # save = kwargs.get("save", config_params.get("save", False))
+        # plot = kwargs.get("plot", config_params.get("plot", False))
+        # weights_only = kwargs.get("weights_only", config_params.get("weights_only", False))
 
         # xgb-specific arguments (descriptions adapted from https://xgboost.readthedocs.io/en/stable/parameter.html and https://xgboost.readthedocs.io/en/stable/python/python_api.html)
         # max_depth: maximum depth of a tree
@@ -741,12 +1127,18 @@ class Scope:
         colsample_bytree_step = colsample_bytree_config[2]
 
         # confusion matrix plotting parameters:
-        cm_include_count = kwargs.get("cm_include_count", False)
-        cm_include_percent = kwargs.get("cm_include_percent", True)
-        annotate_scores = kwargs.get("annotate_scores", False)
+        cm_include_count = train_config_xgb["plot_params"].get(
+            "cm_include_count", False
+        )  # kwargs.get("cm_include_count", False)
+        cm_include_percent = train_config_xgb["plot_params"].get(
+            "cm_include_percent", True
+        )  # kwargs.get("cm_include_percent", True)
+        annotate_scores = train_config_xgb["plot_params"].get(
+            "annotate_scores", False
+        )  # kwargs.get("annotate_scores", False)
 
         # seed: random seed
-        seed = train_config_xgb["other_training_params"].get("seed", 42)
+        seed = random_state  # train_config_xgb["other_training_params"].get("seed", 42)
 
         # nfold: number of folds during cross-validation
         nfold = train_config_xgb["other_training_params"].get("nfold", 5)
@@ -779,6 +1171,10 @@ class Scope:
         conv_branch = forgiving_true(conv_branch)
         run_eagerly = forgiving_true(run_eagerly)
         save = forgiving_true(save)
+        plot = forgiving_true(plot)
+        cm_include_count = forgiving_true(cm_include_count)
+        cm_include_percent = forgiving_true(cm_include_percent)
+        annotate_scores = forgiving_true(annotate_scores)
 
         time_tag = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
 
@@ -1059,6 +1455,56 @@ class Scope:
 
             return time_tag
 
+    def parse_run_create_training_script(self):
+        parser = argparse.ArgumentParser()
+        parser.add_argument(
+            "--filename",
+            type=str,
+            default="train_script.sh",
+            help="filename of shell script (must not currently exist)",
+        )
+        parser.add_argument(
+            "--algorithm",
+            type=str,
+            default="dnn",
+            help="name of algorithm to use for training",
+        )
+        parser.add_argument(
+            "--min-count",
+            type=int,
+            default=100,
+            help="minimum number of positive examples to include in script",
+        )
+        parser.add_argument(
+            "--path-dataset",
+            type=str,
+            help="local path to .parquet, .h5 or .csv file with the dataset, if not provided in config.yaml",
+        )
+        parser.add_argument(
+            "--pre-trained-group-name",
+            type=str,
+            help="name of group containing pre-trained models within models directory",
+        )
+        parser.add_argument(
+            "--add-keywords",
+            type=str,
+            default="",
+            help="str containing additional training keywords to append to each line in the script",
+        )
+        parser.add_argument(
+            "--train-all",
+            action="store_true",
+            help="if group_name is specified, set this keyword to train all classes regardeless of whether a trained model exists",
+        )
+        parser.add_argument(
+            "--period-suffix",
+            type=str,
+            help="suffix of period/Fourier features to use for training",
+        )
+
+        args = parser.parse_args()
+        self.create_training_script(**vars(args))
+
     def create_training_script(
         self,
         filename: str = "train_script.sh",
@@ -1068,7 +1514,7 @@ class Scope:
         pre_trained_group_name: str = None,
         add_keywords: str = "",
         train_all: bool = False,
-        **kwargs,
+        period_suffix: str = None,
     ):
         """
         Create training shell script from classes in config file meeting minimum count requirement
@@ -1080,23 +1526,23 @@ class Scope:
         :param pre_trained_group_name: name of group containing pre-trained models within models directory (str)
         :param add_keywords: str containing additional training keywords to append to each line in the script
         :param train_all: if group_name is specified, set this keyword to train all classes regardeless of whether a trained model exists (bool)
+        :param period_suffix: suffix of period/Fourier features to use for training (str)
 
         :return:
 
-        :examples:  ./scope.py create_training_script --filename='train_dnn.sh' --algorithm='dnn' --min_count=1000 \
-                    --path_dataset='tools/fritzDownload/merged_classifications_features.parquet' --add_keywords='--save --plot --group=groupname'
+        :examples:  create-training-script --filename train_dnn.sh --algorithm dnn --min-count 1000 \
+                    --path-dataset tools/fritzDownload/merged_classifications_features.parquet --add-keywords '--save --plot --group groupname'
 
-                    ./scope.py create_training_script --filename='train_xgb.sh' --algorithm='xgb' --min_count=100 \
-                    --add_keywords='--save --plot --batch_size=32 --group=groupname'
+                    create-training-script --filename train_xgb.sh --algorithm xgb --min-count 100 \
+                    --add-keywords '--save --plot --batch-size 32 --group groupname'
         """
         path = str(self.base_path / filename)
 
         phenom_tags = []
         ontol_tags = []
 
-        period_suffix = kwargs.get(
-            "period_suffix", self.config["features"]["info"]["period_suffix"]
-        )
+        if period_suffix is None:
+            period_suffix = self.config["features"]["info"]["period_suffix"]
 
         if path_dataset is None:
             dataset_name = self.config["training"]["dataset"]
@@ -1199,6 +1645,43 @@ class Scope:
                         for tag in ontol_tags
                     ]
                 )
+        print(f"Wrote traininig script to {path}.")
+
+    def parse_run_assemble_training_stats(self):
+        parser = argparse.ArgumentParser()
+        parser.add_argument(
+            "--group-name",
+            type=str,
+            default="experiment",
+            help="trained model group name",
+        )
+        parser.add_argument(
+            "--algorithm",
+            type=str,
+            default="dnn",
+            help="name of ML algorithm",
+        )
+        parser.add_argument(
+            "--set-name",
+            type=str,
+            default="val",
+            help="one of train, val or test",
+        )
+        parser.add_argument(
+            "--importance-directory",
+            type=str,
+            default="xgb_feature_importance",
+            help="name of directory to save XGB feature importance",
+        )
+        parser.add_argument(
+            "--stats-directory",
+            type=str,
+            default="stats",
+            help="name of directory to save training stats",
+        )
+
+        args = parser.parse_args()
+        self.assemble_training_stats(**vars(args))
 
     def assemble_training_stats(
         self,
@@ -1208,6 +1691,20 @@ class Scope:
         importance_directory: str = "xgb_feature_importance",
         stats_directory: str = "stats",
     ):
+        """
+        Assemble training stats from individal class results
+
+        :param group_name: trained model group name (str)
+        :param algorithm: name of ML algorithm (str)
+        :param set_name: one of train, val or test (str)
+        :param importance_directory: name of directory to save XGB feature importance (str)
+        :param stats_directory: name of directory to save training stats (str)
+
+        :return:
+
+        :example: assemble-training-stats --group-name DR16 --algorithm xgb --set-name test \
+                  --importance-directory xgb_importance --stats-directory xgb_stats
+        """
         base_path = self.base_path
         group_path = base_path / f"models_{algorithm}" / group_name
 
@@ -1241,6 +1738,71 @@ class Scope:
             strpath = str(statpath)
             os.system(f"cp {strpath} {stats_path}/.")
 
+        print("Finished assembling stats.")
+
+    def parse_run_create_inference_script(self):
+        parser = argparse.ArgumentParser()
+        parser.add_argument(
+            "--filename",
+            type=str,
+            default="get_all_preds_dnn.sh",
+            help="filename of shell script (must not currently exist)",
+        )
+        parser.add_argument(
+            "--group-name",
+            type=str,
+            default="experiment",
+            help="name of group containing trained models within models directory",
+        )
+        parser.add_argument(
+            "--algorithm",
+            type=str,
+            default="dnn",
+            help="algorithm to use in script",
+        )
+        parser.add_argument(
+            "--scale-features",
+            type=str,
+            default="min_max",
+            help="method to scale features (currently 'min_max' or 'median_std')",
+        )
+        parser.add_argument(
+            "--feature-directory",
+            type=str,
+            default="features",
+            help="name of directory containing downloaded or generated features",
+        )
+        parser.add_argument(
+            "--write-csv",
+            action="store_true",
+            help="if set, write CSV file in addition to parquet",
+        )
+        parser.add_argument(
+            "--batch-size",
+            type=int,
+            default=100000,
+            help="batch size to use when reading feature files",
+        )
+        parser.add_argument(
+            "--use-custom-python",
+            action="store_true",
+            help="if True, the call to inference.py will be preceded by a specific path to python",
+        )
+        parser.add_argument(
+            "--path-to-python",
+            type=str,
+            default="~/miniforge3/envs/scope-env/bin/python",
+            help="if --use-custom-python is set (e.g. for a cron job), path to custom python installation",
+        )
+        parser.add_argument(
+            "--period-suffix",
+            type=str,
+            help="suffix of period/Fourier features to use for training",
+        )
+
+        args = parser.parse_args()
+        self.create_inference_script(**vars(args))
+
     def create_inference_script(
         self,
         filename: str = "get_all_preds_dnn.sh",
@@ -1252,10 +1814,10 @@ class Scope:
         batch_size: int = 100000,
         use_custom_python: bool = False,
         path_to_python: str = "~/miniforge3/envs/scope-env/bin/python",
-        **kwargs,
+        period_suffix: str = None,
     ):
         """
-        Create inference shell script
+        Save shell script to use when running inference
 
         :param filename: filename of shell script (must not currently exist) (str)
         :param group_name: name of group containing trained models within models directory (str)
@@ -1266,14 +1828,13 @@ class Scope:
         :param batch_size: batch size to use when reading feature files (int)
         :param use_custom_python: if True, the call to inference.py will be preceded by a specific path to python (bool)
         :param path_to_python: if use_custom_python is set (e.g. for a cron job), path to custom python installation (str)
+        :param period_suffix: suffix of period/Fourier features to use for training (str)
 
         :return:
-        Saves shell script to use when running inference
 
-        :example:  ./scope.py create_inference_script --filename='get_all_preds_dnn.sh' --group_name='experiment' \
-                    --algorithm='dnn' --feature_directory='generated_features'
+        :example:  create-inference-script --filename get_all_preds_dnn.sh --group-name experiment \
+                    --algorithm dnn --feature-directory generated_features
         """
-
         base_path = self.base_path
         path = str(base_path / filename)
         group_path = base_path / f"models_{algorithm}" / group_name
@@ -1286,9 +1847,8 @@ class Scope:
         model_tags = [tag[1] for tag in gen]
         model_tags = model_tags[0]
 
-        period_suffix = kwargs.get(
-            "period_suffix", self.config["features"]["info"]["period_suffix"]
-        )
+        if period_suffix is None:
+            period_suffix = self.config["features"]["info"]["period_suffix"]
 
         if not use_custom_python:
             path_to_python = ""
@@ -1337,6 +1897,8 @@ class Scope:
 
             else:
                 raise ValueError("algorithm must be dnn or xgb")
+
+        print(f"Wrote inference script to {path}")
 
     def consolidate_inference_results(
         self,
@@ -1515,9 +2077,115 @@ class Scope:
 
         return consol_rows, all_rows
 
+    def parse_run_select_fritz_sample(self):
+        parser = argparse.ArgumentParser()
+        parser.add_argument(
+            "--fields",
+            type=Union[int, str],
+            nargs="+",
+            default=["all"],
+            help="list of field predictions (integers) to include, 'all' to use all available fields, or 'specific_ids' if running on e.g. GCN sources",
+        )
+        parser.add_argument(
+            "--group",
+            type=str,
+            default="experiment",
+            help="name of group containing trained models within models directory",
+        )
+        parser.add_argument(
+            "--min-class-examples",
+            type=int,
+            default=1000,
+            help="minimum number of examples to include for each class. Some classes may contain fewer than this if the sample is limited",
+        )
+        parser.add_argument(
+            "--select-top-n",
+            action="store_true",
+            help="if set, select top N probabilities above probability_threshold from each class",
+        )
+        parser.add_argument(
+            "--include-all-highprob-labels",
+            action="store_true",
+            help="if select_top_n is set, setting this keyword includes any classification above the probability_threshold for all top N sources. Otherwise, literally only the top N probabilities for each classification will be included, which may artifically exclude relevant labels.",
+        )
+        parser.add_argument(
+            "--probability-threshold",
+            type=float,
+            default=0.9,
+            help="minimum probability to select for Fritz",
+        )
+        parser.add_argument(
+            "--al-directory",
+            type=str,
+            default="AL_datasets",
+            help="name of directory to create/populate with Fritz sample",
+        )
+        parser.add_argument(
+            "--al-filename",
+            type=str,
+            default="active_learning_set",
+            help="name of file (no extension) to store Fritz sample",
+        )
+        parser.add_argument(
+            "--algorithm",
+            type=str,
+            default="dnn",
+            help="ML algorithm (dnn or xgb)",
+        )
+        parser.add_argument(
+            "--exclude-training-sources",
+            action="store_true",
+            help="if set, exclude sources in current training set from AL sample",
+        )
+        parser.add_argument(
+            "--write-csv",
+            action="store_true",
+            help="if set, write CSV file in addition to parquet",
+        )
+        parser.add_argument(
+            "--verbose",
+            action="store_true",
+            help="if set, print additional information",
+        )
+        parser.add_argument(
+            "--consolidation-statistic",
+            type=str,
+            default="mean",
+            help="method to combine multiple classification probabilities for a single source ('mean', 'median' or 'max' currently supported)",
+        )
+        parser.add_argument(
+            "--read-consolidation-results",
+            action="store_true",
+            help="if set, search for and read an existing consolidated file having _consol.parquet suffix",
+        )
+        parser.add_argument(
+            "--write-consolidation-results",
+            action="store_true",
+            help="if set, save two files: consolidated inference results [1 row per source] and full results [≥ 1 row per source]",
+        )
+        parser.add_argument(
+            "--consol-filename",
+            type=str,
+            default="inference_results",
+            help="name of file (no extension) to store consolidated and full results",
+        )
+        parser.add_argument(
+            "--doNotSave",
+            action="store_true",
+            help="if set, do not write results",
+        )
+        parser.add_argument(
+            "--doAllSources",
+            action="store_true",
+            help="if set, ignore min_class_examples and run for all sources",
+        )
+
+        args = parser.parse_args()
+        self.select_fritz_sample(**vars(args))
+
     def select_fritz_sample(
         self,
-        fields: Union[list, str] = "all",
+        fields: list = ["all"],
         group: str = "experiment",
         min_class_examples: int = 1000,
         select_top_n: bool = False,
@@ -1539,11 +2207,10 @@ class Scope:
         """
         Select subset of predictions to use for posting to Fritz (active learning, GCN source classifications).
 
-        :param fields: list of field predictions (integers) to include, 'all' to use all available fields, or 'specific_ids' if running on e.g. GCN sources (list or str)
-            note: do not use spaces if providing a list of comma-separated integers to this argument.
+        :param fields: list of field predictions (integers) to include, 'all' to use all available fields, or 'specific_ids' if running on e.g. GCN sources (list)
         :param group: name of group containing trained models within models directory (str)
         :param min_class_examples: minimum number of examples to include for each class. Some classes may contain fewer than this if the sample is limited (int)
-        :param select_top_n: if True, select top N probabilities above probability_threshold from each class (bool)
+        :param select_top_n: if set, select top N probabilities above probability_threshold from each class (bool)
         :param include_all_highprob_labels: if select_top_n is set, setting this keyword includes any classification above the probability_threshold for all top N sources.
             Otherwise, literally only the top N probabilities for each classification will be included, which may artifically exclude relevant labels.
         :param probability_threshold: minimum probability to select for Fritz (float)
@@ -1551,11 +2218,11 @@ class Scope:
         :param al_filename: name of file (no extension) to store Fritz sample (str)
         :param algorithm: algorithm [dnn or xgb] (str)
         :param exclude_training_sources: if True, exclude sources in current training set from AL sample (bool)
-        :param write_csv: if True, write CSV file in addition to parquet (bool)
-        :param verbose: if True, print additional information (bool)
+        :param write_csv: if set, write CSV file in addition to parquet (bool)
+        :param verbose: if set, print additional information (bool)
         :param consolidation_statistic: method to combine multiple classification probabilities for a single source [mean, median or max currently supported] (str)
-        :param read_consolidation_results: if True, search for and read an existing consolidated file having _consol.parquet suffix (bool)
-        :param write_consolidation_results: if True, save two files: consolidated inference results [1 row per source] and full results [≥ 1 row per source] (bool)
+        :param read_consolidation_results: if set, search for and read an existing consolidated file having _consol.parquet suffix (bool)
+        :param write_consolidation_results: if set, save two files: consolidated inference results [1 row per source] and full results [≥ 1 row per source] (bool)
         :param consol_filename: name of file (no extension) to store consolidated and full results (str)
         :param doNotSave: if set, do not write results (bool)
         :param doAllSources: if set, ignore min_class_examples and run for all sources (bool)
@@ -1563,9 +2230,9 @@ class Scope:
         :return:
         final_toPost: DataFrame containing sources with high-confidence classifications to post
 
-        :examples:  ./scope.py select_fritz_sample --fields=[296,297] --group='experiment' --min_class_examples=1000 --probability_threshold=0.9 --exclude_training_sources --write_consolidation_results
-                    ./scope.py select_fritz_sample --fields=[296,297] --group='experiment' --min_class_examples=500 --select_top_n --include_all_highprob_labels --probability_threshold=0.7 --exclude_training_sources --read_consolidation_results
-                    ./scope.py select_fritz_sample --fields='specific_ids' --group='DR16' --algorithm='xgb' --probability_threshold=0.9 --consol_filename='inference_results_specific_ids' --al_directory='GCN' --al_filename='GCN_sources' --write_consolidation_results --select_top_n --doAllSources --write_csv
+        :examples:  select-fritz-sample --fields 296 297 --group experiment --min-class-examples 1000 --probability-threshold 0.9 --exclude-training-sources --write-consolidation-results
+                    select-fritz-sample --fields 296 297 --group experiment --min-class-examples 500 --select-top-n --include-all-highprob-labels --probability-threshold 0.7 --exclude-training-sources --read-consolidation-results
+                    select-fritz-sample --fields specific_ids --group DR16 --algorithm xgb --probability-threshold 0.9 --consol-filename inference_results_specific_ids --al-directory=GCN --al-filename GCN_sources --write-consolidation-results --select-top-n --doAllSources --write-csv
 
         """
         base_path = self.base_path
@@ -1585,7 +2252,7 @@ class Scope:
 
         df_coll = []
         df_coll_allRows = []
-        if fields in ["all", "All", "ALL"]:
+        if "all" in fields:
             gen_fields = os.walk(preds_path)
             fields = [x for x in gen_fields][0][1]
             print(f"Generating Fritz sample from {len(fields)} fields:")
