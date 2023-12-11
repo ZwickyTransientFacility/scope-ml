@@ -19,11 +19,14 @@ try:
 except TypeError:
     DEFAULT_PREDS_PATH = BASE_DIR
 
+config_fields = config["inference"].get("fields_to_run")
+
 
 def combine_preds(
     path_to_preds: pathlib.PosixPath = DEFAULT_PREDS_PATH,
     combined_preds_dirname: str = 'preds_dnn_xgb',
     specific_field: str = None,
+    use_config_fields: bool = False,
     dateobs: str = None,
     merge_dnn_xgb: bool = False,
     dnn_directory: str = 'preds_dnn',
@@ -43,6 +46,10 @@ def combine_preds(
     """
     if (specific_field is not None) & (dateobs is not None):
         raise ValueError("Please specify only one of --specific_field and --dateobs.")
+    elif (use_config_fields) & (dateobs is not None):
+        raise ValueError(
+            "Please specify only one of --use_config_fields and --dateobs."
+        )
 
     if type(path_to_preds) == str:
         path_to_preds = pathlib.Path(path_to_preds)
@@ -59,7 +66,12 @@ def combine_preds(
     field_paths_dnn = [x for x in (path_to_preds / dnn_directory).glob(glob_input)]
     if dateobs is not None:
         fields_dnn = [x.name for x in field_paths_dnn if dateobs in x.name]
+    elif not use_config_fields:
+        fields_dnn = [x.name for x in field_paths_dnn]
     else:
+        field_paths_dnn = [
+            x for x in field_paths_dnn if int(x.name.split("_")[-1]) in config_fields
+        ]
         fields_dnn = [x.name for x in field_paths_dnn]
     fields_dnn_dict = {
         fields_dnn[i]: field_paths_dnn[i] for i in range(len(fields_dnn))
@@ -68,7 +80,12 @@ def combine_preds(
     field_paths_xgb = [x for x in (path_to_preds / xgb_directory).glob(glob_input)]
     if dateobs is not None:
         fields_xgb = [x.name for x in field_paths_xgb if dateobs in x.name]
+    elif not use_config_fields:
+        fields_xgb = [x.name for x in field_paths_xgb]
     else:
+        field_paths_xgb = [
+            x for x in field_paths_xgb if int(x.name.split("_")[-1]) in config_fields
+        ]
         fields_xgb = [x.name for x in field_paths_xgb]
     fields_xgb_dict = {
         fields_xgb[i]: field_paths_xgb[i] for i in range(len(fields_xgb))
@@ -183,6 +200,11 @@ if __name__ == "__main__":
         help="specific field to combine preds (useful for testing)",
     )
     parser.add_argument(
+        "--use_config_fields",
+        action='store_true',
+        help="if set, use fields stored in the inference:fields_to_run part of config.yaml",
+    )
+    parser.add_argument(
         "--dateobs",
         type=str,
         default=None,
@@ -233,6 +255,7 @@ if __name__ == "__main__":
         path_to_preds=args.path_to_preds,
         combined_preds_dirname=args.combined_preds_dirname,
         specific_field=args.specific_field,
+        use_config_fields=args.use_config_fields,
         dateobs=args.dateobs,
         merge_dnn_xgb=args.merge_dnn_xgb,
         dnn_directory=args.dnn_directory,
