@@ -647,12 +647,12 @@ class Scope:
         parser.add_argument(
             "--random-state",
             type=int,
-            help="random seed to set",
+            help="random seed to set for reproducibility",
         )
         parser.add_argument(
             "--feature-stats",
             type=str,
-            help="if set to 'config', source feature stats from values in config file. Otherwise, compute them",
+            help="feature stats to use to standardize features. If set to 'config', source feature stats from values in config file. Otherwise, compute them from data, taking balance into account",
         )
         parser.add_argument(
             "--batch-size",
@@ -844,8 +844,8 @@ class Scope:
         :param scale_features: method by which to scale input features [min_max or median_std] (str)
         :param test_size: fractional size of test set, taken from initial learning set (float)
         :param val_size: fractional size of val set, taken from learning set less test set (float)
-        :param random_state: random seed to set (int)
-        :param feature_stats: if set to 'config', source feature stats from values in config file. Otherwise, compute them (str)
+        :param random_state: random seed to set for reproducibility (int)
+        :param feature_stats: feature stats to use to standardize features. If set to 'config', source feature stats from values in config file. Otherwise, compute them from data, taking balance into account (str)
         :param batch_size: batch size to use for training (int)
         :param shuffle_buffer_size: buffer size to use when shuffling training set (int)
         :param epochs: number of training epochs (int)
