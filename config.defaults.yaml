@@ -1652,6 +1652,15 @@ training:
       eval_metric: 'auc'
       early_stopping_rounds: 10
       num_boost_round: 999
+    plot_params:
+      cm_include_count: False
+      cm_include_percent: True
+      annotate_scores: False
+  dnn:
+    dense_branch: True
+    conv_branch: True
+    loss: 'binary_crossentropy'
+    optimizer: 'adam'
   classes:
     # phenomenological classes
     vnv:
