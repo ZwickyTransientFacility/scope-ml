@@ -36,17 +36,17 @@ jobs:
         pip install wheel latex
         pip install -r requirements.txt
         cp config.defaults.yaml config.yaml
-        ./scope/scope.py develop
+        ./scope/scope_class.py develop
     - name: Lint sources
       run: |
-        ./scope/scope.py lint
+        ./scope/scope_class.py lint
     - name: Build docs
       env:
         KOWALSKI_INSTANCE_TOKEN: ${{ secrets.KOWALSKI_INSTANCE_TOKEN }}
         GLORIA_INSTANCE_TOKEN: ${{ secrets.GLORIA_INSTANCE_TOKEN }}
         MELMAN_INSTANCE_TOKEN: ${{ secrets.MELMAN_INSTANCE_TOKEN }}
       run: |
-        ./scope/scope.py doc
+        ./scope/scope_class.py doc
     - name: Install SSH Client 🔑
       if: github.event_name == 'push' && github.repository_owner == 'ZwickyTransientFacility'
       uses: webfactory/ssh-agent@v0.4.1

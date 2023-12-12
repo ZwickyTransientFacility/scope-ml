@@ -1,5 +1,5 @@
 # For use by pip-installed scope package
-from scope.scope import Scope
+from scope.scope_class import Scope
 
 scope = Scope()
 

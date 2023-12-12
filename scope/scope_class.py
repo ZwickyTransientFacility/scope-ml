@@ -15,18 +15,14 @@ import sys
 import tdtax
 from typing import Optional, Sequence, Union
 import yaml
-
-# from scope.utils import (
-from .utils import (
+from scope.utils import (
     forgiving_true,
     load_config,
     read_hdf,
     read_parquet,
     write_parquet,
 )
-
-# from scope.fritz import radec_to_iau_name
-from .fritz import radec_to_iau_name
+from scope.fritz import radec_to_iau_name
 import json
 import shutil
 import argparse
@@ -1609,12 +1605,12 @@ class Scope:
                         ).name
 
                         script.writelines(
-                            f"./scope.py train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --pre_trained_model=models/{pre_trained_group_name}/{tag}/{most_recent_file} --period_suffix={period_suffix} --verbose {add_keywords} \n"
+                            f"scope-train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --pre_trained_model=models/{pre_trained_group_name}/{tag}/{most_recent_file} --period_suffix={period_suffix} --verbose {add_keywords} \n"
                         )
 
                     elif train_all:
                         script.writelines(
-                            f"./scope.py train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --period_suffix={period_suffix} --verbose {add_keywords} \n"
+                            f"scope-train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --period_suffix={period_suffix} --verbose {add_keywords} \n"
                         )
 
                 script.write("# Ontological\n")
@@ -1626,26 +1622,26 @@ class Scope:
                         ).name
 
                         script.writelines(
-                            f"./scope.py train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --pre_trained_model=models/{pre_trained_group_name}/{tag}/{most_recent_file} --period_suffix={period_suffix} --verbose {add_keywords} \n"
+                            f"scope-train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --pre_trained_model=models/{pre_trained_group_name}/{tag}/{most_recent_file} --period_suffix={period_suffix} --verbose {add_keywords} \n"
                         )
 
                     elif train_all:
                         script.writelines(
-                            f"./scope.py train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --period_suffix={period_suffix} --verbose {add_keywords} \n"
+                            f"scope-train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --period_suffix={period_suffix} --verbose {add_keywords} \n"
                         )
 
             else:
                 script.write("# Phenomenological\n")
                 script.writelines(
                     [
-                        f"./scope.py train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --period_suffix={period_suffix} --verbose {add_keywords} \n"
+                        f"scope-train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --period_suffix={period_suffix} --verbose {add_keywords} \n"
                         for tag in phenom_tags
                     ]
                 )
                 script.write("# Ontological\n")
                 script.writelines(
                     [
-                        f"./scope.py train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --period_suffix={period_suffix} --verbose {add_keywords} \n"
+                        f"scope-train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --period_suffix={period_suffix} --verbose {add_keywords} \n"
                         for tag in ontol_tags
                     ]
                 )
