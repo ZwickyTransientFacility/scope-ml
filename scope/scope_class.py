@@ -369,7 +369,7 @@ class Scope:
     def doc(self):
         """Build docs"""
 
-        from scope.utils import (
+        from utils import (
             make_tdtax_taxonomy,
             plot_gaia_density,
             plot_gaia_hr,
@@ -883,9 +883,9 @@ class Scope:
         import wandb
         from wandb.keras import WandbCallback
 
-        from scope.nn import DNN
-        from scope.xgb import XGB
-        from scope.utils import Dataset
+        from nn import DNN
+        from xgb import XGB
+        from utils import Dataset
 
         if path_dataset is None:
             path_dataset = self.default_path_dataset
@@ -2652,7 +2652,7 @@ class Scope:
             inference,
             combine_preds,
         )
-        from scope.fritz import get_lightcurves_via_coords
+        from fritz import get_lightcurves_via_coords
 
         # Test feature generation
         with status("Test generate_features"):
