@@ -1,5 +1,5 @@
 import pathlib
-from .models import AbstractClassifier
+from models import AbstractClassifier
 import xgboost as xgb
 from sklearn.metrics import (
     confusion_matrix,

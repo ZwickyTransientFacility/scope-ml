@@ -16,7 +16,7 @@ import numpy as np
 import wandb
 import json
 
-from .models import AbstractClassifier
+from models import AbstractClassifier
 
 
 class DenseBlock(tf.keras.models.Model):
