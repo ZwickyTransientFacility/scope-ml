@@ -15,14 +15,14 @@ import sys
 import tdtax
 from typing import Optional, Sequence, Union
 import yaml
-from scope.utils import (
+from utils import (
     forgiving_true,
     load_config,
     read_hdf,
     read_parquet,
     write_parquet,
 )
-from scope.fritz import radec_to_iau_name
+from fritz import radec_to_iau_name
 import json
 import shutil
 import argparse
