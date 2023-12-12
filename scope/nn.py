@@ -11,7 +11,7 @@ from sklearn.metrics import (
     auc,
     precision_recall_curve,
 )
-from scope.utils import make_confusion_matrix, plot_roc, plot_pr
+from utils import make_confusion_matrix, plot_roc, plot_pr
 import numpy as np
 import wandb
 import json
@@ -269,43 +269,43 @@ class DNN(AbstractClassifier):
 
         # fixme: for now, simply use Keras' Functional API
         if (not dense_branch) and (not conv_branch):
-            raise ValueError('model must have at least one branch')
+            raise ValueError("model must have at least one branch")
 
         features_input = tf.keras.Input(
-            shape=kwargs.get("features_input_shape", (40,)), name='features'
+            shape=kwargs.get("features_input_shape", (40,)), name="features"
         )
         dmdt_input = tf.keras.Input(
-            shape=kwargs.get("dmdt_input_shape", (26, 26, 1)), name='dmdt'
+            shape=kwargs.get("dmdt_input_shape", (26, 26, 1)), name="dmdt"
         )
 
         # dense branch to digest features
         if dense_branch:
-            x_dense = tf.keras.layers.Dense(256, activation='relu', name='dense_fc_1')(
+            x_dense = tf.keras.layers.Dense(256, activation="relu", name="dense_fc_1")(
                 features_input
             )
             x_dense = tf.keras.layers.Dropout(0.25)(x_dense)
-            x_dense = tf.keras.layers.Dense(32, activation='relu', name='dense_fc_2')(
+            x_dense = tf.keras.layers.Dense(32, activation="relu", name="dense_fc_2")(
                 x_dense
             )
 
         # CNN branch to digest dmdt
         if conv_branch:
             x_conv = tf.keras.layers.SeparableConv2D(
-                16, (3, 3), activation='relu', name='conv_conv_1'
+                16, (3, 3), activation="relu", name="conv_conv_1"
             )(dmdt_input)
             # x_conv = tf.keras.layers.Dropout(0.25)(x_conv)
             x_conv = tf.keras.layers.SeparableConv2D(
-                16, (3, 3), activation='relu', name='conv_conv_2'
+                16, (3, 3), activation="relu", name="conv_conv_2"
             )(x_conv)
             x_conv = tf.keras.layers.Dropout(0.25)(x_conv)
             x_conv = tf.keras.layers.MaxPooling2D(pool_size=(2, 2))(x_conv)
 
             x_conv = tf.keras.layers.SeparableConv2D(
-                32, (3, 3), activation='relu', name='conv_conv_3'
+                32, (3, 3), activation="relu", name="conv_conv_3"
             )(x_conv)
             # x_conv = tf.keras.layers.Dropout(0.25)(x_conv)
             x_conv = tf.keras.layers.SeparableConv2D(
-                32, (3, 3), activation='relu', name='conv_conv_4'
+                32, (3, 3), activation="relu", name="conv_conv_4"
             )(x_conv)
             x_conv = tf.keras.layers.Dropout(0.25)(x_conv)
             # x_conv = tf.keras.layers.MaxPooling2D(pool_size=(2, 2))(x_conv)
@@ -322,10 +322,10 @@ class DNN(AbstractClassifier):
         x = tf.keras.layers.Dropout(0.4)(x)
 
         # one more dense layer?
-        x = tf.keras.layers.Dense(16, activation='relu', name='fc_1')(x)
+        x = tf.keras.layers.Dense(16, activation="relu", name="fc_1")(x)
 
         # Logistic regression to output the final score
-        x = tf.keras.layers.Dense(1, activation='sigmoid', name='score')(x)
+        x = tf.keras.layers.Dense(1, activation="sigmoid", name="score")(x)
 
         m = tf.keras.Model(inputs=[features_input, dmdt_input], outputs=x)
 
@@ -385,13 +385,13 @@ class DNN(AbstractClassifier):
         val_dataset,
         wandb_token,
     ):
-        self.meta['features_input_shape'] = features_input_shape
-        self.meta['train_dataset_repeat'] = train_dataset_repeat
-        self.meta['val_dataset_repeat'] = val_dataset_repeat
-        self.meta['steps_per_epoch_train'] = steps_per_epoch_train
-        self.meta['steps_per_epoch_val'] = steps_per_epoch_val
-        self.meta['train_dataset'] = train_dataset
-        self.meta['val_dataset'] = val_dataset
+        self.meta["features_input_shape"] = features_input_shape
+        self.meta["train_dataset_repeat"] = train_dataset_repeat
+        self.meta["val_dataset_repeat"] = val_dataset_repeat
+        self.meta["steps_per_epoch_train"] = steps_per_epoch_train
+        self.meta["steps_per_epoch_val"] = steps_per_epoch_val
+        self.meta["train_dataset"] = train_dataset
+        self.meta["val_dataset"] = val_dataset
 
         wandb.login(key=wandb_token)
 
@@ -399,7 +399,7 @@ class DNN(AbstractClassifier):
         self,
     ):
         wandb.init(
-            job_type='sweep',
+            job_type="sweep",
         )
 
         wandb_epochs = wandb.config.epochs
@@ -420,7 +420,7 @@ class DNN(AbstractClassifier):
         wandb_decay = wandb.config.decay
 
         self.setup(
-            features_input_shape=self.meta['features_input_shape'],
+            features_input_shape=self.meta["features_input_shape"],
             dense_branch=wandb_dense_branch,
             conv_branch=wandb_conv_branch,
             dmdt_input_shape=(26, 26, 1),
@@ -440,36 +440,36 @@ class DNN(AbstractClassifier):
         )
 
         self.train(
-            train_dataset=self.meta['train_dataset_repeat'],
-            val_dataset=self.meta['val_dataset_repeat'],
-            steps_per_epoch_train=self.meta['steps_per_epoch_train'],
-            steps_per_epoch_val=self.meta['steps_per_epoch_val'],
+            train_dataset=self.meta["train_dataset_repeat"],
+            val_dataset=self.meta["val_dataset_repeat"],
+            steps_per_epoch_train=self.meta["steps_per_epoch_train"],
+            steps_per_epoch_val=self.meta["steps_per_epoch_val"],
             epochs=wandb_epochs,
         )
 
-        stats_train = self.evaluate(self.meta['train_dataset'], name='train', verbose=0)
-        stats_val = self.evaluate(self.meta['val_dataset'], name='val', verbose=0)
+        stats_train = self.evaluate(self.meta["train_dataset"], name="train", verbose=0)
+        stats_val = self.evaluate(self.meta["val_dataset"], name="val", verbose=0)
 
         wandb.log(
             {
-                'dense_branch': wandb_dense_branch,
-                'conv_branch': wandb_conv_branch,
-                'loss': wandb_loss,
-                'optimizer': wandb_optimizer,
-                'lr': wandb_lr,
-                'momentum': wandb_momentum,
-                'monitor': wandb_monitor,
-                'patience': wandb_patience,
-                'callbacks': wandb_callbacks,
-                'run_eagerly': wandb_run_eagerly,
-                'beta_1': wandb_beta_1,
-                'beta_2': wandb_beta_2,
-                'epsilon': wandb_epsilon,
-                'amsgrad': wandb_amsgrad,
-                'decay': wandb_decay,
-                'epochs': wandb_epochs,
-                'train_loss': stats_train[0],
-                'val_loss': stats_val[0],
+                "dense_branch": wandb_dense_branch,
+                "conv_branch": wandb_conv_branch,
+                "loss": wandb_loss,
+                "optimizer": wandb_optimizer,
+                "lr": wandb_lr,
+                "momentum": wandb_momentum,
+                "monitor": wandb_monitor,
+                "patience": wandb_patience,
+                "callbacks": wandb_callbacks,
+                "run_eagerly": wandb_run_eagerly,
+                "beta_1": wandb_beta_1,
+                "beta_2": wandb_beta_2,
+                "epsilon": wandb_epsilon,
+                "amsgrad": wandb_amsgrad,
+                "decay": wandb_decay,
+                "epochs": wandb_epochs,
+                "train_loss": stats_train[0],
+                "val_loss": stats_val[0],
             }
         )
 
@@ -499,14 +499,14 @@ class DNN(AbstractClassifier):
             verbose=verbose,
         )
 
-    def evaluate(self, eval_dataset, name='test', **kwargs):
+    def evaluate(self, eval_dataset, name="test", **kwargs):
         y_eval = np.concatenate([y for _, y in eval_dataset], axis=0)
         y_pred = np.around(self.predict(eval_dataset, name=f"_{name}", **kwargs))
 
-        self.meta[f'y_{name}'] = y_eval
+        self.meta[f"y_{name}"] = y_eval
 
         # Generate confusion matrix
-        self.meta[f'cm_{name}'] = confusion_matrix(y_eval, y_pred, normalize='all')
+        self.meta[f"cm_{name}"] = confusion_matrix(y_eval, y_pred, normalize="all")
 
         return self.model.evaluate(eval_dataset, **kwargs)
 
@@ -514,9 +514,9 @@ class DNN(AbstractClassifier):
         y_pred = self.model.predict(X)
 
         if name is not None:
-            self.meta[f'y_pred{name}'] = y_pred
+            self.meta[f"y_pred{name}"] = y_pred
         else:
-            self.meta['y_pred'] = y_pred
+            self.meta["y_pred"] = y_pred
 
         return y_pred
 
@@ -534,7 +534,7 @@ class DNN(AbstractClassifier):
         output_path: str = "./",
         output_format: str = "h5",
         plot: bool = False,
-        names: list = ['train', 'val', 'test'],
+        names: list = ["train", "val", "test"],
         cm_include_count: bool = False,
         cm_include_percent: bool = True,
         annotate_scores: bool = False,
@@ -549,8 +549,8 @@ class DNN(AbstractClassifier):
             output_path.mkdir(parents=True, exist_ok=True)
 
         output_name = self.name if not tag else tag
-        if not output_name.endswith('.h5'):
-            output_name += '.h5'
+        if not output_name.endswith(".h5"):
+            output_name += ".h5"
         self.model.save(output_path / output_name, save_format=output_format)
 
         stats_dct = {}
@@ -561,48 +561,48 @@ class DNN(AbstractClassifier):
                 path = output_path / f"{tag}_plots" / name
                 if not path.exists():
                     path.mkdir(parents=True, exist_ok=True)
-                cmpdf = tag + '_cm.pdf'
-                recallpdf = tag + '_recall.pdf'
-                rocpdf = tag + '_roc.pdf'
-                stats_json = tag + '_stats.json'
+                cmpdf = tag + "_cm.pdf"
+                recallpdf = tag + "_recall.pdf"
+                rocpdf = tag + "_roc.pdf"
+                stats_json = tag + "_stats.json"
 
-                if self.meta[f'cm_{name}'] is not None:
-                    cname = tag.split('.')[0]
+                if self.meta[f"cm_{name}"] is not None:
+                    cname = tag.split(".")[0]
                     accuracy, precision, recall, f1_score = make_confusion_matrix(
-                        self.meta[f'cm_{name}'],
+                        self.meta[f"cm_{name}"],
                         figsize=(8, 6),
                         cbar=False,
                         count=cm_include_count,
                         percent=cm_include_percent,
-                        categories=['not ' + cname, cname],
+                        categories=["not " + cname, cname],
                         annotate_scores=annotate_scores,
                     )
-                    stats_dct['accuracy'] = accuracy
-                    stats_dct['precision'] = precision
-                    stats_dct['recall'] = recall
-                    stats_dct['f1_score'] = f1_score
-                    sns.set_context('talk')
+                    stats_dct["accuracy"] = accuracy
+                    stats_dct["precision"] = precision
+                    stats_dct["recall"] = recall
+                    stats_dct["f1_score"] = f1_score
+                    sns.set_context("talk")
                     plt.title(cname)
-                    plt.savefig(path / cmpdf, bbox_inches='tight')
+                    plt.savefig(path / cmpdf, bbox_inches="tight")
                     plt.close()
 
-                y_compare = self.meta.get(f'y_{name}', None)
-                y_pred = self.meta.get(f'y_pred_{name}', None)
+                y_compare = self.meta.get(f"y_{name}", None)
+                y_pred = self.meta.get(f"y_pred_{name}", None)
 
                 if (y_compare is not None) & (y_pred is not None):
 
                     fpr, tpr, _ = roc_curve(y_compare, y_pred)
                     roc_auc = auc(fpr, tpr)
                     precision, recall, _ = precision_recall_curve(y_compare, y_pred)
-                    stats_dct['roc_auc'] = roc_auc
+                    stats_dct["roc_auc"] = roc_auc
 
                     plot_roc(fpr, tpr, roc_auc)
-                    plt.savefig(path / rocpdf, bbox_inches='tight')
+                    plt.savefig(path / rocpdf, bbox_inches="tight")
                     plt.close()
 
                     plot_pr(recall, precision)
-                    plt.savefig(path / recallpdf, bbox_inches='tight')
+                    plt.savefig(path / recallpdf, bbox_inches="tight")
                     plt.close()
 
-                with open(path / stats_json, 'w') as f:
+                with open(path / stats_json, "w") as f:
                     json.dump(stats_dct, f)
