@@ -34,7 +34,7 @@ jobs:
         pip install wheel
         pip install -r requirements.txt
         cp config.defaults.yaml config.yaml
-        ./scope.py develop
+        ./scope/scope.py develop
 
     - name: Run tests
       env:
@@ -42,4 +42,4 @@ jobs:
         GLORIA_INSTANCE_TOKEN: ${{ secrets.GLORIA_INSTANCE_TOKEN }}
         MELMAN_INSTANCE_TOKEN: ${{ secrets.MELMAN_INSTANCE_TOKEN }}
       run: |
-        ./scope.py test
+        ./scope/scope.py test

@@ -21,7 +21,7 @@ jobs:
           pip install wheel
           pip install -r requirements.txt
           cp config.defaults.yaml config.yaml
-          ./scope.py develop
+          ./scope/scope.py develop
       - name: Test without kowalski connection
         run: |
-          ./scope.py test_limited
+          ./scope/scope.py test_limited

@@ -21,7 +21,7 @@ jobs:
           pip install wheel
           pip install -r requirements.txt
           cp config.defaults.yaml config.yaml
-          ./scope.py develop
+          ./scope/scope.py develop
       - name: Lint sources
         run: |
-          ./scope.py lint
+          ./scope/scope.py lint
