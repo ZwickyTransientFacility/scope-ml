@@ -59,7 +59,7 @@ if path_to_features is not None:
 
 
 def check_quads_for_sources(
-    fields: list = np.arange(1, 2001),
+    fields: list = np.arange(331, 2000),
     catalog: str = source_catalog,
     count_sources: bool = False,
     minobs: int = 0,
@@ -86,6 +86,10 @@ def check_quads_for_sources(
     has_sources = np.zeros(len(fields), dtype=bool)
     missing_ccd_quad = np.zeros(len(fields), dtype=bool)
     field_dct = {}
+
+    if save:
+        with open(BASE_DIR / f'{filename}.json', 'r') as f:
+            field_dct = json.load(f)
 
     for idx, field in enumerate(fields):
         print('Running field %d' % int(field))
@@ -165,13 +169,13 @@ def check_quads_for_sources(
         if except_count > 0:
             missing_ccd_quad[idx] = True
 
+        if save:
+            with open(BASE_DIR / f'{filename}.json', 'w') as f:
+                json.dump(field_dct, f)
+
     print(f"Sources found in {np.sum(has_sources)} fields.")
     if count_sources:
         print(f"Found {running_total_sources} sources.")
-
-    if save:
-        with open(BASE_DIR / f'{filename}.json', 'w') as f:
-            json.dump(field_dct, f)
 
     return field_dct, has_sources, missing_ccd_quad
 
