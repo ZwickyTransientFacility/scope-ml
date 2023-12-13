@@ -15,14 +15,14 @@ import sys
 import tdtax
 from typing import Optional, Sequence, Union
 import yaml
-from utils import (
+from .utils import (
     forgiving_true,
     load_config,
     read_hdf,
     read_parquet,
     write_parquet,
 )
-from fritz import radec_to_iau_name
+from .fritz import radec_to_iau_name
 import json
 import shutil
 import argparse
@@ -369,7 +369,7 @@ class Scope:
     def doc(self):
         """Build docs"""
 
-        from utils import (
+        from .utils import (
             make_tdtax_taxonomy,
             plot_gaia_density,
             plot_gaia_hr,
@@ -883,9 +883,9 @@ class Scope:
         import wandb
         from wandb.keras import WandbCallback
 
-        from nn import DNN
-        from xgb import XGB
-        from utils import Dataset
+        from .nn import DNN
+        from .xgb import XGB
+        from .utils import Dataset
 
         if path_dataset is None:
             path_dataset = self.default_path_dataset
@@ -2652,7 +2652,7 @@ class Scope:
             inference,
             combine_preds,
         )
-        from fritz import get_lightcurves_via_coords
+        from .fritz import get_lightcurves_via_coords
 
         # Test feature generation
         with status("Test generate_features"):

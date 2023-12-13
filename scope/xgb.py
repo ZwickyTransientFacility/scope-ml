@@ -1,5 +1,5 @@
 import pathlib
-from models import AbstractClassifier
+from .models import AbstractClassifier
 import xgboost as xgb
 from sklearn.metrics import (
     confusion_matrix,
@@ -8,7 +8,7 @@ from sklearn.metrics import (
     precision_recall_curve,
 )
 import matplotlib.pyplot as plt
-from utils import make_confusion_matrix, plot_roc, plot_pr
+from .utils import make_confusion_matrix, plot_roc, plot_pr
 import seaborn as sns
 import numpy as np
 import json

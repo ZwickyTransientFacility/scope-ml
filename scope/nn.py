@@ -11,12 +11,12 @@ from sklearn.metrics import (
     auc,
     precision_recall_curve,
 )
-from utils import make_confusion_matrix, plot_roc, plot_pr
+from .utils import make_confusion_matrix, plot_roc, plot_pr
 import numpy as np
 import wandb
 import json
 
-from models import AbstractClassifier
+from .models import AbstractClassifier
 
 
 class DenseBlock(tf.keras.models.Model):
