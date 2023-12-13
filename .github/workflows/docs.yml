@@ -36,17 +36,17 @@ jobs:
         pip install wheel latex poetry
         poetry install
         cp config.defaults.yaml config.yaml
-        scope-develop
+        poetry run scope-develop
     - name: Lint sources
       run: |
-        scope-lint
+        poetry run scope-lint
     - name: Build docs
       env:
         KOWALSKI_INSTANCE_TOKEN: ${{ secrets.KOWALSKI_INSTANCE_TOKEN }}
         GLORIA_INSTANCE_TOKEN: ${{ secrets.GLORIA_INSTANCE_TOKEN }}
         MELMAN_INSTANCE_TOKEN: ${{ secrets.MELMAN_INSTANCE_TOKEN }}
       run: |
-        scope-doc
+        poetry run scope-doc
     - name: Install SSH Client 🔑
       if: github.event_name == 'push' && github.repository_owner == 'ZwickyTransientFacility'
       uses: webfactory/ssh-agent@v0.4.1

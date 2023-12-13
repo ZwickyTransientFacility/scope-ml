@@ -21,7 +21,7 @@ jobs:
           pip install wheel poetry
           poetry install
           cp config.defaults.yaml config.yaml
-          scope-develop
+          poetry run scope-develop
       - name: Lint sources
         run: |
-          scope-lint
+          poetry run scope-lint

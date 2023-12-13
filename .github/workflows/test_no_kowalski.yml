@@ -21,7 +21,7 @@ jobs:
           pip install wheel poetry
           poetry install
           cp config.defaults.yaml config.yaml
-          scope-develop
+          poetry run scope-develop
       - name: Test without kowalski connection
         run: |
-          scope-test-limited
+          poetry run scope-test-limited
