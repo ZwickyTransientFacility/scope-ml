@@ -2,6 +2,10 @@
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
+[tool.black]
+target-version = ['py37', 'py38', 'py39', 'py310', 'py311']
+skip-string-normalization = true
+
 [tool.poetry]
 name = "scope"
 version = "1.0.0"

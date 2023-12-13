@@ -18,10 +18,10 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install wheel
-          pip install -r requirements.txt
+          pip install wheel poetry
+          poetry install
           cp config.defaults.yaml config.yaml
-          ./scope/scope_class.py develop
+          scope-develop
       - name: Test without kowalski connection
         run: |
-          ./scope/scope_class.py test_limited
+          scope-test-limited

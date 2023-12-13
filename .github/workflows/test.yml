@@ -31,10 +31,10 @@ jobs:
     - name: Install dependencies and use default config
       run: |
         python -m pip install --upgrade pip
-        pip install wheel
-        pip install -r requirements.txt
+        pip install wheel poetry
+        poetry install
         cp config.defaults.yaml config.yaml
-        ./scope/scope_class.py develop
+        scope-develop
 
     - name: Run tests
       env:
@@ -42,4 +42,4 @@ jobs:
         GLORIA_INSTANCE_TOKEN: ${{ secrets.GLORIA_INSTANCE_TOKEN }}
         MELMAN_INSTANCE_TOKEN: ${{ secrets.MELMAN_INSTANCE_TOKEN }}
       run: |
-        ./scope/scope_class.py test
+        scope-test
