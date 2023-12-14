@@ -59,7 +59,7 @@ if path_to_features is not None:
 
 
 def check_quads_for_sources(
-    fields: list = np.arange(331, 2000),
+    fields: list = np.arange(0, 2000),
     catalog: str = source_catalog,
     count_sources: bool = False,
     minobs: int = 0,
