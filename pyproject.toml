@@ -7,7 +7,7 @@ target-version = ['py37', 'py38', 'py39', 'py310']
 skip-string-normalization = true
 
 [tool.poetry]
-name = "scope"
+name = "scope-ml"
 version = "1.0.0"
 description = "SCoPe: ZTF Source Classification Project"
 authors = ["Brian Healy <healyb@umn.edu>"]
@@ -15,6 +15,7 @@ license = "MIT"
 packages = [
     {include = "scope"},
 ]
+include = ["config.defaults.yaml"]
 
 [tool.poetry.dependencies]
 python = "^3.9, <3.12"
