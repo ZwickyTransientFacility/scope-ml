@@ -87,7 +87,7 @@ def check_quads_for_sources(
     missing_ccd_quad = np.zeros(len(fields), dtype=bool)
     field_dct = {}
 
-    if save:
+    if save and (os.path.isfile(BASE_DIR / f'{filename}.json')):
         with open(BASE_DIR / f'{filename}.json', 'r') as f:
             field_dct = json.load(f)
 
