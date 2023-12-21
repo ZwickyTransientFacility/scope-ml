@@ -5,8 +5,10 @@ import pandas as pd
 import warnings
 from datetime import timedelta
 import json
+import matplotlib.pyplot as plt
 
 BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
+plt.rcParams["font.size"] = 16
 
 
 def get_parser():
@@ -14,14 +16,15 @@ def get_parser():
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
-        "--job-ids-path",
-        type=str,
-        help="path (from base_dir) to file containing slurm job ids",
-    )
-    parser.add_argument(
         "--logs-path",
         type=str,
         help="path (from base_dir) to slurm logs",
+    )
+    parser.add_argument(
+        "--job-ids-prefix",
+        type=str,
+        default="job_ids",
+        help="path (from base_dir) + prefix of file containing slurm job ids",
     )
     parser.add_argument(
         "--logs-name-pattern",
@@ -36,23 +39,37 @@ def get_parser():
         help="suffix for log files",
     )
     parser.add_argument(
-        "--output-path",
+        "--output-prefix",
         type=str,
-        default="runtime_output.json",
-        help="path (from base_dir) to output file",
+        default="runtime_output",
+        help="path (from base_dir) + prefix for output file",
+    )
+    parser.add_argument(
+        "--plot-name",
+        type=str,
+        default="quad_runtime_hist",
+        help="name of histogram plot (saved in base_dir)",
+    )
+    parser.add_argument(
+        "--workflow",
+        type=str,
+        default="feature_generation",
+        help="name of workflow",
     )
 
     return parser
 
 
 def main(
-    job_ids_path,
     logs_path,
+    job_ids_prefix="job_ids",
     logs_name_pattern="",
     logs_suffix="out",
-    output_path="runtime_output.json",
+    output_prefix="runtime_output",
+    plot_name="quad_runtime_hist",
+    workflow="feature_generation",
 ):
-    job_ids = pd.read_table(BASE_DIR / job_ids_path, header=None)
+    job_ids = pd.read_table(BASE_DIR / f"{job_ids_prefix}_{workflow}.txt", header=None)
 
     logs_path = BASE_DIR / logs_path
 
@@ -99,9 +116,19 @@ def main(
         else:
             warnings.warn(f"Could not find log for job ID {job_id}")
 
-    with open(BASE_DIR / output_path, "w") as f:
+    # make histogram
+    sec_per_lc_start = [x['seconds_per_source_start'] for x in results_dct.values()]
+
+    fig = plt.figure(figsize=(7, 7))
+    plt.hist(sec_per_lc_start)
+    plt.xlabel("Quadrant runtime [sec per lightcurve]")
+    plt.ylabel("Count")
+    fig.savefig(BASE_DIR / f"{plot_name}_{workflow}.pdf", bbox_inches='tight')
+    print(f"Saved plot to {BASE_DIR}/{plot_name}_{workflow}.pdf")
+
+    with open(BASE_DIR / f"{output_prefix}_{workflow}.json", "w") as f:
         json.dump(results_dct, f)
-    print(f"Wrote results to {BASE_DIR / output_path}")
+    print(f"Wrote results to {BASE_DIR}/{output_prefix}_{workflow}.json")
 
 
 if __name__ == "__main__":
