@@ -28,6 +28,7 @@ from cesium.featurize import time_series, featurize_single_ts
 import json
 from joblib import Parallel, delayed
 from scipy.stats import circmean
+import time
 
 
 BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
@@ -507,6 +508,7 @@ def generate_features(
 
     * - specified in config.yaml
     """
+    t0 = time.time()
 
     # Get code version and current date/time for metadata
     code_version = scope.__version__
@@ -1193,6 +1195,9 @@ def generate_features(
 
     else:
         print(f"Generated features for {len(feature_df)} sources.")
+
+    t1 = time.time()
+    print(f"Finished running in {t1 - t0} seconds.")
 
     return feature_df
 
