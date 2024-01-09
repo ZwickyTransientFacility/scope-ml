@@ -348,7 +348,7 @@ def run_inference(
         )
 
     ts = time.time()
-    DS = ds.dataset(features_filename, format='parquet')
+    DS = ds.dataset(features_filename, format='parquet', exclude_invalid_files=True)
     generator = DS.to_batches(batch_size=batch_size)
     te = time.time()
     if time_run:
