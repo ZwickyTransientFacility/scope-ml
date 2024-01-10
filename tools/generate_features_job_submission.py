@@ -320,6 +320,7 @@ if __name__ == '__main__':
 
                 running_jobs_count = filter_running(args.user)
 
+                failed_this_round = 0
                 n_jobs_diff = counter - running_jobs_count
                 n_jobs_finished = status_njobs - njobs
                 if n_jobs_finished != n_jobs_diff:
