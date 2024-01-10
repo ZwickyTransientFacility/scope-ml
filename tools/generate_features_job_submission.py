@@ -304,7 +304,6 @@ if __name__ == '__main__':
                     break
             else:
                 # Wait between status checks
-                os.system(f"squeue -u {args.user}")
                 print(f"Waiting {args.wait_time_minutes} minutes until next check...")
                 time.sleep(args.wait_time_minutes * 60)
 
@@ -317,12 +316,19 @@ if __name__ == '__main__':
                 print('%d jobs remaining to complete...' % njobs)
                 print('%d jobs remaining to queue...' % nchoice)
 
+                running_jobs_count = filter_running(args.user)
+                counter = running_jobs_count
+                # Note that if a job has failed, it will not be re-queued until
+                # its quadrant's .running file is removed (or set --reset_running)
+
+                """
                 # Compute difference in njobs to count available instances
                 diff_njobs = status_njobs - njobs
                 status_njobs = njobs
 
                 # Decrease counter if jobs have finished
                 counter -= diff_njobs
+                """
 
                 # Define size of the next quadrant_indices array
                 size = np.min([new_max_instances - counter, nchoice])
