@@ -338,7 +338,9 @@ if __name__ == '__main__':
                 if size == nchoice:
                     final_round = True
 
-                print(f"Detected {failed_this_round} failed jobs.")
+                print(
+                    f"Detected {failed_this_round} failed jobs this round ({failure_count} total failures)."
+                )
 
     elif args.doSubmitLoop:
         confirm = input(
