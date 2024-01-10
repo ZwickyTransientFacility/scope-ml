@@ -97,6 +97,30 @@ def parse_commandline():
     return args
 
 
+def filter_running(user):
+    command = f"squeue -u {user}"
+    result = subprocess.run(command, shell=True, capture_output=True, text=True)
+
+    running_jobs_count = 0
+    if result.returncode == 0:
+        running_jobs = result.stdout.splitlines()
+        # squeue output will always have 1 line for header
+        if len(running_jobs) > 1:
+            running_jobs = [x.strip().split() for x in running_jobs[1:]]
+            for job in running_jobs:
+                job_name = job[2]
+                if "ztf_fg" in job_name:
+                    running_jobs_count += 1
+    else:
+        print("Error executing the command. Exit code:", result.returncode)
+        print("Error output:", result.stderr)
+        raise ValueError()
+
+    print(f"Identified {running_jobs_count} running jobs.")
+
+    return running_jobs_count
+
+
 def filter_completed(df, resultsDir, filename, reset_running=False):
 
     start_time = time.time()
@@ -200,25 +224,7 @@ if __name__ == '__main__':
     # Parse command line
     args = parse_commandline()
 
-    command = f"squeue -u {args.user}"
-    result = subprocess.run(command, shell=True, capture_output=True, text=True)
-
-    running_jobs_count = 0
-    if result.returncode == 0:
-        running_jobs = result.stdout.splitlines()
-        # squeue output will always have 1 line for header
-        if len(running_jobs) > 1:
-            running_jobs = [x.strip().split() for x in running_jobs[1:]]
-            for job in running_jobs:
-                job_name = job[2]
-                if "ztf_fg" in job_name:
-                    running_jobs_count += 1
-    else:
-        print("Error executing the command. Exit code:", result.returncode)
-        print("Error output:", result.stderr)
-        raise ValueError()
-
-    print(f"Identified {running_jobs_count} running jobs.")
+    running_jobs_count = filter_running(args.user)
 
     dir_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -265,8 +271,8 @@ if __name__ == '__main__':
         status_njobs = njobs
         diff_njobs = 0
         # Redefine max instances if fewer jobs remain
-        new_max_instances = np.min([args.max_instances - counter, nchoice])
-        size = new_max_instances
+        new_max_instances = np.min([args.max_instances, nchoice])
+        size = new_max_instances - counter
         final_round = False
         if size == nchoice:
             final_round = True
