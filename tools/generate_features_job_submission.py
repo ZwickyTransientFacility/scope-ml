@@ -6,6 +6,7 @@ import argparse
 import pandas as pd
 import numpy as np
 import yaml
+import subprocess
 
 
 BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
@@ -193,8 +194,32 @@ def run_job(
 
 
 if __name__ == '__main__':
+    # Start with 60s delay to allow previous submission job to conclude (esp. if running as cron job)
+    time.sleep(60)
+
     # Parse command line
     args = parse_commandline()
+
+    command = f"squeue -u {args.user}"
+    result = subprocess.run(command, shell=True, capture_output=True, text=True)
+
+    running_jobs_count = 0
+    if result.returncode == 0:
+        running_jobs = result.stdout.splitlines()
+        # squeue output will always have 1 line for header
+        if len(running_jobs) > 1:
+            running_jobs = [x.strip().split() for x in running_jobs[1:]]
+            for job in running_jobs:
+                # job: ['27628637', 'gpu-share', 'generate', 'bhealy', 'R', '1-01:33:46', '1', 'exp-7-58']
+                job_name = job[2]
+                if "ztf_fg" in job_name:
+                    running_jobs_count += 1
+    else:
+        print("Error executing the command. Exit code:", result.returncode)
+        print("Error output:", result.stderr)
+        raise ValueError()
+
+    print(f"Identified {running_jobs_count} running jobs.")
 
     dir_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -237,7 +262,7 @@ if __name__ == '__main__':
     print('%d jobs remaining to queue...' % nchoice)
 
     if args.doSubmit:
-        counter = 0
+        counter = running_jobs_count
         status_njobs = njobs
         diff_njobs = 0
         # Redefine max instances if fewer jobs remain
