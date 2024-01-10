@@ -269,7 +269,7 @@ if __name__ == '__main__':
     if args.doSubmit:
         failure_count = 0
         counter = running_jobs_count
-        status_njobs = njobs
+        status_njobs = len(df_to_complete)
         diff_njobs = 0
         # Redefine max instances if fewer jobs remain
         new_max_instances = np.min([args.max_instances, nchoice])
@@ -326,6 +326,7 @@ if __name__ == '__main__':
                     failed_this_round = np.abs(n_jobs_finished - n_jobs_diff)
                     failure_count += failed_this_round
 
+                status_njobs = njobs
                 counter = running_jobs_count
                 # Note that if a job has failed, it will not be re-queued until
                 # its quadrant's .running file is removed (or set --reset_running)
