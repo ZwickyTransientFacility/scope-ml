@@ -267,6 +267,7 @@ if __name__ == '__main__':
     print('%d jobs remaining to queue...' % nchoice)
 
     if args.doSubmit:
+        failure_count = 0
         counter = running_jobs_count
         status_njobs = njobs
         diff_njobs = 0
@@ -301,6 +302,7 @@ if __name__ == '__main__':
                     print(
                         'Run "squeue -u <username>" to check status of remaining jobs.'
                     )
+                    print(f"{failure_count} jobs failed during full run.")
                     break
             else:
                 # Wait between status checks
@@ -317,24 +319,24 @@ if __name__ == '__main__':
                 print('%d jobs remaining to queue...' % nchoice)
 
                 running_jobs_count = filter_running(args.user)
+
+                n_jobs_diff = counter - running_jobs_count
+                n_jobs_finished = status_njobs - njobs
+                if n_jobs_finished != n_jobs_diff:
+                    failed_this_round = np.abs(n_jobs_finished - n_jobs_diff)
+                    failure_count += failed_this_round
+
                 counter = running_jobs_count
                 # Note that if a job has failed, it will not be re-queued until
                 # its quadrant's .running file is removed (or set --reset_running)
-
-                """
-                # Compute difference in njobs to count available instances
-                diff_njobs = status_njobs - njobs
-                status_njobs = njobs
-
-                # Decrease counter if jobs have finished
-                counter -= diff_njobs
-                """
 
                 # Define size of the next quadrant_indices array
                 size = np.min([new_max_instances - counter, nchoice])
                 # Signal to stop looping when the last set of jobs is queued
                 if size == nchoice:
                     final_round = True
+
+                print(f"Detected {failed_this_round} failed jobs.")
 
     elif args.doSubmitLoop:
         confirm = input(
