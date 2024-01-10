@@ -210,7 +210,6 @@ if __name__ == '__main__':
         if len(running_jobs) > 1:
             running_jobs = [x.strip().split() for x in running_jobs[1:]]
             for job in running_jobs:
-                # job: ['27628637', 'gpu-share', 'generate', 'bhealy', 'R', '1-01:33:46', '1', 'exp-7-58']
                 job_name = job[2]
                 if "ztf_fg" in job_name:
                     running_jobs_count += 1
@@ -266,7 +265,7 @@ if __name__ == '__main__':
         status_njobs = njobs
         diff_njobs = 0
         # Redefine max instances if fewer jobs remain
-        new_max_instances = np.min([args.max_instances, nchoice])
+        new_max_instances = np.min([args.max_instances - counter, nchoice])
         size = new_max_instances
         final_round = False
         if size == nchoice:
