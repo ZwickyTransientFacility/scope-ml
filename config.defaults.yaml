@@ -5,8 +5,8 @@ kowalski:
       token:
     gloria:
       token:
-    melman:
-      token:
+    #melman:
+    #  token:
   port: 443
   protocol: https
   timeout: 300
