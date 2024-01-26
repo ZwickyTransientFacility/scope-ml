@@ -1,26 +1,29 @@
 #!/usr/bin/env python
 import argparse
 import pathlib
-import yaml
 import pandas as pd
 import scope
 from scope.fritz import api
-from scope.utils import read_hdf, write_hdf, read_parquet, write_parquet
+from scope.utils import (
+    read_hdf,
+    write_hdf,
+    read_parquet,
+    write_parquet,
+    impute_features,
+    parse_load_config,
+)
 import warnings
 import numpy as np
 from tools.get_features import get_features
 from tools.get_quad_ids import get_cone_ids
 import os
 from datetime import datetime
-from scope.utils import impute_features
 
 NUM_PER_PAGE = 500
 CHECKPOINT_NUM = 500
-BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
+BASE_DIR = pathlib.Path.cwd()
 
-config_path = BASE_DIR / "config.yaml"
-with open(config_path) as config_yaml:
-    config = yaml.load(config_yaml, Loader=yaml.FullLoader)
+config = parse_load_config()
 
 features_catalog = config['kowalski']['collections']['features']
 training_set_config = pathlib.Path(config['training']['dataset'])
@@ -121,7 +124,7 @@ def merge_sources_features(
     min_net_votes: int = 1,
 ):
 
-    outpath = os.path.join(os.path.dirname(__file__), output_dir)
+    outpath = str(BASE_DIR / output_dir)
     os.makedirs(outpath, exist_ok=True)
 
     # Drop rows with duplicate obj_ids (keep first instance)
@@ -131,7 +134,7 @@ def merge_sources_features(
         sources = sources.drop_duplicates('obj_id').reset_index(drop=True)
 
     # Open golden dataset mapper
-    mapper_dir = os.path.dirname(__file__)
+    mapper_dir = os.path.dirname(BASE_DIR)
     mapper_path = os.path.join(mapper_dir, taxonomy_map)
     gold_map = pd.read_json(mapper_path)
 
@@ -428,7 +431,7 @@ def download_classification(
     ):
         output_filename = os.path.splitext(output_filename)[0]
 
-    outpath = os.path.join(os.path.dirname(__file__), output_dir)
+    outpath = str(BASE_DIR / output_dir)
     os.makedirs(outpath, exist_ok=True)
 
     filename = (
@@ -736,7 +739,7 @@ def download_classification(
     return sources
 
 
-if __name__ == "__main__":
+def get_parser():
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--file", type=str, default='parse', help="dataset")
@@ -828,8 +831,12 @@ if __name__ == "__main__":
         default=1,
         help="Minimum number of net votes (upvotes - downvotes) to keep an active learning classification. Caution: if zero, all classifications of reviewed sources will be added",
     )
+    return parser
 
-    args = parser.parse_args()
+
+def main():
+    parser = get_parser()
+    args, _ = parser.parse_known_args()
 
     # download object classifications in the file
     download_classification(

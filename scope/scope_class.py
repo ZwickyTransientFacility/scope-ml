@@ -576,8 +576,14 @@ class Scope:
         default_config_name = "config.defaults.yaml"
         copied_config_name = "config.yaml"
         tools_dir = "tools"
-        mappers = ["golden_dataset_mapper.json"]
+        mappers = [
+            "golden_dataset_mapper.json",
+            "fritz_mapper.json",
+            "DNN_AL_mapper.json",
+            "XGB_AL_mapper.json",
+        ]
 
+        print()
         # Copy config defaults to new directory strucutre if needed
         if not os.path.exists(f"{main_dir}/{copied_config_name}"):
             shutil.copy(
@@ -588,15 +594,19 @@ class Scope:
                 f"Created new '{copied_config_name}' config file. Please customize/add tokens there before running scope."
             )
         else:
-            print(f"{copied_config_name} already exists in the '{main_dir}' directory.")
-
-        for mapper in mappers:
-            print(f"Copying dataset mapper '{mapper}'")
-            shutil.copy(
-                f"{site_packages_path}/{tools_dir}/{mapper}",
-                {main_dir} / {tools_dir} / {mapper},
+            print(
+                f"Warning: {copied_config_name} already exists in the '{main_dir}' directory."
             )
 
+        print()
+        for mapper in mappers:
+            print(f"Copying dataset mapper '{mapper}' to '{main_dir}/{tools_dir}'")
+            shutil.copy(
+                f"{site_packages_path}/{tools_dir}/{mapper}",
+                f"{main_dir}/{tools_dir}/{mapper}",
+            )
+
+        print()
         print(f"scope-ml initialized. Run scripts from '{main_dir}' directory.")
 
     def parse_run_train(self):

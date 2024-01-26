@@ -39,16 +39,42 @@ import pyarrow.parquet as pq
 import json as JSON
 from sklearn.impute import KNNImputer
 import seaborn as sns
+import argparse
 
-BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
+BASE_DIR = pathlib.Path.cwd()
 
 
-def load_config(config_path: Union[str, pathlib.Path]):
+def load_config(config_path: Union[str, pathlib.Path] = "config.yaml"):
     """
     Load config and secrets
     """
     with open(config_path) as config_yaml:
         config = yaml.load(config_yaml, Loader=yaml.FullLoader)
+
+    return config
+
+
+def parse_load_config():
+    """
+    Load config from user-specified --config-path argument
+    """
+    config_parser = argparse.ArgumentParser()
+    config_parser.add_argument(
+        "--config-path",
+        type=str,
+        help="path to config file",
+    )
+
+    config_args, _ = config_parser.parse_known_args()
+    config_path = config_args.config_path
+
+    if config_path is None:
+        print(f"No --config-path specified. Loading '{BASE_DIR}/config.yaml'.")
+        config_path = str(BASE_DIR / "config.yaml")
+    else:
+        print(f"Loading config file from '{config_path}'.")
+
+    config = load_config(config_path)
 
     return config
 
