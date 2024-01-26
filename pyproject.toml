@@ -15,7 +15,7 @@ license = "MIT"
 packages = [
     {include = "scope"},
 ]
-include = ["config.defaults.yaml"]
+include = ["config.defaults.yaml", "tools/golden_dataset_mapper.json"]
 
 [tool.poetry.dependencies]
 python = "^3.9, <3.12"
@@ -56,6 +56,7 @@ tables = ">=3.7,<3.9.2"
 pre-commit = ">=3.5.0"
 
 [tool.poetry.scripts]
+scope-initialize = "scope.scope_class:Scope.initialize"
 scope-develop = "scope._instantiate:develop"
 scope-lint = "scope.scope_class:Scope.lint"
 scope-doc = "scope._instantiate:doc"
