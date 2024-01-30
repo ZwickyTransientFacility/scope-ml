@@ -1,6 +1,23 @@
 # Installation/Developer Guidelines
 
-## Initial steps
+## Science users
+- Create and activate a virtual/conda environment with Python 3.11, e.g:
+  ```shell script
+  conda create -n scope-env python=3.11
+  conda activate scope-env
+  ```
+- Install the latest release of `scope-ml` from PyPI:
+  ```shell script
+  pip install scope-ml
+  ```
+- In the directory of your choice, run the initialization script. This will create the required directories and copy the necessary files to run the code:
+  ```shell script
+  scope-initialize
+  ```
+- Change directories to `scope` and modify `config.yaml` to finish the initialization process. This config file is used by default when running all scripts. You can also specify another config file using the `--config-path` argument.
+
+
+## Developers/contributors
 
 - Create your own fork the [scope repository](https://github.com/ZwickyTransientFacility/scope) by clicking the "fork" button. Then, decide whether you would like to use HTTPS (easier for beginners) or SSH.
 - Following one set of instructions below, clone (download) your copy of the repository, and set up a remote called `upstream` that points to the main `scope` repository.
@@ -21,9 +38,9 @@ git clone git@github.com:<yourname>/scope.git && cd scope
 git remote add upstream git@github.com:ZwickyTransientFacility/scope.git
 ```
 
-## Setting up your environment (Windows/Linux/macOS)
+### Setting up your environment (Windows/Linux/macOS)
 
-### Use a package manager for installation
+#### Use a package manager for installation
 
 We currently recommend running `scope` with Python 3.11. You may want to begin your installation by creating/activating a virtual environment, for example using conda. We specifically recommend installing miniforge3 (https://github.com/conda-forge/miniforge).
 
@@ -34,9 +51,9 @@ conda create -n scope-env -c conda-forge python=3.11
 conda activate scope-env
 ```
 
-### Update your `PYTHONPATH`
+#### (Optional): Update your `PYTHONPATH`
 
-Ensure that Python can import from `scope` by modifying the `PYTHONPATH` environment variable. Use a simple text editor like `nano` to modify the appropriate file (depending on which shell you are using). For example, if using bash, run `nano ~/.bash_profile` and add the following line:
+If you plan to import from `scope`, ensure that Python can import from `scope` by modifying the `PYTHONPATH` environment variable. Use a simple text editor like `nano` to modify the appropriate file (depending on which shell you are using). For example, if using bash, run `nano ~/.bash_profile` and add the following line:
 
 ```bash
 export PYTHONPATH="$PYTHONPATH:$HOME/scope"
@@ -44,7 +61,7 @@ export PYTHONPATH="$PYTHONPATH:$HOME/scope"
 
 Save the updated file (`Ctrl+O` in `nano`) and close/reopen your terminal for this change to be recognized. Then `cd` back into scope and activate your `scope-env` again.
 
-### Install pre-commit
+#### Install pre-commit
 
 We use `black` to format the code and `flake8` to verify that code complies with [PEP8](https://www.python.org/dev/peps/pep-0008/).
 Please install our pre-commit hook as follows:
@@ -60,14 +77,14 @@ code.
 
 The pre-commit hook will lint *changes* made to the source.
 
-## Install required packages
+### Install required packages
 
-Install the required python packages by running:
+Ensure you are in the `scope` directory that contains `pyproject.toml`. Then, install the required python packages by running:
 ```bash
-pip install -r requirements.txt
+pip install .
 ```
 
-### Create and modify config.yaml
+#### Create and modify config.yaml
 
 From the included config.defaults.yaml, make a copy called config.yaml:
 
@@ -77,13 +94,13 @@ cp config.defaults.yaml config.yaml
 
 Edit config.yaml to include Kowalski instance and Fritz tokens in the associated empty `token:` fields.
 
-### Testing
-Run `./scope.py test` to test your installation. Note that for the test to pass, you will need access to the Kowalski database. If you do not have Kowalski access, you can run `./scope.py test_limited` to run a more limited (but still useful) set of tests.
+#### Testing
+Run `scope-test` to test your installation. Note that for the test to pass, you will need access to the Kowalski database. If you do not have Kowalski access, you can run `scope-test-limited` to run a more limited (but still useful) set of tests.
 
 ### Troubleshooting
 Upon encountering installation/testing errors, manually install the package in question using  `conda install xxx` , and remove it from `.requirements/dev.txt`. After that, re-run `pip install -r requirements.txt` to continue.
 
-### Known issues
+#### Known issues
 - Across all platforms, we are currently aware of `scope` dependency issues with Python 3.11.
 - Anaconda continues to cause problems with environment setup.
 - Using `pip` to install `healpy` on an arm64 Mac can raise an error upon import. We recommend including `h5py` as a requirement during the creation of your `conda` environment.
@@ -93,7 +110,7 @@ Upon encountering installation/testing errors, manually install the package in q
 
 If the installation continues to raise errors, update the conda environment and try again.
 
-## How to contribute
+### How to contribute
 
 Contributions to `scope` are made through [GitHub Pull Requests](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/about-pull-requests), a set of proposed commits (or patches):
 
@@ -144,7 +161,7 @@ Developers may merge `main` into their branch as many times as they want to.
 
 1. Once the pull request has been reviewed and approved by at least one team member, it will be merged into `scope`.
 
-## Contributing Field Guide sections
+### Contributing Field Guide sections
 
 If you would like to contribute a Field Guide section, please follow the steps below.
 

@@ -5,49 +5,49 @@
 - Create HDF5 file for single CCD/quad pair in a field:
 
 ```sh
-./get_quad_ids.py --catalog ZTF_source_features_DR16 --field 301 --ccd 2 --quad 3 --minobs 20 --skip 0 --limit 10000
+get-quad-ids --catalog ZTF_source_features_DR16 --field 301 --ccd 2 --quad 3 --minobs 20 --skip 0 --limit 10000
 ```
 
 - Create multiple HDF5 files for some CCD/quad pairs in a field:
 
 ```sh
-./get_quad_ids.py --catalog ZTF_source_features_DR16 --field 301 --multi-quads --ccd-range 1 8 --quad-range 2 4 --minobs 20 --limit 10000
+get-quad-ids --catalog ZTF_source_features_DR16 --field 301 --multi-quads --ccd-range 1 8 --quad-range 2 4 --minobs 20 --limit 10000
 ```
 
 - Create multiple HDF5 files for all CCD/quad pairs in a field:
 
 ```sh
-./get_quad_ids.py --catalog ZTF_source_features_DR16 --field 301 --multi-quads --minobs 20 --limit 10000
+get-quad-ids --catalog ZTF_source_features_DR16 --field 301 --multi-quads --minobs 20 --limit 10000
 ```
 
 - Create single HDF5 file for all sources in a field:
 
 ```sh
-./get_quad_ids.py --catalog ZTF_source_features_DR16 --field 301 --whole-field
+get-quad-ids --catalog ZTF_source_features_DR16 --field 301 --whole-field
 ```
 
 ## Download SCoPe features for ZTF fields/CCDs/quadrants
 
-- First, run `get_quad_ids.py` for desired fields/ccds/quads.
+- First, run `get-quad_ids` for desired fields/ccds/quads.
 
 - Download features for all sources in a field:
 ```sh
-./tools/get_features.py --field 301 --whole-field
+get-features --field 301 --whole-field
 ```
 
 - Download features for all sources in a field, imputing missing features using the strategies in `config.yaml`:
 ```sh
-./tools/get_features.py --field 301 --whole-field --impute-missing-features
+get-features --field 301 --whole-field --impute-missing-features
 ```
 
 - Download features for a range of ccd/quads individually:
 ```sh
-./tools/get_features.py --field 301 --ccd-range 1 2 --quad-range 3 4
+get-features --field 301 --ccd-range 1 2 --quad-range 3 4
 ```
 
 - Download features for a single pair of ccd/quad:
 ```sh
-./tools/get_features.py --field 301 --ccd-range 1 --quad-range 2
+get-features --field 301 --ccd-range 1 --quad-range 2
 ```
 
 
@@ -59,16 +59,16 @@ please refer to [arxiv:2102.11304](https://arxiv.org/pdf/2102.11304.pdf).
 - The training pipeline can be invoked with the `scope.py` utility. For example:
 
 ```sh
-./scope.py train --tag=vnv --path_dataset=data/training/dataset.d15.csv --batch_size=64 --epochs=100 --verbose=1 --pre_trained_model=models/experiment/vnv/vnv.20221117_001502.h5
+scope-train --tag vnv --path_dataset data/training/dataset.d15.csv --batch_size 64 --epochs 100 --verbose 1 --pre_trained_model models/experiment/vnv/vnv.20221117_001502.h5
 ```
 
-Refer to `./scope.py train --help` for details.
+Refer to `scope-train --help` for details.
 
 - All the necessary metadata/configuration could be defined in `config.yaml` under `training`,
-but could also be overridden with optional `scope.py train` arguments, e.g.
-`./scope.py train ... --batch_size=32 --threshold=0.6 ...`.
+but could also be overridden with optional `scope-train` arguments, e.g.
+`scope-train ... --batch_size 32 --threshold 0.6 ...`.
 
-- By default, the pipeline uses the `DNN` models defined in `scope/nn.py` using the tensorflow's `keras` functional API. SCoPe also supports an implementation of XGBoost (set `--algorithm=xgb`; see `scope/xgb.py`).
+- By default, the pipeline uses the `DNN` models defined in `scope/nn.py` using the tensorflow's `keras` functional API. SCoPe also supports an implementation of XGBoost (set `--algorithm xgb`; see `scope/xgb.py`).
 - If `--save` is specified during `DNN` training, an HDF5 file of the model's layers and weights will be saved. This file can be directly used for additional training and inferencing. For `XGB`, a json file will save the model along with a `.params` file with the model parameters.
 - The `Dataset` class defined in `scope.utils` hides the complexity of our dataset handling "under the rug".
 - You can request access to a Google Drive folder containing the latest trained models [here](https://drive.google.com/drive/folders/1_oLBxveioKtw7LyMJfism745USe9tEGZ?usp=sharing).
@@ -82,26 +82,26 @@ but could also be overridden with optional `scope.py train` arguments, e.g.
 - We use [Weights & Biases](https://wandb.com) to track experiments.
   Project details and access credentials can be defined in `config.yaml` under `wandb`.
 
-Initially, SCoPe used a `bash` script to train all classifier families:
+Initially, SCoPe used a `bash` script to train all classifier families, e.g:
 
 ```sh
 for class in pnp longt i fla ew eb ea e agn bis blyr ceph dscu lpv mir puls rrlyr rscvn srv wuma yso; \
   do echo $class; \
   for state in 1 2 3 4 5 6 7 8 9 42; \
-    do ./scope.py train \
-      --tag=$class --path_dataset=data/training/dataset.d15.csv \
-      --scale_features=min_max --batch_size=64 \
-      --epochs=300 --patience=30 --random_state=$state \
-      --verbose=1 --gpu=1 --conv_branch=true --save; \
+    do scope-train \
+      --tag $class --path_dataset data/training/dataset.d15.csv \
+      --scale_features min_max --batch_size 64 \
+      --epochs 300 --patience 30 --random_state $state \
+      --verbose 1 --gpu 1 --conv_branch --save; \
   done; \
 done;
 ```
 
-Now, a training script containing one line per class to be trained can be generated by running `./scope.py create_training_script`, for example:
+Now, a training script containing one line per class to be trained can be generated by running `create-training-script`, for example:
 ```bash
-./scope.py create_training_script --filename='train_dnn.sh' --min_count=100 --pre_trained_group_name='experiment' --add_keywords='--save --batch_size=32 --group=new_experiment --period_suffix=ELS_ECE_EAOV'
+create-training-script --filename train_dnn.sh --min_count 100 --pre_trained_group_name experiment --add_keywords '--save --batch_size 32 --group new_experiment --period_suffix ELS_ECE_EAOV'
 ```
-A path to the training set may be provided as input to this method or otherwise taken from `config.yaml` (`training: dataset:`). To continue training on existing models, specify the `--pre_trained_group_name` keyword containing the models in `create_training_script`. If training on a feature collection containing multiple sets of periodic features (from different algorithms), set the suffix corresponding to the desired algorithm using `--period_suffix` or the `features: info: period_suffix:` field in the config file. The string specified in  `--add_keywords` serves as a catch-all for additional keywords that the user wishes to be included in each line of the script.
+A path to the training set may be provided as input to this method or otherwise taken from `config.yaml` (`training: dataset:`). To continue training on existing models, specify the `--pre_trained_group_name` keyword containing the models in `create-training-script`. If training on a feature collection containing multiple sets of periodic features (from different algorithms), set the suffix corresponding to the desired algorithm using `--period_suffix` or the `features: info: period_suffix:` field in the config file. The string specified in  `--add_keywords` serves as a catch-all for additional keywords that the user wishes to be included in each line of the script.
 
 If `--pre_trained_group_name` is specified and the `--train_all` keyword is set, the output script will train all classes specified in `config.yaml` regardless of whether they have a pre-trained model. If `--train_all` is not set (the default), the script will limit training to classes that have an existing trained model.
 
@@ -109,15 +109,15 @@ If `--pre_trained_group_name` is specified and the `--train_all` keyword is set,
 
 Running inference requires the following steps: download ids of a field, download (or generate) features for all downloaded ids, run inference for all available trained models, e.g:
 ```
-./tools/get_quad_ids.py --field=<field_number> --whole_field
-./tools/get_features.py --field=<field_number> --whole_field --impute_missing_features
+get-quad-ids --field <field_number> --whole_field
+get_features.py --field <field_number> --whole_field --impute_missing_features
 ```
 OR
 ```
-./tools/generate_features.py --field <field_number> --ccd <ccd_number> --quad <quad_number> --doGPU
+generate-features --field <field_number> --ccd <ccd_number> --quad <quad_number> --doGPU
 ```
 
-The optimal way to run inference is through an inference script generated by running `./scope.py create_inference_script` with the appropriate arguments. After creating the script and adding the needed permissions (e.g. using `chmod +x`), the commands to run inference on the field `<field_number>` are (in order):
+The optimal way to run inference is through an inference script generated by running `create-inference-script` with the appropriate arguments. After creating the script and adding the needed permissions (e.g. using `chmod +x`), the commands to run inference on the field `<field_number>` are (in order):
 ```
 ./get_all_preds.sh <field_number>
 ```
@@ -173,7 +173,7 @@ The fields associated with each key are `fritz_label` (containing the associated
 ```
 
 ## Generating features
-Code has been adapted from [ztfperiodic](https://github.com/mcoughlin/ztfperiodic) and other sources to calculate basic and Fourier stats for light curves along with other features. This allows new features to be generated with SCoPe, both locally and using GPU cluster resources. The feature generation script is contained within `tools/generate_features.py`.
+Code has been adapted from [ztfperiodic](https://github.com/mcoughlin/ztfperiodic) and other sources to calculate basic and Fourier stats for light curves along with other features. This allows new features to be generated with SCoPe, both locally and using GPU cluster resources. The feature generation script is run using the `generate-features` command.
 
 Currently, the basic stats are calculated via `tools/featureGeneration/lcstats.py`, and a host of period-finding algorithms are available in `tools/featureGeneration/periodsearch.py`. Among the CPU-based period-finding algorithms, there is not yet support for `AOV_cython`. For the `AOV` algorithm to work, run `source build.sh` in the `tools/featureGeneration/pyaov/` directory, then copy the newly created `.so` file (`aov.cpython-310-darwin.so` or similar) to `lib/python3.10/site-packages/` or equivalent within your environment. The GPU-based algorithms require CUDA support (so Mac GPUs are not supported).
 
@@ -222,7 +222,7 @@ feature_df : dataframe containing generated features
 The following is an example of running the feature generation script locally:
 
 ```
-./generate_features.py --field 301 --ccd 2 --quad 4 --source_catalog ZTF_sources_20230109 --alerts_catalog ZTF_alerts --gaia_catalog Gaia_EDR3 --bright_star_query_radius_arcsec 300.0 --xmatch_radius_arcsec 2.0 --query_size_limit 10000 --period_batch_size 1000 --samples_per_peak 10 --Ncore 4 --min_n_lc_points 50 --min_cadence_minutes 30.0 --dirname generated_features --filename gen_features --doCPU --doRemoveTerrestrial --doCesium
+generate-features --field 301 --ccd 2 --quad 4 --source_catalog ZTF_sources_20230109 --alerts_catalog ZTF_alerts --gaia_catalog Gaia_EDR3 --bright_star_query_radius_arcsec 300.0 --xmatch_radius_arcsec 2.0 --query_size_limit 10000 --period_batch_size 1000 --samples_per_peak 10 --Ncore 4 --min_n_lc_points 50 --min_cadence_minutes 30.0 --dirname generated_features --filename gen_features --doCPU --doRemoveTerrestrial --doCesium
 ```
 
 Setting `--doCPU` will run the config-specified CPU period algorithms on each source. Setting `--doGPU` instead will do likewise with the specified GPU algorithms. If neither of these keywords is set, the code will assign a value of `1.0` to each period and compute Fourier statistics using that number.
@@ -230,15 +230,15 @@ Setting `--doCPU` will run the config-specified CPU period algorithms on each so
 Below is an example run the script using a job/quadrant file (containing [job id, field, ccd, quad] columns) instead of specifying field/ccd/quad directly:
 
 ```
-/home/bhealy/scope/tools/generate_features.py --source_catalog ZTF_sources_20230109 --alerts_catalog ZTF_alerts --gaia_catalog Gaia_EDR3 --bright_star_query_radius_arcsec 300.0 --xmatch_radius_arcsec 2.0 --query_size_limit 10000 --period_batch_size 1000 --samples_per_peak 10 --Ncore 20 --min_n_lc_points 50 --min_cadence_minutes 30.0 --dirname generated_features_DR15 --filename gen_features --doGPU --doRemoveTerrestrial --doCesium --doQuadrantFile --quadrant_file slurm.dat --quadrant_index 5738
+generate-features --source_catalog ZTF_sources_20230109 --alerts_catalog ZTF_alerts --gaia_catalog Gaia_EDR3 --bright_star_query_radius_arcsec 300.0 --xmatch_radius_arcsec 2.0 --query_size_limit 10000 --period_batch_size 1000 --samples_per_peak 10 --Ncore 20 --min_n_lc_points 50 --min_cadence_minutes 30.0 --dirname generated_features_DR15 --filename gen_features --doGPU --doRemoveTerrestrial --doCesium --doQuadrantFile --quadrant_file slurm.dat --quadrant_index 5738
 ```
 
 ### Slurm scripts
-For large-scale feature generation, `generate_features.py` is intended to be run on a high-performance computing cluster. Often these clusters require jobs to be submitted using a utility like `slurm` (Simple Linux Utility for Resource Management) to generate scripts. These scripts contain information about the type, amount and duration of computing resources to allocate to the user.
+For large-scale feature generation, `generate-features` is intended to be run on a high-performance computing cluster. Often these clusters require jobs to be submitted using a utility like `slurm` (Simple Linux Utility for Resource Management) to generate scripts. These scripts contain information about the type, amount and duration of computing resources to allocate to the user.
 
-Scope's `generate_features_slurm.py` code creates two slurm scripts: (1) runs single instance of `generate_features.py`, and (2) runs the `generate_features_job_submission.py` which submits multiple jobs in parallel, periodically checking to see if additional jobs can be started. See below for more information about these components of feature generation.
+Scope's `generate-features-slurm` code creates two slurm scripts: (1) runs single instance of `generate-features`, and (2) runs the `generate-features-job-submission` which submits multiple jobs in parallel, periodically checking to see if additional jobs can be started. See below for more information about these components of feature generation.
 
-`generate_features_slurm.py` can receive all of the arguments used by `generate_features.py`. These arguments are passed to the instances of feature generation begun by running slurm script (1). There are also additional arguments specific to cluster resource management:
+`generate-features-slurm` can receive all of the arguments used by `generate-features`. These arguments are passed to the instances of feature generation begun by running slurm script (1). There are also additional arguments specific to cluster resource management:
 
 inputs:
 1. --job_name : name of submitted jobs (str)
@@ -265,21 +265,21 @@ inputs:
 | name | definition |
 | ---- | ---------- |
 |ad |	Anderson-Darling statistic |
-|chi2red | Reduced chi^2 |
-|f1_BIC	| Bayesian information criterion, first order (Fourier analysis) |
-|f1_a	| a coefficient, first order (Fourier analysis) |
-|f1_amp	| Amplitude, first order (Fourier analysis) |
-|f1_b	| b coefficient (Fourier analysis) |
-|f1_phi0 | Zero-phase, first order (Fourier analysis) |
-|f1_power	| Power, first order (Fourier analysis) |
-|f1_relamp1	| Relative amplitude, first order (Fourier analysis) |
-|f1_relamp2	| Relative amplitude, second order (Fourier analysis) |
-|f1_relamp3	| Relative amplitude, third order (Fourier analysis) |
-|f1_relamp4	| Relative amplitude, fourth order (Fourier analysis) |
-|f1_relphi1	| Relative phase, first order (Fourier analysis) |
-|f1_relphi2	| Relative phase, second order (Fourier analysis) |
-|f1_relphi3	| Relative phase, third order (Fourier analysis) |
-|f1_relphi4	| Relative phase, fourth order (Fourier analysis) |
+|chi2red | Reduced chi^2 after mean subtraction |
+|f1_BIC	| Bayesian information criterion of best-fitting series (Fourier analysis) |
+|f1_a	| a coefficient of best-fitting series (Fourier analysis) |
+|f1_amp	| Amplitude of best-fitting series (Fourier analysis) |
+|f1_b	| b coefficient of best-fitting series (Fourier analysis) |
+|f1_phi0 | Zero-phase of best-fitting series (Fourier analysis) |
+|f1_power	| Normalized chi^2 of best-fitting series (Fourier analysis) |
+|f1_relamp1	| Relative amplitude, first harmonic (Fourier analysis) |
+|f1_relamp2	| Relative amplitude, second harmonic (Fourier analysis) |
+|f1_relamp3	| Relative amplitude, third harmonic (Fourier analysis) |
+|f1_relamp4	| Relative amplitude, fourth harmonic (Fourier analysis) |
+|f1_relphi1	| Relative phase, first harmonic (Fourier analysis) |
+|f1_relphi2	| Relative phase, second harmonic (Fourier analysis) |
+|f1_relphi3	| Relative phase, third harmonic (Fourier analysis) |
+|f1_relphi4	| Relative phase, fourth harmonic (Fourier analysis) |
 |i60r	| Mag ratio between 20th, 80th percentiles |
 |i70r	| Mag ratio between 15th, 85th percentiles |
 |i80r	| Mag ratio between 10th, 90th percentiles |
@@ -340,7 +340,7 @@ It is useful to know the classifications of any persistent ZTF sources that are 
 
 To set up a `cron` job, first run `EDITOR=emacs crontab -e`. You can replace `emacs` with your text editor of choice as long as it is installed on your machine. This command will open a text file in which to place `cron` commands. An example command is as follows:
 ```bash
-0 */2 * * * ~/scope/gcn_cronjob.py > ~/scope/log_gcn_cronjob.txt 2>&1
+0 */2 * * * scope-gcn-cronjob > ~/scope/log_gcn_cronjob.txt 2>&1
 
 ```
 Above, the `0 */2 * * *` means that this command will run every two hours, on minute 0 of that hour. Time increments increase from left to right; in this example, the five numbers are minute, hour, day (of month), month, day (of week). The `*/2` means that the hour has to be divisible by 2 for the job to run. Check out [crontab.guru](https://crontab.guru) to learn more about `cron` timing syntax.
@@ -355,18 +355,18 @@ Because `cron` runs in a simple environment, the usual details of environment se
 ```
 PYTHONPATH = /Users/username/scope
 
-0 */2 * * * /opt/homebrew/bin/gtimeout 2h ~/miniforge3/envs/scope-env/bin/python ~/scope/gcn_cronjob.py > ~/scope/log_gcn_cronjob.txt 2>&1
+0 */2 * * * /opt/homebrew/bin/gtimeout 2h ~/miniforge3/envs/scope-env/bin/python scope-gcn-cronjob > ~/scope/log_gcn_cronjob.txt 2>&1
 
 ```
 In the first line above, the `PYTHONPATH` environment variable is defined to include the `scope` directory. Without this line, any code that imports from `scope` will throw an error, since the user's usual `PYTHONPATH` variable is not accessed in the `cron` environment.
 
-The second line begins with the familiar `cron` timing pattern described above. It continues by specifying the a maximum runtime of 2 hours before timing out using the `gtimeout` command. On a Mac, this can be installed with `homebrew` by running `brew install coreutils`. Note that the full path to `gtimeout` must be specified. After the timeout comes the call to the `gcn_cronjob.py` script. Note that the usual `#/usr/bin/env python` line at the top of SCoPe's python scripts does not work within the `cron` environment. Instead, `python` must be explicitly specified, and in order to have access to the modules installed in `scope-env` we must provide a full path like the one above (`~/miniforge3/envs/scope-env/bin/python`). The line concludes by sending the script's output to a dedicated log file. This file gets overwritten each time the script runs.
+The second line begins with the familiar `cron` timing pattern described above. It continues by specifying the a maximum runtime of 2 hours before timing out using the `gtimeout` command. On a Mac, this can be installed with `homebrew` by running `brew install coreutils`. Note that the full path to `gtimeout` must be specified. After the timeout comes the call to the `gcn_cronjob.py` script. Note that the usual `#/usr/bin/env python` line at the top of SCoPe's python scripts does not work within the `cron` environment. Instead, `python` must be explicitly specified, and in order to have access to the modules and scripts installed in `scope-env` we must provide a full path like the one above (`~/miniforge3/envs/scope-env/bin/python`). The line concludes by sending the script's output to a dedicated log file. This file gets overwritten each time the script runs.
 
 ### Check if `cron` job is running
 It can be useful to know whether the script within a cron job is currently running. One way to do this for `gcn_cronjob.py` is to run the command `ps aux | grep gcn_cronjob.py`. This will always return one item (representing the command you just ran), but if the script is currently running you will see more than one item.
 
 ## Local feature generation/inference
-SCoPe contains a script that runs local feature generation and inference on sources specified in an input file. Example input files are contained within the `tools` directory (`local_scope_radec.csv` and `local_scope_ztfid.csv`). After receiving either ra/dec coordinates or ZTF light curve IDs (plus an object ID for each entry), the `run_scope_local.py` script will generate features and run inference using existing trained models, saving the results to timestamped directories. This script accepts most arguments from `generate_features.py` and `inference.py`. Additional inputs specific to this script are listed below.
+SCoPe contains a script that runs local feature generation and inference on sources specified in an input file. Example input files are contained within the `tools` directory (`local_scope_radec.csv` and `local_scope_ztfid.csv`). After receiving either ra/dec coordinates or ZTF light curve IDs (plus an object ID for each entry), the `run-scope-local` script will generate features and run inference using existing trained models, saving the results to timestamped directories. This script accepts most arguments from `generate-features` and `scope-inference`. Additional inputs specific to this script are listed below.
 
 inputs:
 1. --path-dataset : path (from base scope directory or fully qualified) to parquet, hdf5 or csv file containing specific sources (str)
@@ -380,12 +380,12 @@ current_dt : formatted datetime string used to label output directories
 
 ### Example usage
 ```
-./run_scope_local.py --path-dataset tools/local_scope_ztfid.csv --doCPU --doRemoveTerrestrial --scale_features min_max --group-names DR16_stats nobalance_DR16_DNN_stats --algorithms xgb
+run-scope-local --path-dataset tools/local_scope_ztfid.csv --doCPU --doRemoveTerrestrial --scale_features min_max --group-names DR16_stats nobalance_DR16_DNN_stats --algorithms xgb
 
-./run_scope_local.py --path-dataset tools/local_scope_radec.csv --doCPU --write_csv --doRemoveTerrestrial --group-names DR16_stats nobalance_DR16_DNN_stats --algorithms xgb dnn
+run-scope-local --path-dataset tools/local_scope_radec.csv --doCPU --write_csv --doRemoveTerrestrial --group-names DR16_stats nobalance_DR16_DNN_stats --algorithms xgb dnn
 ```
 
-## Scope Download Classification
+## scope-download-classification
 inputs:
 1. --file : CSV file containing obj_id and/or ra dec coordinates. Set to "parse" to download sources by group id.
 2. --group_ids : target group id(s) on Fritz for download (if CSV file not provided)
@@ -416,10 +416,10 @@ process:
 output: data with new columns appended.
 
 ```sh
-./scope_download_classification.py --file sample.csv --group_ids 360 361 --start 10 --merge_features True --features_catalog ZTF_source_features_DR16 --features_limit 5000 --taxonomy_map golden_dataset_mapper.json --output_dir fritzDownload --output_filename merged_classifications_features --output_format parquet -get_ztf_filters --impute_missing_features
+scope-download-classification --file sample.csv --group_ids 360 361 --start 10 --merge_features True --features_catalog ZTF_source_features_DR16 --features_limit 5000 --taxonomy_map golden_dataset_mapper.json --output_dir fritzDownload --output_filename merged_classifications_features --output_format parquet -get_ztf_filters --impute_missing_features
 ```
 
-## Scope Download GCN Sources
+## scope-download-gcn-sources
 inputs:
 1. --dateobs: unique dateObs of GCN event (str)
 2. --group_ids: group ids to query sources [all if not specified] (list)
@@ -433,10 +433,10 @@ process:
 3. save json file in a useful format to use with `generate_features.py --doSpecificIDs`
 
 ```sh
-./scope_download_gcn_sources.py --dateobs 2023-05-21T05:30:43
+scope-download-gcn-sources --dateobs 2023-05-21T05:30:43
 ```
 
-## Scope Upload Classification
+## scope-upload-classification
 inputs:
 1. --file : path to CSV, HDF5 or Parquet file containing ra, dec, period, and labels
 2. --group_ids : target group id(s) on Fritz for upload
@@ -476,10 +476,10 @@ process:
 6. (post comment to each uploaded source)
 
 ```sh
-./scope_upload_classification.py --file sample.csv --group_ids 500 250 750 --classification variable flaring --taxonomy_map map.json --comment confident --start 35 --stop 50 --skip_phot --p_threshold 0.9 --write_obj_id --result_format csv --use_existing_obj_id --post_survey_id --replace_classifications
+scope-upload-classification --file sample.csv --group_ids 500 250 750 --classification variable flaring --taxonomy_map map.json --comment confident --start 35 --stop 50 --skip_phot --p_threshold 0.9 --write_obj_id --result_format csv --use_existing_obj_id --post_survey_id --replace_classifications
 ```
 
-## Scope Manage Annotation
+## scope-manage-annotation
 inputs:
 1. --action : one of "post", "update", or "delete"
 2. --source : ZTF ID or path to .csv file with multiple objects (ID column "obj_id")
@@ -494,10 +494,10 @@ process:
 3. confirm changes with printed messages
 
 ```sh
-./scope_manage_annotation.py --action post --source sample.csv --group_ids 200 300 400 --origin revisedperiod --key period
+scope-manage-annotation --action post --source sample.csv --group_ids 200 300 400 --origin revisedperiod --key period
 ```
 
-## Scope Upload Disagreements
+## Deprecated: Scope Upload Disagreements
 inputs:
 1. dataset
 2. group id on Fritz
