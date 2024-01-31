@@ -566,7 +566,7 @@ class Scope:
 
     @staticmethod
     def initialize():
-        main_dir = "scope-ml"
+        main_dir = "scope"
         scope_dirs = ["tools"]
         os.makedirs(main_dir, exist_ok=True)
         for directory in scope_dirs:
@@ -581,6 +581,8 @@ class Scope:
             "fritz_mapper.json",
             "DNN_AL_mapper.json",
             "XGB_AL_mapper.json",
+            "local_scope_ztfid.csv",
+            "local_scope_radec.csv",
         ]
 
         print()
@@ -600,7 +602,7 @@ class Scope:
 
         print()
         for mapper in mappers:
-            print(f"Copying dataset mapper '{mapper}' to '{main_dir}/{tools_dir}'")
+            print(f"Copying default data '{mapper}' to '{main_dir}/{tools_dir}'")
             shutil.copy(
                 f"{site_packages_path}/{tools_dir}/{mapper}",
                 f"{main_dir}/{tools_dir}/{mapper}",
