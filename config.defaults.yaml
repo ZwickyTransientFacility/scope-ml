@@ -12,17 +12,18 @@ kowalski:
   timeout: 300
   collections:
     gaia: Gaia_EDR3
-    # Current sources are from DR16 (on melman)
-    sources: ZTF_sources_20230309
-    # Current features generated from DR16 (on melman)
+    # Current sources are from DR20 (on melman)
+    sources: ZTF_sources_20240117
+    # Current features generated from DR16 (on gloria)
     features: ZTF_source_features_DR16
-    # Current classifications are from DR16 (on melman)
+    # Current classifications are from DR16 (on gloria)
     classifications: ZTF_source_classifications_DR16
     # Current alerts (on kowalski)
     alerts: ZTF_alerts
   # If cutting off light curve at a given data release, enter the max HJD below
   # (JD corrected for Earth/Sun light travel time)
-  max_timestamp_hjd:
+  # By default, this is set at the end of DR16 (2459951.5)
+  max_timestamp_hjd: 2459951.5
 fritz:
   token:
   protocol: https
