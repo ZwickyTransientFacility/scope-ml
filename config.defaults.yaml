@@ -12,17 +12,18 @@ kowalski:
   timeout: 300
   collections:
     gaia: Gaia_EDR3
-    # Current sources are from DR16 (on melman)
-    sources: ZTF_sources_20230309
-    # Current features generated from DR16 (on melman)
+    # Current sources are from DR20 (on melman)
+    sources: ZTF_sources_20240117
+    # Current features generated from DR16 (on gloria)
     features: ZTF_source_features_DR16
-    # Current classifications are from DR16 (on melman)
+    # Current classifications are from DR16 (on gloria)
     classifications: ZTF_source_classifications_DR16
     # Current alerts (on kowalski)
     alerts: ZTF_alerts
   # If cutting off light curve at a given data release, enter the max HJD below
   # (JD corrected for Earth/Sun light travel time)
-  max_timestamp_hjd:
+  # By default, this is set at the end of DR16 (2459951.5)
+  max_timestamp_hjd: 2459951.5
 fritz:
   token:
   protocol: https
@@ -97,106 +98,117 @@ taxonomy:
             Any ZTF source that shows detectable variability in its light curve
             due to an astrophysical origin. This excludes variability due to blended photometry,
             bright nearby stars, or any CCD artifact.
-        - class: pnp
-          name: periodic
-          description: |
-            The ZTF light curve features astrophysical periodic variability.
-            These are typically pulsators, rotating stars and (eclipsing) binaries.
-            This does not include semi-periodic or quasi-periodic variability. This
-            excludes variability due to a varying background (e.g. due to the moon),
-            or spurious periodic variability due to nearby bright stars or other artifacts.
-        - class: longt
-          name: long timescale
-          description: |
-            Any object which shows variability on timescales of ~100+ days. This can be a steady
-            increase/decrease in luminosity, e.g., AGN and CVs.
-            Long timescale period variable like Miras and the more
-            irregular semi-regular variables are generally included in this category.
-        - class: i
-          name: irregular
-          description: |
-            Objects which show irregular/stochastic variability.
-            These are mostly accreting objects, AGN, CVs, and YSOs.
-        - class: e
-          name: eclipsing
-          description: |
-            Any source that shows eclipses in the light curve.
-            These are predominately eclipsing binaries.
-            Eclipsing planetisimals or planets with large rings would also
-            fall in this category.
           subclasses:
-            - class: ea
-              name: detached binary
-            - class: eb
-              name: semi-detached binary
-            - class: ew
-              name: overcontact binary
-        - class: fla
-          name: flaring
-          description: |
-            Any ZTF light curve that shows flares, rapidly rising and fading events.
-            These are mostly cataclysmic variables, some young stellar objects, M-dwarfs, and some AGN.
-        - class: bogus
-          name: bogus
-          description: |
-            Any light curve that seems variable, but is not due to any astrophysical variability.
-            These are galaxies that can seem to vary due to PSF variations,
-            image artifacts like ghosts, blended stars, or diffraction spikes.
+            - class: pnp
+              name: periodic
+              description: |
+                The ZTF light curve features astrophysical periodic variability.
+                These are typically pulsators, rotating stars and (eclipsing) binaries.
+                This does not include semi-periodic or quasi-periodic variability. This
+                excludes variability due to a varying background (e.g. due to the moon),
+                or spurious periodic variability due to nearby bright stars or other artifacts.
+              subclasses:
+                - class: sin
+                  name: sinusoidal
+                  subclasses:
+                    - class: el
+                      name: ellipsoidal
+                - class: saw
+                  name: sawtooth
+                - class: mp
+                  name: multi periodic
+                - class: longt
+                  name: long timescale
+                  description: |
+                    Any object which shows variability on timescales of ~100+ days. This can be a steady
+                    increase/decrease in luminosity, e.g., AGN and CVs.
+                    Long timescale period variable like Miras and the more
+                    irregular semi-regular variables are generally included in this category.
+                - class: e
+                  name: eclipsing
+                  description: |
+                    Any source that shows eclipses in the light curve.
+                    These are predominately eclipsing binaries.
+                    Eclipsing planetisimals or planets with large rings would also
+                    fall in this category.
+                  subclasses:
+                    - class: ea
+                      name: detached binary
+                    - class: eb
+                      name: semi-detached binary
+                    - class: ew
+                      name: overcontact binary
+                - class: wp
+                  name: wrong period
+                  subclasses:
+                    - class: hp
+                      name: half period
+                    - class: dp
+                      name: double period
+            - class: i
+              name: irregular
+              description: |
+                Objects which show irregular/stochastic variability.
+                These are mostly accreting objects, AGN, CVs, and YSOs.
+              subclasses:
+                - class: fla
+                  name: flaring
+                  description: |
+                    Any ZTF light curve that shows flares, rapidly rising and fading events.
+                    These are mostly cataclysmic variables, some young stellar objects, M-dwarfs, and some AGN.
+                - class: dip
+                  name: dipping
+        - class: nonvar
+          name: non-variable
+          subclasses:
+            - class: bogus
+              name: bogus
+              description: |
+                Any light curve that seems variable, but is not due to any astrophysical variability.
+                These are galaxies that can seem to vary due to PSF variations,
+                image artifacts like ghosts, blended stars, or diffraction spikes.
+              subclasses:
+                - class: ext
+                  name: extended
+                - class: blend
+                  name: blend
+                - class: bright
+                  name: bright star
+                - class: artfct
+                  name: ccd artifact
     - class: ontological
       name: ontological
       description: |
         What can be said about an object given *not only* ZTF data
       subclasses:
-        - class: puls
-          name: pulsator
+        - class: accr
+          name: Accretor
           description: |
-            Any kind of pulsating star.
+            Any kind of accreting system.
           subclasses:
-            - class: dscu
-              name: Delta Scuti
+            - class: agn
+              name: AGN
               description: |
-                Delta Scuti are pulsating A&F main sequence stars. The pulsation period ranges between
-                0.03 between 0.3 days, and the amplitude is typically 0.2 mag but can reach up to 0.8mag.
-                Their light curves are asymmetric, with a rapid rise and slow decay.
-            - class: ceph
-              name: Cepheid
+                Extra-galactic objects which tend to vary irregularly. Often show slowly rising
+                or fading light curves, and can also show outbursts in rare cases.
+            - class: cv
+              name: CV
               description: |
-                Cepheids are radially pulsating giant stars in the instability strip.
-                Period range between 1 and 50 days, with extreme examples of 200 days.
-                Light curves shapes range from asymmetric with a steep rise
-                and slow decay, to almost sinusoidal light curve shapes.
-            - class: rrlyr
-              name: RR Lyrae
+                A binary star that consists of two components:
+                a white dwarf primary, and a mass transferring secondary.
+            - class: yso
+              name: YSO
               description: |
-                RR Lyrae are radial pulsators on the horizontal branch; they are helium core burning and
-                hydrogen shell burning. The pulsation period ranges between 0.2 and 1.0 days.
-            - class: lpv
-              name: long period variable
-              description: |
-                Long Period Variables are cool giant stars. Nearly all stars of this type show
-                some variability.
-              subclasses:
-                - class: mira
-                  name: Mira
-                  description: |
-                    AGB stars which show very high amplitude (> 2.5), long period (80-1000
-                    days) variability.
-                - class: srv
-                  name: semi-regulat variable
-                  description: |
-                    Show more irregular, and lower amplitude variability than Miras.
+                Pre-main-sequence stars. They typically have an accretion disk and dust around
+                them. This results in a light curve which shows irregular behavior,
+                sometimes with outbursts or dust obscuration events.
         - class: bis
-          name: binary star
+          name: Non-accreting binary
           description: |
-            Any object that is a binary star.
+            Any object that is a non-accreting binary system.
           subclasses:
-            - class: wuma
-              name: W UMa
-              description: |
-                Eclipsing close binary stars of spectral types F, G, or K that share a common envelope
-                of material and are thus in contact with one another.
             - class: blyr
-              name: Beta Lyr
+              name: Beta Lyrae
               description: |
                 Binary systems where one of the components has evolved into a subgiant or giant star and
                 is filling its Roche lobe transferring mass in a disk.
@@ -210,22 +222,89 @@ taxonomy:
                 has large stellar spots. The light curve shape is sinusoidal
                 with periods of a few hours to 14 days.
                 The shape of the light curve changes over timescales of months to years.
-        - class: agn
-          name: active galactic nuclei
+            - class: wuma
+              name: W Ursae Maj
+              description: |
+                Eclipsing close binary stars of spectral types F, G, or K that share a common envelope
+                of material and are thus in contact with one another.
+            - class: hwvir
+              name: HW Vir
+            - class: emsms
+              name: detached MS-MS
+              description: |
+                Detached eclipsing MS-MS binary.
+            - class: peccb
+              name: Peculiar compact binary
+              subclasses:
+                - class: nnser
+                  name: NN Ser
+        - class: puls
+          name: Pulsator
           description: |
-            Extra-galactic objects which tend to vary irregularly. Often show slowly rising
-            or fading light curves, and can also show outbursts in rare cases.
-        - class: yso
-          name: young stellar object
-          description: |
-            Pre-main-sequence stars. They typically have an accretion disk and dust around
-            them. This results in a light curve which shows irregular behavior,
-            sometimes with outbursts or dust obscuration events.
-        - class: cv
-          name: cataclysmic variable
-          description: |
-            A binary star that consists of two components:
-            a white dwarf primary, and a mass transferring secondary.
+            Any kind of pulsating star.
+          subclasses:
+            - class: rrlyr
+              name: RR Lyrae
+              description: |
+                RR Lyrae are radial pulsators on the horizontal branch; they are helium core burning and
+                hydrogen shell burning. The pulsation period ranges between 0.2 and 1.0 days.
+              subclasses:
+                - class: rrab
+                  name: RRab
+                - class: rrc
+                  name: RRc
+                - class: rrd
+                  name: RRd
+                - class: rre
+                  name: RRe
+                - class: rrblz
+                  name: Blazhko
+            - class: lpv
+              name: long period variable
+              description: |
+                Long Period Variables are cool giant stars. Nearly all stars of this type show
+                some variability.
+              subclasses:
+                - class: mira
+                  name: Mira
+                  description: |
+                    AGB stars which show very high amplitude (> 2.5), long period (80-1000
+                    days) variability.
+                - class: srv
+                  name: Semiregular
+                  description: |
+                    Show more irregular, and lower amplitude variability than Miras.
+                - class: osarg
+                  name: OSARG
+                  description: |
+                    OGLE small-amplitude red giant.
+            - class: rvtau
+              name: RV Tau
+            - class: dscu
+              name: Delta Scuti
+              description: |
+                Delta Scuti are pulsating A&F main sequence stars. The pulsation period ranges between
+                0.03 between 0.3 days, and the amplitude is typically 0.2 mag but can reach up to 0.8mag.
+                Their light curves are asymmetric, with a rapid rise and slow decay.
+            - class: ceph2
+              name: Population II Cepheid
+              subclasses:
+                - class: blher
+                  name: BL Her
+                - class: wvir
+                  name: W Vir
+            - class: ceph
+              name: Cepheid
+              description: |
+                Cepheids are radially pulsating giant stars in the instability strip.
+                Period range between 1 and 50 days, with extreme examples of 200 days.
+                Light curves shapes range from asymmetric with a steep rise
+                and slow decay, to almost sinusoidal light curve shapes.
+              subclasses:
+                - class: f
+                  name: Fundamental
+                - class: o
+                  name: Overtone
 
 docs:
   field_guide:

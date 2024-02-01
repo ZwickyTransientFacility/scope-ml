@@ -6,6 +6,7 @@ import argparse
 import pandas as pd
 import numpy as np
 import yaml
+import subprocess
 
 
 BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
@@ -94,6 +95,30 @@ def parse_commandline():
     args = parser.parse_args()
 
     return args
+
+
+def filter_running(user):
+    command = f"squeue -u {user}"
+    result = subprocess.run(command, shell=True, capture_output=True, text=True)
+
+    running_jobs_count = 0
+    if result.returncode == 0:
+        running_jobs = result.stdout.splitlines()
+        # squeue output will always have 1 line for header
+        if len(running_jobs) > 1:
+            running_jobs = [x.strip().split() for x in running_jobs[1:]]
+            for job in running_jobs:
+                job_name = job[2]
+                if "ztf_fg" in job_name:
+                    running_jobs_count += 1
+    else:
+        print("Error executing the command. Exit code:", result.returncode)
+        print("Error output:", result.stderr)
+        raise ValueError()
+
+    print(f"Identified {running_jobs_count} running jobs.")
+
+    return running_jobs_count
 
 
 def filter_completed(df, resultsDir, filename, reset_running=False):
@@ -193,8 +218,13 @@ def run_job(
 
 
 if __name__ == '__main__':
+    # Start with 60s delay to allow previous submission job to conclude (esp. if running as cron job)
+    time.sleep(60)
+
     # Parse command line
     args = parse_commandline()
+
+    running_jobs_count = filter_running(args.user)
 
     dir_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -237,12 +267,13 @@ if __name__ == '__main__':
     print('%d jobs remaining to queue...' % nchoice)
 
     if args.doSubmit:
-        counter = 0
-        status_njobs = njobs
+        failure_count = 0
+        counter = running_jobs_count
+        status_njobs = len(df_to_complete)
         diff_njobs = 0
         # Redefine max instances if fewer jobs remain
         new_max_instances = np.min([args.max_instances, nchoice])
-        size = new_max_instances
+        size = new_max_instances - counter
         final_round = False
         if size == nchoice:
             final_round = True
@@ -271,10 +302,10 @@ if __name__ == '__main__':
                     print(
                         'Run "squeue -u <username>" to check status of remaining jobs.'
                     )
+                    print(f"{failure_count} jobs failed during full run.")
                     break
             else:
                 # Wait between status checks
-                os.system(f"squeue -u {args.user}")
                 print(f"Waiting {args.wait_time_minutes} minutes until next check...")
                 time.sleep(args.wait_time_minutes * 60)
 
@@ -287,18 +318,29 @@ if __name__ == '__main__':
                 print('%d jobs remaining to complete...' % njobs)
                 print('%d jobs remaining to queue...' % nchoice)
 
-                # Compute difference in njobs to count available instances
-                diff_njobs = status_njobs - njobs
-                status_njobs = njobs
+                running_jobs_count = filter_running(args.user)
 
-                # Decrease counter if jobs have finished
-                counter -= diff_njobs
+                failed_this_round = 0
+                n_jobs_diff = counter - running_jobs_count
+                n_jobs_finished = status_njobs - njobs
+                if n_jobs_finished != n_jobs_diff:
+                    failed_this_round = np.abs(n_jobs_finished - n_jobs_diff)
+                    failure_count += failed_this_round
+
+                status_njobs = njobs
+                counter = running_jobs_count
+                # Note that if a job has failed, it will not be re-queued until
+                # its quadrant's .running file is removed (or set --reset_running)
 
                 # Define size of the next quadrant_indices array
                 size = np.min([new_max_instances - counter, nchoice])
                 # Signal to stop looping when the last set of jobs is queued
                 if size == nchoice:
                     final_round = True
+
+                print(
+                    f"Detected {failed_this_round} failed jobs this round ({failure_count} total failures)."
+                )
 
     elif args.doSubmitLoop:
         confirm = input(

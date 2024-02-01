@@ -87,7 +87,7 @@ def check_quads_for_sources(
     missing_ccd_quad = np.zeros(len(fields), dtype=bool)
     field_dct = {}
 
-    if save:
+    if save and (os.path.isfile(BASE_DIR / f'{filename}.json')):
         with open(BASE_DIR / f'{filename}.json', 'r') as f:
             field_dct = json.load(f)
 
@@ -315,7 +315,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--job_name",
         type=str,
-        default='generate_features',
+        default='ztf_fg',
         help="job name",
     )
     parser.add_argument(
@@ -641,7 +641,7 @@ if __name__ == "__main__":
     # (Python code can also be run interactively)
     fid = open(os.path.join(slurmDir, 'slurm_submission.sub'), 'w')
     fid.write('#!/bin/bash\n')
-    fid.write(f'#SBATCH --job-name={args.job_name}_submit.job\n')
+    fid.write('#SBATCH --job-name=submit_jobs.job\n')
     fid.write(f'#SBATCH --output=../logs/{args.job_name}_submit_%A_%a.out\n')
     fid.write(f'#SBATCH --error=../logs/{args.job_name}_submit_%A_%a.err\n')
     fid.write(f'#SBATCH -p {args.submit_partition_type}\n')
