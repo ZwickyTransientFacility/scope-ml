@@ -1198,8 +1198,9 @@ def generate_features(
     return feature_df
 
 
-def get_parser():
-    parser = argparse.ArgumentParser(add_help=False)
+def get_parser(**kwargs):
+    add_help = kwargs.get("add_help", True)
+    parser = argparse.ArgumentParser(add_help=add_help)
 
     parser.add_argument(
         "--source_catalog",

@@ -181,7 +181,91 @@ def get_slurm_parser():
 
     fg_parser = get_parser(add_help=False)
     parser = argparse.ArgumentParser(parents=[fg_parser])
-
+    parser.add_argument(
+        "--job_name",
+        type=str,
+        default='ztf_fg',
+        help="job name",
+    )
+    parser.add_argument(
+        "--cluster_name",
+        type=str,
+        default='Expanse',
+        help="Name of HPC cluster",
+    )
+    parser.add_argument(
+        "--partition_type",
+        type=str,
+        default='gpu-shared',
+        help="Partition name to request for computing",
+    )
+    parser.add_argument(
+        "--submit_partition_type",
+        type=str,
+        default='shared',
+        help="Partition name to request for job submission",
+    )
+    parser.add_argument(
+        "--nodes",
+        type=int,
+        default=1,
+        help="Number of nodes to request",
+    )
+    parser.add_argument(
+        "--gpus",
+        type=int,
+        default=1,
+        help="Number of GPUs to request",
+    )
+    parser.add_argument(
+        "--memory_GB",
+        type=int,
+        default=180,
+        help="Memory allocation to request for computing",
+    )
+    parser.add_argument(
+        "--submit_memory_GB",
+        type=int,
+        default=16,
+        help="Memory allocation to request for job submission",
+    )
+    parser.add_argument(
+        "--time",
+        type=str,
+        default='48:00:00',
+        help="Walltime for instance",
+    )
+    parser.add_argument(
+        "--mail_user",
+        type=str,
+        default='healyb@umn.edu',
+        help="contact email address",
+    )
+    parser.add_argument(
+        "--account_name",
+        type=str,
+        default='umn131',
+        help="Name of account with current HPC allocation",
+    )
+    parser.add_argument(
+        "--python_env_name",
+        type=str,
+        default='scope-env',
+        help="Name of python environment to activate",
+    )
+    parser.add_argument(
+        "--generateQuadrantFile",
+        action='store_true',
+        default=False,
+        help="if set, generate a list of fields/ccd/quads and job numbers, save to slurm.dat",
+    )
+    parser.add_argument(
+        "--field_list",
+        type=int,
+        nargs='+',
+        default=None,
+        help="space-separated list of fields for which to generate quadrant file. If None, all populated fields included.",
+    )
     parser.add_argument(
         "--max_instances",
         type=int,
