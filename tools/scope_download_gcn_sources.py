@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import argparse
 import pathlib
-import yaml
 import os
 from penquins import Kowalski
 from datetime import datetime, timedelta
@@ -9,17 +8,14 @@ import numpy as np
 import json
 from scope.fritz import api
 from tools.get_quad_ids import get_cone_ids
-from scope.utils import write_parquet
+from scope.utils import write_parquet, parse_load_config
 
-BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
+BASE_DIR = pathlib.Path.cwd()
+config = parse_load_config()
 NUM_PER_PAGE = 100
 
 # EM+GW is group 1544
 # Recommendation: query all groups when downloading, then upload all classifications to single group (e.g. EM+GW)
-
-config_path = BASE_DIR / "config.yaml"
-with open(config_path) as config_yaml:
-    config = yaml.load(config_yaml, Loader=yaml.FullLoader)
 
 # use tokens specified as env vars (if exist)
 kowalski_token_env = os.environ.get("KOWALSKI_INSTANCE_TOKEN")
@@ -174,7 +170,8 @@ def download_gcn_sources(
     return ids
 
 
-if __name__ == '__main__':
+def get_parser():
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--dateobs", type=str, help="unique dateObs of GCN event")
     parser.add_argument(
@@ -202,7 +199,12 @@ if __name__ == '__main__':
         help="filename to save source ids/coordinates",
     )
 
-    args = parser.parse_args()
+    return parser
+
+
+def main():
+    parser = get_parser()
+    args, _ = parser.parse_known_args()
 
     download_gcn_sources(
         dateobs=args.dateobs,

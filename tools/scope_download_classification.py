@@ -2,7 +2,7 @@
 import argparse
 import pathlib
 import pandas as pd
-import scope
+import pkg_resources
 from scope.fritz import api
 from scope.utils import (
     read_hdf,
@@ -245,13 +245,13 @@ def merge_sources_features(
     print(f'Found {len(ztf_and_obj_ids)} rows of features - some may be duplicates.')
 
     print('Getting non-duplicate features...')
-    feature_df_nodup, dmdt_nodup = get_features(
+    feature_df_nodup, _ = get_features(
         source_ids=ztf_and_obj_ids_nodup['_id'].values.tolist(),
         features_catalog=features_catalog,
         limit_per_query=features_limit,
     )
     print('Getting duplicate features for further analysis...')
-    feature_df_dup, dmdt_dup = get_features(
+    feature_df_dup, _ = get_features(
         source_ids=ztf_and_obj_ids_dup['_id'].values.tolist(),
         features_catalog=features_catalog,
         limit_per_query=features_limit,
@@ -440,7 +440,9 @@ def download_classification(
     filepath = os.path.join(outpath, filename)
 
     # Get code version and current date/time for metadata
-    code_version = scope.__version__
+    code_version = pkg_resources.get_distribution(
+        "scope-ml"
+    ).version  # scope.__version__
     utcnow = datetime.utcnow()
     start_dt = utcnow.strftime("%Y-%m-%d %H:%M:%S")
 

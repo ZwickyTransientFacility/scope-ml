@@ -4,10 +4,15 @@ import json as JSON
 import pandas as pd
 from penquins import Kowalski
 from scope.fritz import save_newsource, api, radec_to_iau_name
-from scope.utils import read_hdf, read_parquet, write_hdf, write_parquet
+from scope.utils import (
+    read_hdf,
+    read_parquet,
+    write_hdf,
+    write_parquet,
+    parse_load_config,
+)
 import math
 import warnings
-import yaml
 import pathlib
 from tools import scope_manage_annotation
 from datetime import datetime
@@ -21,11 +26,8 @@ OBJ_ID_BATCHSIZE = 10
 
 plt.rcParams['font.size'] = 12
 
-BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
-
-config_path = BASE_DIR / "config.yaml"
-with open(config_path) as config_yaml:
-    config = yaml.load(config_yaml, Loader=yaml.FullLoader)
+BASE_DIR = pathlib.Path.cwd()
+config = parse_load_config()
 
 # use tokens specified as env vars (if exist)
 kowalski_token_env = os.environ.get("KOWALSKI_INSTANCE_TOKEN")
@@ -697,7 +699,7 @@ def upload_classification(
                 ):
                     result_filetag = os.path.splitext(result_filetag)[0]
 
-                outpath = os.path.join(os.path.dirname(__file__), result_dir)
+                outpath = str(BASE_DIR / result_dir)
                 os.makedirs(outpath, exist_ok=True)
 
                 filename = (
@@ -727,8 +729,7 @@ def upload_classification(
                     write_parquet(all_sources, filepath)
 
 
-if __name__ == "__main__":
-
+def get_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument("--file", help="dataset with .csv, .h5 or .parquet extension")
     parser.add_argument("--group_ids", type=int, nargs='+', help="list of group ids")
@@ -874,8 +875,12 @@ if __name__ == "__main__":
         default='ZTF',
         help="Name of instrument used for observations",
     )
+    return parser
 
-    args = parser.parse_args()
+
+def main():
+    parser = get_parser()
+    args, _ = parser.parse_known_args()
 
     # upload classification objects
     upload_classification(
