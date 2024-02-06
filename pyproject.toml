@@ -17,7 +17,7 @@ packages = [
     {include = "tools"},
 ]
 exclude = ["**/*.parquet", "**/*.csv", "**/*.ipynb", "**/*.json", "**/*.h5", "**/*.yaml", "**/*.html", "**/*.txt"]
-include = ["config.defaults.yaml", "tools/golden_dataset_mapper.json", "tools/fritz_mapper.json", "tools/DNN_AL_mapper.json", "tools/XGB_AL_mapper.json"]
+include = ["config.defaults.yaml", "tools/golden_dataset_mapper.json", "tools/fritz_mapper.json", "tools/DNN_AL_mapper.json", "tools/XGB_AL_mapper.json", "tools/local_scope_ztfid.csv", "tools/local_scope_radec.csv"]
 
 [tool.poetry.dependencies]
 python = "^3.9, <3.12"
@@ -70,3 +70,6 @@ select-fritz-sample = "scope._instantiate:select_fritz_sample"
 scope-test-limited = "scope._instantiate:test_limited"
 scope-test = "scope._instantiate:test"
 scope-download-classification = "tools.scope_download_classification:main"
+scope-upload-classification = "tools.scope_upload_classification:main"
+scope-manage-annotation = "tools.scope_manage_annotation:main"
+post-taxonomy = "tools.taxonomy:main"
