@@ -5,16 +5,12 @@ import time
 import argparse
 import pandas as pd
 import numpy as np
-import yaml
 import subprocess
+from scope.utils import parse_load_config
 
 
-BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
-
-# Read config file
-config_path = pathlib.Path(__file__).parent.parent.absolute() / "config.yaml"
-with open(config_path) as config_yaml:
-    config = yaml.load(config_yaml, Loader=yaml.FullLoader)
+BASE_DIR = pathlib.Path.cwd()
+config = parse_load_config()
 
 fields_to_run = config['feature_generation']['fields_to_run']
 path_to_features = config['feature_generation']['path_to_features']
@@ -22,7 +18,7 @@ if path_to_features is not None:
     BASE_DIR = pathlib.Path(path_to_features)
 
 
-def parse_commandline():
+def get_parser():
     """
     Parse the options given on the command-line.
     """
@@ -92,9 +88,7 @@ def parse_commandline():
         help="Time to wait between job submissions (minutes)",
     )
 
-    args = parser.parse_args()
-
-    return args
+    return parser
 
 
 def filter_running(user):
@@ -188,6 +182,8 @@ def run_job(
     quadrant_index,
     resultsDir,
     filename,
+    qsubfile,
+    jobline,
     runParallel=False,
     submit_interval_minutes=1.0,
 ):
@@ -217,16 +213,15 @@ def run_job(
             os.system(jobstr)
 
 
-if __name__ == '__main__':
+def main():
     # Start with 60s delay to allow previous submission job to conclude (esp. if running as cron job)
     time.sleep(60)
 
     # Parse command line
-    args = parse_commandline()
+    parser = get_parser()
+    args, _ = parser.parse_known_args()
 
     running_jobs_count = filter_running(args.user)
-
-    dir_path = os.path.dirname(os.path.realpath(__file__))
 
     filename = args.filename
     filetype = args.filetype
@@ -241,8 +236,6 @@ if __name__ == '__main__':
 
     lines = [line.rstrip('\n') for line in open(qsubfile)]
     jobline = lines[-1]
-    joblineSplit = list(filter(None, jobline.split("algorithm")[-1].split(" ")))
-    algorithm = joblineSplit[0]
 
     quadrantfile = os.path.join(qsubDir, '%s.dat' % filetype)
 
@@ -270,7 +263,6 @@ if __name__ == '__main__':
         failure_count = 0
         counter = running_jobs_count
         status_njobs = len(df_to_complete)
-        diff_njobs = 0
         # Redefine max instances if fewer jobs remain
         new_max_instances = np.min([args.max_instances, nchoice])
         size = new_max_instances - counter
@@ -290,6 +282,8 @@ if __name__ == '__main__':
                         quadrant_index,
                         resultsDir,
                         filename,
+                        qsubfile,
+                        jobline,
                         runParallel=args.runParallel,
                         submit_interval_minutes=args.submit_interval_minutes,
                     )
@@ -353,6 +347,8 @@ if __name__ == '__main__':
                     quadrant_index,
                     resultsDir,
                     filename,
+                    qsubfile,
+                    jobline,
                     runParallel=args.runParallel,
                     submit_interval_minutes=args.submit_interval_minutes,
                 )

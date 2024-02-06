@@ -2,7 +2,6 @@
 import scope
 import argparse
 import pathlib
-import yaml
 import os
 from tools.get_quad_ids import get_ids_loop, get_field_ids
 from scope.fritz import get_lightcurves_via_ids
@@ -15,6 +14,7 @@ from scope.utils import (
     read_parquet,
     read_hdf,
     split_dict,
+    parse_load_config,
 )
 import numpy as np
 from penquins import Kowalski
@@ -31,12 +31,8 @@ from scipy.stats import circmean
 import time
 
 
-BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
-
-# setup connection to Kowalski instances
-config_path = pathlib.Path(__file__).parent.parent.absolute() / "config.yaml"
-with open(config_path) as config_yaml:
-    config = yaml.load(config_yaml, Loader=yaml.FullLoader)
+BASE_DIR = pathlib.Path.cwd()
+config = parse_load_config()
 
 # use tokens specified as env vars (if exist)
 kowalski_token_env = os.environ.get("KOWALSKI_INSTANCE_TOKEN")
@@ -1380,10 +1376,10 @@ def get_parser():
     return parser
 
 
-if __name__ == "__main__":
+def main():
 
     parser = get_parser()
-    args = parser.parse_args()
+    args, _ = parser.parse_known_args()
 
     # call generate_features
     generate_features(
