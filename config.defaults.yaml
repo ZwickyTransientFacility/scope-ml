@@ -870,9 +870,9 @@ features:
       impute_strategy: regress
       periodic: false
     Gaia_EDR3__parallax_error:
-      include: false
+      include: true
       dtype: float
-      impute_strategy: None
+      impute_strategy: median
       periodic: false
     Gaia_EDR3__phot_bp_mean_mag:
       include: true
