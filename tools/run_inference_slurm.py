@@ -1,22 +1,21 @@
 #!/usr/bin/env python
 import argparse
 import pathlib
-import yaml
 import os
+from scope.utils import parse_load_config
 
 
-BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
-BASE_DIR_PREDS = pathlib.Path(__file__).parent.parent.absolute()
+BASE_DIR = pathlib.Path.cwd()
+BASE_DIR_PREDS = BASE_DIR
 
-config_path = BASE_DIR / "config.yaml"
-with open(config_path) as config_yaml:
-    config = yaml.load(config_yaml, Loader=yaml.FullLoader)
+config = parse_load_config()
 
 path_to_preds = config['inference']['path_to_preds']
 if path_to_preds is not None:
     BASE_DIR_PREDS = pathlib.Path(path_to_preds)
 
-if __name__ == "__main__":
+
+def get_parser():
 
     parser = argparse.ArgumentParser()
 
@@ -135,7 +134,12 @@ if __name__ == "__main__":
         help="dnn or xgb",
     )
 
-    args = parser.parse_args()
+    return parser
+
+
+def main():
+    parser = get_parser()
+    args, _ = parser.parse_known_args()
 
     scriptname = args.scriptname
     script_path = BASE_DIR / scriptname
@@ -202,9 +206,8 @@ if __name__ == "__main__":
         fid.write(f'source activate {args.python_env_name}\n')
 
     fid.write(
-        '%s/run_inference_job_submission.py --dirname=%s --scriptname=%s --user=%s --algorithm=%s\n'
+        'run-inference-job-submission --dirname %s --scriptname %s --user %s --algorithm %s\n'
         % (
-            BASE_DIR / 'tools',
             dirname,
             scriptname,
             args.user,

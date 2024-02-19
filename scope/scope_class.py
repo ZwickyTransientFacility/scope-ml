@@ -1268,7 +1268,7 @@ class Scope:
                 wandb.agent(sweep_id, function=classifier.sweep)
 
                 print(
-                    "Sweep complete. Adjust hyperparameters in config file and run scope.py train again without the --run_sweeps flag."
+                    "Sweep complete. Adjust hyperparameters in config file and run scope-train again without the --run-sweeps flag."
                 )
 
                 # Stop sweep job
@@ -1834,7 +1834,7 @@ class Scope:
         parser.add_argument(
             "--use-custom-python",
             action="store_true",
-            help="if True, the call to inference.py will be preceded by a specific path to python",
+            help="if True, the call to run-inference will be preceded by a specific path to python",
         )
         parser.add_argument(
             "--path-to-python",
@@ -1874,7 +1874,7 @@ class Scope:
         :param feature_directory: name of directory containing downloaded or generated features (str)
         :param write_csv: if True, write CSV file in addition to parquet (bool)
         :param batch_size: batch size to use when reading feature files (int)
-        :param use_custom_python: if True, the call to inference.py will be preceded by a specific path to python (bool)
+        :param use_custom_python: if True, the call to run-inference will be preceded by a specific path to python (bool)
         :param path_to_python: if use_custom_python is set (e.g. for a cron job), path to custom python installation (str)
         :param period_suffix: suffix of period/Fourier features to use for training (str)
 
@@ -1924,7 +1924,7 @@ class Scope:
                     model_class_names_str += f"{tag} "
 
                 script.write(
-                    f'echo -n "Running inference..." && {path_to_python} {str(base_path)}/tools/inference.py --paths_models {paths_models_str} --model_class_names {model_class_names_str} --field $1 --whole_field --flag_ids --scale_features {scale_features} --feature_directory {feature_directory} --period_suffix {period_suffix} --batch_size {batch_size} {addtl_args} && echo "done"\n'
+                    f'echo -n "Running inference..." && {path_to_python} run-inference --paths_models {paths_models_str} --model_class_names {model_class_names_str} --field $1 --whole_field --flag_ids --scale_features {scale_features} --feature_directory {feature_directory} --period_suffix {period_suffix} --batch_size {batch_size} {addtl_args} && echo "done"\n'
                 )
 
             elif algorithm in ["XGB", "xgb", "XGBoost", "xgboost", "XGBOOST"]:
@@ -1940,7 +1940,7 @@ class Scope:
                     model_class_names_str += f"{tag} "
 
                 script.write(
-                    f'echo -n "Running inference..." && {path_to_python} {str(base_path)}/tools/inference.py --paths_models {paths_models_str} --model_class_names {model_class_names_str} --scale_features {scale_features} --feature_directory {feature_directory} --period_suffix {period_suffix} --batch_size {batch_size} --xgb_model --field $1 --whole_field --flag_ids {addtl_args} && echo "done"\n'
+                    f'echo -n "Running inference..." && {path_to_python} run-inference --paths_models {paths_models_str} --model_class_names {model_class_names_str} --scale_features {scale_features} --feature_directory {feature_directory} --period_suffix {period_suffix} --batch_size {batch_size} --xgb_model --field $1 --whole_field --flag_ids {addtl_args} && echo "done"\n'
                 )
 
             else:

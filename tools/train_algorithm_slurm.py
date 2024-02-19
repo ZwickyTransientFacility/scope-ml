@@ -1,15 +1,12 @@
 #!/usr/bin/env python
 import argparse
 import pathlib
-import yaml
 import os
+from scope.utils import parse_load_config
 
 
-BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
-
-config_path = BASE_DIR / "config.yaml"
-with open(config_path) as config_yaml:
-    config = yaml.load(config_yaml, Loader=yaml.FullLoader)
+BASE_DIR = pathlib.Path.cwd()
+config = parse_load_config()
 
 
 def parse_training_script(script_path):
@@ -22,8 +19,8 @@ def parse_training_script(script_path):
     algorithm = 'dnn'
 
     for line in lines:
-        if 'scope.py train' in line:
-            line_info = line.removeprefix('./scope.py train').split()
+        if 'scope-train' in line:
+            line_info = line.removeprefix('scope-train').split()
             for arg in line_info.copy():
                 if '--tag' in arg:
                     tag = arg.split('=')[1]
@@ -41,7 +38,7 @@ def parse_training_script(script_path):
     return tags, group, algorithm, line_info
 
 
-if __name__ == "__main__":
+def get_parser():
 
     parser = argparse.ArgumentParser()
 
@@ -184,12 +181,17 @@ if __name__ == "__main__":
         help="If set, job submission runs filter_completed in different directory",
     )
 
-    args = parser.parse_args()
+    return parser
+
+
+def main():
+    parser = get_parser()
+    args, _ = parser.parse_known_args()
 
     scriptname = args.scriptname
 
     script_path = BASE_DIR / scriptname
-    _, group, algorithm, line_info = parse_training_script(script_path)
+    _, _, algorithm, line_info = parse_training_script(script_path)
 
     dirname = f"{algorithm}_{args.dirname}"
     jobname = f"{args.job_name}_{algorithm}"
@@ -228,9 +230,7 @@ if __name__ == "__main__":
             fid.write('module add cuda\n')
         fid.write(f'source activate {args.python_env_name}\n')
 
-    fid.write(
-        str(BASE_DIR / 'scope.py train ') + "--tag=$TID " + " ".join(line_info) + '\n'
-    )
+    fid.write("scope-train " + "--tag $TID " + " ".join(line_info) + '\n')
     fid.close()
 
     # Secondary script to manage job submission using train_algorithm_job_submission.py
@@ -256,9 +256,8 @@ if __name__ == "__main__":
 
     if args.sweep:
         fid.write(
-            '%s/train_algorithm_job_submission.py --dirname=%s --scriptname=%s --user=%s --max_instances=%s --wait_time_minutes=%s --submit_interval_seconds=%s --sweep\n'
+            'train-algorithm-job-submission --dirname %s --scriptname %s --user %s --max_instances %s --wait_time_minutes %s --submit_interval_seconds %s --sweep\n'
             % (
-                BASE_DIR / 'tools',
                 dirname,
                 scriptname,
                 args.user,
@@ -269,9 +268,8 @@ if __name__ == "__main__":
         )
     else:
         fid.write(
-            '%s/train_algorithm_job_submission.py --dirname=%s --scriptname=%s --user=%s --max_instances=%s --wait_time_minutes=%s --submit_interval_seconds=%s\n'
+            'train-algorithm-job-submission --dirname %s --scriptname %s --user %s --max_instances %s --wait_time_minutes %s --submit_interval_seconds %s\n'
             % (
-                BASE_DIR / 'tools',
                 dirname,
                 scriptname,
                 args.user,

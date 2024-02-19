@@ -4,7 +4,6 @@ import numpy as np
 import pandas as pd
 import pathlib
 import warnings
-import yaml
 import json
 import os
 import time
@@ -17,6 +16,7 @@ from scope.utils import (
     forgiving_true,
     impute_features,
     get_feature_stats,
+    parse_load_config,
 )
 from scope.xgb import XGB
 from datetime import datetime
@@ -25,14 +25,12 @@ import argparse
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 warnings.filterwarnings('ignore')
 
-BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
-BASE_DIR_FEATS = pathlib.Path(__file__).parent.parent.absolute()
-BASE_DIR_PREDS = pathlib.Path(__file__).parent.parent.absolute()
+BASE_DIR = pathlib.Path.cwd()
+BASE_DIR_FEATS = BASE_DIR
+BASE_DIR_PREDS = BASE_DIR
 JUST = 50
 
-config_path = BASE_DIR / "config.yaml"
-with open(config_path) as config_yaml:
-    config = yaml.load(config_yaml, Loader=yaml.FullLoader)
+config = parse_load_config()
 
 path_to_features = config['feature_generation']['path_to_features']
 path_to_preds = config['inference']['path_to_preds']
@@ -310,9 +308,7 @@ def run_inference(
 
     features_filename = kwargs.get("features_filename", default_features_file)
 
-    out_dir = os.path.join(
-        os.path.dirname(__file__), f"{str(BASE_DIR_PREDS)}/preds_{algorithm}/"
-    )
+    out_dir = f"{str(BASE_DIR_PREDS)}/preds_{algorithm}/"
 
     if not whole_field:
         default_outfile = (
@@ -833,10 +829,10 @@ def get_parser():
     return parser
 
 
-if __name__ == "__main__":
+def main():
 
     parser = get_parser()
-    args = parser.parse_args()
+    args, _ = parser.parse_known_args()
 
     run_inference(
         paths_models=args.paths_models,

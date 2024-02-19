@@ -432,9 +432,8 @@ def main():
         if args.quadrant_index is not None:
             qid = args.quadrant_index
         fid.write(
-            '%s/generate_features.py --source_catalog %s --alerts_catalog %s --gaia_catalog %s --bright_star_query_radius_arcsec %s --xmatch_radius_arcsec %s --query_size_limit %s --period_batch_size %s --samples_per_peak %s --Ncore %s --min_n_lc_points %s --min_cadence_minutes %s --dirname %s --filename %s --top_n_periods %s --max_freq %s --max_timestamp_hjd %s --doQuadrantFile --quadrant_file %s --quadrant_index %s %s %s\n'
+            'generate-features --source_catalog %s --alerts_catalog %s --gaia_catalog %s --bright_star_query_radius_arcsec %s --xmatch_radius_arcsec %s --query_size_limit %s --period_batch_size %s --samples_per_peak %s --Ncore %s --min_n_lc_points %s --min_cadence_minutes %s --dirname %s --filename %s --top_n_periods %s --max_freq %s --max_timestamp_hjd %s --doQuadrantFile --quadrant_file %s --quadrant_index %s %s %s\n'
             % (
-                BASE_DIR / 'tools',
                 source_catalog,
                 alerts_catalog,
                 gaia_catalog,
@@ -459,9 +458,8 @@ def main():
         )
     else:
         fid.write(
-            '%s/generate_features.py --source_catalog %s --alerts_catalog %s --gaia_catalog %s --bright_star_query_radius_arcsec %s --xmatch_radius_arcsec %s --query_size_limit %s --period_batch_size %s --samples_per_peak %s --Ncore %s --field %s --ccd %s --quad %s --min_n_lc_points %s --min_cadence_minutes %s --dirname %s --filename %s --top_n_periods %s --max_freq %s --max_timestamp_hjd %s %s %s\n'
+            'generate-features --source_catalog %s --alerts_catalog %s --gaia_catalog %s --bright_star_query_radius_arcsec %s --xmatch_radius_arcsec %s --query_size_limit %s --period_batch_size %s --samples_per_peak %s --Ncore %s --field %s --ccd %s --quad %s --min_n_lc_points %s --min_cadence_minutes %s --dirname %s --filename %s --top_n_periods %s --max_freq %s --max_timestamp_hjd %s %s %s\n'
             % (
-                BASE_DIR / 'tools',
                 source_catalog,
                 alerts_catalog,
                 gaia_catalog,
@@ -509,9 +507,8 @@ def main():
     if not args.doSubmitLoop:
         if args.runParallel:
             fid.write(
-                '%s/generate_features_job_submission.py --dirname %s --filename %s --doSubmit --runParallel --max_instances %s --wait_time_minutes %s --user %s --submit_interval_minutes %s\n'
+                'generate-features-job-submission --dirname %s --filename %s --doSubmit --runParallel --max_instances %s --wait_time_minutes %s --user %s --submit_interval_minutes %s\n'
                 % (
-                    BASE_DIR / 'tools',
                     dirpath,
                     filename,
                     args.max_instances,
@@ -522,9 +519,8 @@ def main():
             )
         else:
             fid.write(
-                '%s/generate_features_job_submission.py --dirname %s --filename %s --doSubmit --max_instances %s --wait_time_minutes %s --user %s --submit_interval_minutes %s\n'
+                'generate-features-job-submission --dirname %s --filename %s --doSubmit --max_instances %s --wait_time_minutes %s --user %s --submit_interval_minutes %s\n'
                 % (
-                    BASE_DIR / 'tools',
                     dirpath,
                     filename,
                     args.max_instances,
@@ -536,18 +532,16 @@ def main():
     else:
         if args.runParallel:
             fid.write(
-                '%s/generate_features_job_submission.py --dirname %s --filename %s --doSubmitLoop --runParallel\n'
+                'generate-features-job-submission --dirname %s --filename %s --doSubmitLoop --runParallel\n'
                 % (
-                    BASE_DIR / 'tools',
                     dirpath,
                     filename,
                 )
             )
         else:
             fid.write(
-                '%s/generate_features_job_submission.py --dirname %s --filename %s --doSubmitLoop\n'
+                'generate-features-job-submission --dirname %s --filename %s --doSubmitLoop\n'
                 % (
-                    BASE_DIR / 'tools',
                     dirpath,
                     filename,
                 )
