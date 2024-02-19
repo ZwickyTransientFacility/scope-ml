@@ -40,6 +40,9 @@ import json as JSON
 from sklearn.impute import KNNImputer
 import seaborn as sns
 import argparse
+import os
+from deepdiff import DeepDiff
+from pprint import pprint
 
 BASE_DIR = pathlib.Path.cwd()
 
@@ -64,6 +67,17 @@ def parse_load_config():
         type=str,
         help="path to config file",
     )
+    config_parser.add_argument(
+        "--check-configs",
+        action="store_true",
+        help="if set, check config against default file in same directory",
+    )
+    config_parser.add_argument(
+        "--default-config-name",
+        type=str,
+        default="config.defaults.yaml",
+        help="name of default config file",
+    )
 
     config_args, _ = config_parser.parse_known_args()
     config_path = config_args.config_path
@@ -75,6 +89,30 @@ def parse_load_config():
         print(f"Loading config file from '{config_path}'.")
 
     config = load_config(config_path)
+
+    if config_args.check_configs:
+        print("Checking configuration versus defaults...")
+        config_dirname = os.path.dirname(config_path)
+        default_config_path = os.path.join(
+            config_dirname, config_args.default_config_name
+        )
+
+        try:
+            default_config = load_config(default_config_path)
+        except Exception:
+            print(
+                f"Could not load {default_config_path}. To compare configs, place the latest version of config.defaults.yaml in the same directory as your customized config file ({config_path})."
+            )
+
+        deep_diff = DeepDiff(default_config, config, ignore_order=True)
+        difference = {
+            k: v for k, v in deep_diff.items() if k in ("dictionary_item_removed",)
+        }
+        if len(difference) > 0:
+            print("config structure differs from defaults")
+            pprint(difference)
+            raise KeyError("Fix config before proceeding")
+        print("Configuration check finished.")
 
     return config
 

@@ -1,26 +1,22 @@
 #!/usr/bin/env python
 from contextlib import contextmanager
 import datetime
-from deepdiff import DeepDiff
 import fire
 import numpy as np
 import os
 import pandas as pd
 import pathlib
 from penquins import Kowalski
-from pprint import pprint
-import questionary
 import subprocess
 import sys
 import tdtax
 from typing import Optional, Sequence, Union
-import yaml
 from .utils import (
     forgiving_true,
-    load_config,
     read_hdf,
     read_parquet,
     write_parquet,
+    parse_load_config,
 )
 from .fritz import radec_to_iau_name
 import json
@@ -48,53 +44,12 @@ def status(message):
         print(f"\r[✓] {message}")
 
 
-def check_configs(config_wildcards: Sequence = ("config.*yaml",)):
-    """
-    - Check if config files exist
-    - Offer to use the config files that match the wildcards
-    - For config.yaml, check its contents against the defaults to make sure nothing is missing/wrong
-
-    :param config_wildcards:
-    :return:
-    """
-    path = pathlib.Path(__file__).parent.parent.absolute()
-
-    for config_wildcard in config_wildcards:
-        config = config_wildcard.replace("*", "")
-        # use config defaults if configs do not exist?
-        if not (path / config).exists():
-            answer = questionary.select(
-                f"{config} does not exist, do you want to use one of the following"
-                " (not recommended without inspection)?",
-                choices=[p.name for p in path.glob(config_wildcard)],
-            ).ask()
-            subprocess.run(["cp", f"{path / answer}", f"{path / config}"])
-
-        # check contents of config.yaml WRT config.defaults.yaml
-        if config == "config.yaml":
-            with open(path / config.replace(".yaml", ".defaults.yaml")) as config_yaml:
-                config_defaults = yaml.load(config_yaml, Loader=yaml.FullLoader)
-            with open(path / config) as config_yaml:
-                config_wildcard = yaml.load(config_yaml, Loader=yaml.FullLoader)
-            deep_diff = DeepDiff(config_defaults, config_wildcard, ignore_order=True)
-            difference = {
-                k: v for k, v in deep_diff.items() if k in ("dictionary_item_removed",)
-            }
-            if len(difference) > 0:
-                print("config.yaml structure differs from config.defaults.yaml")
-                pprint(difference)
-                raise KeyError("Fix config.yaml before proceeding")
-
-
 class Scope:
     def __init__(self):
-        # check configuration
-        with status("Checking configuration"):
-            check_configs(config_wildcards=["config.*yaml"])
-
-            self.base_path = pathlib.Path(__file__).parent.parent.absolute()
-
-            self.config = load_config(self.base_path / "config.yaml")
+        # load configuration
+        with status("Loading configuration"):
+            self.base_path = pathlib.Path.cwd()
+            self.config = parse_load_config()
 
             self.default_path_dataset = (
                 self.base_path / self.config["training"]["dataset"]
@@ -382,9 +337,7 @@ class Scope:
 
         # generate taxonomy.html
         with status("Generating taxonomy visualization"):
-            path_static = (
-                pathlib.Path(__file__).parent.parent.absolute() / "doc" / "_static"
-            )
+            path_static = self.base_path / "doc" / "_static"
             if not path_static.exists():
                 path_static.mkdir(parents=True, exist_ok=True)
             tdtax.write_viz(
@@ -414,14 +367,10 @@ class Scope:
 
         # example periods
         with status("Generating example period histograms"):
-            path_doc_data = (
-                pathlib.Path(__file__).parent.parent.absolute() / "doc" / "data"
-            )
+            path_doc_data = self.base_path / "doc" / "data"
 
             # stored as ra/decs in csv format under /data/golden
-            golden_sets = (
-                pathlib.Path(__file__).parent.parent.absolute() / "data" / "golden"
-            )
+            golden_sets = self.base_path / "data" / "golden"
             for golden_set in golden_sets.glob("*.csv"):
                 golden_set_name = golden_set.stem
                 positions = pd.read_csv(golden_set).to_numpy().tolist()
@@ -446,19 +395,11 @@ class Scope:
 
         # example skymaps for all Golden sets
         with status("Generating skymaps diagrams for Golden sets"):
-            path_doc_data = (
-                pathlib.Path(__file__).parent.parent.absolute() / "doc" / "data"
-            )
+            path_doc_data = self.base_path / "doc" / "data"
 
-            path_gaia_density = (
-                pathlib.Path(__file__).parent.parent.absolute()
-                / "data"
-                / "Gaia_hp8_densitymap.fits"
-            )
+            path_gaia_density = self.base_path / "data" / "Gaia_hp8_densitymap.fits"
             # stored as ra/decs in csv format under /data/golden
-            golden_sets = (
-                pathlib.Path(__file__).parent.parent.absolute() / "data" / "golden"
-            )
+            golden_sets = self.base_path / "data" / "golden"
             for golden_set in golden_sets.glob("*.csv"):
                 golden_set_name = golden_set.stem
                 positions = pd.read_csv(golden_set).to_numpy().tolist()
@@ -471,9 +412,7 @@ class Scope:
 
         # example light curves
         with status("Generating example light curves"):
-            path_doc_data = (
-                pathlib.Path(__file__).parent.parent.absolute() / "doc" / "data"
-            )
+            path_doc_data = self.base_path / "doc" / "data"
 
             for sample_object_name, sample_object in self.config["docs"][
                 "field_guide"
@@ -493,15 +432,10 @@ class Scope:
         # example HR diagrams for all Golden sets
         with status("Generating HR diagrams for Golden sets"):
             path_gaia_hr_histogram = (
-                pathlib.Path(__file__).parent.parent.absolute()
-                / "doc"
-                / "data"
-                / "gaia_hr_histogram.dat"
+                self.base_path / "doc" / "data" / "gaia_hr_histogram.dat"
             )
             # stored as ra/decs in csv format under /data/golden
-            golden_sets = (
-                pathlib.Path(__file__).parent.parent.absolute() / "data" / "golden"
-            )
+            golden_sets = self.base_path / "data" / "golden"
             for golden_set in golden_sets.glob("*.csv"):
                 golden_set_name = golden_set.stem
                 positions = pd.read_csv(golden_set).to_numpy().tolist()
@@ -519,11 +453,11 @@ class Scope:
     @staticmethod
     def fetch_models(gcs_path: str = "gs://ztf-scope/models"):
         """
-        Fetch SCoPe models from GCP
+        (deprecated) Fetch SCoPe models from GCP
 
         :return:
         """
-        path_models = pathlib.Path(__file__).parent.parent / "models"
+        path_models = pathlib.Path.cwd() / "models"
         if not path_models.exists():
             path_models.mkdir(parents=True, exist_ok=True)
 
@@ -543,11 +477,11 @@ class Scope:
     @staticmethod
     def fetch_datasets(gcs_path: str = "gs://ztf-scope/datasets"):
         """
-        Fetch SCoPe datasets from GCP
+        (deprecated) Fetch SCoPe datasets from GCP
 
         :return:
         """
-        path_datasets = pathlib.Path(__file__).parent.parent / "data" / "training"
+        path_datasets = pathlib.Path.cwd() / "data" / "training"
         if not path_datasets.exists():
             path_datasets.mkdir(parents=True, exist_ok=True)
 
@@ -588,6 +522,10 @@ class Scope:
         print()
         # Copy config defaults to new directory strucutre if needed
         if not os.path.exists(f"{main_dir}/{copied_config_name}"):
+            shutil.copy(
+                f"{site_packages_path}/{default_config_name}",
+                f"{main_dir}/{default_config_name}",
+            )
             shutil.copy(
                 f"{site_packages_path}/{default_config_name}",
                 f"{main_dir}/{copied_config_name}",
@@ -800,7 +738,7 @@ class Scope:
             help="if set, skip XGB cross-validation",
         )
 
-        args = parser.parse_args()
+        args, _ = parser.parse_known_args()
         self.train(**vars(args))
 
     # args to add for ds.make (override config-specified values)
@@ -1226,11 +1164,7 @@ class Scope:
 
         time_tag = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
 
-        output_path = (
-            pathlib.Path(__file__).parent.parent.absolute()
-            / f"models_{algorithm}"
-            / group
-        )
+        output_path = self.base_path / f"models_{algorithm}" / group
 
         if algorithm == "dnn":
 
@@ -1550,7 +1484,7 @@ class Scope:
             help="suffix of period/Fourier features to use for training",
         )
 
-        args = parser.parse_args()
+        args, _ = parser.parse_known_args()
         self.create_training_script(**vars(args))
 
     def create_training_script(
@@ -1628,9 +1562,7 @@ class Scope:
 
             if pre_trained_group_name is not None:
                 group_path = (
-                    pathlib.Path(__file__).parent.parent.absolute()
-                    / f"models_{algorithm}"
-                    / pre_trained_group_name
+                    self.base_path / f"models_{algorithm}" / pre_trained_group_name
                 )
                 gen = os.walk(group_path)
                 model_tags = [tag[1] for tag in gen]
@@ -1653,12 +1585,12 @@ class Scope:
                         ).name
 
                         script.writelines(
-                            f"scope-train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --pre_trained_model=models/{pre_trained_group_name}/{tag}/{most_recent_file} --period_suffix={period_suffix} --verbose {add_keywords} \n"
+                            f"scope-train --tag {tag} --algorithm {algorithm} --path_dataset {path_dataset} --pre_trained_model models/{pre_trained_group_name}/{tag}/{most_recent_file} --period_suffix {period_suffix} --verbose {add_keywords} \n"
                         )
 
                     elif train_all:
                         script.writelines(
-                            f"scope-train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --period_suffix={period_suffix} --verbose {add_keywords} \n"
+                            f"scope-train --tag {tag} --algorithm {algorithm} --path_dataset {path_dataset} --period_suffix {period_suffix} --verbose {add_keywords} \n"
                         )
 
                 script.write("# Ontological\n")
@@ -1670,26 +1602,26 @@ class Scope:
                         ).name
 
                         script.writelines(
-                            f"scope-train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --pre_trained_model=models/{pre_trained_group_name}/{tag}/{most_recent_file} --period_suffix={period_suffix} --verbose {add_keywords} \n"
+                            f"scope-train --tag {tag} --algorithm {algorithm} --path_dataset {path_dataset} --pre_trained_model models/{pre_trained_group_name}/{tag}/{most_recent_file} --period_suffix {period_suffix} --verbose {add_keywords} \n"
                         )
 
                     elif train_all:
                         script.writelines(
-                            f"scope-train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --period_suffix={period_suffix} --verbose {add_keywords} \n"
+                            f"scope-train --tag {tag} --algorithm {algorithm} --path_dataset {path_dataset} --period_suffix {period_suffix} --verbose {add_keywords} \n"
                         )
 
             else:
                 script.write("# Phenomenological\n")
                 script.writelines(
                     [
-                        f"scope-train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --period_suffix={period_suffix} --verbose {add_keywords} \n"
+                        f"scope-train --tag {tag} --algorithm {algorithm} --path_dataset {path_dataset} --period_suffix {period_suffix} --verbose {add_keywords} \n"
                         for tag in phenom_tags
                     ]
                 )
                 script.write("# Ontological\n")
                 script.writelines(
                     [
-                        f"scope-train --tag={tag} --algorithm={algorithm} --path_dataset={path_dataset} --period_suffix={period_suffix} --verbose {add_keywords} \n"
+                        f"scope-train --tag {tag} --algorithm {algorithm} --path_dataset {path_dataset} --period_suffix {period_suffix} --verbose {add_keywords} \n"
                         for tag in ontol_tags
                     ]
                 )
@@ -1728,7 +1660,7 @@ class Scope:
             help="name of directory to save training stats",
         )
 
-        args = parser.parse_args()
+        args, _ = parser.parse_known_args()
         self.assemble_training_stats(**vars(args))
 
     def assemble_training_stats(
@@ -1848,7 +1780,7 @@ class Scope:
             help="suffix of period/Fourier features to use for training",
         )
 
-        args = parser.parse_args()
+        args, _ = parser.parse_known_args()
         self.create_inference_script(**vars(args))
 
     def create_inference_script(
@@ -2228,7 +2160,7 @@ class Scope:
             help="if set, ignore min_class_examples and run for all sources",
         )
 
-        args = parser.parse_args()
+        args, _ = parser.parse_known_args()
         self.select_fritz_sample(**vars(args))
 
     def select_fritz_sample(
@@ -2589,9 +2521,7 @@ class Scope:
 
         # create a mock dataset and check that the training pipeline works
         dataset = f"{uuid.uuid4().hex}_orig.csv"
-        path_mock = (
-            pathlib.Path(__file__).parent.parent.absolute() / "data" / "training"
-        )
+        path_mock = self.base_path / "data" / "training"
         group_mock = "scope_test_limited"
 
         try:
@@ -2668,7 +2598,7 @@ class Scope:
                         group=group_mock,
                     )
                     path_model = (
-                        pathlib.Path(__file__).parent.parent.absolute()
+                        self.base_path
                         / f"models_{algorithm}"
                         / group_mock
                         / tag
@@ -2728,7 +2658,7 @@ class Scope:
             )
 
             path_gen_features = (
-                pathlib.Path(__file__).parent.parent.absolute()
+                self.base_path
                 / test_feature_directory
                 / f"field_{test_field}"
                 / f"{test_feature_filename}_field_{test_field}_ccd_{test_ccd}_quad_{test_quad}.parquet"
@@ -2786,9 +2716,7 @@ class Scope:
         # create a mock dataset and check that the training pipeline works
         dataset_orig = f"{uuid.uuid4().hex}_orig.csv"
         dataset = f"{uuid.uuid4().hex}.csv"
-        path_mock = (
-            pathlib.Path(__file__).parent.parent.absolute() / "data" / "training"
-        )
+        path_mock = self.base_path / "data" / "training"
         group_mock = "scope_test"
 
         try:
@@ -2894,7 +2822,7 @@ class Scope:
                         group=group_mock,
                     )
                     path_model = (
-                        pathlib.Path(__file__).parent.parent.absolute()
+                        self.base_path
                         / f"models_{algorithm}"
                         / group_mock
                         / tag
@@ -2923,7 +2851,7 @@ class Scope:
                         group=group_mock,
                     )
                     path_model = (
-                        pathlib.Path(__file__).parent.parent.absolute()
+                        self.base_path
                         / f"models_{algorithm}"
                         / group_mock
                         / tag
