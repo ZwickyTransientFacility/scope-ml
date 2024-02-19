@@ -2,17 +2,13 @@
 import pandas as pd
 import os
 import pathlib
-import yaml
 import argparse
 import numpy as np
 import json
-from scope.utils import read_parquet, write_parquet
+from scope.utils import read_parquet, write_parquet, parse_load_config
 
-BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
-
-config_path = BASE_DIR / "config.yaml"
-with open(config_path) as config_yaml:
-    config = yaml.load(config_yaml, Loader=yaml.FullLoader)
+BASE_DIR = pathlib.Path.cwd()
+config = parse_load_config()
 
 try:
     DEFAULT_PREDS_PATH = pathlib.Path(config['inference']['path_to_preds'])
@@ -179,7 +175,7 @@ def combine_preds(
     return preds_to_save
 
 
-if __name__ == "__main__":
+def get_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--path_to_preds",
@@ -249,7 +245,13 @@ if __name__ == "__main__":
         default=0.7,
         help="Minimum probability to add classification to metadata file",
     )
-    args = parser.parse_args()
+
+    return parser
+
+
+def main():
+    parser = get_parser()
+    args, _ = parser.parse_known_args()
 
     combine_preds(
         path_to_preds=args.path_to_preds,
