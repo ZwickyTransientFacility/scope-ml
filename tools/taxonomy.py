@@ -47,7 +47,7 @@ def post_taxonomy(
     """
 
     # Read .yaml file and check other arguments
-    if type(taxonomy) == str:
+    if taxonomy.isinstance(str):
         with open(taxonomy) as taxonomy_yaml:
             tax = yaml.load(taxonomy_yaml, Loader=yaml.FullLoader)
         if (name is None) | (version is None) | (provenance is None):

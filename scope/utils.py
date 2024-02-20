@@ -1247,18 +1247,6 @@ class Dataset(object):
                     self.df_ds[feature] = (self.df_ds[feature] - stats["min"]) / (
                         stats["max"] - stats["min"]
                     )
-        # norms = {
-        #     feature: np.linalg.norm(self.df_ds.loc[ds_indexes, feature])
-        #     for feature in self.features
-        # }
-        # for feature, norm in norms.items():
-        #     if np.isnan(norm) or norm == 0.0:
-        #         norms[feature] = 1.0
-        # if self.verbose:
-        #     print('Computed feature norms:\n', norms)
-        #
-        # for feature, norm in norms.items():
-        #     self.df_ds[feature] /= norm
 
         # Convert float64 to float32 to satisfy tensorflow requirements
         float_type_dict = {16: np.float16, 32: np.float32, 64: np.float64}
@@ -1266,10 +1254,10 @@ class Dataset(object):
 
         # float_init, float_final = float_convert_types[0], float_convert_types[1]
 
-        self.df_ds[
-            self.df_ds.select_dtypes(float_type_dict[float_init]).columns
-        ] = self.df_ds.select_dtypes(float_type_dict[float_init]).astype(
-            float_type_dict[float_final]
+        self.df_ds[self.df_ds.select_dtypes(float_type_dict[float_init]).columns] = (
+            self.df_ds.select_dtypes(float_type_dict[float_init]).astype(
+                float_type_dict[float_final]
+            )
         )
 
         train_dataset = tf.data.Dataset.from_tensor_slices(
@@ -1339,9 +1327,9 @@ class Dataset(object):
             "train": np.array(train_indexes),
             "val": np.array(val_indexes),
             "test": np.array(test_indexes),
-            "dropped_samples": np.array(index_dropped.to_list())
-            if index_dropped is not None
-            else None,
+            "dropped_samples": (
+                np.array(index_dropped.to_list()) if index_dropped is not None else None
+            ),
         }
 
         # How many steps per epoch?

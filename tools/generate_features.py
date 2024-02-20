@@ -508,7 +508,7 @@ def generate_features(
     start_dt = utcnow.strftime("%Y-%m-%d %H:%M:%S")
 
     # Select period algorithms from config based on CPU or GPU specification
-    if type(period_algorithms) == dict:
+    if period_algorithms.isinstance(dict):
         if doCPU:
             period_algorithms = period_algorithms['CPU']
         elif doGPU:
