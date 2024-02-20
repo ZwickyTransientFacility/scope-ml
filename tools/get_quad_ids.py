@@ -129,9 +129,9 @@ def get_ids_loop(
     lst = []
     save_individual = (save) & (not whole_field)
 
-    if ccd_range.isinstance(int):
+    if isinstance(ccd_range, int):
         ccd_range = [ccd_range, ccd_range]
-    if quad_range.isinstance(int):
+    if isinstance(quad_range, int):
         quad_range = [quad_range, quad_range]
 
     for ccd in range(ccd_range[0], ccd_range[1] + 1):
@@ -531,11 +531,11 @@ def main():
 
     else:
         # Handle different types of input for ccd/quad_range
-        if args.ccd_range.isinstance(list):
+        if isinstance(args.ccd_range, list):
             ccd = args.ccd_range[0]
         else:
             ccd = args.ccd_range
-        if args.quad_range.isinstance(list):
+        if isinstance(args.quad_range, list):
             quad = args.quad_range[0]
         else:
             quad = args.quad_range

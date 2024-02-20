@@ -518,7 +518,7 @@ def main():
         iter_dct[field] = default_file
 
     for k, v in iter_dct.items():
-        if k.isinstance(tuple):
+        if isinstance(k, tuple):
             ccd_quad = k
             print(f'Getting features for ccd {ccd_quad[0]} quad {ccd_quad[1]}...')
         else:

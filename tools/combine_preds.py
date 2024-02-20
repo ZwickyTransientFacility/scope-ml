@@ -56,7 +56,7 @@ def combine_preds(
             "Please specify only one of --use_config_fields and --dateobs."
         )
 
-    if path_to_preds.isinstance(str):
+    if isinstance(path_to_preds, str):
         path_to_preds = pathlib.Path(path_to_preds)
 
     if specific_field is not None:

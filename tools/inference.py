@@ -447,7 +447,7 @@ def run_inference(
         )
 
         # Get feature stats using training set for scaling consistency
-        if trainingSet.isinstance(str):
+        if isinstance(trainingSet, str):
             if (trainingSet == 'use_config') & (len(TRAINING_SET) > 0):
                 trainingSet = TRAINING_SET
             else:
