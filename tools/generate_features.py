@@ -548,7 +548,6 @@ def generate_features(
             # Each index of lst corresponds to a different ccd/quad combo
             feature_gen_source_dict = drop_close_bright_stars(
                 lst[0],
-                kowalski_instances=kowalski_instances,
                 catalog=gaia_catalog,
                 query_radius_arcsec=bright_star_query_radius_arcsec,
                 xmatch_radius_arcsec=xmatch_radius_arcsec,
@@ -639,7 +638,6 @@ def generate_features(
             # Each index of lst corresponds to a different ccd/quad combo
             feature_gen_source_dict = drop_close_bright_stars(
                 lst[0],
-                kowalski_instances=kowalski_instances,
                 catalog=gaia_catalog,
                 query_radius_arcsec=bright_star_query_radius_arcsec,
                 xmatch_radius_arcsec=xmatch_radius_arcsec,
@@ -1074,7 +1072,8 @@ def generate_features(
         # Get ZTF alert stats
         alert_stats_dct = alertstats.get_ztf_alert_stats(
             feature_dict,
-            kowalski_instances=kowalski_instances,
+            kowalski_instances,
+            catalog=alerts_catalog,
             radius_arcsec=xmatch_radius_arcsec,
             limit=limit,
             Ncore=Ncore,
@@ -1089,7 +1088,7 @@ def generate_features(
         feature_dict = external_xmatch.xmatch(
             feature_dict,
             kowalski_instances,
-            catalog_info=ext_catalog_info,
+            ext_catalog_info,
             radius_arcsec=xmatch_radius_arcsec,
             limit=limit,
             Ncore=Ncore,
