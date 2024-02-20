@@ -57,7 +57,7 @@ def download_gcn_sources(
     group_ids: list = [],
     days_range: float = 7.0,
     radius_arcsec: float = 0.5,
-    save_filename: str = 'tools/fritzDownload/specific_ids_GCN_sources',
+    save_filename: str = 'fritzDownload/specific_ids_GCN_sources',
 ):
     """
     Download sources for a GCN event from Fritz (with intent to generate features/run inference on these sources)
@@ -175,27 +175,27 @@ def get_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument("--dateobs", type=str, help="unique dateObs of GCN event")
     parser.add_argument(
-        "--group_ids",
+        "--group-ids",
         type=int,
         nargs='+',
         help="group ids to query sources (all if not specified)",
     )
     parser.add_argument(
-        "--days_range",
+        "--days-range",
         type=float,
         default=7.0,
         help="max days past event to search for sources",
     )
     parser.add_argument(
-        "--radius_arcsec",
+        "--radius-arcsec",
         type=float,
         default=0.5,
         help="radius around new sources to search for existing ZTF sources",
     )
     parser.add_argument(
-        "--save_filename",
+        "--save-filename",
         type=str,
-        default='tools/fritzDownload/specific_ids_GCN_sources',
+        default='fritzDownload/specific_ids_GCN_sources',
         help="filename to save source ids/coordinates",
     )
 

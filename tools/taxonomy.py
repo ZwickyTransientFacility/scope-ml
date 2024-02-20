@@ -101,7 +101,7 @@ def get_parser():
         help="path to yaml file with taxonomy in tdtax format, or imported taxonomy module",
     )
     parser.add_argument(
-        "--group_ids",
+        "--group-ids",
         type=int,
         nargs='+',
         help="ids of groups on Fritz to post taxonomy to (all if not specified).",

@@ -35,9 +35,18 @@ def combine_preds(
     """
     Combine DNN and XGB preds for ingestion into Kowalski
 
+    :param path_to_preds: path to directories of existing and combined preds (str)
     :param combined_preds_dirname: directory name to use for combined preds (str)
     :param specific_field: number of specific field to run (str, useful for testing)
-    :param save: if True, save combined preds (bool, useful for testing)
+    :param use_config_fields: if set, use fields stored in the inference:fields_to_run part of config.yaml (bool
+    :param dateobs: GCN dateobs if not running on field/fields (str)
+    :param merge_dnn_xgb: if set, combine dnn and xgb classifications instead of keeping separate (bool)
+    :param dnn_directory: dirname in which dnn preds are saved (str)
+    :param xgb_directory: dirname in which xgb preds are saved (str)
+    :param save: if set, save combined preds (bool, useful for testing)
+    :param write_csv: if set, save CSV file in addition to parquet (bool)
+    :param agg_method: Aggregation method for classification probabilities, 'mean' or 'max' (str)
+    :param p_threshold: Minimum probability to add classification to metadata file (float)
 
     """
     if (specific_field is not None) & (dateobs is not None):
@@ -178,25 +187,25 @@ def combine_preds(
 def get_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--path_to_preds",
+        "--path-to-preds",
         type=pathlib.PosixPath,
         default=DEFAULT_PREDS_PATH,
         help="path to directories of existing and combined preds",
     )
     parser.add_argument(
-        "--combined_preds_dirname",
+        "--combined-preds-dirname",
         type=str,
         default='preds_dnn_xgb',
         help="dirname in which to save combined preds",
     )
     parser.add_argument(
-        "--specific_field",
+        "--specific-field",
         type=str,
         default=None,
         help="specific field to combine preds (useful for testing)",
     )
     parser.add_argument(
-        "--use_config_fields",
+        "--use-config-fields",
         action='store_true',
         help="if set, use fields stored in the inference:fields_to_run part of config.yaml",
     )
@@ -207,18 +216,18 @@ def get_parser():
         help="GCN dateobs if not running on field/fields",
     )
     parser.add_argument(
-        "--merge_dnn_xgb",
+        "--merge-dnn-xgb",
         action='store_true',
         help="if set, combine dnn and xgb classifications instead of keeping separate",
     )
     parser.add_argument(
-        "--dnn_directory",
+        "--dnn-directory",
         type=str,
         default='preds_dnn',
         help="dirname in which dnn preds are saved",
     )
     parser.add_argument(
-        "--xgb_directory",
+        "--xgb-directory",
         type=str,
         default='preds_xgb',
         help="dirname in which xgb preds preds are saved",
@@ -229,18 +238,18 @@ def get_parser():
         help="if set, do not save results (useful for testing)",
     )
     parser.add_argument(
-        "--write_csv",
+        "--write-csv",
         action='store_true',
         help="if set, save CSV file in addition to parquet",
     )
     parser.add_argument(
-        "--agg_method",
+        "--agg-method",
         type=str,
         default='mean',
         help="Aggregation method for classification probabilities (mean or max)",
     )
     parser.add_argument(
-        "--p_threshold",
+        "--p-threshold",
         type=float,
         default=0.7,
         help="Minimum probability to add classification to metadata file",

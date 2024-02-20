@@ -67,7 +67,6 @@ def check_quads_for_sources(
     Check ZTF field/ccd/quadrant combos for any sources. By default, lists any quadrants that have at least one source.
 
     :param fields: list of integer field numbers to query (list)
-    :param kowalski_instance_name: name of kowalski instance to query (str)
     :param catalog: name of source catalog to query (str)
     :param count_sources: if set, count number of sources per quad and return (bool)
     :param minobs: minimum number of observations needed to count a source (int)
@@ -182,25 +181,25 @@ def get_slurm_parser():
     fg_parser = get_parser(add_help=False)
     parser = argparse.ArgumentParser(parents=[fg_parser])
     parser.add_argument(
-        "--job_name",
+        "--job-name",
         type=str,
         default='ztf_fg',
         help="job name",
     )
     parser.add_argument(
-        "--cluster_name",
+        "--cluster-name",
         type=str,
         default='Expanse',
         help="Name of HPC cluster",
     )
     parser.add_argument(
-        "--partition_type",
+        "--partition-type",
         type=str,
         default='gpu-shared',
         help="Partition name to request for computing",
     )
     parser.add_argument(
-        "--submit_partition_type",
+        "--submit-partition-type",
         type=str,
         default='shared',
         help="Partition name to request for job submission",
@@ -218,13 +217,13 @@ def get_slurm_parser():
         help="Number of GPUs to request",
     )
     parser.add_argument(
-        "--memory_GB",
+        "--memory-GB",
         type=int,
         default=180,
         help="Memory allocation to request for computing",
     )
     parser.add_argument(
-        "--submit_memory_GB",
+        "--submit-memory-GB",
         type=int,
         default=16,
         help="Memory allocation to request for job submission",
@@ -236,19 +235,19 @@ def get_slurm_parser():
         help="Walltime for instance",
     )
     parser.add_argument(
-        "--mail_user",
+        "--mail-user",
         type=str,
         default='healyb@umn.edu',
         help="contact email address",
     )
     parser.add_argument(
-        "--account_name",
+        "--account-name",
         type=str,
         default='umn131',
         help="Name of account with current HPC allocation",
     )
     parser.add_argument(
-        "--python_env_name",
+        "--python-env-name",
         type=str,
         default='scope-env',
         help="Name of python environment to activate",
@@ -260,20 +259,20 @@ def get_slurm_parser():
         help="if set, generate a list of fields/ccd/quads and job numbers, save to slurm.dat",
     )
     parser.add_argument(
-        "--field_list",
+        "--field-list",
         type=int,
         nargs='+',
         default=None,
         help="space-separated list of fields for which to generate quadrant file. If None, all populated fields included.",
     )
     parser.add_argument(
-        "--max_instances",
+        "--max-instances",
         type=int,
         default=20,
         help="Max number of instances to run in parallel",
     )
     parser.add_argument(
-        "--wait_time_minutes",
+        "--wait-time-minutes",
         type=float,
         default=5.0,
         help="Time to wait between job status checks",
@@ -297,10 +296,10 @@ def get_slurm_parser():
         help="HPC username",
     )
     parser.add_argument(
-        "--submit_interval_minutes",
+        "--submit-interval-minutes",
         type=float,
         default=1.0,
-        help="Time to wait between job submissions (minutes)",
+        help="Time to wait between job submissions, minutes",
     )
 
     return parser
@@ -362,7 +361,7 @@ def main():
     if doNotSave:
         extra_flags.append("--doNotSave")
     if stop_early:
-        extra_flags.append("--stop_early")
+        extra_flags.append("--stop-early")
     if doSpecificIDs:
         extra_flags.append("--doSpecificIDs")
     if skipCloseSources:
@@ -432,7 +431,7 @@ def main():
         if args.quadrant_index is not None:
             qid = args.quadrant_index
         fid.write(
-            'generate-features --source_catalog %s --alerts_catalog %s --gaia_catalog %s --bright_star_query_radius_arcsec %s --xmatch_radius_arcsec %s --query_size_limit %s --period_batch_size %s --samples_per_peak %s --Ncore %s --min_n_lc_points %s --min_cadence_minutes %s --dirname %s --filename %s --top_n_periods %s --max_freq %s --max_timestamp_hjd %s --doQuadrantFile --quadrant_file %s --quadrant_index %s %s %s\n'
+            'generate-features --source-catalog %s --alerts-catalog %s --gaia-catalog %s --bright-star-query-radius-arcsec %s --xmatch-radius-arcsec %s --query-size-limit %s --period-batch-size %s --samples-per-peak %s --Ncore %s --min-n-lc-points %s --min-cadence-minutes %s --dirname %s --filename %s --top-n-periods %s --max-freq %s --max-timestamp-hjd %s --doQuadrantFile --quadrant-file %s --quadrant-index %s %s %s\n'
             % (
                 source_catalog,
                 alerts_catalog,
@@ -458,7 +457,7 @@ def main():
         )
     else:
         fid.write(
-            'generate-features --source_catalog %s --alerts_catalog %s --gaia_catalog %s --bright_star_query_radius_arcsec %s --xmatch_radius_arcsec %s --query_size_limit %s --period_batch_size %s --samples_per_peak %s --Ncore %s --field %s --ccd %s --quad %s --min_n_lc_points %s --min_cadence_minutes %s --dirname %s --filename %s --top_n_periods %s --max_freq %s --max_timestamp_hjd %s %s %s\n'
+            'generate-features --source-catalog %s --alerts-catalog %s --gaia-catalog %s --bright-star-query-radius-arcsec %s --xmatch-radius-arcsec %s --query-size-limit %s --period-batch-size %s --samples-per-peak %s --Ncore %s --field %s --ccd %s --quad %s --min-n-lc-points %s --min-cadence-minutes %s --dirname %s --filename %s --top-n-periods %s --max-freq %s --max-timestamp-hjd %s %s %s\n'
             % (
                 source_catalog,
                 alerts_catalog,
@@ -507,7 +506,7 @@ def main():
     if not args.doSubmitLoop:
         if args.runParallel:
             fid.write(
-                'generate-features-job-submission --dirname %s --filename %s --doSubmit --runParallel --max_instances %s --wait_time_minutes %s --user %s --submit_interval_minutes %s\n'
+                'generate-features-job-submission --dirname %s --filename %s --doSubmit --runParallel --max-instances %s --wait-time-minutes %s --user %s --submit-interval-minutes %s\n'
                 % (
                     dirpath,
                     filename,
@@ -519,7 +518,7 @@ def main():
             )
         else:
             fid.write(
-                'generate-features-job-submission --dirname %s --filename %s --doSubmit --max_instances %s --wait_time_minutes %s --user %s --submit_interval_minutes %s\n'
+                'generate-features-job-submission --dirname %s --filename %s --doSubmit --max-instances %s --wait-time-minutes %s --user %s --submit-interval-minutes %s\n'
                 % (
                     dirpath,
                     filename,

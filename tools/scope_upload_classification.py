@@ -155,13 +155,12 @@ def make_phot_plot(
 
 def upload_classification(
     file: str,
-    kowalski_instances: Kowalski,
     group_ids: list,
     classification: list,
     taxonomy_map: str,
-    comment: str,
-    start: int,
-    stop: int,
+    comment: str = None,
+    start: int = None,
+    stop: int = None,
     classification_origin: str = 'SCoPe',
     post_survey_id: bool = False,
     survey_id_origin: str = 'SCoPe_xmatch',
@@ -186,7 +185,6 @@ def upload_classification(
     """
     Upload labels to Fritz
     :param file: path to .csv, .h5 or .parquet file containing labels (str)
-    :param kowalski_instances: authenticated kowalski instances (penquins.Kowalski)
     :param group_ids: list of group ids on Fritz for upload target location [int, int, ...]
     :param classification: list of classifications [str, str, ...]
     :param taxonomy_map: if classification is ['read'], path to JSON file containing taxonomy mapping (str)
@@ -732,14 +730,14 @@ def upload_classification(
 def get_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument("--file", help="dataset with .csv, .h5 or .parquet extension")
-    parser.add_argument("--group_ids", type=int, nargs='+', help="list of group ids")
+    parser.add_argument("--group-ids", type=int, nargs='+', help="list of group ids")
 
     # parser.add_argument("-classification", type=str, help="name of object class")
     parser.add_argument(
         "--classification", type=str, nargs='+', help="list of object classes"
     )
     parser.add_argument(
-        "--taxonomy_map",
+        "--taxonomy-map",
         type=str,
         help="JSON file mapping between origin labels and Fritz taxonomy",
     )
@@ -755,13 +753,13 @@ def get_parser():
         help="Index to stop uploading (inclusive)",
     )
     parser.add_argument(
-        "--classification_origin",
+        "--classification-origin",
         type=str,
         default='SCoPe',
         help="origin of classifications",
     )
     parser.add_argument(
-        "--skip_phot",
+        "--skip-phot",
         type=bool,
         nargs='?',
         default=False,
@@ -769,108 +767,108 @@ def get_parser():
         help="Skip photometry upload, only post groups and classifications.",
     )
     parser.add_argument(
-        "--post_survey_id",
+        "--post-survey-id",
         action='store_true',
         help="If set, post survey_id from input dataset.",
     )
     parser.add_argument(
-        "--survey_id_origin",
+        "--survey-id-origin",
         type=str,
         default='SCoPe_xmatch',
         help="Annotation origin for survey ID",
     )
     parser.add_argument(
-        "--p_threshold",
+        "--p-threshold",
         type=float,
         default=0.0,
         help="Classification probability >= this number to upload",
     )
     parser.add_argument(
-        "--match_ids",
+        "--match-ids",
         action='store_true',
         default=False,
         help="If set, match input and existing sources using ZTF source IDs.",
     )
     parser.add_argument(
-        "--use_existing_obj_id",
+        "--use-existing-obj-id",
         action='store_true',
         default=False,
         help="If set, source obj_id from input dataset.",
     )
     parser.add_argument(
-        "--post_upvote",
+        "--post-upvote",
         action='store_true',
         default=False,
         help="If set, post upvote to new classifications.",
     )
     parser.add_argument(
-        "--check_labelled_box",
+        "--check-labelled-box",
         action='store_true',
         default=False,
         help="If set, check 'labelled' box for source.",
     )
     parser.add_argument(
-        "--write_obj_id",
+        "--write-obj-id",
         action='store_true',
         default=False,
         help="If set, write obj_ids corresponding to each uploaded source.",
     )
     parser.add_argument(
-        "--result_dir",
+        "--result-dir",
         type=str,
         default='fritzUpload',
         help="Directory to save upload results",
     )
     parser.add_argument(
-        "--result_filetag",
+        "--result-filetag",
         type=str,
         default='fritzUpload',
         help="Directory to save upload results",
     )
     parser.add_argument(
-        "--result_format",
+        "--result-format",
         type=str,
         default='parquet',
         help="Format of result file: parquet, h5 or csv",
     )
     parser.add_argument(
-        "--replace_classifications",
+        "--replace-classifications",
         action='store_true',
         default=False,
         help="If set, delete each object's existing classifications before posting new ones.",
     )
     parser.add_argument(
-        "--radius_arcsec",
+        "--radius-arcsec",
         type=float,
         default=2.0,
         help="Photometry search radius for uploaded sources",
     )
     parser.add_argument(
-        "--no_ml",
+        "--no-ml",
         action='store_true',
         default=False,
         help="If set, posted classifications are not noted to originate from an ML classifier.",
     )
     parser.add_argument(
-        "--post_phot_as_comment",
+        "--post-phot-as-comment",
         action='store_true',
         default=False,
         help="If set, post photometry plot as a comment on the source.",
     )
     parser.add_argument(
-        "--post_phasefolded_phot",
+        "--post-phasefolded-phot",
         action='store_true',
         default=False,
         help="if set, post phase-folded photometry as comment in addition to time series",
     )
     parser.add_argument(
-        "--phot_dirname",
+        "--phot-dirname",
         type=str,
         default='phot_plots',
         help="Name of directory in which to save photometry plots",
     )
     parser.add_argument(
-        "--instrument_name",
+        "--instrument-name",
         type=str,
         default='ZTF',
         help="Name of instrument used for observations",
@@ -884,32 +882,31 @@ def main():
 
     # upload classification objects
     upload_classification(
-        args.file,
-        kowalski_instances,
-        args.group_ids,
-        args.classification,
-        args.taxonomy_map,
-        args.comment,
-        args.start,
-        args.stop,
-        args.classification_origin,
-        args.post_survey_id,
-        args.survey_id_origin,
-        args.skip_phot,
-        args.p_threshold,
-        args.match_ids,
-        args.use_existing_obj_id,
-        args.post_upvote,
-        args.check_labelled_box,
-        args.write_obj_id,
-        args.result_dir,
-        args.result_filetag,
-        args.result_format,
-        args.replace_classifications,
-        args.radius_arcsec,
-        args.no_ml,
-        args.post_phot_as_comment,
-        args.post_phasefolded_phot,
-        args.phot_dirname,
-        args.instrument_name,
+        file=args.file,
+        group_ids=args.group_ids,
+        classification=args.classification,
+        taxonomy_map=args.taxonomy_map,
+        comment=args.comment,
+        start=args.start,
+        stop=args.stop,
+        classification_origin=args.classification_origin,
+        post_survey_id=args.post_survey_id,
+        survey_id_origin=args.survey_id_origin,
+        skip_phot=args.skip_phot,
+        p_threshold=args.p_threshold,
+        match_ids=args.match_ids,
+        use_existing_obj_id=args.use_existing_obj_id,
+        post_upvote=args.post_upvote,
+        check_labelled_box=args.check_labelled_box,
+        write_obj_id=args.write_obj_id,
+        result_dir=args.result_dir,
+        result_filetag=args.result_filetag,
+        result_format=args.result_format,
+        replace_classifications=args.replace_classifications,
+        radius_arcsec=args.radius_arcsec,
+        no_ml=args.no_ml,
+        post_phot_as_comment=args.post_phot_as_comment,
+        post_phasefolded_phot=args.post_phasefolded_phot,
+        phot_dirname=args.phot_dirname,
+        instrument_name=args.instrument_name,
     )

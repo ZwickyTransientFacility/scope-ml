@@ -745,12 +745,12 @@ def get_parser():
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--file", type=str, default='parse', help="dataset")
-    parser.add_argument("--group_ids", type=int, nargs='+', help="list of group ids")
+    parser.add_argument("--group-ids", type=int, nargs='+', help="list of group ids")
     parser.add_argument(
         "--start", type=int, default=0, help="start page/index for continued download"
     )
     parser.add_argument(
-        "--merge_features",
+        "--merge-features",
         type=bool,
         nargs='?',
         const=True,
@@ -758,77 +758,77 @@ def get_parser():
         help="merge downloaded results with features from Kowalski",
     )
     parser.add_argument(
-        "--features_catalog",
+        "--features-catalog",
         type=str,
         default=features_catalog,
         help="catalog of features on Kowalski",
     )
 
     parser.add_argument(
-        "--features_limit",
+        "--features-limit",
         type=int,
         default=1000,
         help="Maximum number of sources queried for features per loop",
     )
 
     parser.add_argument(
-        "--taxonomy_map",
+        "--taxonomy-map",
         type=str,
         default='golden_dataset_mapper.json',
         help="JSON file mapping between origin labels and Fritz taxonomy",
     )
 
     parser.add_argument(
-        "--output_dir",
+        "--output-dir",
         type=str,
         default='fritzDownload',
         help="Name of directory to save downloaded file",
     )
 
     parser.add_argument(
-        "--output_filename",
+        "--output-filename",
         type=str,
         default='merged_classifications_features',
         help="Name of output file containing merged classifications and features",
     )
 
     parser.add_argument(
-        "--output_format",
+        "--output-format",
         type=str,
         default='parquet',
         help="Format of output file: parquet, h5 or csv",
     )
 
     parser.add_argument(
-        "--get_ztf_filters",
+        "--get-ztf-filters",
         action='store_true',
         default=False,
         help="add ZTF filter ID to default features",
     )
 
     parser.add_argument(
-        "--impute_missing_features",
+        "--impute-missing-features",
         action='store_true',
         default=False,
         help="impute missing features using strategy specified by config",
     )
 
     parser.add_argument(
-        "--update_training_set",
+        "--update-training-set",
         action='store_true',
         default=False,
         help="if downloading an active learning sample, update the training set with the new classification based on votes",
     )
 
     parser.add_argument(
-        "--updated_training_set_prefix",
+        "--updated-training-set-prefix",
         type=str,
         default='updated_AL',
         help="Prefix to add to updated trainingset file",
     )
 
     parser.add_argument(
-        "--min_vote_diff",
+        "--min-vote-diff",
         type=int,
         default=1,
         help="Minimum number of net votes (upvotes - downvotes) to keep an active learning classification. Caution: if zero, all classifications of reviewed sources will be added",

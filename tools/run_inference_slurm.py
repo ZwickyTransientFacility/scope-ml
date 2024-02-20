@@ -32,25 +32,25 @@ def get_parser():
         help="Directory name for slurm scripts/logs",
     )
     parser.add_argument(
-        "--job_name",
+        "--job-name",
         type=str,
         default='run_inference',
         help="job name",
     )
     parser.add_argument(
-        "--cluster_name",
+        "--cluster-name",
         type=str,
         default='Expanse',
         help="Name of HPC cluster",
     )
     parser.add_argument(
-        "--partition_type",
+        "--partition-type",
         type=str,
         default='gpu-shared',
         help="Partition name to request for computing",
     )
     parser.add_argument(
-        "--submit_partition_type",
+        "--submit-partition-type",
         type=str,
         default='shared',
         help="Partition name to request for job submission",
@@ -68,13 +68,13 @@ def get_parser():
         help="number of cores to request for computing",
     )
     parser.add_argument(
-        "--submit_nodes",
+        "--submit-nodes",
         type=int,
         default=1,
         help="Number of nodes to request for job submission",
     )
     parser.add_argument(
-        "--submit_Ncore",
+        "--submit-Ncore",
         default=1,
         type=int,
         help="number of cores to request for job submission",
@@ -86,13 +86,13 @@ def get_parser():
         help="Number of GPUs to request",
     )
     parser.add_argument(
-        "--memory_GB",
+        "--memory-GB",
         type=int,
         default=64,
         help="Memory allocation to request for computing",
     )
     parser.add_argument(
-        "--submit_memory_GB",
+        "--submit-memory-GB",
         type=int,
         default=16,
         help="Memory allocation to request for job submission",
@@ -104,19 +104,19 @@ def get_parser():
         help="Walltime for instance",
     )
     parser.add_argument(
-        "--mail_user",
+        "--mail-user",
         type=str,
         default='healyb@umn.edu',
         help="contact email address",
     )
     parser.add_argument(
-        "--account_name",
+        "--account-name",
         type=str,
         default='umn131',
         help="Name of account with current HPC allocation",
     )
     parser.add_argument(
-        "--python_env_name",
+        "--python-env-name",
         type=str,
         default='scope-env',
         help="Name of python environment to activate",

@@ -41,19 +41,19 @@ def get_parser():
         help="HPC username",
     )
     parser.add_argument(
-        "--max_instances",
+        "--max-instances",
         type=int,
         default=100,
         help="Max number of instances to run in parallel",
     )
     parser.add_argument(
-        "--wait_time_minutes",
+        "--wait-time-minutes",
         type=float,
         default=5.0,
         help="Time to wait between job status checks (minutes)",
     )
     parser.add_argument(
-        "--submit_interval_seconds",
+        "--submit-interval-seconds",
         type=float,
         default=5.0,
         help="Time to wait between job submissions (seconds)",
@@ -65,16 +65,16 @@ def get_parser():
         help="If set, job submission runs filter_completed in different directory",
     )
     parser.add_argument(
-        "--reset_running",
+        "--reset-running",
         action='store_true',
         default=False,
         help="If set, reset the 'running' status of all tags",
     )
     parser.add_argument(
-        "--group_name",
+        "--group-name",
         type=str,
         default=None,
-        help="Group name (if different from name in train_script)",
+        help="Group name (if different from name in training script)",
     )
 
     return parser

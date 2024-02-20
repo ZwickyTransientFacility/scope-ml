@@ -43,16 +43,16 @@ def get_parser():
         "--doSubmit",
         action="store_true",
         default=False,
-        help="If set, start jobs with limits specified by --max_instances and --wait_time_minutes",
+        help="If set, start jobs with limits specified by --max-instances and --wait-time-minutes",
     )
     parser.add_argument(
-        "--max_instances",
+        "--max-instances",
         type=int,
         default=20,
         help="Max number of instances to run in parallel",
     )
     parser.add_argument(
-        "--wait_time_minutes",
+        "--wait-time-minutes",
         type=float,
         default=5.0,
         help="Time to wait between job status checks",
@@ -76,13 +76,13 @@ def get_parser():
         help="HPC username",
     )
     parser.add_argument(
-        "--reset_running",
+        "--reset-running",
         action='store_true',
         default=False,
         help="If set, reset the 'running' status of all tags",
     )
     parser.add_argument(
-        "--submit_interval_minutes",
+        "--submit-interval-minutes",
         type=float,
         default=1.0,
         help="Time to wait between job submissions (minutes)",
@@ -324,7 +324,7 @@ def main():
                 status_njobs = njobs
                 counter = running_jobs_count
                 # Note that if a job has failed, it will not be re-queued until
-                # its quadrant's .running file is removed (or set --reset_running)
+                # its quadrant's .running file is removed (or set --reset-running)
 
                 # Define size of the next quadrant_indices array
                 size = np.min([new_max_instances - counter, nchoice])

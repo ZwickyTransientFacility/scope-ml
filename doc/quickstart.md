@@ -12,7 +12,7 @@ When running scripts, `scope` will by default use the `config.yaml` file in your
 Train an XGBoost binary classifier using the following code:
 
 ```
-scope-train --tag=vnv --algorithm=xgb --group=ss23 --period_suffix=ELS_ECE_EAOV --epochs=30 --verbose --save --plot --skip_cv
+scope-train --tag vnv --algorithm xgb --group ss23 --period-suffix ELS_ECE_EAOV --epochs 30 --verbose --save --plot --skip-cv
 ```
 
 ### Arguments:
@@ -22,16 +22,16 @@ scope-train --tag=vnv --algorithm=xgb --group=ss23 --period_suffix=ELS_ECE_EAOV 
 
 `--group`: if `--save` is passed, training results are saved to the group/directory named here.
 
-`--period_suffix`: SCoPe determines light curve periods using GPU-accelerated algorithms. These algorithms include a Lomb-Scargle approach (ELS), Conditional Entropy (ECE), Analysis of Variance (AOV), and an approach nesting all three (ELS_ECE_EAOV). Periodic features are stored with the suffix specified here.
+`--period-suffix`: SCoPe determines light curve periods using GPU-accelerated algorithms. These algorithms include a Lomb-Scargle approach (ELS), Conditional Entropy (ECE), Analysis of Variance (AOV), and an approach nesting all three (ELS_ECE_EAOV). Periodic features are stored with the suffix specified here.
 
-`--min_count`: requires at least min_count positive examples to run training.
+`--min-count`: requires at least min_count positive examples to run training.
 
 `--epochs`: neural network training takes an --epochs argument that is set to 30 here.
 
 ***Notes:***
-- *The above training runs the XGB algorithm by default and skips cross-validation in the interest of time. For a full run, you can remove the `--skip_cv` argument to run a cross-validated grid search of XGB hyperparameters during training.*
+- *The above training runs the XGB algorithm by default and skips cross-validation in the interest of time. For a full run, you can remove the `--skip-cv` argument to run a cross-validated grid search of XGB hyperparameters during training.*
 
-- *DNN hyperparameters are optimized using a different approach - Weights and Biases Sweeps (https://docs.wandb.ai/guides/sweeps). The results of these sweeps are the default hyperparameters in the config file. To run another round of sweeps for DNN, create a WandB account and set the `--run_sweeps` keyword in the call to `scope-train`.*
+- *DNN hyperparameters are optimized using a different approach - Weights and Biases Sweeps (https://docs.wandb.ai/guides/sweeps). The results of these sweeps are the default hyperparameters in the config file. To run another round of sweeps for DNN, create a WandB account and set the `--run-sweeps` keyword in the call to `scope-train`.*
 
 - *SCoPe DNN training does not provide feature importance information (due to the hidden layers of the network). Feature importance is possible to estimate for neural networks, but it is more computationally expensive compared to this "free" information from XGB.*
 
@@ -39,7 +39,7 @@ scope-train --tag=vnv --algorithm=xgb --group=ss23 --period_suffix=ELS_ECE_EAOV 
 
 Create a shell script that contains multiple calls to `scope-train`:
 ```
-create-training-script --filename train_xgb.sh --min_count 1000 --algorithm xgb --period_suffix ELS_ECE_EAOV --add_keywords "--save --plot --group ss23 --epochs 30 --skip_cv"
+create-training-script --filename train_xgb.sh --min-count 1000 --algorithm xgb --period-suffix ELS_ECE_EAOV --add-keywords "--save --plot --group ss23 --epochs 30 --skip-cv"
 ```
 
 Modify the permissions of this script by running `chmod +x train_xgb.sh`. Run the generated training script in a terminal window (using e.g. `./train_xgb.sh`) to train multiple classifers sequentially.
@@ -84,10 +84,10 @@ This code may also be placed in a loop over multiple labels to compare each clas
 
 ## Inference
 
-Use `scope-inference` to run inference on a field (297) of features (in this example, located in a directory called `generated_features`). The classifiers used for this inference are within the `ss23` directory/group specified during training.
+Use `run-inference` to run inference on a field (297) of features (in this example, located in a directory called `generated_features`). The classifiers used for this inference are within the `ss23` directory/group specified during training.
 
 ```
-create-inference-script --filename get_all_preds_xgb.sh --group_name ss23 --algorithm xgb --period_suffix ELS_ECE_EAOV --feature_directory generated_features
+create-inference-script --filename get_all_preds_xgb.sh --group-name ss23 --algorithm xgb --period-suffix ELS_ECE_EAOV --feature-directory generated_features
 ```
 
 Modify the permissions of this script using `chmod +x get_all_preds_xgb.sh`, then run on the desired field:

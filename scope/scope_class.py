@@ -937,42 +937,6 @@ class Scope:
         if float_convert_types is None:
             float_convert_types = config_params.get("float_convert_types", [64, 32])
 
-        # Done
-        # threshold = kwargs.get("threshold", config_params.get("threshold", 0.7))
-        # balance = kwargs.get("balance", config_params.get("balance", None))
-        # weight_per_class = kwargs.get(
-        #    "weight_per_class", config_params.get("weight_per_class", False)
-        # )
-        # scale_features = kwargs.get("scale_features", "min_max")
-        # test_size = kwargs.get("test_size", config_params.get("test_size", 0.1))
-        # val_size = kwargs.get("val_size", config_params.get("val_size", 0.1))
-        # random_state = kwargs.get("random_state", config_params.get("random_state", 42))
-        # feature_stats = kwargs.get("feature_stats", None)
-        # if feature_stats == "config":
-        #    feature_stats = self.config.get("feature_stats", None)
-
-        # batch_size = kwargs.get("batch_size", config_params.get("batch_size", 64))
-        # shuffle_buffer_size = kwargs.get(
-        #    "shuffle_buffer_size", config_params.get("shuffle_buffer_size", 512)
-        # )
-        # epochs = kwargs.get("epochs", config_params.get("epochs", 100))
-        # float_convert_types = kwargs.get("float_convert_types", config_params.get("float_convert_types", [64, 32]))
-        # Done
-        # args to add for ds.make (override config-specified values)
-        # threshold
-        # balance
-        # weight_per_class
-        # scale_features
-        # test_size
-        # val_size
-        # random_state
-        # feature_stats
-        # batch_size
-        # shuffle_buffer_size
-        # epochs
-        # float_convert_types
-        # Done
-
         datasets, indexes, steps_per_epoch, class_weight = ds.make(
             target_label=label,
             threshold=threshold,
@@ -988,29 +952,6 @@ class Scope:
             epochs=epochs,
             float_convert_types=float_convert_types,
         )
-
-        # The 4 args below are universal for all DNN models and cannot be input as args:
-        # dense_branch
-        # conv_branch
-        # loss
-        # optimizer
-
-        # Args to add with descriptions (or references to tf docs)
-        # lr
-        # beta_1
-        # beta_2
-        # epsilon
-        # decay
-        # amsgrad
-        # momentum
-        # monitor
-        # patience
-        # callbacks
-        # run_eagerly
-        # pre_trained_model
-        # save
-        # plot
-        # weights_only
 
         if lr is None:
             lr = float(config_params.get("lr", 3e-4))
@@ -1055,23 +996,6 @@ class Scope:
         loss = train_config_dnn.get("loss", "binary_crossentropy")
         optimizer = train_config_dnn.get("optimizer", "adam")
 
-        # Define class-by-class hyperparameters
-        # lr = float(kwargs.get("lr", config_params.get("lr", 3e-4)))
-        # beta_1 = kwargs.get("beta_1", config_params.get("beta_1", 0.9))
-        # beta_2 = kwargs.get("beta_2", config_params.get("beta_2", 0.999))
-        # epsilon = kwargs.get("epsilon", config_params.get("epsilon", 1e-7))  # None?
-        # decay = kwargs.get("decay", config_params.get("decay", 0.0))
-        # amsgrad = kwargs.get("amsgrad", config_params.get("amsgrad", 3e-4))
-        # momentum = float(kwargs.get("momentum", config_params.get("momentum", 0.9)))
-        # monitor = kwargs.get("monitor", config_params.get("monitor", "val_loss"))
-        # patience = int(kwargs.get("patience", config_params.get("patience", 20)))
-        # callbacks = tuple(kwargs.get("callbacks", config_params.get("callbacks", ("reduce_lr_on_plateau", "early_stopping"))))
-        # run_eagerly = kwargs.get("run_eagerly", config_params.get("run_eagerly", False))
-        # pre_trained_model = kwargs.get("pre_trained_model", config_params.get("pre_trained_model"))
-        # save = kwargs.get("save", config_params.get("save", False))
-        # plot = kwargs.get("plot", config_params.get("plot", False))
-        # weights_only = kwargs.get("weights_only", config_params.get("weights_only", False))
-
         # xgb-specific arguments (descriptions adapted from https://xgboost.readthedocs.io/en/stable/parameter.html and https://xgboost.readthedocs.io/en/stable/python/python_api.html)
         # max_depth: maximum depth of a tree
         max_depth_config = train_config_xgb["gridsearch_params_start_stop_step"].get(
@@ -1095,7 +1019,6 @@ class Scope:
         )
 
         # subsample: Subsample ratio of the training instances (setting to 0.5 means XGBoost would randomly sample half of the training data prior to growing trees)
-        # subsample = kwargs.get("xgb_subsample", 0.7)
         subsample_config = train_config_xgb["gridsearch_params_start_stop_step"].get(
             "subsample", [6, 11, 2]
         )
@@ -1104,7 +1027,6 @@ class Scope:
         subsample_step = subsample_config[2]
 
         # colsample_bytree: subsample ratio of columns when constructing each tree.
-        # colsample_bytree = kwargs.get("xgb_colsample_bytree", 0.7)
         colsample_bytree_config = train_config_xgb[
             "gridsearch_params_start_stop_step"
         ].get("subsample", [6, 11, 2])
@@ -1115,16 +1037,14 @@ class Scope:
         # confusion matrix plotting parameters:
         cm_include_count = train_config_xgb["plot_params"].get(
             "cm_include_count", False
-        )  # kwargs.get("cm_include_count", False)
+        )
         cm_include_percent = train_config_xgb["plot_params"].get(
             "cm_include_percent", True
-        )  # kwargs.get("cm_include_percent", True)
-        annotate_scores = train_config_xgb["plot_params"].get(
-            "annotate_scores", False
-        )  # kwargs.get("annotate_scores", False)
+        )
+        annotate_scores = train_config_xgb["plot_params"].get("annotate_scores", False)
 
         # seed: random seed
-        seed = random_state  # train_config_xgb["other_training_params"].get("seed", 42)
+        seed = random_state
 
         # nfold: number of folds during cross-validation
         nfold = train_config_xgb["other_training_params"].get("nfold", 5)
@@ -1821,7 +1741,7 @@ class Scope:
 
         addtl_args = ""
         if write_csv:
-            addtl_args += "--write_csv"
+            addtl_args += "--write-csv"
 
         gen = os.walk(group_path)
         model_tags = [tag[1] for tag in gen]
@@ -1856,7 +1776,7 @@ class Scope:
                     model_class_names_str += f"{tag} "
 
                 script.write(
-                    f'echo -n "Running inference..." && {path_to_python} run-inference --paths_models {paths_models_str} --model_class_names {model_class_names_str} --field $1 --whole_field --flag_ids --scale_features {scale_features} --feature_directory {feature_directory} --period_suffix {period_suffix} --batch_size {batch_size} {addtl_args} && echo "done"\n'
+                    f'echo -n "Running inference..." && {path_to_python} run-inference --paths-models {paths_models_str} --model-class-names {model_class_names_str} --field $1 --whole-field --flag-ids --scale-features {scale_features} --feature-directory {feature_directory} --period-suffix {period_suffix} --batch-size {batch_size} {addtl_args} && echo "done"\n'
                 )
 
             elif algorithm in ["XGB", "xgb", "XGBoost", "xgboost", "XGBOOST"]:
@@ -1872,7 +1792,7 @@ class Scope:
                     model_class_names_str += f"{tag} "
 
                 script.write(
-                    f'echo -n "Running inference..." && {path_to_python} run-inference --paths_models {paths_models_str} --model_class_names {model_class_names_str} --scale_features {scale_features} --feature_directory {feature_directory} --period_suffix {period_suffix} --batch_size {batch_size} --xgb_model --field $1 --whole_field --flag_ids {addtl_args} && echo "done"\n'
+                    f'echo -n "Running inference..." && {path_to_python} run-inference --paths-models {paths_models_str} --model-class-names {model_class_names_str} --scale-features {scale_features} --feature-directory {feature_directory} --period-suffix {period_suffix} --batch-size {batch_size} --xgb-model --field $1 --whole-field --flag-ids {addtl_args} && echo "done"\n'
                 )
 
             else:

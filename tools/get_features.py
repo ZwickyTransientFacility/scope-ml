@@ -398,13 +398,13 @@ def get_parser():
     parser.add_argument(
         "--start",
         type=int,
-        help="Start index of the sources to query (to be used with whole_field)",
+        help="Start index of the sources to query (to be used with --whole-field)",
         default=None,
     )
     parser.add_argument(
         "--end",
         type=int,
-        help="End index of the sources to query. (to be used with whole_field)",
+        help="End index of the sources to query. (to be used with --whole-field)",
         default=None,
     )
     parser.add_argument(
