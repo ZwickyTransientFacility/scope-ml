@@ -2,7 +2,7 @@
 
 [![arXiv](https://img.shields.io/badge/arXiv-2102.11304-brightgreen)](https://arxiv.org/abs/2102.11304)
 [![arXiv](https://img.shields.io/badge/arXiv-2009.14071-brightgreen)](https://arxiv.org/abs/2009.14071)
-[![arXiv](https://img.shields.io/badge/arXiv-22312.00143-brightgreen)](https://arxiv.org/abs/2312.00143)
+[![arXiv](https://img.shields.io/badge/arXiv-2312.00143-brightgreen)](https://arxiv.org/abs/2312.00143)
 
 This project uses machine learning to classify light curves from the Zwicky Transient Facility ([ZTF](https://www.ztf.caltech.edu)). The documentation is hosted at [https://zwickytransientfacility.github.io/scope-docs/](https://zwickytransientfacility.github.io/scope-docs/). To generate HTML files of the documentation locally, clone the repository and run `scope-doc` after installing.
 
