@@ -4,7 +4,7 @@ import site
 
 # Below code adapted from https://github.com/skyportal/skyportal/blob/main/skyportal/__init__.py
 # 2022-10-18
-__version__ = "1.0.dev0"
+__version__ = "0.9.0"
 
 if "dev" in __version__:
     # Append last commit date and hash to dev version information, if available
