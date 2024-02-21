@@ -61,13 +61,20 @@ export PYTHONPATH="$PYTHONPATH:$HOME/scope"
 
 Save the updated file (`Ctrl+O` in `nano`) and close/reopen your terminal for this change to be recognized. Then `cd` back into scope and activate your `scope-env` again.
 
-#### Install pre-commit
+### Install required packages
+
+Ensure you are in the `scope` directory that contains `pyproject.toml`. Then, install the required python packages by running:
+```bash
+pip install .
+```
+
+#### Install dev requirements, pre-commit hook
 
 We use `black` to format the code and `flake8` to verify that code complies with [PEP8](https://www.python.org/dev/peps/pep-0008/).
-Please install our pre-commit hook as follows:
+Please install our dev requirements and pre-commit hook as follows:
 
 ```shell script
-pip install pre-commit
+pip install -r dev-requirements.txt
 pre-commit install
 ```
 
@@ -76,13 +83,6 @@ conform with our code style standards. We use black to reformat Python
 code.
 
 The pre-commit hook will lint *changes* made to the source.
-
-### Install required packages
-
-Ensure you are in the `scope` directory that contains `pyproject.toml`. Then, install the required python packages by running:
-```bash
-pip install .
-```
 
 #### Create and modify config.yaml
 
