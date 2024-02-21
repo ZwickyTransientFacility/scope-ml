@@ -1,9 +1,5 @@
-deepdiff>=5.0
-gsutil>=4.60
-keras-tuner>=1.0.2
-matplotlib>=3.3
 pytest>=6.1.2
-questionary>=1.8.1
-scikit-learn>=0.24.1
-tensorflow>=2.14.0
-wandb>=0.12.1
+pre-commit>=3.5.0
+sphinx>=4.2
+sphinx_press_theme>=0.8.0
+poetry>=1.7.1

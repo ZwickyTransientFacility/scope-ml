@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 from contextlib import contextmanager
 import datetime
-import fire
 import numpy as np
 import os
 import pandas as pd
@@ -2832,7 +2831,3 @@ class Scope:
             # Remove trained model artifacts, but keep models_xgb and models_dnn directories
             for path in model_paths:
                 shutil.rmtree(path.parent.parent)
-
-
-if __name__ == "__main__":
-    fire.Fire(Scope)
