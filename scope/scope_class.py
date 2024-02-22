@@ -2483,6 +2483,16 @@ class Scope:
             for path in model_paths:
                 shutil.rmtree(path.parent.parent)
 
+    def parse_run_test(self):
+        parser = argparse.ArgumentParser()
+        parser.add_argument(
+            "--doGPU",
+            action="store_true",
+            help="if set, use GPU-accelerated period algorithm",
+        )
+        args, _ = parser.parse_known_args()
+        self.test(**vars(args))
+
     def test(self, doGPU=False):
         """
         Test different workflows

@@ -37,4 +37,4 @@ def test_limited():
 
 
 def test():
-    scope.test()
+    scope.parse_run_test()
