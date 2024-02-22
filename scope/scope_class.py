@@ -2534,12 +2534,23 @@ class Scope:
                 doScaleMinPeriod=True,
             )
 
-            path_gen_features = (
-                self.base_path
-                / test_feature_directory
-                / f"field_{test_field}"
-                / f"{test_feature_filename}_field_{test_field}_ccd_{test_ccd}_quad_{test_quad}.parquet"
+            path_to_features = self.config.get("feature_generation").get(
+                "path_to_features"
             )
+            if path_to_features is None:
+                path_gen_features = (
+                    self.base_path
+                    / test_feature_directory
+                    / f"field_{test_field}"
+                    / f"{test_feature_filename}_field_{test_field}_ccd_{test_ccd}_quad_{test_quad}.parquet"
+                )
+            else:
+                path_gen_features = (
+                    pathlib.Path(path_to_features)
+                    / test_feature_directory
+                    / f"field_{test_field}"
+                    / f"{test_feature_filename}_field_{test_field}_ccd_{test_ccd}_quad_{test_quad}.parquet"
+                )
 
         with status("Test get_lightcurves_via_coords"):
             print()
