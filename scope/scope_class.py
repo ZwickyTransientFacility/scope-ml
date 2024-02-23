@@ -2617,14 +2617,21 @@ class Scope:
                 period_suffix_config = (
                     self.config.get("features").get("info").get("period_suffix")
                 )
-                if doGPU & (
-                    period_suffix_config not in ["ELS", "ECE", "EAOV", "ELS_ECE_EAOV"]
-                ):
-                    period_suffix_test = "ELS_ECE_EAOV"
-                if (not doGPU) & (
-                    period_suffix_config not in ["LS", "CE", "AOV", "LS_CE_AOV"]
-                ):
-                    period_suffix_test = "LS"
+                if doGPU:
+                    if period_suffix_config not in [
+                        "ELS",
+                        "ECE",
+                        "EAOV",
+                        "ELS_ECE_EAOV",
+                    ]:
+                        period_suffix_test = "ELS_ECE_EAOV"
+                    else:
+                        period_suffix_test = period_suffix_config
+                else:
+                    if period_suffix_config not in ["LS", "CE", "AOV", "LS_CE_AOV"]:
+                        period_suffix_test = "LS"
+                    else:
+                        period_suffix_test = period_suffix_config
 
                 if not path_mock.exists():
                     path_mock.mkdir(parents=True, exist_ok=True)
