@@ -101,7 +101,8 @@ Run `scope-test` to test your installation. Note that for the test to pass, you 
 Upon encountering installation/testing errors, manually install the package in question using  `conda install xxx` , and remove it from `.requirements/dev.txt`. After that, re-run `pip install -r requirements.txt` to continue.
 
 #### Known issues
-- Across all platforms, we are currently aware of `scope` dependency issues with Python 3.11.
+- If using GPU-accelerated period-finding algorithms for feature generation, you will need to install [periodfind](https://github.com/ZwickyTransientFacility/periodfind) separately from the source.
+- Across all platforms, we are currently aware of `scope` dependency issues with Python 3.12.
 - Anaconda continues to cause problems with environment setup.
 - Using `pip` to install `healpy` on an arm64 Mac can raise an error upon import. We recommend including `h5py` as a requirement during the creation of your `conda` environment.
 - On Windows machines, `healpy` and `cesium` raise errors upon installation.

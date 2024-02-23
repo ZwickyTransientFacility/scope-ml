@@ -2592,8 +2592,11 @@ class Scope:
                 save=False,
             )
 
-            testpath = pathlib.Path(outfile)
-            testpath = testpath.parent.parent
+            if path_to_features is None:
+                testpath = pathlib.Path(outfile)
+                testpath = testpath.parent.parent
+            else:
+                testpath = pathlib.Path(path_to_features) / "features"
             # Use 'field_0' as test directory to avoid removing any existing data locally
             testpath_features = testpath / "field_0"
 
