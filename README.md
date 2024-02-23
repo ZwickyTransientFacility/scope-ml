@@ -1,8 +1,9 @@
 # SCoPe: ZTF Source Classification Project
 
-[![arXiv](https://img.shields.io/badge/arXiv-2102.11304-brightgreen)](https://arxiv.org/abs/2102.11304)
-[![arXiv](https://img.shields.io/badge/arXiv-2009.14071-brightgreen)](https://arxiv.org/abs/2009.14071)
-[![arXiv](https://img.shields.io/badge/arXiv-2312.00143-brightgreen)](https://arxiv.org/abs/2312.00143)
+[![PyPI version](https://badge.fury.io/py/scope-ml.svg)](https://badge.fury.io/py/scope-ml)
+[![arXiv](https://img.shields.io/badge/arXiv-2102.11304-blue)](https://arxiv.org/abs/2102.11304)
+[![arXiv](https://img.shields.io/badge/arXiv-2009.14071-blue)](https://arxiv.org/abs/2009.14071)
+[![arXiv](https://img.shields.io/badge/arXiv-2312.00143-blue)](https://arxiv.org/abs/2312.00143)
 
 `scope-ml` uses machine learning to classify light curves from the Zwicky Transient Facility ([ZTF](https://www.ztf.caltech.edu)). The documentation is hosted at [https://zwickytransientfacility.github.io/scope-docs/](https://zwickytransientfacility.github.io/scope-docs/). To generate HTML files of the documentation locally, clone the repository and run `scope-doc` after installing.
 
