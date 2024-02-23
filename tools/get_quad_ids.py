@@ -113,7 +113,7 @@ def get_ids_loop(
             minobs=5,limit=2000, whole_field=False)
         '''
     if output_dir is None:
-        output_dir = os.path.join(str(BASE_DIR), "../ids/field_" + str(field) + "/")
+        output_dir = os.path.join(str(BASE_DIR), "ids/field_" + str(field) + "/")
 
     dct = {}
     if verbose > 0:
@@ -498,9 +498,7 @@ def main():
 
     # Set default output directory
     if args.output_dir is None:
-        output_dir = os.path.join(
-            str(BASE_DIR), "../ids/field_" + str(args.field) + "/"
-        )
+        output_dir = os.path.join(str(BASE_DIR), "ids/field_" + str(args.field) + "/")
     else:
         output_dir = args.output_dir + "/ids/field_" + str(args.field) + "/"
     os.makedirs(output_dir, exist_ok=True)
