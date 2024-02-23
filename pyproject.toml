@@ -1,3 +1,90 @@
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
 [tool.black]
-target-version = ['py37', 'py38']
+target-version = ['py39', 'py310', 'py311']
 skip-string-normalization = true
+
+[tool.poetry]
+name = "scope-ml"
+version = "0.9.0"
+description = "SCoPe: ZTF Source Classification Project"
+readme = "README.md"
+authors = ["Brian F. Healy, Michael W. Coughlin, Ashish A. Mahabal, Theophile J. du Laz, Andrew Drake, Matthew J. Graham, Lynne A. Hillenbrand, Jan van Roestel, Paula Szkody et al."]
+maintainers = ["Brian F. Healy <healyb@umn.edu>"]
+license = "MIT"
+repository = "https://github.com/ZwickyTransientFacility/scope"
+documentation = "https://zwickytransientfacility.github.io/scope-docs/"
+packages = [
+    {include = "scope"},
+    {include = "tools"},
+]
+exclude = ["**/*.parquet", "**/*.csv", "**/*.ipynb", "**/*.json", "**/*.h5", "**/*.yaml", "**/*.html", "**/*.txt"]
+include = ["config.defaults.yaml", "tools/golden_dataset_mapper.json", "tools/fritz_mapper.json", "tools/DNN_AL_mapper.json", "tools/XGB_AL_mapper.json", "tools/local_scope_ztfid.csv", "tools/local_scope_radec.csv"]
+
+[tool.poetry.dependencies]
+python = "^3.9, <3.12"
+deepdiff = ">=5.0"
+gsutil = ">=4.60"
+keras-tuner = ">=1.0.2"
+matplotlib = ">=3.3"
+questionary = ">=1.8.1"
+scikit-learn = ">=0.24.1"
+tensorflow = ">=2.14.0,<=2.15.0"
+wandb = ">=0.12.1"
+h5py = ">=3.10.0"
+astropy = ">=5.2.2"
+fast-histogram = ">=0.11"
+healpy = ">=1.16.2"
+jinja2 = "<=3.1"
+myst-parser = ">=0.18.1"
+pandas = ">=1.2"
+penquins = ">=2.3.1"
+pyyaml = ">=5.3.1"
+tdtax = ">=0.1.6"
+pyarrow = ">=9.0.0"
+numba = ">=0.56.4"
+numpy = ">=1.23,<1.24"
+cesium = ">=0.11.1"
+xgboost = ">=1.7.5"
+seaborn = ">=0.12.2"
+pydot = ">=1.4.2"
+notebook = ">=7.0.6"
+tables = ">=3.7,<3.9.2"
+
+[tool.poetry.dev-dependencies]
+pre-commit = ">=3.5.0"
+pytest = ">=6.1.2"
+sphinx = ">=4.2"
+sphinx-press-theme = ">=0.8.0"
+poetry = ">=1.7.1"
+
+[tool.poetry.scripts]
+scope-initialize = "scope.__init__:initialize"
+scope-develop = "scope._instantiate:develop"
+scope-lint = "scope.scope_class:Scope.lint"
+scope-doc = "scope._instantiate:doc"
+scope-train = "scope._instantiate:train"
+create-training-script = "scope._instantiate:create_training_script"
+assemble-training-stats = "scope._instantiate:assemble_training_stats"
+create-inference-script = "scope._instantiate:create_inference_script"
+select-fritz-sample = "scope._instantiate:select_fritz_sample"
+scope-test-limited = "scope._instantiate:test_limited"
+scope-test = "scope._instantiate:test"
+scope-download-classification = "tools.scope_download_classification:main"
+scope-upload-classification = "tools.scope_upload_classification:main"
+scope-manage-annotation = "tools.scope_manage_annotation:main"
+post-taxonomy = "tools.taxonomy:main"
+generate-features = "tools.generate_features:main"
+generate-features-slurm = "tools.generate_features_slurm:main"
+generate-features-job-submission = "tools.generate_features_job_submission:main"
+train-algorithm-slurm = "tools.train_algorithm_slurm:main"
+train-algorithm-job-submission = "tools.train_algorithm_job_submission:main"
+run-inference = "tools.inference:main"
+run-inference-slurm = "tools.run_inference_slurm:main"
+run-inference-job-submission = "tools.run_inference_job_submission:main"
+combine-preds = "tools.combine_preds:main"
+get-quad-ids = "tools.get_quad_ids:main"
+run-scope-local = "tools.run_scope_local:main"
+analyze-logs = "tools.analyze_logs:main"

@@ -1,15 +1,12 @@
 #!/usr/bin/env python
 import argparse
 import pathlib
-import yaml
 import os
+from scope.utils import parse_load_config
 
 
-BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
-
-config_path = BASE_DIR / "config.yaml"
-with open(config_path) as config_yaml:
-    config = yaml.load(config_yaml, Loader=yaml.FullLoader)
+BASE_DIR = pathlib.Path.cwd()
+config = parse_load_config()
 
 
 def parse_training_script(script_path):
@@ -22,8 +19,8 @@ def parse_training_script(script_path):
     algorithm = 'dnn'
 
     for line in lines:
-        if 'scope.py train' in line:
-            line_info = line.removeprefix('./scope.py train').split()
+        if 'scope-train' in line:
+            line_info = line.removeprefix('scope-train').split()
             for arg in line_info.copy():
                 if '--tag' in arg:
                     tag = arg.split('=')[1]
@@ -41,7 +38,7 @@ def parse_training_script(script_path):
     return tags, group, algorithm, line_info
 
 
-if __name__ == "__main__":
+def get_parser():
 
     parser = argparse.ArgumentParser()
 
@@ -58,25 +55,25 @@ if __name__ == "__main__":
         help="Directory name for slurm scripts/logs",
     )
     parser.add_argument(
-        "--job_name",
+        "--job-name",
         type=str,
         default='train',
         help="job name",
     )
     parser.add_argument(
-        "--cluster_name",
+        "--cluster-name",
         type=str,
         default='Expanse',
         help="Name of HPC cluster",
     )
     parser.add_argument(
-        "--partition_type",
+        "--partition-type",
         type=str,
         default='gpu-shared',
         help="Partition name to request for computing",
     )
     parser.add_argument(
-        "--submit_partition_type",
+        "--submit-partition-type",
         type=str,
         default='shared',
         help="Partition name to request for job submission",
@@ -94,13 +91,13 @@ if __name__ == "__main__":
         help="number of cores to request for computing",
     )
     parser.add_argument(
-        "--submit_nodes",
+        "--submit-nodes",
         type=int,
         default=1,
         help="Number of nodes to request for job submission",
     )
     parser.add_argument(
-        "--submit_Ncore",
+        "--submit-Ncore",
         default=1,
         type=int,
         help="number of cores to request for job submission",
@@ -112,13 +109,13 @@ if __name__ == "__main__":
         help="Number of GPUs to request",
     )
     parser.add_argument(
-        "--memory_GB",
+        "--memory-GB",
         type=int,
         default=64,
         help="Memory allocation to request for computing",
     )
     parser.add_argument(
-        "--submit_memory_GB",
+        "--submit-memory-GB",
         type=int,
         default=16,
         help="Memory allocation to request for job submission",
@@ -130,19 +127,19 @@ if __name__ == "__main__":
         help="Walltime for instance",
     )
     parser.add_argument(
-        "--mail_user",
+        "--mail-user",
         type=str,
         default='healyb@umn.edu',
         help="contact email address",
     )
     parser.add_argument(
-        "--account_name",
+        "--account-name",
         type=str,
         default='umn131',
         help="Name of account with current HPC allocation",
     )
     parser.add_argument(
-        "--python_env_name",
+        "--python-env-name",
         type=str,
         default='scope-env',
         help="Name of python environment to activate",
@@ -160,19 +157,19 @@ if __name__ == "__main__":
         help="HPC username",
     )
     parser.add_argument(
-        "--max_instances",
+        "--max-instances",
         type=int,
         default=20,
         help="Max number of instances to run in parallel",
     )
     parser.add_argument(
-        "--wait_time_minutes",
+        "--wait-time-minutes",
         type=float,
         default=5.0,
         help="Time to wait between job status checks (minutes)",
     )
     parser.add_argument(
-        "--submit_interval_seconds",
+        "--submit-interval-seconds",
         type=float,
         default=5.0,
         help="Time to wait between job submissions (seconds)",
@@ -184,12 +181,17 @@ if __name__ == "__main__":
         help="If set, job submission runs filter_completed in different directory",
     )
 
-    args = parser.parse_args()
+    return parser
+
+
+def main():
+    parser = get_parser()
+    args, _ = parser.parse_known_args()
 
     scriptname = args.scriptname
 
     script_path = BASE_DIR / scriptname
-    _, group, algorithm, line_info = parse_training_script(script_path)
+    _, _, algorithm, line_info = parse_training_script(script_path)
 
     dirname = f"{algorithm}_{args.dirname}"
     jobname = f"{args.job_name}_{algorithm}"
@@ -209,8 +211,8 @@ if __name__ == "__main__":
     fid = open(os.path.join(slurmDir, 'slurm.sub'), 'w')
     fid.write('#!/bin/bash\n')
     fid.write(f'#SBATCH --job-name={jobname}.job\n')
-    fid.write(f'#SBATCH --output=../logs/{jobname}_%A_%a.out\n')
-    fid.write(f'#SBATCH --error=../logs/{jobname}_%A_%a.err\n')
+    fid.write(f'#SBATCH --output={dirname}/logs/{jobname}_%A_%a.out\n')
+    fid.write(f'#SBATCH --error={dirname}/logs/{jobname}_%A_%a.err\n')
     fid.write(f'#SBATCH -p {args.partition_type}\n')
     fid.write(f'#SBATCH --nodes {args.nodes}\n')
     fid.write(f'#SBATCH --ntasks-per-node {args.Ncore}\n')
@@ -228,9 +230,7 @@ if __name__ == "__main__":
             fid.write('module add cuda\n')
         fid.write(f'source activate {args.python_env_name}\n')
 
-    fid.write(
-        str(BASE_DIR / 'scope.py train ') + "--tag=$TID " + " ".join(line_info) + '\n'
-    )
+    fid.write("scope-train " + "--tag $TID " + " ".join(line_info) + '\n')
     fid.close()
 
     # Secondary script to manage job submission using train_algorithm_job_submission.py
@@ -238,8 +238,8 @@ if __name__ == "__main__":
     fid = open(os.path.join(slurmDir, 'slurm_submission.sub'), 'w')
     fid.write('#!/bin/bash\n')
     fid.write(f'#SBATCH --job-name={jobname}_submit.job\n')
-    fid.write(f'#SBATCH --output=../logs/{jobname}_submit_%A_%a.out\n')
-    fid.write(f'#SBATCH --error=../logs/{jobname}_submit_%A_%a.err\n')
+    fid.write(f'#SBATCH --output={dirname}/logs/{jobname}_submit_%A_%a.out\n')
+    fid.write(f'#SBATCH --error={dirname}/logs/{jobname}_submit_%A_%a.err\n')
     fid.write(f'#SBATCH -p {args.submit_partition_type}\n')
     fid.write(f'#SBATCH --nodes {args.submit_nodes}\n')
     fid.write(f'#SBATCH --ntasks-per-node {args.submit_Ncore}\n')
@@ -256,9 +256,8 @@ if __name__ == "__main__":
 
     if args.sweep:
         fid.write(
-            '%s/train_algorithm_job_submission.py --dirname=%s --scriptname=%s --user=%s --max_instances=%s --wait_time_minutes=%s --submit_interval_seconds=%s --sweep\n'
+            'train-algorithm-job-submission --dirname %s --scriptname %s --user %s --max-instances %s --wait-time-minutes %s --submit-interval-seconds %s --sweep\n'
             % (
-                BASE_DIR / 'tools',
                 dirname,
                 scriptname,
                 args.user,
@@ -269,9 +268,8 @@ if __name__ == "__main__":
         )
     else:
         fid.write(
-            '%s/train_algorithm_job_submission.py --dirname=%s --scriptname=%s --user=%s --max_instances=%s --wait_time_minutes=%s --submit_interval_seconds=%s\n'
+            'train-algorithm-job-submission --dirname %s --scriptname %s --user %s --max-instances %s --wait-time-minutes %s --submit-interval-seconds %s\n'
             % (
-                BASE_DIR / 'tools',
                 dirname,
                 scriptname,
                 args.user,

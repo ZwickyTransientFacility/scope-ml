@@ -39,16 +39,80 @@ import pyarrow.parquet as pq
 import json as JSON
 from sklearn.impute import KNNImputer
 import seaborn as sns
+import argparse
+import os
+from deepdiff import DeepDiff
+from pprint import pprint
 
-BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
+BASE_DIR = pathlib.Path.cwd()
 
 
-def load_config(config_path: Union[str, pathlib.Path]):
+def load_config(config_path: Union[str, pathlib.Path] = "config.yaml"):
     """
     Load config and secrets
     """
     with open(config_path) as config_yaml:
         config = yaml.load(config_yaml, Loader=yaml.FullLoader)
+
+    return config
+
+
+def parse_load_config():
+    """
+    Load config from user-specified --config-path argument
+    """
+    config_parser = argparse.ArgumentParser()
+    config_parser.add_argument(
+        "--config-path",
+        type=str,
+        help="path to config file",
+    )
+    config_parser.add_argument(
+        "--check-configs",
+        action="store_true",
+        help="if set, check config against default file in same directory",
+    )
+    config_parser.add_argument(
+        "--default-config-name",
+        type=str,
+        default="config.defaults.yaml",
+        help="name of default config file",
+    )
+
+    config_args, _ = config_parser.parse_known_args()
+    config_path = config_args.config_path
+
+    if config_path is None:
+        print(f"No --config-path specified. Loading '{BASE_DIR}/config.yaml'.")
+        config_path = str(BASE_DIR / "config.yaml")
+    else:
+        print(f"Loading config file from '{config_path}'.")
+
+    config = load_config(config_path)
+
+    if config_args.check_configs:
+        print("Checking configuration versus defaults...")
+        config_dirname = os.path.dirname(config_path)
+        default_config_path = os.path.join(
+            config_dirname, config_args.default_config_name
+        )
+
+        try:
+            default_config = load_config(default_config_path)
+        except Exception:
+            print(
+                f"Could not load {default_config_path}. To compare configs, place the latest version of config.defaults.yaml in the same directory as your customized config file ({config_path})."
+            )
+
+        deep_diff = DeepDiff(default_config, config, ignore_order=True)
+        difference = {
+            k: v for k, v in deep_diff.items() if k in ("dictionary_item_removed",)
+        }
+        if len(difference) > 0:
+            print("config structure differs from defaults")
+            pprint(difference)
+            raise KeyError("Fix config before proceeding")
+        print("Configuration check finished.")
 
     return config
 
@@ -90,7 +154,7 @@ def make_tdtax_taxonomy(taxonomy: Mapping):
 
 
 def write_hdf(
-    dataframe: pd.DataFrame, filepath: str, key: str = 'df', overwrite: bool = True
+    dataframe: pd.DataFrame, filepath: str, key: str = "df", overwrite: bool = True
 ):
     """
     Write HDF5 file and attach metadata
@@ -100,14 +164,14 @@ def write_hdf(
     :param key: key associated with DataFrame (str)
     :param overwrite: if True, overwrite file, else append. (bool)
     """
-    mode = 'w' if overwrite else 'a'
+    mode = "w" if overwrite else "a"
 
     with pd.HDFStore(filepath, mode=mode) as store:
         store.put(key, dataframe)
         store.get_storer(key).attrs.metadata = dataframe.attrs
 
 
-def read_hdf(filepath: str, key: str = 'df'):
+def read_hdf(filepath: str, key: str = "df"):
     """
     Read HDF5 file and metadata (if available). Currently supports accessing one key of the file at a time.
 
@@ -116,17 +180,17 @@ def read_hdf(filepath: str, key: str = 'df'):
 
     :return: pandas.DataFrame
     """
-    with pd.HDFStore(filepath, mode='r') as store:
+    with pd.HDFStore(filepath, mode="r") as store:
         dataframe = store[key]
         try:
             dataframe.attrs = store.get_storer(key).attrs.metadata
         except AttributeError:
-            warnings.warn('Did not read metadata from HDF5 file.')
+            warnings.warn("Did not read metadata from HDF5 file.")
 
     return dataframe
 
 
-def write_parquet(dataframe: pd.DataFrame, filepath: str, meta_key: str = 'scope'):
+def write_parquet(dataframe: pd.DataFrame, filepath: str, meta_key: str = "scope"):
     """
     Write Apache Parquet file and attach Metadata
 
@@ -154,7 +218,7 @@ def write_parquet(dataframe: pd.DataFrame, filepath: str, meta_key: str = 'scope
     pq.write_table(table, filepath)
 
 
-def read_parquet(filepath: str, meta_key: str = 'scope'):
+def read_parquet(filepath: str, meta_key: str = "scope"):
     """
     Read Apache Parquet file and metadata (if available)
 
@@ -173,7 +237,7 @@ def read_parquet(filepath: str, meta_key: str = 'scope'):
         restored_meta = JSON.loads(meta_json)
         dataframe.attrs = restored_meta
     except KeyError:
-        warnings.warn('Did not read metadata from parquet file.')
+        warnings.warn("Did not read metadata from parquet file.")
 
     return dataframe
 
@@ -268,8 +332,8 @@ def plot_periods(
     """Plot a histogram of periods for the sample"""
     # plot the H-R diagram for 1 M stars within 200 pc from the Sun
 
-    period_colname = 'period'
-    if not ((period_suffix is None) | (period_suffix == 'None')):
+    period_colname = "period"
+    if not ((period_suffix is None) | (period_suffix == "None")):
         period_colname = f"{period_colname}_{period_suffix}"
 
     plt.rc("text", usetex=True)
@@ -518,51 +582,51 @@ def impute_features(
     features_df: pd.DataFrame,
     n_neighbors: int = 5,
     self_impute: bool = False,
-    **kwargs,
+    period_suffix: str = None,
 ):
     # Load config file
     config = load_config(BASE_DIR / "config.yaml")
-    period_suffix_config = config['features']['info']['period_suffix']
 
-    period_suffix = kwargs.get('period_suffix', period_suffix_config)
+    if period_suffix is None:
+        period_suffix = config["features"]["info"]["period_suffix"]
 
     if self_impute:
         referenceSet = features_df.copy()
     else:
         # Load training set
-        trainingSetPath = str(BASE_DIR / config['training']['dataset'])
-        if trainingSetPath.endswith('.parquet'):
+        trainingSetPath = str(BASE_DIR / config["training"]["dataset"])
+        if trainingSetPath.endswith(".parquet"):
             trainingSet = read_parquet(trainingSetPath)
-        elif trainingSetPath.endswith('.h5'):
+        elif trainingSetPath.endswith(".h5"):
             trainingSet = read_hdf(trainingSetPath)
-        elif trainingSetPath.endswith('.csv'):
+        elif trainingSetPath.endswith(".csv"):
             trainingSet = pd.read_csv(trainingSetPath)
         else:
             raise ValueError(
-                'Training set must have one of .parquet, .h5 or .csv file formats.'
+                "Training set must have one of .parquet, .h5 or .csv file formats."
             )
 
         referenceSet = trainingSet
 
-    all_features = config['features']['ontological']
+    all_features = config["features"]["ontological"]
 
     # Impute zero where specified
     feature_list_impute_zero = [
         x
         for x in all_features
         if (
-            all_features[x]['include']
-            and all_features[x]['impute_strategy'] in ['zero', 'Zero', 'ZERO']
+            all_features[x]["include"]
+            and all_features[x]["impute_strategy"] in ["zero", "Zero", "ZERO"]
         )
     ]
 
-    if not ((period_suffix is None) | (period_suffix == 'None')):
-        periodic_bool = [all_features[x]['periodic'] for x in feature_list_impute_zero]
+    if not ((period_suffix is None) | (period_suffix == "None")):
+        periodic_bool = [all_features[x]["periodic"] for x in feature_list_impute_zero]
         for j, name in enumerate(feature_list_impute_zero):
             if periodic_bool[j]:
-                feature_list_impute_zero[j] = f'{name}_{period_suffix}'
+                feature_list_impute_zero[j] = f"{name}_{period_suffix}"
 
-    print('Imputing zero for the following features: ', feature_list_impute_zero)
+    print("Imputing zero for the following features: ", feature_list_impute_zero)
     print()
     for feat in feature_list_impute_zero:
         features_df[feat] = features_df[feat].fillna(0.0)
@@ -572,20 +636,20 @@ def impute_features(
         x
         for x in all_features
         if (
-            all_features[x]['include']
-            and all_features[x]['impute_strategy'] in ['median', 'Median', 'MEDIAN']
+            all_features[x]["include"]
+            and all_features[x]["impute_strategy"] in ["median", "Median", "MEDIAN"]
         )
     ]
 
-    if not ((period_suffix is None) | (period_suffix == 'None')):
+    if not ((period_suffix is None) | (period_suffix == "None")):
         periodic_bool = [
-            all_features[x]['periodic'] for x in feature_list_impute_median
+            all_features[x]["periodic"] for x in feature_list_impute_median
         ]
         for j, name in enumerate(feature_list_impute_median):
             if periodic_bool[j]:
-                feature_list_impute_median[j] = f'{name}_{period_suffix}'
+                feature_list_impute_median[j] = f"{name}_{period_suffix}"
 
-    print('Imputing median for the following features: ', feature_list_impute_median)
+    print("Imputing median for the following features: ", feature_list_impute_median)
     print()
     for feat in feature_list_impute_median:
         features_df[feat] = features_df[feat].fillna(np.nanmedian(referenceSet[feat]))
@@ -595,18 +659,18 @@ def impute_features(
         x
         for x in all_features
         if (
-            all_features[x]['include']
-            and all_features[x]['impute_strategy'] in ['mean', 'Mean', 'MEAN']
+            all_features[x]["include"]
+            and all_features[x]["impute_strategy"] in ["mean", "Mean", "MEAN"]
         )
     ]
 
-    if not ((period_suffix is None) | (period_suffix == 'None')):
-        periodic_bool = [all_features[x]['periodic'] for x in feature_list_impute_mean]
+    if not ((period_suffix is None) | (period_suffix == "None")):
+        periodic_bool = [all_features[x]["periodic"] for x in feature_list_impute_mean]
         for j, name in enumerate(feature_list_impute_mean):
             if periodic_bool[j]:
-                feature_list_impute_mean[j] = f'{name}_{period_suffix}'
+                feature_list_impute_mean[j] = f"{name}_{period_suffix}"
 
-    print('Imputing mean for the following features: ', feature_list_impute_mean)
+    print("Imputing mean for the following features: ", feature_list_impute_mean)
     print()
     for feat in feature_list_impute_mean:
         features_df[feat] = features_df[feat].fillna(np.nanmean(referenceSet[feat]))
@@ -616,23 +680,23 @@ def impute_features(
         x
         for x in all_features
         if (
-            all_features[x]['include']
-            and all_features[x]['impute_strategy'] in ['regress', 'Regress', 'REGRESS']
+            all_features[x]["include"]
+            and all_features[x]["impute_strategy"] in ["regress", "Regress", "REGRESS"]
         )
     ]
 
-    if not ((period_suffix is None) | (period_suffix == 'None')):
-        periodic_bool = [all_features[x]['periodic'] for x in feature_list_regression]
+    if not ((period_suffix is None) | (period_suffix == "None")):
+        periodic_bool = [all_features[x]["periodic"] for x in feature_list_regression]
         for j, name in enumerate(feature_list_regression):
             if periodic_bool[j]:
-                feature_list_regression[j] = f'{name}_{period_suffix}'
+                feature_list_regression[j] = f"{name}_{period_suffix}"
 
-    print('Imputing by regression on the following features: ', feature_list_regression)
+    print("Imputing by regression on the following features: ", feature_list_regression)
     print()
 
     # Fit KNNImputer to training set
     imp = KNNImputer(n_neighbors=n_neighbors)
-    imp.set_output(transform='pandas')
+    imp.set_output(transform="pandas")
 
     fit_feats = imp.fit(referenceSet[feature_list_regression])
     imputed_feats = fit_feats.transform(features_df[feature_list_regression])
@@ -646,16 +710,16 @@ def impute_features(
         x
         for x in all_features
         if (
-            all_features[x]['include']
-            and all_features[x]['impute_strategy'] in ['none', 'None', 'NONE']
+            all_features[x]["include"]
+            and all_features[x]["impute_strategy"] in ["none", "None", "NONE"]
         )
     ]
 
-    if not ((period_suffix is None) | (period_suffix == 'None')):
-        periodic_bool = [all_features[x]['periodic'] for x in feature_list_impute_none]
+    if not ((period_suffix is None) | (period_suffix == "None")):
+        periodic_bool = [all_features[x]["periodic"] for x in feature_list_impute_none]
         for j, name in enumerate(feature_list_impute_none):
             if periodic_bool[j]:
-                feature_list_impute_none[j] = f'{name}_{period_suffix}'
+                feature_list_impute_none[j] = f"{name}_{period_suffix}"
 
     orig_len = len(features_df)
     features_df = features_df.dropna(subset=feature_list_impute_none).reset_index(
@@ -664,7 +728,7 @@ def impute_features(
     new_len = len(features_df)
     print()
     print(
-        f'Dropped {orig_len - new_len} rows containing missing features with no imputation strategy.'
+        f"Dropped {orig_len - new_len} rows containing missing features with no imputation strategy."
     )
 
     return features_df
@@ -693,12 +757,12 @@ def overlapping_histogram(a, bins):
         sa = np.sort(a[i : i + block])
         n += (
             np.r_[
-                sa.searchsorted(bins[:-1, 1], 'left'),
-                sa.searchsorted(bins[-1, 1], 'right'),
+                sa.searchsorted(bins[:-1, 1], "left"),
+                sa.searchsorted(bins[-1, 1], "right"),
             ]
             - np.r_[
-                sa.searchsorted(bins[:-1, 0], 'left'),
-                sa.searchsorted(bins[-1, 0], 'right'),
+                sa.searchsorted(bins[:-1, 0], "left"),
+                sa.searchsorted(bins[-1, 0], "right"),
             ]
         )
     return n, (bins[:, 0] + bins[:, 1]) / 2.0
@@ -784,7 +848,7 @@ def sort_lightcurve(t, m, e):
 def make_confusion_matrix(
     cf,
     group_names=None,
-    categories='auto',
+    categories="auto",
     count=True,
     percent=True,
     cbar=True,
@@ -792,11 +856,11 @@ def make_confusion_matrix(
     xyplotlabels=True,
     sum_stats=True,
     figsize=None,
-    cmap='Blues',
+    cmap="Blues",
     title=None,
     annotate_scores=False,
 ):
-    '''
+    """
     CONFUSION MATRIX CODE ADAPTED FROM https://github.com/DTrimarchi10/confusion_matrix (Dennis Trimarchi)
 
     This function will make a pretty plot of an sklearn Confusion Matrix cm using a Seaborn heatmap visualization.
@@ -829,10 +893,10 @@ def make_confusion_matrix(
 
     title:         Title for the heatmap. Default is None.
 
-    '''
+    """
 
     # CODE TO GENERATE TEXT INSIDE EACH SQUARE
-    blanks = ['' for i in range(cf.size)]
+    blanks = ["" for i in range(cf.size)]
 
     if group_names and len(group_names) == cf.size:
         group_labels = ["{}\n".format(value) for value in group_names]
@@ -877,7 +941,7 @@ def make_confusion_matrix(
     # SET FIGURE PARAMETERS ACCORDING TO OTHER ARGUMENTS
     if figsize is None:
         # Get default figure size if not set
-        figsize = plt.rcParams.get('figure.figsize')
+        figsize = plt.rcParams.get("figure.figsize")
 
     if xyticks is False:
         # Do not show categories if xyticks is False
@@ -896,8 +960,8 @@ def make_confusion_matrix(
     )
 
     if xyplotlabels:
-        plt.ylabel('True label')
-        plt.xlabel('Predicted label' + stats_text)
+        plt.ylabel("True label")
+        plt.xlabel("Predicted label" + stats_text)
     else:
         plt.xlabel(stats_text)
 
@@ -909,22 +973,22 @@ def make_confusion_matrix(
 
 def plot_roc(fpr, tpr, roc_auc):
     plt.plot(fpr, tpr)
-    plt.plot([0, 1], [0, 1], 'k--')
+    plt.plot([0, 1], [0, 1], "k--")
     plt.xlim([0.0, 1.0])
     plt.ylim([0.0, 1.05])
-    plt.xlabel('False Positive Rate')
-    plt.ylabel('True Positive Rate')
-    plt.title('ROC curve (area = %0.6f)' % roc_auc)
+    plt.xlabel("False Positive Rate")
+    plt.ylabel("True Positive Rate")
+    plt.title("ROC curve (area = %0.6f)" % roc_auc)
 
 
 def plot_pr(recall, precision):
-    plt.step(recall, precision, color='b', alpha=0.2, where='post')
-    plt.fill_between(recall, precision, step='post', alpha=0.2, color='b')
-    plt.xlabel('Recall')
-    plt.ylabel('Precision')
+    plt.step(recall, precision, color="b", alpha=0.2, where="post")
+    plt.fill_between(recall, precision, step="post", alpha=0.2, color="b")
+    plt.xlabel("Recall")
+    plt.ylabel("Precision")
     plt.ylim([0.0, 1.05])
     plt.xlim([0.0, 1.0])
-    plt.title('Precision-Recall')
+    plt.title("Precision-Recall")
 
 
 """ Datasets """
@@ -937,15 +1001,17 @@ class Dataset(object):
         path_dataset: Union[str, pathlib.Path],
         features: tuple,
         verbose: bool = False,
-        algorithm: str = 'dnn',
-        **kwargs,
+        algorithm: str = "dnn",
+        period_suffix: str = None,
     ):
         """Load parquet, hdf5 or csv file with the dataset containing both data and labels
 
-        :param tag:
-        :param path_dataset:
-        :param features:
-        :param verbose:
+        :param tag: classifier designation, refers to "class" in config.taxonomy (str)
+        :param path_dataset: local path to .parquet, .h5 or .csv file with the dataset (str)
+        :param features: list of input features (list)
+        :param verbose: if set, print additional outputs (bool)
+        :param algorithm: name of ML algorithm to use (str)
+        :param period_suffix: suffix of period/Fourier features to use for training (str)
         """
         self.tag = tag
         self.path_dataset = str(path_dataset)
@@ -955,37 +1021,37 @@ class Dataset(object):
 
         # Load config file
         self.config = load_config(BASE_DIR / "config.yaml")
-        self.period_suffix_config = self.config['features']['info']['period_suffix']
+        self.period_suffix_config = self.config["features"]["info"]["period_suffix"]
 
-        period_suffix = kwargs.get('period_suffix', self.period_suffix_config)
+        if period_suffix is None:
+            period_suffix = self.period_suffix_config
 
-        if algorithm in ['DNN', 'NN', 'dnn', 'nn']:
-            self.algorithm = 'dnn'
-        elif algorithm in ['XGB', 'xgb', 'XGBoost', 'xgboost', 'XGBOOST']:
-            self.algorithm = 'xgb'
+        if algorithm in ["DNN", "NN", "dnn", "nn"]:
+            self.algorithm = "dnn"
+        elif algorithm in ["XGB", "xgb", "XGBoost", "xgboost", "XGBOOST"]:
+            self.algorithm = "xgb"
         else:
-            raise ValueError('Current supported algorithms are DNN and XGB.')
+            raise ValueError("Current supported algorithms are DNN and XGB.")
 
         if self.verbose:
             log(f"Loading {self.path_dataset}...")
-        nrows = kwargs.get("nrows", None)
 
         csv = False
-        if self.path_dataset.endswith('.csv'):
+        if self.path_dataset.endswith(".csv"):
             csv = True
-            self.df_ds = pd.read_csv(self.path_dataset, nrows=nrows)
-        elif self.path_dataset.endswith('.h5'):
+            self.df_ds = pd.read_csv(self.path_dataset)
+        elif self.path_dataset.endswith(".h5"):
             self.df_ds = read_hdf(self.path_dataset)
-            for key in ['coordinates', 'dmdt']:
+            for key in ["coordinates", "dmdt"]:
                 df_temp = read_hdf(self.path_dataset, key=key)
                 self.df_ds[key] = df_temp
             del df_temp
-            self.dmdt = self.df_ds['dmdt']
-        elif self.path_dataset.endswith('.parquet'):
+            self.dmdt = self.df_ds["dmdt"]
+        elif self.path_dataset.endswith(".parquet"):
             self.df_ds = read_parquet(self.path_dataset)
-            self.dmdt = self.df_ds['dmdt']
+            self.dmdt = self.df_ds["dmdt"]
         else:
-            raise ValueError('Dataset must have .parquet, .h5 or .csv extension.')
+            raise ValueError("Dataset must have .parquet, .h5 or .csv extension.")
 
         if self.verbose:
             log(self.df_ds[list(features)].describe())
@@ -997,7 +1063,7 @@ class Dataset(object):
         )
 
         dmdt = []
-        if (self.verbose) & (self.algorithm == 'dnn'):
+        if (self.verbose) & (self.algorithm == "dnn"):
             print("Moving dmdt's to a dedicated numpy array...")
             iterator = tqdm(self.df_ds.itertuples(), total=len(self.df_ds))
         else:
@@ -1039,28 +1105,28 @@ class Dataset(object):
         batch_size: int = 256,
         shuffle_buffer_size: int = 256,
         epochs: int = 300,
-        **kwargs,
+        float_convert_types: list = [64, 32],
     ):
         """Make datasets for target_label
 
-        :param target_label: corresponds to training.classes.<label> in config
-        :param threshold: our labels are floats [0, 0.25, 0.5, 0.75, 1]
+        :param target_label: classifier designation, refers to "class" in config.taxonomy (str)
+        :param threshold: classification threshold separating positive from negative examples (float)
         :param balance: balance ratio for the prevalent class. if null - use all available data
-        :param weight_per_class:
-        :param scale_features: min_max | median_std
-        :param test_size:
-        :param val_size:
-        :param random_state: set this for reproducibility
-        :param feature_stats: feature_stats to use to standardize features.
-                              if None, stats are computed from the data, taking balance into account
-        :param batch_size
-        :param shuffle_buffer_size
-        :param epochs
+        :param weight_per_class: if set, weight training data based on fraction of positive/negative samples (bool)
+        :param scale_features: method by which to scale input features [min_max or median_std] (str)
+        :param test_size: fractional size of test set, taken from initial learning set (float)
+        :param val_size: fractional size of val set, taken from learning set less test set (float)
+        :param random_state: random seed to set for reproducibility
+        :param feature_stats: feature stats to use to standardize features. If set to 'config', source feature stats from values in config file. Otherwise, compute them from data, taking balance into account (str)
+        :param batch_size: batch size to use for training (int)
+        :param shuffle_buffer_size: buffer size to use when shuffling training set (int)
+        :param epochs: number of training epochs (int)
+        :param float_convert_types: convert floats from a to b bits, e.g. [64, 32] (list)
+
         :return:
         """
 
         # Note: Dataset.from_tensor_slices method requires the target variable to be of the int or float32 type.
-        float_convert_types = kwargs.get("float_convert_types", (64, 32))
         # TODO: see what to do about it when trying label smoothing in the future.
 
         target = np.asarray(
@@ -1181,18 +1247,6 @@ class Dataset(object):
                     self.df_ds[feature] = (self.df_ds[feature] - stats["min"]) / (
                         stats["max"] - stats["min"]
                     )
-        # norms = {
-        #     feature: np.linalg.norm(self.df_ds.loc[ds_indexes, feature])
-        #     for feature in self.features
-        # }
-        # for feature, norm in norms.items():
-        #     if np.isnan(norm) or norm == 0.0:
-        #         norms[feature] = 1.0
-        # if self.verbose:
-        #     print('Computed feature norms:\n', norms)
-        #
-        # for feature, norm in norms.items():
-        #     self.df_ds[feature] /= norm
 
         # Convert float64 to float32 to satisfy tensorflow requirements
         float_type_dict = {16: np.float16, 32: np.float32, 64: np.float64}
@@ -1200,10 +1254,10 @@ class Dataset(object):
 
         # float_init, float_final = float_convert_types[0], float_convert_types[1]
 
-        self.df_ds[
-            self.df_ds.select_dtypes(float_type_dict[float_init]).columns
-        ] = self.df_ds.select_dtypes(float_type_dict[float_init]).astype(
-            float_type_dict[float_final]
+        self.df_ds[self.df_ds.select_dtypes(float_type_dict[float_init]).columns] = (
+            self.df_ds.select_dtypes(float_type_dict[float_init]).astype(
+                float_type_dict[float_final]
+            )
         )
 
         train_dataset = tf.data.Dataset.from_tensor_slices(
@@ -1273,9 +1327,9 @@ class Dataset(object):
             "train": np.array(train_indexes),
             "val": np.array(val_indexes),
             "test": np.array(test_indexes),
-            "dropped_samples": np.array(index_dropped.to_list())
-            if index_dropped is not None
-            else None,
+            "dropped_samples": (
+                np.array(index_dropped.to_list()) if index_dropped is not None else None
+            ),
         }
 
         # How many steps per epoch?

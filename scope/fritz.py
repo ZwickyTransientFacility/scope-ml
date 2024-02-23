@@ -1,19 +1,17 @@
 import urllib
 import requests
-import pathlib
-import yaml
 import time
 from typing import Optional, Mapping
 import numpy as np
 import pandas as pd
 from requests.exceptions import InvalidJSONError, JSONDecodeError
 from urllib3.exceptions import ProtocolError
-
+from scope.utils import parse_load_config
 
 # define the baseurl and set the fritz token to connect
-config_path = pathlib.Path(__file__).parent.parent.absolute() / "config.yaml"
-with open(config_path) as config_yaml:
-    config = yaml.load(config_yaml, Loader=yaml.FullLoader)
+
+config = parse_load_config()
+
 BASE_URL = f"{config['fritz']['protocol']}://{config['fritz']['host']}/"
 MAX_ATTEMPTS = config['fritz']['max_attempts']
 SLEEP_TIME = config['fritz']['sleep_time']

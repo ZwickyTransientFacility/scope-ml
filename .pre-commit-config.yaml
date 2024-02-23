@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v3.3.0
+    rev: v4.5.0
     hooks:
       - id: check-yaml
       - id: end-of-file-fixer
@@ -8,13 +8,13 @@ repos:
       - id: trailing-whitespace
         exclude: .ipynb_checkpoints|data/Gaia_hp8_densitymap.fits
   - repo: https://github.com/python/black
-    rev: 22.3.0
+    rev: 24.2.0
     hooks:
       - id: black
         pass_filenames: true
         exclude: .ipynb_checkpoints|data|^.fits
   - repo: https://github.com/pycqa/flake8
-    rev: 3.8.4
+    rev: 7.0.0
     hooks:
       - id: flake8
         pass_filenames: true

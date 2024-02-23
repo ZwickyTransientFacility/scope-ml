@@ -1,19 +1,16 @@
 #!/usr/bin/env python
 import argparse
 import pathlib
-import yaml
 import os
 from penquins import Kowalski
 import numpy as np
 import json
+from scope.utils import parse_load_config
+from tools.generate_features import get_parser
 
 
-BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
-
-# setup connection to Kowalski instances
-config_path = pathlib.Path(__file__).parent.parent.absolute() / "config.yaml"
-with open(config_path) as config_yaml:
-    config = yaml.load(config_yaml, Loader=yaml.FullLoader)
+BASE_DIR = pathlib.Path.cwd()
+config = parse_load_config()
 
 # use tokens specified as env vars (if exist)
 kowalski_token_env = os.environ.get("KOWALSKI_INSTANCE_TOKEN")
@@ -70,7 +67,6 @@ def check_quads_for_sources(
     Check ZTF field/ccd/quadrant combos for any sources. By default, lists any quadrants that have at least one source.
 
     :param fields: list of integer field numbers to query (list)
-    :param kowalski_instance_name: name of kowalski instance to query (str)
     :param catalog: name of source catalog to query (str)
     :param count_sources: if set, count number of sources per quad and return (bool)
     :param minobs: minimum number of observations needed to count a source (int)
@@ -180,158 +176,30 @@ def check_quads_for_sources(
     return field_dct, has_sources, missing_ccd_quad
 
 
-if __name__ == "__main__":
+def get_slurm_parser():
 
-    parser = argparse.ArgumentParser()
-
+    fg_parser = get_parser(add_help=False)
+    parser = argparse.ArgumentParser(parents=[fg_parser])
     parser.add_argument(
-        "--source_catalog",
-        default=source_catalog,
-        help="name of source collection on Kowalski",
-    )
-    parser.add_argument(
-        "--alerts_catalog",
-        default=alerts_catalog,
-        help="name of alerts collection on Kowalski",
-    )
-    parser.add_argument(
-        "--gaia_catalog",
-        default=gaia_catalog,
-        help="name of Gaia collection on Kowalski",
-    )
-    parser.add_argument(
-        "--bright_star_query_radius_arcsec",
-        type=float,
-        default=300.0,
-        help="size of cone search radius to search for bright stars",
-    )
-    parser.add_argument(
-        "--xmatch_radius_arcsec",
-        type=float,
-        default=2.0,
-        help="cone radius for all crossmatches",
-    )
-    parser.add_argument(
-        "--query_size_limit",
-        type=int,
-        default=10000,
-        help="sources per query limit for large Kowalski queries",
-    )
-    parser.add_argument(
-        "--period_batch_size",
-        type=int,
-        default=1000,
-        help="batch size for GPU-accelerated period algorithms",
-    )
-    parser.add_argument(
-        "--doCPU",
-        action='store_true',
-        default=False,
-        help="if set, run period-finding algorithms on CPU",
-    )
-    parser.add_argument(
-        "--doGPU",
-        action='store_true',
-        default=False,
-        help="if set, use GPU-accelerated period algorithms",
-    )
-    parser.add_argument(
-        "--samples_per_peak",
-        default=10,
-        type=int,
-    )
-    parser.add_argument(
-        "--doScaleMinPeriod",
-        action='store_true',
-        default=False,
-        help="if set, scale min period by min_cadence_minutes. Otherwise, set --max_freq to desired value",
-    )
-    parser.add_argument(
-        "--doRemoveTerrestrial",
-        action='store_true',
-        default=False,
-        help="if set, remove terrestrial frequencies from period analysis",
-    )
-    parser.add_argument(
-        "--Ncore",
-        default=10,
-        type=int,
-        help="number of cores for parallel period finding",
-    )
-    parser.add_argument(
-        "--field",
-        type=int,
-        default=296,
-        help="if not --doQuadrantFile, ZTF field to run on",
-    )
-    parser.add_argument(
-        "--ccd", type=int, default=1, help="if not -doAllCCDs, ZTF ccd to run on"
-    )
-    parser.add_argument(
-        "--quad", type=int, default=1, help="if not -doAllQuads, ZTF field to run on"
-    )
-    parser.add_argument(
-        "--min_n_lc_points",
-        type=int,
-        default=50,
-        help="minimum number of unflagged light curve points to run feature generation",
-    )
-    parser.add_argument(
-        "--min_cadence_minutes",
-        type=float,
-        default=30.0,
-        help="minimum cadence (in minutes) between light curve points. For groups of points closer together than this value, only the first will be kept.",
-    )
-    parser.add_argument(
-        "--dirname",
-        type=str,
-        default='generated_features',
-        help="Directory name for generated features",
-    )
-    parser.add_argument(
-        "--filename",
-        type=str,
-        default='gen_features',
-        help="Filename prefix for generated features",
-    )
-    parser.add_argument(
-        "--doCesium",
-        action='store_true',
-        default=False,
-        help="if set, use Cesium to generate additional features specified in config",
-    )
-    parser.add_argument(
-        "--doNotSave",
-        action='store_true',
-        default=False,
-        help="if set, do not save features",
-    )
-    parser.add_argument(
-        "--stop_early",
-        action='store_true',
-        default=False,
-        help="if set, stop when number of sources reaches query_size_limit. Helpful for testing on small samples.",
-    )
-    parser.add_argument(
-        "--job_name",
+        "--job-name",
         type=str,
         default='ztf_fg',
         help="job name",
     )
     parser.add_argument(
-        "--cluster_name",
+        "--cluster-name",
         type=str,
         default='Expanse',
         help="Name of HPC cluster",
     )
     parser.add_argument(
-        "--partition_type",
+        "--partition-type",
         type=str,
         default='gpu-shared',
         help="Partition name to request for computing",
     )
     parser.add_argument(
-        "--submit_partition_type",
+        "--submit-partition-type",
         type=str,
         default='shared',
         help="Partition name to request for job submission",
@@ -349,13 +217,13 @@ if __name__ == "__main__":
         help="Number of GPUs to request",
     )
     parser.add_argument(
-        "--memory_GB",
+        "--memory-GB",
         type=int,
         default=180,
         help="Memory allocation to request for computing",
     )
     parser.add_argument(
-        "--submit_memory_GB",
+        "--submit-memory-GB",
         type=int,
         default=16,
         help="Memory allocation to request for job submission",
@@ -367,19 +235,19 @@ if __name__ == "__main__":
         help="Walltime for instance",
     )
     parser.add_argument(
-        "--mail_user",
+        "--mail-user",
         type=str,
         default='healyb@umn.edu',
         help="contact email address",
     )
     parser.add_argument(
-        "--account_name",
+        "--account-name",
         type=str,
         default='umn131',
         help="Name of account with current HPC allocation",
     )
     parser.add_argument(
-        "--python_env_name",
+        "--python-env-name",
         type=str,
         default='scope-env',
         help="Name of python environment to activate",
@@ -391,47 +259,20 @@ if __name__ == "__main__":
         help="if set, generate a list of fields/ccd/quads and job numbers, save to slurm.dat",
     )
     parser.add_argument(
-        "--field_list",
+        "--field-list",
         type=int,
         nargs='+',
         default=None,
         help="space-separated list of fields for which to generate quadrant file. If None, all populated fields included.",
     )
-    parser.add_argument("--doQuadrantFile", action="store_true", default=False)
-    parser.add_argument("--quadrant_file", default="slurm.dat")
-    parser.add_argument("--quadrant_index", default=None, type=int)
     parser.add_argument(
-        "--doSpecificIDs",
-        action='store_true',
-        default=False,
-        help="if set, perform feature generation for ztf_id column in config-specified file",
-    )
-    parser.add_argument(
-        "--skipCloseSources",
-        action='store_true',
-        default=False,
-        help="if set, skip removal of sources too close to bright stars via Gaia. May be useful if input data has previously been analyzed in this way.",
-    )
-    parser.add_argument(
-        "--top_n_periods",
-        type=int,
-        default=50,
-        help="number of ELS, ECE periods to pass to EAOV if using ELS_ECE_EAOV algorithm",
-    )
-    parser.add_argument(
-        "--max_freq",
-        type=float,
-        default=48.0,
-        help="maximum frequency [1 / days] to use for period finding. Overridden by --doScaleMinPeriod",
-    )
-    parser.add_argument(
-        "--max_instances",
+        "--max-instances",
         type=int,
         default=20,
         help="Max number of instances to run in parallel",
     )
     parser.add_argument(
-        "--wait_time_minutes",
+        "--wait-time-minutes",
         type=float,
         default=5.0,
         help="Time to wait between job status checks",
@@ -455,13 +296,18 @@ if __name__ == "__main__":
         help="HPC username",
     )
     parser.add_argument(
-        "--submit_interval_minutes",
+        "--submit-interval-minutes",
         type=float,
         default=1.0,
-        help="Time to wait between job submissions (minutes)",
+        help="Time to wait between job submissions, minutes",
     )
 
-    args = parser.parse_args()
+    return parser
+
+
+def main():
+    parser = get_slurm_parser()
+    args, _ = parser.parse_known_args()
 
     if not (args.doCPU or args.doGPU):
         print("--doCPU or --doGPU required")
@@ -498,26 +344,27 @@ if __name__ == "__main__":
     skipCloseSources = args.skipCloseSources
     top_n_periods = args.top_n_periods
     max_freq = args.max_freq
+    max_timestamp_hjd = args.max_timestamp_hjd
 
-    if args.doCPU:
+    if doCPU:
         cpu_gpu_flag = "--doCPU"
-    else:
+    elif doGPU:
         cpu_gpu_flag = "--doGPU"
 
     extra_flags = []
-    if args.doScaleMinPeriod:
+    if doScaleMinPeriod:
         extra_flags.append("--doScaleMinPeriod")
-    if args.doRemoveTerrestrial:
+    if doRemoveTerrestrial:
         extra_flags.append("--doRemoveTerrestrial")
-    if args.doCesium:
+    if doCesium:
         extra_flags.append("--doCesium")
-    if args.doNotSave:
+    if doNotSave:
         extra_flags.append("--doNotSave")
-    if args.stop_early:
-        extra_flags.append("--stop_early")
-    if args.doSpecificIDs:
+    if stop_early:
+        extra_flags.append("--stop-early")
+    if doSpecificIDs:
         extra_flags.append("--doSpecificIDs")
-    if args.skipCloseSources:
+    if skipCloseSources:
         extra_flags.append("--skipCloseSources")
     extra_flags = " ".join(extra_flags)
 
@@ -561,8 +408,8 @@ if __name__ == "__main__":
     fid = open(os.path.join(slurmDir, 'slurm.sub'), 'w')
     fid.write('#!/bin/bash\n')
     fid.write(f'#SBATCH --job-name={args.job_name}.job\n')
-    fid.write(f'#SBATCH --output=../logs/{args.job_name}_%A_%a.out\n')
-    fid.write(f'#SBATCH --error=../logs/{args.job_name}_%A_%a.err\n')
+    fid.write(f'#SBATCH --output={dirname}/logs/{args.job_name}_%A_%a.out\n')
+    fid.write(f'#SBATCH --error={dirname}/logs/{args.job_name}_%A_%a.err\n')
     fid.write(f'#SBATCH -p {args.partition_type}\n')
     fid.write(f'#SBATCH --nodes {args.nodes}\n')
     fid.write(f'#SBATCH --ntasks-per-node {args.Ncore}\n')
@@ -584,9 +431,8 @@ if __name__ == "__main__":
         if args.quadrant_index is not None:
             qid = args.quadrant_index
         fid.write(
-            '%s/generate_features.py --source_catalog %s --alerts_catalog %s --gaia_catalog %s --bright_star_query_radius_arcsec %s --xmatch_radius_arcsec %s --query_size_limit %s --period_batch_size %s --samples_per_peak %s --Ncore %s --min_n_lc_points %s --min_cadence_minutes %s --dirname %s --filename %s --top_n_periods %s --max_freq %s --doQuadrantFile --quadrant_file %s --quadrant_index %s %s %s\n'
+            'generate-features --source-catalog %s --alerts-catalog %s --gaia-catalog %s --bright-star-query-radius-arcsec %s --xmatch-radius-arcsec %s --query-size-limit %s --period-batch-size %s --samples-per-peak %s --Ncore %s --min-n-lc-points %s --min-cadence-minutes %s --dirname %s --filename %s --top-n-periods %s --max-freq %s --max-timestamp-hjd %s --doQuadrantFile --quadrant-file %s --quadrant-index %s %s %s\n'
             % (
-                BASE_DIR / 'tools',
                 source_catalog,
                 alerts_catalog,
                 gaia_catalog,
@@ -602,6 +448,7 @@ if __name__ == "__main__":
                 filename,
                 top_n_periods,
                 max_freq,
+                max_timestamp_hjd,
                 args.quadrant_file,
                 qid,
                 cpu_gpu_flag,
@@ -610,9 +457,8 @@ if __name__ == "__main__":
         )
     else:
         fid.write(
-            '%s/generate_features.py --source_catalog %s --alerts_catalog %s --gaia_catalog %s --bright_star_query_radius_arcsec %s --xmatch_radius_arcsec %s --query_size_limit %s --period_batch_size %s --samples_per_peak %s --Ncore %s --field %s --ccd %s --quad %s --min_n_lc_points %s --min_cadence_minutes %s --dirname %s --filename %s --top_n_periods %s --max_freq %s %s %s\n'
+            'generate-features --source-catalog %s --alerts-catalog %s --gaia-catalog %s --bright-star-query-radius-arcsec %s --xmatch-radius-arcsec %s --query-size-limit %s --period-batch-size %s --samples-per-peak %s --Ncore %s --field %s --ccd %s --quad %s --min-n-lc-points %s --min-cadence-minutes %s --dirname %s --filename %s --top-n-periods %s --max-freq %s --max-timestamp-hjd %s %s %s\n'
             % (
-                BASE_DIR / 'tools',
                 source_catalog,
                 alerts_catalog,
                 gaia_catalog,
@@ -631,6 +477,7 @@ if __name__ == "__main__":
                 filename,
                 top_n_periods,
                 max_freq,
+                max_timestamp_hjd,
                 cpu_gpu_flag,
                 extra_flags,
             )
@@ -642,8 +489,8 @@ if __name__ == "__main__":
     fid = open(os.path.join(slurmDir, 'slurm_submission.sub'), 'w')
     fid.write('#!/bin/bash\n')
     fid.write('#SBATCH --job-name=submit_jobs.job\n')
-    fid.write(f'#SBATCH --output=../logs/{args.job_name}_submit_%A_%a.out\n')
-    fid.write(f'#SBATCH --error=../logs/{args.job_name}_submit_%A_%a.err\n')
+    fid.write(f'#SBATCH --output={dirname}/logs/{args.job_name}_submit_%A_%a.out\n')
+    fid.write(f'#SBATCH --error={dirname}/logs/{args.job_name}_submit_%A_%a.err\n')
     fid.write(f'#SBATCH -p {args.submit_partition_type}\n')
     fid.write(f'#SBATCH --mem {args.submit_memory_GB}G\n')
     fid.write(f'#SBATCH -A {args.account_name}\n')
@@ -659,9 +506,8 @@ if __name__ == "__main__":
     if not args.doSubmitLoop:
         if args.runParallel:
             fid.write(
-                '%s/generate_features_job_submission.py --dirname %s --filename %s --doSubmit --runParallel --max_instances %s --wait_time_minutes %s --user %s --submit_interval_minutes %s\n'
+                'generate-features-job-submission --dirname %s --filename %s --doSubmit --runParallel --max-instances %s --wait-time-minutes %s --user %s --submit-interval-minutes %s\n'
                 % (
-                    BASE_DIR / 'tools',
                     dirpath,
                     filename,
                     args.max_instances,
@@ -672,9 +518,8 @@ if __name__ == "__main__":
             )
         else:
             fid.write(
-                '%s/generate_features_job_submission.py --dirname %s --filename %s --doSubmit --max_instances %s --wait_time_minutes %s --user %s --submit_interval_minutes %s\n'
+                'generate-features-job-submission --dirname %s --filename %s --doSubmit --max-instances %s --wait-time-minutes %s --user %s --submit-interval-minutes %s\n'
                 % (
-                    BASE_DIR / 'tools',
                     dirpath,
                     filename,
                     args.max_instances,
@@ -686,18 +531,16 @@ if __name__ == "__main__":
     else:
         if args.runParallel:
             fid.write(
-                '%s/generate_features_job_submission.py --dirname %s --filename %s --doSubmitLoop --runParallel\n'
+                'generate-features-job-submission --dirname %s --filename %s --doSubmitLoop --runParallel\n'
                 % (
-                    BASE_DIR / 'tools',
                     dirpath,
                     filename,
                 )
             )
         else:
             fid.write(
-                '%s/generate_features_job_submission.py --dirname %s --filename %s --doSubmitLoop\n'
+                'generate-features-job-submission --dirname %s --filename %s --doSubmitLoop\n'
                 % (
-                    BASE_DIR / 'tools',
                     dirpath,
                     filename,
                 )

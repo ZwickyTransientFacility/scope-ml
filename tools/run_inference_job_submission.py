@@ -2,23 +2,21 @@
 import os
 import pathlib
 import argparse
-import yaml
 import numpy as np
+from scope.utils import parse_load_config
 
-BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
-BASE_DIR_PREDS = pathlib.Path(__file__).parent.parent.absolute()
 
-# Read config file
-config_path = BASE_DIR / "config.yaml"
-with open(config_path) as config_yaml:
-    config = yaml.load(config_yaml, Loader=yaml.FullLoader)
+BASE_DIR = pathlib.Path.cwd()
+BASE_DIR_PREDS = BASE_DIR
+
+config = parse_load_config()
 
 path_to_preds = config['inference']['path_to_preds']
 if path_to_preds is not None:
     BASE_DIR_PREDS = pathlib.Path(path_to_preds)
 
 
-def parse_commandline():
+def get_parser():
     """
     Parse the options given on the command-line.
     """
@@ -46,8 +44,7 @@ def parse_commandline():
         help="dnn or xgb",
     )
 
-    args = parser.parse_args()
-    return args
+    return parser
 
 
 def filter_completed(fields, algorithm):
@@ -68,17 +65,16 @@ def filter_completed(fields, algorithm):
     return fields_copy
 
 
-def run_job(field):
+def run_job(field, subfile):
     sbatchstr = f"sbatch --export=FID={field} {subfile}"
     print(sbatchstr)
     os.system(sbatchstr)
 
 
-if __name__ == '__main__':
+def main():
     # Parse command line
-    args = parse_commandline()
-
-    dir_path = os.path.dirname(os.path.realpath(__file__))
+    parser = get_parser()
+    args, _ = parser.parse_known_args()
 
     filetype = args.filetype
     dirname = args.dirname
@@ -95,13 +91,10 @@ if __name__ == '__main__':
         fields,
         algorithm,
     )
-    njobs = len(fields_remaining)
 
     for field in fields_remaining:
         # Only run jobs from tags_remaining_to_run list
-        run_job(
-            field,
-        )
+        run_job(field, subfile)
 
     os.system(f"squeue -u {args.user}")
 

@@ -1,22 +1,21 @@
 #!/usr/bin/env python
 import argparse
 import pathlib
-import yaml
 import os
+from scope.utils import parse_load_config
 
 
-BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
-BASE_DIR_PREDS = pathlib.Path(__file__).parent.parent.absolute()
+BASE_DIR = pathlib.Path.cwd()
+BASE_DIR_PREDS = BASE_DIR
 
-config_path = BASE_DIR / "config.yaml"
-with open(config_path) as config_yaml:
-    config = yaml.load(config_yaml, Loader=yaml.FullLoader)
+config = parse_load_config()
 
 path_to_preds = config['inference']['path_to_preds']
 if path_to_preds is not None:
     BASE_DIR_PREDS = pathlib.Path(path_to_preds)
 
-if __name__ == "__main__":
+
+def get_parser():
 
     parser = argparse.ArgumentParser()
 
@@ -33,25 +32,25 @@ if __name__ == "__main__":
         help="Directory name for slurm scripts/logs",
     )
     parser.add_argument(
-        "--job_name",
+        "--job-name",
         type=str,
         default='run_inference',
         help="job name",
     )
     parser.add_argument(
-        "--cluster_name",
+        "--cluster-name",
         type=str,
         default='Expanse',
         help="Name of HPC cluster",
     )
     parser.add_argument(
-        "--partition_type",
+        "--partition-type",
         type=str,
         default='gpu-shared',
         help="Partition name to request for computing",
     )
     parser.add_argument(
-        "--submit_partition_type",
+        "--submit-partition-type",
         type=str,
         default='shared',
         help="Partition name to request for job submission",
@@ -69,13 +68,13 @@ if __name__ == "__main__":
         help="number of cores to request for computing",
     )
     parser.add_argument(
-        "--submit_nodes",
+        "--submit-nodes",
         type=int,
         default=1,
         help="Number of nodes to request for job submission",
     )
     parser.add_argument(
-        "--submit_Ncore",
+        "--submit-Ncore",
         default=1,
         type=int,
         help="number of cores to request for job submission",
@@ -87,13 +86,13 @@ if __name__ == "__main__":
         help="Number of GPUs to request",
     )
     parser.add_argument(
-        "--memory_GB",
+        "--memory-GB",
         type=int,
         default=64,
         help="Memory allocation to request for computing",
     )
     parser.add_argument(
-        "--submit_memory_GB",
+        "--submit-memory-GB",
         type=int,
         default=16,
         help="Memory allocation to request for job submission",
@@ -105,19 +104,19 @@ if __name__ == "__main__":
         help="Walltime for instance",
     )
     parser.add_argument(
-        "--mail_user",
+        "--mail-user",
         type=str,
         default='healyb@umn.edu',
         help="contact email address",
     )
     parser.add_argument(
-        "--account_name",
+        "--account-name",
         type=str,
         default='umn131',
         help="Name of account with current HPC allocation",
     )
     parser.add_argument(
-        "--python_env_name",
+        "--python-env-name",
         type=str,
         default='scope-env',
         help="Name of python environment to activate",
@@ -135,7 +134,12 @@ if __name__ == "__main__":
         help="dnn or xgb",
     )
 
-    args = parser.parse_args()
+    return parser
+
+
+def main():
+    parser = get_parser()
+    args, _ = parser.parse_known_args()
 
     scriptname = args.scriptname
     script_path = BASE_DIR / scriptname
@@ -158,8 +162,8 @@ if __name__ == "__main__":
     fid = open(os.path.join(slurmDir, 'slurm.sub'), 'w')
     fid.write('#!/bin/bash\n')
     fid.write(f'#SBATCH --job-name={jobname}.job\n')
-    fid.write(f'#SBATCH --output=../logs/{jobname}_%A_%a.out\n')
-    fid.write(f'#SBATCH --error=../logs/{jobname}_%A_%a.err\n')
+    fid.write(f'#SBATCH --output={dirname}/logs/{jobname}_%A_%a.out\n')
+    fid.write(f'#SBATCH --error={dirname}/logs/{jobname}_%A_%a.err\n')
     fid.write(f'#SBATCH -p {args.partition_type}\n')
     fid.write(f'#SBATCH --nodes {args.nodes}\n')
     fid.write(f'#SBATCH --ntasks-per-node {args.Ncore}\n')
@@ -185,8 +189,8 @@ if __name__ == "__main__":
     fid = open(os.path.join(slurmDir, 'slurm_submission.sub'), 'w')
     fid.write('#!/bin/bash\n')
     fid.write(f'#SBATCH --job-name={jobname}_submit.job\n')
-    fid.write(f'#SBATCH --output=../logs/{jobname}_submit_%A_%a.out\n')
-    fid.write(f'#SBATCH --error=../logs/{jobname}_submit_%A_%a.err\n')
+    fid.write(f'#SBATCH --output={dirname}/logs/{jobname}_submit_%A_%a.out\n')
+    fid.write(f'#SBATCH --error={dirname}/logs/{jobname}_submit_%A_%a.err\n')
     fid.write(f'#SBATCH -p {args.submit_partition_type}\n')
     fid.write(f'#SBATCH --nodes {args.submit_nodes}\n')
     fid.write(f'#SBATCH --ntasks-per-node {args.submit_Ncore}\n')
@@ -202,9 +206,8 @@ if __name__ == "__main__":
         fid.write(f'source activate {args.python_env_name}\n')
 
     fid.write(
-        '%s/run_inference_job_submission.py --dirname=%s --scriptname=%s --user=%s --algorithm=%s\n'
+        'run-inference-job-submission --dirname %s --scriptname %s --user %s --algorithm %s\n'
         % (
-            BASE_DIR / 'tools',
             dirname,
             scriptname,
             args.user,

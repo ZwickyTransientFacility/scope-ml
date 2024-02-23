@@ -3,20 +3,17 @@ import os
 import pathlib
 import time
 import argparse
-import yaml
 from tools.train_algorithm_slurm import parse_training_script
 import numpy as np
 import datetime
-
-BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
-
-# Read config file
-config_path = BASE_DIR / "config.yaml"
-with open(config_path) as config_yaml:
-    config = yaml.load(config_yaml, Loader=yaml.FullLoader)
+from scope.utils import parse_load_config
 
 
-def parse_commandline():
+BASE_DIR = pathlib.Path.cwd()
+config = parse_load_config()
+
+
+def get_parser():
     """
     Parse the options given on the command-line.
     """
@@ -44,19 +41,19 @@ def parse_commandline():
         help="HPC username",
     )
     parser.add_argument(
-        "--max_instances",
+        "--max-instances",
         type=int,
         default=100,
         help="Max number of instances to run in parallel",
     )
     parser.add_argument(
-        "--wait_time_minutes",
+        "--wait-time-minutes",
         type=float,
         default=5.0,
         help="Time to wait between job status checks (minutes)",
     )
     parser.add_argument(
-        "--submit_interval_seconds",
+        "--submit-interval-seconds",
         type=float,
         default=5.0,
         help="Time to wait between job submissions (seconds)",
@@ -68,20 +65,19 @@ def parse_commandline():
         help="If set, job submission runs filter_completed in different directory",
     )
     parser.add_argument(
-        "--reset_running",
+        "--reset-running",
         action='store_true',
         default=False,
         help="If set, reset the 'running' status of all tags",
     )
     parser.add_argument(
-        "--group_name",
+        "--group-name",
         type=str,
         default=None,
-        help="Group name (if different from name in train_script)",
+        help="Group name (if different from name in training script)",
     )
 
-    args = parser.parse_args()
-    return args
+    return parser
 
 
 def filter_completed(tags, group, algorithm, sweep=False, reset_running=False):
@@ -136,7 +132,14 @@ def filter_completed(tags, group, algorithm, sweep=False, reset_running=False):
     return tags_remaining_to_complete, tags_remaining_to_run
 
 
-def run_job(tag, group, submit_interval_seconds=5.0, sweep=False):
+def run_job(
+    tag,
+    group,
+    algorithm,
+    subfile,
+    submit_interval_seconds=5.0,
+    sweep=False,
+):
     # Don't hit WandB server with too many login attempts at once
     time.sleep(submit_interval_seconds)
 
@@ -157,11 +160,10 @@ def run_job(tag, group, submit_interval_seconds=5.0, sweep=False):
         os.system(f'touch {str(output_path)}/{tag}.{time_tag}.running')
 
 
-if __name__ == '__main__':
+def main():
     # Parse command line
-    args = parse_commandline()
-
-    dir_path = os.path.dirname(os.path.realpath(__file__))
+    parser = get_parser()
+    args, _ = parser.parse_known_args()
 
     scriptname = args.scriptname
     filetype = args.filetype
@@ -200,6 +202,8 @@ if __name__ == '__main__':
                 run_job(
                     tag,
                     group,
+                    algorithm,
+                    subfile,
                     submit_interval_seconds=args.submit_interval_seconds,
                     sweep=sweep,
                 )

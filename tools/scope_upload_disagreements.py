@@ -6,6 +6,8 @@ import argparse
 import csv
 import json
 
+# This code is deprecated and will not be updated. It should eventually be removed.
+
 
 def upload(data):
     import requests

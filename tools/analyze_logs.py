@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import os
 from datetime import datetime
 
-BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
+BASE_DIR = pathlib.Path.cwd()
 plt.rcParams["font.size"] = 16
 
 
@@ -56,7 +56,7 @@ def get_parser():
     return parser
 
 
-def main(
+def analyze_logs(
     logs_path="generated_features_new/logs",
     logs_name_pattern="generate_features_new",
     logs_suffix="out",
@@ -64,6 +64,9 @@ def main(
     plot_name="quad_runtime_hist",
     start_date="2023-12-27",
 ):
+    """
+    analyze slurm logs from feature generation to quantify runtime
+    """
 
     logs_path = BASE_DIR / logs_path
     log_files = logs_path.glob(f"{logs_name_pattern}_[0-9]*_[0-9]*.{logs_suffix}")
@@ -137,7 +140,7 @@ def main(
     )
 
 
-if __name__ == "__main__":
+def main():
     parser = get_parser()
-    args = parser.parse_args()
-    main(**vars(args))
+    args, _ = parser.parse_known_args()
+    analyze_logs(**vars(args))

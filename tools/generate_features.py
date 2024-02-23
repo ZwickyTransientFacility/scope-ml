@@ -2,7 +2,6 @@
 import scope
 import argparse
 import pathlib
-import yaml
 import os
 from tools.get_quad_ids import get_ids_loop, get_field_ids
 from scope.fritz import get_lightcurves_via_ids
@@ -15,6 +14,7 @@ from scope.utils import (
     read_parquet,
     read_hdf,
     split_dict,
+    parse_load_config,
 )
 import numpy as np
 from penquins import Kowalski
@@ -31,12 +31,8 @@ from scipy.stats import circmean
 import time
 
 
-BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
-
-# setup connection to Kowalski instances
-config_path = pathlib.Path(__file__).parent.parent.absolute() / "config.yaml"
-with open(config_path) as config_yaml:
-    config = yaml.load(config_yaml, Loader=yaml.FullLoader)
+BASE_DIR = pathlib.Path.cwd()
+config = parse_load_config()
 
 # use tokens specified as env vars (if exist)
 kowalski_token_env = os.environ.get("KOWALSKI_INSTANCE_TOKEN")
@@ -84,7 +80,6 @@ kowalski_instances = Kowalski(timeout=timeout, instances=instances)
 
 def drop_close_bright_stars(
     id_dct: dict,
-    kowalski_instances: Kowalski,
     catalog: str = gaia_catalog,
     query_radius_arcsec: float = 300.0,
     xmatch_radius_arcsec: float = 2.0,
@@ -99,7 +94,6 @@ def drop_close_bright_stars(
     Use Gaia to identify and drop sources that are too close to bright stars
 
     :param id_dct: one quadrant's worth of id-coordinate pairs (dict)
-    :param kowalski_instances: authenticated instances of Kowalski databases
     :param catalog: name of catalog to use [currently only supports Gaia catalogs] (str)
     :param query_radius_arcsec: size of cone search radius to search for bright stars.
         Default is 300 corresponding with approximate maximum from A. Drake's exclusion radius (float)
@@ -436,7 +430,6 @@ def generate_features(
     gaia_catalog: str = gaia_catalog,
     bright_star_query_radius_arcsec: float = 300.0,
     xmatch_radius_arcsec: float = 2.0,
-    kowalski_instances: Kowalski = kowalski_instances,
     limit: int = 10000,
     period_algorithms: dict = period_algorithms,
     period_batch_size: int = 1000,
@@ -474,7 +467,6 @@ def generate_features(
     :param gaia_catalog*: name of Kowalski catalog containing Gaia data (str)
     :param bright_star_query_radius_arcsec: maximum angular distance from ZTF sources to query nearby bright stars in Gaia (float)
     :param xmatch_radius_arcsec: maximum angular distance from ZTF sources to match external catalog sources (float)
-    :param kowalski_instances*: authenticated instances of Kowalski databases (penquins.Kowalski)
     :param limit: maximum number of sources to process in batch queries / statistics calculations (int)
     :param period_algorithms*: dictionary containing names of period algorithms to run. Normally specified in config - if specified here, should be a (list)
     :param period_batch_size: maximum number of sources to simultaneously perform period finding (int)
@@ -516,7 +508,7 @@ def generate_features(
     start_dt = utcnow.strftime("%Y-%m-%d %H:%M:%S")
 
     # Select period algorithms from config based on CPU or GPU specification
-    if type(period_algorithms) == dict:
+    if isinstance(period_algorithms, dict):
         if doCPU:
             period_algorithms = period_algorithms['CPU']
         elif doGPU:
@@ -556,7 +548,6 @@ def generate_features(
             # Each index of lst corresponds to a different ccd/quad combo
             feature_gen_source_dict = drop_close_bright_stars(
                 lst[0],
-                kowalski_instances=kowalski_instances,
                 catalog=gaia_catalog,
                 query_radius_arcsec=bright_star_query_radius_arcsec,
                 xmatch_radius_arcsec=xmatch_radius_arcsec,
@@ -647,7 +638,6 @@ def generate_features(
             # Each index of lst corresponds to a different ccd/quad combo
             feature_gen_source_dict = drop_close_bright_stars(
                 lst[0],
-                kowalski_instances=kowalski_instances,
                 catalog=gaia_catalog,
                 query_radius_arcsec=bright_star_query_radius_arcsec,
                 xmatch_radius_arcsec=xmatch_radius_arcsec,
@@ -1082,7 +1072,8 @@ def generate_features(
         # Get ZTF alert stats
         alert_stats_dct = alertstats.get_ztf_alert_stats(
             feature_dict,
-            kowalski_instances=kowalski_instances,
+            kowalski_instances,
+            catalog=alerts_catalog,
             radius_arcsec=xmatch_radius_arcsec,
             limit=limit,
             Ncore=Ncore,
@@ -1097,7 +1088,7 @@ def generate_features(
         feature_dict = external_xmatch.xmatch(
             feature_dict,
             kowalski_instances,
-            catalog_info=ext_catalog_info,
+            ext_catalog_info,
             radius_arcsec=xmatch_radius_arcsec,
             limit=limit,
             Ncore=Ncore,
@@ -1202,50 +1193,51 @@ def generate_features(
     return feature_df
 
 
-def get_parser():
-    parser = argparse.ArgumentParser(add_help=False)
+def get_parser(**kwargs):
+    add_help = kwargs.get("add_help", True)
+    parser = argparse.ArgumentParser(add_help=add_help)
 
     parser.add_argument(
-        "--source_catalog",
+        "--source-catalog",
         default=source_catalog,
         help="name of source collection on Kowalski",
     )
     parser.add_argument(
-        "--alerts_catalog",
+        "--alerts-catalog",
         default=alerts_catalog,
         help="name of alerts collection on Kowalski",
     )
     parser.add_argument(
-        "--gaia_catalog",
+        "--gaia-catalog",
         default=gaia_catalog,
         help="name of Gaia collection on Kowalski",
     )
     parser.add_argument(
-        "--bright_star_query_radius_arcsec",
+        "--bright-star-query-radius-arcsec",
         type=float,
         default=300.0,
         help="size of cone search radius to search for bright stars",
     )
     parser.add_argument(
-        "--xmatch_radius_arcsec",
+        "--xmatch-radius-arcsec",
         type=float,
         default=2.0,
         help="cone radius for all crossmatches",
     )
     parser.add_argument(
-        "--query_size_limit",
+        "--query-size-limit",
         type=int,
         default=10000,
         help="sources per query limit for large Kowalski queries",
     )
     parser.add_argument(
-        "--period_algorithms",
+        "--period-algorithms",
         nargs='+',
         default=period_algorithms,
         help="to override config, list algorithms to use for period-finding with periodsearch.py",
     )
     parser.add_argument(
-        "--period_batch_size",
+        "--period-batch-size",
         type=int,
         default=1000,
         help="batch size for GPU-accelerated period algorithms",
@@ -1263,7 +1255,7 @@ def get_parser():
         help="if set, use GPU-accelerated period algorithm",
     )
     parser.add_argument(
-        "--samples_per_peak",
+        "--samples-per-peak",
         default=10,
         type=int,
     )
@@ -1271,7 +1263,7 @@ def get_parser():
         "--doScaleMinPeriod",
         action='store_true',
         default=False,
-        help="if set, scale min period using min_cadence_minutes",
+        help="if set, scale min period using --min-cadence-minutes",
     )
     parser.add_argument(
         "--doRemoveTerrestrial",
@@ -1298,13 +1290,13 @@ def get_parser():
         "--quad", type=int, default=1, help="if not -doAllQuads, ZTF field to run on"
     )
     parser.add_argument(
-        "--min_n_lc_points",
+        "--min-n-lc-points",
         type=int,
         default=50,
         help="minimum number of unflagged light curve points to run feature generation",
     )
     parser.add_argument(
-        "--min_cadence_minutes",
+        "--min-cadence-minutes",
         type=float,
         default=30.0,
         help="minimum cadence (in minutes) between light curve points. For groups of points closer together than this value, only the first will be kept.",
@@ -1334,14 +1326,14 @@ def get_parser():
         help="if set, do not save features",
     )
     parser.add_argument(
-        "--stop_early",
+        "--stop-early",
         action='store_true',
         default=False,
-        help="if set, stop when number of sources reaches query_size_limit. Helpful for testing on small samples.",
+        help="if set, stop when number of sources reaches --query-size-limit. Helpful for testing on small samples.",
     )
     parser.add_argument("--doQuadrantFile", action="store_true", default=False)
-    parser.add_argument("--quadrant_file", default="slurm.dat")
-    parser.add_argument("--quadrant_index", default=0, type=int)
+    parser.add_argument("--quadrant-file", default="slurm.dat")
+    parser.add_argument("--quadrant-index", default=0, type=int)
     parser.add_argument(
         "--doSpecificIDs",
         action='store_true',
@@ -1355,35 +1347,35 @@ def get_parser():
         help="if set, skip removal of sources too close to bright stars via Gaia. May be useful if input data has previously been analyzed in this way.",
     )
     parser.add_argument(
-        "--top_n_periods",
+        "--top-n-periods",
         type=int,
         default=50,
         help="number of (E)LS, (E)CE periods to pass to (E)AOV if using (E)LS_(E)CE_(E)AOV algorithm",
     )
     parser.add_argument(
-        "--max_freq",
+        "--max-freq",
         type=float,
         default=48.0,
         help="maximum frequency [1 / days] to use for period finding. Overridden by --doScaleMinPeriod",
     )
     parser.add_argument(
-        "--fg_dataset",
+        "--fg-dataset",
         type=str,
         default=None,
         help="path to parquet, hdf5 or csv file containing specific sources for feature generation",
     )
     parser.add_argument(
-        "--max_timestamp_hjd",
+        "--max-timestamp-hjd",
         type=float,
         help="maximum timestamp for queried light curves (HJD)",
     )
     return parser
 
 
-if __name__ == "__main__":
+def main():
 
     parser = get_parser()
-    args = parser.parse_args()
+    args, _ = parser.parse_known_args()
 
     # call generate_features
     generate_features(

@@ -4,7 +4,6 @@ import numpy as np
 import pandas as pd
 import pathlib
 import warnings
-import yaml
 import json
 import os
 import time
@@ -17,6 +16,7 @@ from scope.utils import (
     forgiving_true,
     impute_features,
     get_feature_stats,
+    parse_load_config,
 )
 from scope.xgb import XGB
 from datetime import datetime
@@ -25,14 +25,12 @@ import argparse
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 warnings.filterwarnings('ignore')
 
-BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
-BASE_DIR_FEATS = pathlib.Path(__file__).parent.parent.absolute()
-BASE_DIR_PREDS = pathlib.Path(__file__).parent.parent.absolute()
+BASE_DIR = pathlib.Path.cwd()
+BASE_DIR_FEATS = BASE_DIR
+BASE_DIR_PREDS = BASE_DIR
 JUST = 50
 
-config_path = BASE_DIR / "config.yaml"
-with open(config_path) as config_yaml:
-    config = yaml.load(config_yaml, Loader=yaml.FullLoader)
+config = parse_load_config()
 
 path_to_features = config['feature_generation']['path_to_features']
 path_to_preds = config['inference']['path_to_preds']
@@ -250,11 +248,11 @@ def run_inference(
         preds/field_<field>/field_<field>.csv
 
     USAGE:
-    $ python tools/inference.py --path-model=models/dr5-1/agn-20210919_090902.h5 \
-        --model-class=agn --field=301 --ccd=1 --quad=1 --flag_ids
+    $ run-inference --paths-models models/dr5-1/agn-20210919_090902.h5 \
+        --model-class agn --field 301 --ccd 1 --quad 1 --flag-ids
 
-    $ python tools/inference.py --path-model=models/dr5-1/agn-20210919_090902.h5 \
-        --model-class=agn --field=301 --whole-field --flag_ids
+    $ run-inference --paths-models models/dr5-1/agn-20210919_090902.h5 \
+        --model-class agn --field 301 --whole-field --flag-ids
 
     """
 
@@ -310,9 +308,7 @@ def run_inference(
 
     features_filename = kwargs.get("features_filename", default_features_file)
 
-    out_dir = os.path.join(
-        os.path.dirname(__file__), f"{str(BASE_DIR_PREDS)}/preds_{algorithm}/"
-    )
+    out_dir = f"{str(BASE_DIR_PREDS)}/preds_{algorithm}/"
 
     if not whole_field:
         default_outfile = (
@@ -451,7 +447,7 @@ def run_inference(
         )
 
         # Get feature stats using training set for scaling consistency
-        if type(trainingSet) == str:
+        if isinstance(trainingSet, str):
             if (trainingSet == 'use_config') & (len(TRAINING_SET) > 0):
                 trainingSet = TRAINING_SET
             else:
@@ -661,47 +657,50 @@ def run_inference(
 def get_parser_minimal():
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument(
-        "--paths_models", type=str, nargs='+', help="path(s) to model(s)"
+        "--paths-models",
+        type=str,
+        nargs='+',
+        help="path(s) to model(s), space-separated",
     )
     parser.add_argument(
-        "--model_class_names", type=str, nargs='+', help="name(s) of model class(es)"
+        "--model-class-names", type=str, nargs='+', help="name(s) of model class(es)"
     )
     parser.add_argument(
-        "--whole_field", action='store_true', help="flag to run on whole field"
+        "--whole-field", action='store_true', help="flag to run on whole field"
     )
     parser.add_argument(
-        "--flag_ids",
+        "--flag-ids",
         action='store_true',
         help="flag to flag ids having features with missing values",
     )
     parser.add_argument(
-        "--xgb_model", action='store_true', help="flag to evaluate using XGBoost models"
+        "--xgb-model", action='store_true', help="flag to evaluate using XGBoost models"
     )
     parser.add_argument("--verbose", action='store_true', help="verbose flag")
     parser.add_argument(
-        "--time_run",
+        "--time-run",
         action='store_true',
         help="flag to time the inference run and print results",
     )
     parser.add_argument(
-        "--write_csv",
+        "--write-csv",
         action='store_true',
         help="flag to write CSV file in addition to parquet",
     )
     parser.add_argument(
-        "--float_convert_types",
+        "--float-convert-types",
         type=tuple,
         default=(64, 32),
         help="Existing and final float types for feature conversion",
     )
     parser.add_argument(
-        "--feature_stats",
+        "--feature-stats",
         type=str,
         default=None,
         help="set to 'config' to read feature stats from config file",
     )
     parser.add_argument(
-        "--scale_features",
+        "--scale-features",
         type=str,
         default='min_max',
         help="method to use to scale features",
@@ -713,28 +712,28 @@ def get_parser_minimal():
         help="usually set to 'use_config'. A DataFrame can also be passed in, but this is not recommended.",
     )
     parser.add_argument(
-        "--feature_directory",
+        "--feature-directory",
         type=str,
         default='features',
         help="name of directory containing features",
     )
     parser.add_argument(
-        "--feature_file_prefix",
+        "--feature-file-prefix",
         type=str,
         default='gen_features',
         help="prefix of feature filename",
     )
     parser.add_argument(
-        "--period_suffix",
+        "--period-suffix",
         type=str,
         default=period_suffix_config,
         help="suffix of column containing period to save with inference results",
     )
     parser.add_argument(
-        "--no_write_metadata", action='store_true', help="flag to not write metadata"
+        "--no-write-metadata", action='store_true', help="flag to not write metadata"
     )
     parser.add_argument(
-        "--batch_size",
+        "--batch-size",
         type=int,
         default=100000,
         help="batch size to use when reading feature files",
@@ -745,10 +744,13 @@ def get_parser_minimal():
 def get_parser():
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument(
-        "--paths_models", type=str, nargs='+', help="path(s) to model(s)"
+        "--paths-models",
+        type=str,
+        nargs='+',
+        help="path(s) to model(s), space-separated",
     )
     parser.add_argument(
-        "--model_class_names", type=str, nargs='+', help="name(s) of model class(es)"
+        "--model-class-names", type=str, nargs='+', help="name(s) of model class(es)"
     )
     parser.add_argument("--field", type=str, default='296', help="field number")
     parser.add_argument(
@@ -758,41 +760,41 @@ def get_parser():
         "--quad", type=int, default=1, help="quad number (if whole_field is not set)"
     )
     parser.add_argument(
-        "--whole_field", action='store_true', help="flag to run on whole field"
+        "--whole-field", action='store_true', help="flag to run on whole field"
     )
     parser.add_argument(
-        "--flag_ids",
+        "--flag-ids",
         action='store_true',
         help="flag to flag ids having features with missing values",
     )
     parser.add_argument(
-        "--xgb_model", action='store_true', help="flag to evaluate using XGBoost models"
+        "--xgb-model", action='store_true', help="flag to evaluate using XGBoost models"
     )
     parser.add_argument("--verbose", action='store_true', help="verbose flag")
     parser.add_argument(
-        "--time_run",
+        "--time-run",
         action='store_true',
         help="flag to time the inference run and print results",
     )
     parser.add_argument(
-        "--write_csv",
+        "--write-csv",
         action='store_true',
         help="flag to write CSV file in addition to parquet",
     )
     parser.add_argument(
-        "--float_convert_types",
+        "--float-convert-types",
         type=tuple,
         default=(64, 32),
         help="Existing and final float types for feature conversion",
     )
     parser.add_argument(
-        "--feature_stats",
+        "--feature-stats",
         type=str,
         default=None,
         help="set to 'config' to read feature stats from config file",
     )
     parser.add_argument(
-        "--scale_features",
+        "--scale-features",
         type=str,
         default='min_max',
         help="method to use to scale features",
@@ -804,28 +806,28 @@ def get_parser():
         help="usually set to 'use_config'. A DataFrame can also be passed in, but this is not recommended.",
     )
     parser.add_argument(
-        "--feature_directory",
+        "--feature-directory",
         type=str,
         default='features',
         help="name of directory containing features",
     )
     parser.add_argument(
-        "--feature_file_prefix",
+        "--feature-file-prefix",
         type=str,
         default='gen_features',
         help="prefix of feature filename",
     )
     parser.add_argument(
-        "--period_suffix",
+        "--period-suffix",
         type=str,
         default=period_suffix_config,
         help="suffix of column containing period to save with inference results",
     )
     parser.add_argument(
-        "--no_write_metadata", action='store_true', help="flag to not write metadata"
+        "--no-write-metadata", action='store_true', help="flag to not write metadata"
     )
     parser.add_argument(
-        "--batch_size",
+        "--batch-size",
         type=int,
         default=100000,
         help="batch size to use when reading feature files",
@@ -833,10 +835,10 @@ def get_parser():
     return parser
 
 
-if __name__ == "__main__":
+def main():
 
     parser = get_parser()
-    args = parser.parse_args()
+    args, _ = parser.parse_known_args()
 
     run_inference(
         paths_models=args.paths_models,

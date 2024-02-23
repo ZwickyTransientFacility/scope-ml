@@ -1,26 +1,29 @@
 #!/usr/bin/env python
 import argparse
 import pathlib
-import yaml
 import pandas as pd
-import scope
+import pkg_resources
 from scope.fritz import api
-from scope.utils import read_hdf, write_hdf, read_parquet, write_parquet
+from scope.utils import (
+    read_hdf,
+    write_hdf,
+    read_parquet,
+    write_parquet,
+    impute_features,
+    parse_load_config,
+)
 import warnings
 import numpy as np
 from tools.get_features import get_features
 from tools.get_quad_ids import get_cone_ids
 import os
 from datetime import datetime
-from scope.utils import impute_features
 
 NUM_PER_PAGE = 500
 CHECKPOINT_NUM = 500
-BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
+BASE_DIR = pathlib.Path.cwd()
 
-config_path = BASE_DIR / "config.yaml"
-with open(config_path) as config_yaml:
-    config = yaml.load(config_yaml, Loader=yaml.FullLoader)
+config = parse_load_config()
 
 features_catalog = config['kowalski']['collections']['features']
 training_set_config = pathlib.Path(config['training']['dataset'])
@@ -121,7 +124,7 @@ def merge_sources_features(
     min_net_votes: int = 1,
 ):
 
-    outpath = os.path.join(os.path.dirname(__file__), output_dir)
+    outpath = str(BASE_DIR / output_dir)
     os.makedirs(outpath, exist_ok=True)
 
     # Drop rows with duplicate obj_ids (keep first instance)
@@ -131,7 +134,7 @@ def merge_sources_features(
         sources = sources.drop_duplicates('obj_id').reset_index(drop=True)
 
     # Open golden dataset mapper
-    mapper_dir = os.path.dirname(__file__)
+    mapper_dir = os.path.dirname(BASE_DIR)
     mapper_path = os.path.join(mapper_dir, taxonomy_map)
     gold_map = pd.read_json(mapper_path)
 
@@ -242,13 +245,13 @@ def merge_sources_features(
     print(f'Found {len(ztf_and_obj_ids)} rows of features - some may be duplicates.')
 
     print('Getting non-duplicate features...')
-    feature_df_nodup, dmdt_nodup = get_features(
+    feature_df_nodup, _ = get_features(
         source_ids=ztf_and_obj_ids_nodup['_id'].values.tolist(),
         features_catalog=features_catalog,
         limit_per_query=features_limit,
     )
     print('Getting duplicate features for further analysis...')
-    feature_df_dup, dmdt_dup = get_features(
+    feature_df_dup, _ = get_features(
         source_ids=ztf_and_obj_ids_dup['_id'].values.tolist(),
         features_catalog=features_catalog,
         limit_per_query=features_limit,
@@ -428,7 +431,7 @@ def download_classification(
     ):
         output_filename = os.path.splitext(output_filename)[0]
 
-    outpath = os.path.join(os.path.dirname(__file__), output_dir)
+    outpath = str(BASE_DIR / output_dir)
     os.makedirs(outpath, exist_ok=True)
 
     filename = (
@@ -437,7 +440,9 @@ def download_classification(
     filepath = os.path.join(outpath, filename)
 
     # Get code version and current date/time for metadata
-    code_version = scope.__version__
+    code_version = pkg_resources.get_distribution(
+        "scope-ml"
+    ).version  # scope.__version__
     utcnow = datetime.utcnow()
     start_dt = utcnow.strftime("%Y-%m-%d %H:%M:%S")
 
@@ -736,16 +741,16 @@ def download_classification(
     return sources
 
 
-if __name__ == "__main__":
+def get_parser():
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--file", type=str, default='parse', help="dataset")
-    parser.add_argument("--group_ids", type=int, nargs='+', help="list of group ids")
+    parser.add_argument("--group-ids", type=int, nargs='+', help="list of group ids")
     parser.add_argument(
         "--start", type=int, default=0, help="start page/index for continued download"
     )
     parser.add_argument(
-        "--merge_features",
+        "--merge-features",
         type=bool,
         nargs='?',
         const=True,
@@ -753,83 +758,87 @@ if __name__ == "__main__":
         help="merge downloaded results with features from Kowalski",
     )
     parser.add_argument(
-        "--features_catalog",
+        "--features-catalog",
         type=str,
         default=features_catalog,
         help="catalog of features on Kowalski",
     )
 
     parser.add_argument(
-        "--features_limit",
+        "--features-limit",
         type=int,
         default=1000,
         help="Maximum number of sources queried for features per loop",
     )
 
     parser.add_argument(
-        "--taxonomy_map",
+        "--taxonomy-map",
         type=str,
         default='golden_dataset_mapper.json',
         help="JSON file mapping between origin labels and Fritz taxonomy",
     )
 
     parser.add_argument(
-        "--output_dir",
+        "--output-dir",
         type=str,
         default='fritzDownload',
         help="Name of directory to save downloaded file",
     )
 
     parser.add_argument(
-        "--output_filename",
+        "--output-filename",
         type=str,
         default='merged_classifications_features',
         help="Name of output file containing merged classifications and features",
     )
 
     parser.add_argument(
-        "--output_format",
+        "--output-format",
         type=str,
         default='parquet',
         help="Format of output file: parquet, h5 or csv",
     )
 
     parser.add_argument(
-        "--get_ztf_filters",
+        "--get-ztf-filters",
         action='store_true',
         default=False,
         help="add ZTF filter ID to default features",
     )
 
     parser.add_argument(
-        "--impute_missing_features",
+        "--impute-missing-features",
         action='store_true',
         default=False,
         help="impute missing features using strategy specified by config",
     )
 
     parser.add_argument(
-        "--update_training_set",
+        "--update-training-set",
         action='store_true',
         default=False,
         help="if downloading an active learning sample, update the training set with the new classification based on votes",
     )
 
     parser.add_argument(
-        "--updated_training_set_prefix",
+        "--updated-training-set-prefix",
         type=str,
         default='updated_AL',
         help="Prefix to add to updated trainingset file",
     )
 
     parser.add_argument(
-        "--min_vote_diff",
+        "--min-vote-diff",
         type=int,
         default=1,
         help="Minimum number of net votes (upvotes - downvotes) to keep an active learning classification. Caution: if zero, all classifications of reviewed sources will be added",
     )
+    return parser
 
-    args = parser.parse_args()
+
+def main():
+    parser = get_parser()
+    args, _ = parser.parse_known_args()
 
     # download object classifications in the file
     download_classification(

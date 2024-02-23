@@ -1,0 +1,5 @@
+pytest>=6.1.2
+pre-commit>=3.5.0
+sphinx>=4.2
+sphinx_press_theme>=0.8.0
+poetry>=1.7.1

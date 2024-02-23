@@ -7,13 +7,19 @@ import json
 import os
 import h5py
 import pathlib
-import yaml
+from scope.utils import parse_load_config
 
-BASE_DIR = os.path.dirname(__file__)
-
-config_path = pathlib.Path(__file__).parent.parent.absolute() / "config.yaml"
-with open(config_path) as config_yaml:
-    config = yaml.load(config_yaml, Loader=yaml.FullLoader)
+BASE_DIR = pathlib.Path.cwd()
+DEFAULT_FIELD = 301
+DEFAULT_CCD = 4
+DEFAULT_QUAD = 3
+DEFAULT_CCD_RANGE = [1, 16]
+DEFAULT_QUAD_RANGE = [1, 4]
+DEFAULT_MINOBS = 20
+DEFAULT_LIMIT = 10000
+DEFAULT_SKIP = 0
+DEFAULT_VERBOSE = 2
+config = parse_load_config()
 
 # use tokens specified as env vars (if exist)
 kowalski_token_env = os.environ.get("KOWALSKI_INSTANCE_TOKEN")
@@ -107,9 +113,7 @@ def get_ids_loop(
             minobs=5,limit=2000, whole_field=False)
         '''
     if output_dir is None:
-        output_dir = os.path.join(
-            os.path.dirname(__file__), "../ids/field_" + str(field) + "/"
-        )
+        output_dir = os.path.join(str(BASE_DIR), "ids/field_" + str(field) + "/")
 
     dct = {}
     if verbose > 0:
@@ -125,9 +129,9 @@ def get_ids_loop(
     lst = []
     save_individual = (save) & (not whole_field)
 
-    if type(ccd_range) == int:
+    if isinstance(ccd_range, int):
         ccd_range = [ccd_range, ccd_range]
-    if type(quad_range) == int:
+    if isinstance(quad_range, int):
         quad_range = [quad_range, quad_range]
 
     for ccd in range(ccd_range[0], ccd_range[1] + 1):
@@ -413,17 +417,7 @@ def get_field_ids(
         return ids
 
 
-if __name__ == "__main__":
-    DEFAULT_FIELD = 301
-    DEFAULT_CCD = 4
-    DEFAULT_QUAD = 3
-    DEFAULT_CCD_RANGE = [1, 16]
-    DEFAULT_QUAD_RANGE = [1, 4]
-    DEFAULT_MINOBS = 20
-    DEFAULT_LIMIT = 10000
-    DEFAULT_SKIP = 0
-    DEFAULT_VERBOSE = 2
-
+def get_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--catalog",
@@ -495,13 +489,16 @@ if __name__ == "__main__":
         help="if passed as argument, store all ids of the field in one file",
     )
 
-    args = parser.parse_args()
+    return parser()
+
+
+def main():
+    parser = get_parser()
+    args, _ = parser.parse_known_args()
 
     # Set default output directory
     if args.output_dir is None:
-        output_dir = os.path.join(
-            os.path.dirname(__file__), "../ids/field_" + str(args.field) + "/"
-        )
+        output_dir = os.path.join(str(BASE_DIR), "ids/field_" + str(args.field) + "/")
     else:
         output_dir = args.output_dir + "/ids/field_" + str(args.field) + "/"
     os.makedirs(output_dir, exist_ok=True)
@@ -525,18 +522,18 @@ if __name__ == "__main__":
             minobs=args.minobs,
             limit=args.limit,
             verbose=args.verbose,
-            output_dir=os.path.join(os.path.dirname(__file__), output_dir),
+            output_dir=os.path.join(str(BASE_DIR), output_dir),
             whole_field=args.whole_field,
             save=True,
         )
 
     else:
         # Handle different types of input for ccd/quad_range
-        if type(args.ccd_range) == list:
+        if isinstance(args.ccd_range, list):
             ccd = args.ccd_range[0]
         else:
             ccd = args.ccd_range
-        if type(args.quad_range) == list:
+        if isinstance(args.quad_range, list):
             quad = args.quad_range[0]
         else:
             quad = args.quad_range
@@ -544,7 +541,7 @@ if __name__ == "__main__":
             f'Saving up to {args.limit} results for single ccd/quadrant pair ({ccd},{quad}), skipping {args.skip} rows...'
         )
 
-        data = get_field_ids(
+        _ = get_field_ids(
             catalog=args.catalog,
             kowalski_instances=kowalski_instances,
             field=args.field,
@@ -554,5 +551,5 @@ if __name__ == "__main__":
             skip=args.skip,
             limit=args.limit,
             save=True,
-            output_dir=os.path.join(os.path.dirname(__file__), output_dir),
+            output_dir=os.path.join(str(BASE_DIR), output_dir),
         )

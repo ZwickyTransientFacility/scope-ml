@@ -1,22 +1,24 @@
 #!/usr/bin/env python
 import argparse
 import pathlib
-import yaml
 import os
 from datetime import datetime
 import pandas as pd
 from penquins import Kowalski
 from scope.fritz import get_lightcurves_via_ids, radec_to_iau_name
 from tools.get_quad_ids import get_cone_ids
-from scope.utils import read_parquet, read_hdf, write_parquet, write_hdf
+from scope.utils import (
+    read_parquet,
+    read_hdf,
+    write_parquet,
+    write_hdf,
+    parse_load_config,
+)
 from tools import generate_features, inference
 
 
-BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
-
-config_path = pathlib.Path(__file__).parent.parent.absolute() / "config.yaml"
-with open(config_path) as config_yaml:
-    config = yaml.load(config_yaml, Loader=yaml.FullLoader)
+BASE_DIR = pathlib.Path.cwd()
+config = parse_load_config()
 
 # use tokens specified as env vars (if exist)
 kowalski_token_env = os.environ.get("KOWALSKI_INSTANCE_TOKEN")
@@ -297,7 +299,7 @@ def run_scope_local(
     return current_dt
 
 
-if __name__ == "__main__":
+def get_parser():
     parser_generate_features = generate_features.get_parser()
     parser_inference = inference.get_parser_minimal()
 
@@ -334,7 +336,11 @@ if __name__ == "__main__":
         nargs='+',
         help="group names of trained models (with order corresponding to --algorithms input)",
     )
+    return parser
 
-    args = parser.parse_args()
+
+def main():
+    parser = get_parser()
+    args, _ = parser.parse_known_args()
 
     run_scope_local(**vars(args))

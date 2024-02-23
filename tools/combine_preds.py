@@ -2,17 +2,13 @@
 import pandas as pd
 import os
 import pathlib
-import yaml
 import argparse
 import numpy as np
 import json
-from scope.utils import read_parquet, write_parquet
+from scope.utils import read_parquet, write_parquet, parse_load_config
 
-BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
-
-config_path = BASE_DIR / "config.yaml"
-with open(config_path) as config_yaml:
-    config = yaml.load(config_yaml, Loader=yaml.FullLoader)
+BASE_DIR = pathlib.Path.cwd()
+config = parse_load_config()
 
 try:
     DEFAULT_PREDS_PATH = pathlib.Path(config['inference']['path_to_preds'])
@@ -39,9 +35,18 @@ def combine_preds(
     """
     Combine DNN and XGB preds for ingestion into Kowalski
 
+    :param path_to_preds: path to directories of existing and combined preds (str)
     :param combined_preds_dirname: directory name to use for combined preds (str)
     :param specific_field: number of specific field to run (str, useful for testing)
-    :param save: if True, save combined preds (bool, useful for testing)
+    :param use_config_fields: if set, use fields stored in the inference:fields_to_run part of config.yaml (bool
+    :param dateobs: GCN dateobs if not running on field/fields (str)
+    :param merge_dnn_xgb: if set, combine dnn and xgb classifications instead of keeping separate (bool)
+    :param dnn_directory: dirname in which dnn preds are saved (str)
+    :param xgb_directory: dirname in which xgb preds are saved (str)
+    :param save: if set, save combined preds (bool, useful for testing)
+    :param write_csv: if set, save CSV file in addition to parquet (bool)
+    :param agg_method: Aggregation method for classification probabilities, 'mean' or 'max' (str)
+    :param p_threshold: Minimum probability to add classification to metadata file (float)
 
     """
     if (specific_field is not None) & (dateobs is not None):
@@ -51,7 +56,7 @@ def combine_preds(
             "Please specify only one of --use_config_fields and --dateobs."
         )
 
-    if type(path_to_preds) == str:
+    if isinstance(path_to_preds, str):
         path_to_preds = pathlib.Path(path_to_preds)
 
     if specific_field is not None:
@@ -179,28 +184,28 @@ def combine_preds(
     return preds_to_save
 
 
-if __name__ == "__main__":
+def get_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--path_to_preds",
+        "--path-to-preds",
         type=pathlib.PosixPath,
         default=DEFAULT_PREDS_PATH,
         help="path to directories of existing and combined preds",
     )
     parser.add_argument(
-        "--combined_preds_dirname",
+        "--combined-preds-dirname",
         type=str,
         default='preds_dnn_xgb',
         help="dirname in which to save combined preds",
     )
     parser.add_argument(
-        "--specific_field",
+        "--specific-field",
         type=str,
         default=None,
         help="specific field to combine preds (useful for testing)",
     )
     parser.add_argument(
-        "--use_config_fields",
+        "--use-config-fields",
         action='store_true',
         help="if set, use fields stored in the inference:fields_to_run part of config.yaml",
     )
@@ -211,18 +216,18 @@ if __name__ == "__main__":
         help="GCN dateobs if not running on field/fields",
     )
     parser.add_argument(
-        "--merge_dnn_xgb",
+        "--merge-dnn-xgb",
         action='store_true',
         help="if set, combine dnn and xgb classifications instead of keeping separate",
     )
     parser.add_argument(
-        "--dnn_directory",
+        "--dnn-directory",
         type=str,
         default='preds_dnn',
         help="dirname in which dnn preds are saved",
     )
     parser.add_argument(
-        "--xgb_directory",
+        "--xgb-directory",
         type=str,
         default='preds_xgb',
         help="dirname in which xgb preds preds are saved",
@@ -233,23 +238,29 @@ if __name__ == "__main__":
         help="if set, do not save results (useful for testing)",
     )
     parser.add_argument(
-        "--write_csv",
+        "--write-csv",
         action='store_true',
         help="if set, save CSV file in addition to parquet",
     )
     parser.add_argument(
-        "--agg_method",
+        "--agg-method",
         type=str,
         default='mean',
         help="Aggregation method for classification probabilities (mean or max)",
     )
     parser.add_argument(
-        "--p_threshold",
+        "--p-threshold",
         type=float,
         default=0.7,
         help="Minimum probability to add classification to metadata file",
     )
-    args = parser.parse_args()
+
+    return parser
+
+
+def main():
+    parser = get_parser()
+    args, _ = parser.parse_known_args()
 
     combine_preds(
         path_to_preds=args.path_to_preds,

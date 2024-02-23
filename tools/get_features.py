@@ -4,22 +4,25 @@ import pandas as pd
 import pathlib
 from penquins import Kowalski
 from typing import List
-import yaml
 import os
 import time
 import h5py
-from scope.utils import write_parquet, impute_features
+from scope.utils import write_parquet, impute_features, parse_load_config
 from datetime import datetime
 import pyarrow.dataset as ds
 import argparse
 
-BASE_DIR = os.path.dirname(__file__)
+BASE_DIR = pathlib.Path.cwd()
+config = parse_load_config()
+
 JUST = 50
-
-
-config_path = pathlib.Path(__file__).parent.parent.absolute() / "config.yaml"
-with open(config_path) as config_yaml:
-    config = yaml.load(config_yaml, Loader=yaml.FullLoader)
+DEFAULT_FIELD = 291
+DEFAULT_CCD_RANGE = [1, 16]
+DEFAULT_QUAD_RANGE = [1, 4]
+DEFAULT_LIMIT = 1000
+DEFAULT_SAVE_BATCHSIZE = 100000
+features_catalog = config['kowalski']['collections']['features']
+DEFAULT_CATALOG = features_catalog
 
 # Access datatypes in config file
 all_feature_names_config = config["features"]["ontological"]
@@ -345,14 +348,7 @@ def get_features(
     return df, dmdt
 
 
-if __name__ == "__main__":
-    DEFAULT_FIELD = 291
-    DEFAULT_CCD_RANGE = [1, 16]
-    DEFAULT_QUAD_RANGE = [1, 4]
-    DEFAULT_LIMIT = 1000
-    DEFAULT_SAVE_BATCHSIZE = 100000
-    features_catalog = config['kowalski']['collections']['features']
-    DEFAULT_CATALOG = features_catalog
+def get_parser():
 
     parser = argparse.ArgumentParser()
 
@@ -402,13 +398,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--start",
         type=int,
-        help="Start index of the sources to query (to be used with whole_field)",
+        help="Start index of the sources to query (to be used with --whole-field)",
         default=None,
     )
     parser.add_argument(
         "--end",
         type=int,
-        help="End index of the sources to query. (to be used with whole_field)",
+        help="End index of the sources to query. (to be used with --whole-field)",
         default=None,
     )
     parser.add_argument(
@@ -460,7 +456,13 @@ if __name__ == "__main__":
         help="verbose",
     )
 
-    args = parser.parse_args()
+    return parser
+
+
+def main():
+
+    parser = get_parser()
+    args, _ = parser.parse_known_args()
 
     field = args.field
     ccd_range = args.ccd_range
@@ -516,7 +518,7 @@ if __name__ == "__main__":
         iter_dct[field] = default_file
 
     for k, v in iter_dct.items():
-        if type(k) == tuple:
+        if isinstance(k, tuple):
             ccd_quad = k
             print(f'Getting features for ccd {ccd_quad[0]} quad {ccd_quad[1]}...')
         else:
