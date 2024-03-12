@@ -79,7 +79,7 @@ def main():
     filetype = args.filetype
     dirname = args.dirname
 
-    slurmDir = str(BASE_DIR_PREDS / dirname)
+    slurmDir = str(BASE_DIR / dirname)
 
     fields = config['inference']['fields_to_run']
     algorithm = args.algorithm
