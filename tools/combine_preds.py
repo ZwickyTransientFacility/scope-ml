@@ -100,12 +100,14 @@ def combine_preds(
         os.makedirs(path_to_preds / combined_preds_dirname, exist_ok=True)
 
     done_fields = [
-        x.split("/")[-1].split("_")[-1].split(".")[0]
+        str(x).split("/")[-1].split(".")[0]
         for x in (path_to_preds / combined_preds_dirname).glob("field_*.parquet")
     ]
 
+    preds_to_save = None
     counter = 0
     print(f"Processing {len(fields_dnn_dict)} fields/files...")
+
     for field in fields_dnn_dict.keys():
         if field not in done_fields:
             if field in fields_xgb_dict.keys():
