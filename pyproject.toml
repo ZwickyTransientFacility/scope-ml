@@ -8,7 +8,7 @@ skip-string-normalization = true
 
 [tool.poetry]
 name = "scope-ml"
-version = "0.9.0"
+version = "0.9.1"
 description = "SCoPe: ZTF Source Classification Project"
 readme = "README.md"
 authors = ["Brian F. Healy, Michael W. Coughlin, Ashish A. Mahabal, Theophile J. du Laz, Andrew Drake, Matthew J. Graham, Lynne A. Hillenbrand, Jan van Roestel, Paula Szkody et al."]
