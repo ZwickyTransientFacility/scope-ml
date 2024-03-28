@@ -105,9 +105,10 @@ def combine_preds(
     ]
     done_fields.sort()
 
-    # Write json file containing field list
-    with open(path_to_preds / combined_preds_dirname / "fields.json", "w") as f:
-        json.dump(done_fields, f)
+    if save:
+        # Write json file containing field list
+        with open(path_to_preds / combined_preds_dirname / "fields.json", "w") as f:
+            json.dump(done_fields, f)
 
     preds_to_save = None
     counter = 0
