@@ -23,12 +23,14 @@ The first taxonomy is ontological and contains specific kinds of astrophysical s
 | W UMa | `wuma` | W UMa binary system |
 | Beta Lyr | `blyr` | Beta Lyr binary |
 | RS CVn | `rscvn` | RS CVn binary |
+| BL Her | `blher` | BL Her-type Cepheid variable star |
 | RRab | `rrab` | RR Lyr ab star |
 | RRc | `rrc` | RR Lyr c star |
 | RRd | `rrd` | RR Lyr d star |
 | Mira | `mir` | Mira variable star |
 | SRV | `srv` | Semi-regular variable star |
 | OSARG | `osarg` | OGLE small-amplitude red giant star |
+| W Vir | `wvir` | W Vir-type Cepheid variable star |
 
 *Refer to the field guide for more information about these classes.*
 
@@ -48,7 +50,9 @@ In consideration of the importance of having some information about a source (ev
 | EA | `ea` | EA eclipsing phenomenology |
 | EB | `eb` | EB eclipsing phenomenology |
 | EW | `ew` | EW eclipsing phenomenology |
+| bogus | `bogus` | bogus variability |
 | blend | `blend` | blended sources phenomenology |
+| extended | `ext` | extended source |
 
 *Refer to the field guide for more information about these classes.*
 
