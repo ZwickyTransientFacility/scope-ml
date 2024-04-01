@@ -162,6 +162,12 @@ Developers may merge `main` into their branch as many times as they want to.
 
 1. Once the pull request has been reviewed and approved by at least one team member, it will be merged into `scope`.
 
+#### Releasing on PyPI
+
+As new features are added to the code, maintainers should occasionally initiate a new release of the `scope-ml` [PyPI](https://pypi.org/project/scope-ml/) package. To do this, first bump the version of the package in `pyproject.toml` and `scope/__init__.py` to the intended `vX.Y.Z` format. Then, navigate to "Releases" in the SCoPe GitHub repo and click "Draft a new release". Enter the version number in "Choose a tag" and click "Generate release notes". It is also advisable to check the box creating a discussion for the release before clicking "Publish release".
+
+Upon release, the `publish-to-pypi.yml` workflow will use GitHub Actions to publish a new version of the package to PyPI automatically. **Note that if the version number has not yet been manually updated in `pyproject.toml`, this workflow will fail.**
+
 ### Contributing Field Guide sections
 
 If you would like to contribute a Field Guide section, please follow the steps below.
