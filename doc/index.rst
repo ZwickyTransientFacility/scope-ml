@@ -9,4 +9,5 @@ ZTF Variable Source Classification Project
    usage
    scanner
    field_guide
+   allocation
    license
