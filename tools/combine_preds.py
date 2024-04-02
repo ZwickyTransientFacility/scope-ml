@@ -16,6 +16,11 @@ except TypeError:
     DEFAULT_PREDS_PATH = BASE_DIR
 
 config_fields = config["inference"].get("fields_to_run")
+fields_to_exclude = config.get("fields_to_exclude")
+
+if (config_fields is not None) and (fields_to_exclude is not None):
+    # Drop fields_to_exclude from config_fields
+    config_fields = list(set(config_fields).difference(fields_to_exclude))
 
 
 def combine_preds(
@@ -112,7 +117,9 @@ def combine_preds(
 
     preds_to_save = None
     counter = 0
-    print(f"Processing {len(fields_dnn_dict) - len(done_fields)} fields/files...")
+    print(
+        f"Processing {len(set(fields_dnn_dict).difference(done_fields))} fields/files..."
+    )
 
     for field in fields_dnn_dict.keys():
         if field not in done_fields:
