@@ -2243,3 +2243,7 @@ inference:
     # - 852
     # - 853
   path_to_preds:
+
+# Some fields may already be comleted and should be excluded from subsequent feature generation/inference
+fields_to_exclude:
+  # - 296
