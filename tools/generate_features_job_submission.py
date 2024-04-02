@@ -12,7 +12,13 @@ from scope.utils import parse_load_config
 BASE_DIR = pathlib.Path.cwd()
 config = parse_load_config()
 
-fields_to_run = config['feature_generation']['fields_to_run']
+fields_to_run = config['feature_generation'].get('fields_to_run')
+fields_to_exclude = config.get('fields_to_exclude')
+
+if (fields_to_run is not None) and (fields_to_exclude is not None):
+    # Drop fields_to_exclude from fields_to_run
+    fields_to_run = list(set(fields_to_run).difference(fields_to_exclude))
+
 path_to_features = config['feature_generation']['path_to_features']
 if path_to_features is not None:
     BASE_DIR = pathlib.Path(path_to_features)

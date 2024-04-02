@@ -81,7 +81,13 @@ def main():
 
     slurmDir = str(BASE_DIR / dirname)
 
-    fields = config['inference']['fields_to_run']
+    fields = config['inference'].get('fields_to_run')
+    fields_to_exclude = config.get('fields_to_exclude')
+
+    if (fields is not None) and (fields_to_exclude is not None):
+        # Drop fields_to_exclude from fields
+        fields = list(set(fields).difference(fields_to_exclude))
+
     algorithm = args.algorithm
 
     subDir = os.path.join(slurmDir, filetype)
