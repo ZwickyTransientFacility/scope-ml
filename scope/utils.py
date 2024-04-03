@@ -242,6 +242,38 @@ def read_parquet(filepath: str, meta_key: str = "scope"):
     return dataframe
 
 
+def get_field_count(
+    completeness_file: str,
+    field_counts_file: str = "field_counts.json",
+):
+    """
+    Given a catalog completeness file (see tools.generate_features_slurm.check_quads_for_sources),
+    save another json file containing field-by-field light curve counts
+
+    :param completeness_file: name of completeness file, e.g. DR19_catalog_completeness.json (str)
+    :param field_counts_file: name of field counts file (str)
+    """
+
+    with open(completeness_file) as f:
+        field_dct = json.load(f)
+
+    field_counts = {}
+    for field in field_dct.keys():
+        int_field = int(field)
+        fdict = field_dct[field]
+        field_counts[int_field] = 0
+        for ccd in fdict.keys():
+            cdict = fdict[ccd]
+            for quad in cdict.keys():
+                qval = cdict[quad]
+                field_counts[int_field] += qval
+
+    with open(field_counts_file, "w") as f:
+        json.dump(field_counts, f)
+
+    print(f"Saved {field_counts_file} containing light curve counts by field.")
+
+
 def plot_light_curve_data(
     light_curve_data: pd.DataFrame,
     period: Optional[float] = None,
