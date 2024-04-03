@@ -1,6 +1,6 @@
 # Data Releases on Zenodo
 
-As more ZTF fields receive SCoPe classifications, we will want to make them public on Zenodo. This page describes the data products available and provides a guide to preparing/publishing new data releases.
+As more ZTF fields receive SCoPe classifications, we make them public on Zenodo. This page describes the data products available and provides a guide to preparing/publishing new data releases. The permanent link for the SCoPe III repository on Zenodo is [https://zenodo.org/doi/10.5281/zenodo.8410825](https://zenodo.org/doi/10.5281/zenodo.8410825). This link will always resolve to the latest data release.
 
 ## Data product description
 
@@ -18,9 +18,7 @@ The most recent data release contains these components:
 
 ## Preparing a new release
 
-The permanent link for the SCoPe repository on Zenodo is [https://zenodo.org/doi/10.5281/zenodo.8410825](https://zenodo.org/doi/10.5281/zenodo.8410825). This link will always resolve to the latest data release.
-
-To begin a new release draft, click "New version" on the current release. The main difference between releases is the classification catalog, which adds more ZTF fields over time, along with `fields.json`. Other unchanged elements of the release may be imported from the previous release by clicking "Import files".
+To begin a new release draft, click "New version" on the current release. The main difference between releases is the classification catalog Zip file, which adds more ZTF fields over time, along with `fields.json`. Other unchanged elements of the release may be imported from the previous release by clicking "Import files".
 
 ## Publishing a new release
 
