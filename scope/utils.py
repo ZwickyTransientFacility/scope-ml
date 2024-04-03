@@ -243,11 +243,15 @@ def read_parquet(filepath: str, meta_key: str = "scope"):
 
 
 def get_field_count(
-    completeness_file: str, field_counts_file: str = "field_counts.json"
+    completeness_file: str,
+    field_counts_file: str = "field_counts.json",
 ):
     """
     Given a catalog completeness file (see tools.generate_features_slurm.check_quads_for_sources),
+    save another json file containing field-by-field light curve counts
 
+    :param completeness_file: name of completeness file, e.g. DR19_catalog_completeness.json (str)
+    :param field_counts_file: name of field counts file (str)
     """
 
     with open(completeness_file) as f:
