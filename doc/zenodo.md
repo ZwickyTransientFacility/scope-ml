@@ -28,4 +28,4 @@ Finally, create release notes by clicking "Add description" and choosing "Notes"
 
 ## Adding new users
 
-The "ZTF Source Classification Project" community [`ztf-scope`](https://zenodo.org/communities/ztf-scope) contains the current data repository. Inviting additional Zenodo users to this community as Curators will allow them to manage the repository and create new versions.
+The "ZTF Source Classification Project" community [ztf-scope](https://zenodo.org/communities/ztf-scope) contains the current data repository. Inviting additional Zenodo users to this community as Curators will allow them to manage the repository and create new versions.
