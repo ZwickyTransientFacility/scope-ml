@@ -271,6 +271,8 @@ def get_field_count(
     with open(field_counts_file, "w") as f:
         json.dump(field_counts, f)
 
+    print(f"Saved {field_counts_file} containing light curve counts by field.")
+
 
 def plot_light_curve_data(
     light_curve_data: pd.DataFrame,
