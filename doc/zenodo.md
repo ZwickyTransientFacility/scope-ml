@@ -2,8 +2,6 @@
 
 As more ZTF fields receive SCoPe classifications, we will want to make them public on Zenodo. This page describes the data products available and provides a guide to preparing/publishing new data releases.
 
-**Note: at time of writing, Zenodo only supports new releases from the original repository author. Please reach out to Brian Healy to assist with authoring a new release.**
-
 ## Data product description
 
 The most recent data release contains these components:
@@ -29,3 +27,7 @@ To begin a new release draft, click "New version" on the current release. The ma
 To publish a new release after uploading the latest classification catalog, first ensure that all desired files are in place. Then, click "Get a DOI now!" to reserve a version-specific DOI for this release. Additionally, specify the publication date and version in `vX.Y.Z` format.
 
 Finally, create release notes by clicking "Add description" and choosing "Notes" under the "Type" dropdown. These release notes should specify what has changed from one version to the next.
+
+## Adding new users
+
+The "ZTF Source Classification Project" community [`ztf-scope`](https://zenodo.org/communities/ztf-scope) contains the current data repository. Inviting additional Zenodo users to this community as Curators will allow them to manage the repository and create new versions.
