@@ -10,4 +10,5 @@ ZTF Variable Source Classification Project
    scanner
    field_guide
    allocation
+   zenodo
    license
