@@ -128,6 +128,10 @@ def main():
     if args.cluster_name in ['Expanse', 'expanse', 'EXPANSE']:
         fid.write('module purge\n')
         fid.write(f'source activate {args.python_env_name}\n')
+    elif args.cluster_name in ['Delta', 'delta', 'DELTA']:
+        fid.write('module purge\n')
+        fid.write('module add anaconda3_cpu\n')
+        fid.write(f'source activate {args.python_env_name}\n')
 
     fid.write(
         'combine-preds --path-to-preds %s --combined-preds-dirname %s --specific-field %s --dateobs %s --dnn-directory %s --xgb-directory %s --agg-method %s --p-threshold %s %s \n'
