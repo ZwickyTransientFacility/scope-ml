@@ -220,8 +220,9 @@ def combine_preds(
     return preds_to_save
 
 
-def get_parser():
-    parser = argparse.ArgumentParser()
+def get_parser(**kwargs):
+    add_help = kwargs.get("add_help", True)
+    parser = argparse.ArgumentParser(add_help=add_help)
     parser.add_argument(
         "--path-to-preds",
         type=pathlib.PosixPath,

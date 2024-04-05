@@ -158,7 +158,7 @@ def main():
     logsDir = os.path.join(dirpath, 'logs')
     os.makedirs(logsDir, exist_ok=True)
 
-    # Main script to run feature generation
+    # Main script to run inference
     fid = open(os.path.join(slurmDir, 'slurm.sub'), 'w')
     fid.write('#!/bin/bash\n')
     fid.write(f'#SBATCH --job-name={jobname}.job\n')
