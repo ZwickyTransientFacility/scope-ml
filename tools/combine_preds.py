@@ -108,18 +108,24 @@ def combine_preds(
         str(x).split("/")[-1].split(".")[0]
         for x in (path_to_preds / combined_preds_dirname).glob("field_*.parquet")
     ]
-    done_fields.sort()
+    fields_to_list = done_fields.copy()
+
+    if fields_to_exclude is not None:
+        fields_to_list.extend(fields_to_exclude)
+
+    fields_to_do = list(set(fields_dnn_dict).difference(done_fields))
+    fields_to_list.extend(fields_to_do)
+
+    fields_to_list.sort()
 
     if save:
         # Write json file containing field list
         with open(path_to_preds / combined_preds_dirname / "fields.json", "w") as f:
-            json.dump(done_fields, f)
+            json.dump(fields_to_list, f)
 
     preds_to_save = None
     counter = 0
-    print(
-        f"Processing {len(set(fields_dnn_dict).difference(done_fields))} fields/files..."
-    )
+    print(f"Processing {len(fields_to_do)} fields/files...")
 
     for field in fields_dnn_dict.keys():
         if field not in done_fields:
