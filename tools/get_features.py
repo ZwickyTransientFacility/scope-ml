@@ -159,8 +159,8 @@ def get_features_loop(
 
     if not whole_field:
         outfile = (
-            os.path.dirname(__file__)
-            + "/../features/field_"
+            str(BASE_DIR)
+            + "/features/field_"
             + str(field)
             + "/ccd_"
             + str(ccd).zfill(2)
@@ -170,8 +170,8 @@ def get_features_loop(
 
     else:
         outfile = (
-            os.path.dirname(__file__)
-            + "/../features/field_"
+            str(BASE_DIR)
+            + "/features/field_"
             + str(field)
             + "/"
             + "field_"
