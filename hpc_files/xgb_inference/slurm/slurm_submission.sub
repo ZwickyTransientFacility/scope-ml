@@ -1,0 +1,15 @@
+#!/bin/bash
+#SBATCH --job-name=run_inference_xgb_submit.job
+#SBATCH --output=xgb_inference/logs/run_inference_xgb_submit_%A_%a.out
+#SBATCH --error=xgb_inference/logs/run_inference_xgb_submit_%A_%a.err
+#SBATCH -p shared
+#SBATCH --nodes 1
+#SBATCH --ntasks-per-node 1
+#SBATCH -A umn131
+#SBATCH --time=24:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=warsh029@umn.edu
+module purge
+module add slurm
+source activate scope-env
+run-inference-job-submission --dirname xgb_inference --user dwarshofsky --algorithm xgb

@@ -1,0 +1,16 @@
+#!/bin/bash
+#SBATCH --job-name=train_xgb_submit.job
+#SBATCH --output=xgb_training/logs/train_xgb_submit_%A_%a.out
+#SBATCH --error=xgb_training/logs/train_xgb_submit_%A_%a.err
+#SBATCH -p shared
+#SBATCH --nodes 1
+#SBATCH --ntasks-per-node 1
+#SBATCH --mem 2G
+#SBATCH -A umn131
+#SBATCH --time=12:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=warsh029@umn.edu
+module purge
+module add slurm
+source activate scope-env
+train-algorithm-job-submission --dirname xgb_training --scriptname train_xgb_DR16.sh --user dwarshofsky --max-instances 50 --wait-time-minutes 1.0 --submit-interval-seconds 5.0 --group-name trained_xgb_models --reset-running

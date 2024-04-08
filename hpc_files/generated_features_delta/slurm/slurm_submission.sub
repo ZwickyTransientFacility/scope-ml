@@ -1,0 +1,15 @@
+#!/bin/bash
+#SBATCH --job-name=submit_jobs.job
+#SBATCH --output=generated_features_delta/logs/ztf_fg_submit_%A_%a.out
+#SBATCH --error=generated_features_delta/logs/ztf_fg_submit_%A_%a.err
+#SBATCH -p cpu
+#SBATCH --nodes 1
+#SBATCH --ntasks-per-node 1
+#SBATCH -A bcpw
+#SBATCH --time=48:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=warsh029@umn.edu
+module purge
+module add anaconda3_cpu
+source activate scope-env
+generate-features-job-submission --dirname generated_features_new --filename gen_features --doSubmit --max-instances 20 --wait-time-minutes 1.0 --user dwarshofsky --runParallel --submit-interval-minutes 1.0

@@ -1,0 +1,19 @@
+#!/bin/bash
+#SBATCH --job-name=generate_features_sing.job
+#SBATCH --output=generated_features_delta/logs/generate_features_sing_%A_%a.out
+#SBATCH --error=generated_features_delta/logs/generate_features_sing_%A_%a.err
+#SBATCH -p gpuA100x4
+#SBATCH --nodes 1
+#SBATCH --ntasks-per-node 9
+#SBATCH --gpus 1
+#SBATCH --mem 62G
+#SBATCH --time=48:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=warsh029@umn.edu
+#SBATCH -A bcpw-delta-gpu
+module purge
+module add anaconda3_gpu
+module add cuda
+module add gcc-runtime
+source activate scope-env
+generate-features --source-catalog ZTF_sources_20240117 --alerts-catalog ZTF_alerts --gaia-catalog Gaia_EDR3 --bright-star-query-radius-arcsec 300.0 --xmatch-radius-arcsec 2.0 --query-size-limit 1000 --period-batch-size 1000 --samples-per-peak 10 --Ncore 9 --min-n-lc-points 50 --min-cadence-minutes 30.0 --dirname generated_features_sing --filename gen_features --top-n-periods 50 --max-freq 48.0 --field 881 --ccd 2 --quad 1 --doGPU --doRemoveTerrestrial --doCesium

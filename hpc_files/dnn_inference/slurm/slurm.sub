@@ -1,0 +1,16 @@
+#!/bin/bash
+#SBATCH --job-name=run_inference_dnn.job
+#SBATCH --output=dnn_inference/logs/run_inference_dnn_%A_%a.out
+#SBATCH --error=dnn_inference/logs/run_inference_dnn_%A_%a.err
+#SBATCH -p shared
+#SBATCH --nodes 1
+#SBATCH --ntasks-per-node 10
+#SBATCH --gpus 0
+#SBATCH --mem 64G
+#SBATCH --time=48:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=warsh029@umn.edu
+#SBATCH -A umn131
+module purge
+source activate scope-env
+./get_all_preds_dnn_DR16.sh $FID
