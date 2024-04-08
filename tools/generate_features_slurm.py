@@ -425,6 +425,12 @@ def main():
         fid.write('module add gpu/0.15.4\n')
         fid.write('module add cuda\n')
         fid.write(f'source activate {args.python_env_name}\n')
+    elif args.cluster_name in ['Delta', 'delta', 'DELTA']:
+        fid.write('module purge\n')
+        fid.write('module add anaconda3_gpu\n')
+        fid.write('module add cuda\n')
+        fid.write('module add gcc-runtime\n')
+        fid.write(f'source activate {args.python_env_name}\n')
 
     if args.doQuadrantFile:
         qid = '$QID'
@@ -501,6 +507,10 @@ def main():
     if args.cluster_name in ['Expanse', 'expanse', 'EXPANSE']:
         fid.write('module purge\n')
         fid.write('module add slurm\n')
+        fid.write(f'source activate {args.python_env_name}\n')
+    elif args.cluster_name in ['Delta', 'delta', 'DELTA']:
+        fid.write('module purge\n')
+        fid.write('module add anaconda3_cpu\n')
         fid.write(f'source activate {args.python_env_name}\n')
 
     if not args.doSubmitLoop:
