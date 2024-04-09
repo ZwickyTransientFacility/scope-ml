@@ -133,10 +133,6 @@ def combine_preds(
     counter = 0
     print(f"Processing {len(fields_to_do)} fields/files...")
 
-    import code
-
-    code.interact(local=locals())
-
     # Reformat fields in field_N format to match filenames
     listed_fields = [f"field_{x}" for x in fields_to_list]
 
