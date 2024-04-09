@@ -1,0 +1,16 @@
+#!/bin/bash
+#SBATCH --job-name=generate_GCN_features.job
+#SBATCH --output=generated_features_GCN_sources/logs/generate_GCN_features_%A_%a.out
+#SBATCH --error=generated_features_GCN_sources/logs/generate_GCN_features_%A_%a.err
+#SBATCH -p gpu-shared
+#SBATCH --nodes 1
+#SBATCH --ntasks-per-node 20
+#SBATCH --gpus 1
+#SBATCH --mem 91G
+#SBATCH --time=24:00:00
+#SBATCH -A umn131
+module purge
+module add gpu/0.15.4
+module add cuda
+source activate scope-env
+generate-features --source-catalog ZTF_sources_20240117 --alerts-catalog ZTF_alerts --gaia-catalog Gaia_EDR3 --bright-star-query-radius-arcsec 300.0 --xmatch-radius-arcsec 0.5 --query-size-limit 1000 --period-batch-size 1000 --samples-per-peak 10 --Ncore 20 --min-n-lc-points 50 --min-cadence-minutes 30.0 --dirname generated_features_GCN_sources --filename gen_gcn_features_$DOBS --doGPU --doRemoveTerrestrial --doCesium --doSpecificIDs --top-n-periods 50 --fg-dataset generated_features_GCN_sources/fg_sources/$DS --max-timestamp-hjd 2459951.5
