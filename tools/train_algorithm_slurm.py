@@ -21,19 +21,25 @@ def parse_training_script(script_path):
     for line in lines:
         if 'scope-train' in line:
             line_info = line.removeprefix('scope-train').split()
-            for arg in line_info.copy():
-                if '--tag' in arg:
-                    tag = arg.split('=')[1]
+            line_info_copy = line_info.copy()
+            for i in range(len(line_info_copy)):
+                arg = line_info_copy[i]
+
+                if arg == '--tag':
+                    tag = line_info_copy[i + 1]
                     tags += [tag]
                     line_info.remove(arg)
+                    line_info.remove(tag)
 
-                if '--group' in arg:
-                    group = arg.split('=')[1]
+                if arg == '--group':
+                    group = line_info_copy[i + 1]
                     line_info.remove(arg)
+                    line_info.remove(group)
 
-                if '--algorithm' in arg:
-                    algorithm = arg.split('=')[1]
+                if arg == '--algorithm':
+                    algorithm = line_info_copy[i + 1]
                     line_info.remove(arg)
+                    line_info.remove(algorithm)
 
     return tags, group, algorithm, line_info
 

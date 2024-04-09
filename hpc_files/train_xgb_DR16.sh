@@ -1,47 +1,47 @@
 #!/bin/bash
 # Phenomenological
-./scope.py train --tag=vnv --algorithm=xgb --path_dataset=fritzDownload/training_set.parquet --verbose --save --plot --group=trained_xgb_models
-./scope.py train --tag=pnp --algorithm=xgb --path_dataset=fritzDownload/training_set.parquet --verbose --save --plot --group=trained_xgb_models
-./scope.py train --tag=sin --algorithm=xgb --path_dataset=fritzDownload/training_set.parquet --verbose --save --plot --group=trained_xgb_models
-./scope.py train --tag=el --algorithm=xgb --path_dataset=fritzDownload/training_set.parquet --verbose --save --plot --group=trained_xgb_models
-./scope.py train --tag=saw --algorithm=xgb --path_dataset=fritzDownload/training_set.parquet --verbose --save --plot --group=trained_xgb_models
-./scope.py train --tag=mp --algorithm=xgb --path_dataset=fritzDownload/training_set.parquet --verbose --save --plot --group=trained_xgb_models
-./scope.py train --tag=longt --algorithm=xgb --path_dataset=fritzDownload/training_set.parquet --verbose --save --plot --group=trained_xgb_models
-./scope.py train --tag=e --algorithm=xgb --path_dataset=fritzDownload/training_set.parquet --verbose --save --plot --group=trained_xgb_models
-./scope.py train --tag=ea --algorithm=xgb --path_dataset=fritzDownload/training_set.parquet --verbose --save --plot --group=trained_xgb_models
-./scope.py train --tag=eb --algorithm=xgb --path_dataset=fritzDownload/training_set.parquet --verbose --save --plot --group=trained_xgb_models
-./scope.py train --tag=ew --algorithm=xgb --path_dataset=fritzDownload/training_set.parquet --verbose --save --plot --group=trained_xgb_models
-./scope.py train --tag=wp --algorithm=xgb --path_dataset=fritzDownload/training_set.parquet --verbose --save --plot --group=trained_xgb_models
-./scope.py train --tag=hp --algorithm=xgb --path_dataset=fritzDownload/training_set.parquet --verbose --save --plot --group=trained_xgb_models
-./scope.py train --tag=dp --algorithm=xgb --path_dataset=fritzDownload/training_set.parquet --verbose --save --plot --group=trained_xgb_models
-./scope.py train --tag=i --algorithm=xgb --path_dataset=fritzDownload/training_set.parquet --verbose --save --plot --group=trained_xgb_models
-./scope.py train --tag=fla --algorithm=xgb --path_dataset=fritzDownload/training_set.parquet --verbose --save --plot --group=trained_xgb_models
-./scope.py train --tag=dip --algorithm=xgb --path_dataset=fritzDownload/training_set.parquet --verbose --save --plot --group=trained_xgb_models
-./scope.py train --tag=bogus --algorithm=xgb --path_dataset=fritzDownload/training_set.parquet --verbose --save --plot --group=trained_xgb_models
-./scope.py train --tag=ext --algorithm=xgb --path_dataset=fritzDownload/training_set.parquet --verbose --save --plot --group=trained_xgb_models
-./scope.py train --tag=blend --algorithm=xgb --path_dataset=fritzDownload/training_set.parquet --verbose --save --plot --group=trained_xgb_models
-./scope.py train --tag=bright --algorithm=xgb --path_dataset=fritzDownload/training_set.parquet --verbose --save --plot --group=trained_xgb_models
+scope-train --tag vnv --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag pnp --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag sin --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag el --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag saw --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag mp --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag longt --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag e --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag ea --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag eb --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag ew --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag wp --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag hp --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag dp --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag i --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag fla --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag dip --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag bogus --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag ext --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag blend --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag bright --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
 # Ontological
-./scope.py train --tag=agn --algorithm=xgb --path_dataset=fritzDownload/training_set.parquet --verbose --save --plot --group=trained_xgb_models
-./scope.py train --tag=bis --algorithm=xgb --path_dataset=fritzDownload/training_set.parquet --verbose --save --plot --group=trained_xgb_models
-./scope.py train --tag=blher --algorithm=xgb --path_dataset=fritzDownload/training_set.parquet --verbose --save --plot --group=trained_xgb_models
-./scope.py train --tag=blyr --algorithm=xgb --path_dataset=fritzDownload/training_set.parquet --verbose --save --plot --group=trained_xgb_models
-./scope.py train --tag=ceph --algorithm=xgb --path_dataset=fritzDownload/training_set.parquet --verbose --save --plot --group=trained_xgb_models
-./scope.py train --tag=ceph2 --algorithm=xgb --path_dataset=fritzDownload/training_set.parquet --verbose --save --plot --group=trained_xgb_models
-./scope.py train --tag=cv --algorithm=xgb --path_dataset=fritzDownload/training_set.parquet --verbose --save --plot --group=trained_xgb_models
-./scope.py train --tag=dscu --algorithm=xgb --path_dataset=fritzDownload/training_set.parquet --verbose --save --plot --group=trained_xgb_models
-./scope.py train --tag=emsms --algorithm=xgb --path_dataset=fritzDownload/training_set.parquet --verbose --save --plot --group=trained_xgb_models
-./scope.py train --tag=lpv --algorithm=xgb --path_dataset=fritzDownload/training_set.parquet --verbose --save --plot --group=trained_xgb_models
-./scope.py train --tag=mir --algorithm=xgb --path_dataset=fritzDownload/training_set.parquet --verbose --save --plot --group=trained_xgb_models
-./scope.py train --tag=osarg --algorithm=xgb --path_dataset=fritzDownload/training_set.parquet --verbose --save --plot --group=trained_xgb_models
-./scope.py train --tag=puls --algorithm=xgb --path_dataset=fritzDownload/training_set.parquet --verbose --save --plot --group=trained_xgb_models
-./scope.py train --tag=rrlyr --algorithm=xgb --path_dataset=fritzDownload/training_set.parquet --verbose --save --plot --group=trained_xgb_models
-./scope.py train --tag=rrab --algorithm=xgb --path_dataset=fritzDownload/training_set.parquet --verbose --save --plot --group=trained_xgb_models
-./scope.py train --tag=rrc --algorithm=xgb --path_dataset=fritzDownload/training_set.parquet --verbose --save --plot --group=trained_xgb_models
-./scope.py train --tag=rrd --algorithm=xgb --path_dataset=fritzDownload/training_set.parquet --verbose --save --plot --group=trained_xgb_models
-./scope.py train --tag=rrblz --algorithm=xgb --path_dataset=fritzDownload/training_set.parquet --verbose --save --plot --group=trained_xgb_models
-./scope.py train --tag=rscvn --algorithm=xgb --path_dataset=fritzDownload/training_set.parquet --verbose --save --plot --group=trained_xgb_models
-./scope.py train --tag=srv --algorithm=xgb --path_dataset=fritzDownload/training_set.parquet --verbose --save --plot --group=trained_xgb_models
-./scope.py train --tag=wuma --algorithm=xgb --path_dataset=fritzDownload/training_set.parquet --verbose --save --plot --group=trained_xgb_models
-./scope.py train --tag=wvir --algorithm=xgb --path_dataset=fritzDownload/training_set.parquet --verbose --save --plot --group=trained_xgb_models
-./scope.py train --tag=yso --algorithm=xgb --path_dataset=fritzDownload/training_set.parquet --verbose --save --plot --group=trained_xgb_models
+scope-train --tag agn --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag bis --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag blher --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag blyr --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag ceph --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag ceph2 --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag cv --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag dscu --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag emsms --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag lpv --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag mir --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag osarg --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag puls --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag rrlyr --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag rrab --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag rrc --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag rrd --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag rrblz --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag rscvn --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag srv --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag wuma --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag wvir --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag yso --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
