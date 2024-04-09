@@ -78,6 +78,16 @@ def check_quads_for_sources(
     :return missing_ccd_quad: boolean stating whether each field in fields has no sources in at least one ccd/quad
     """
 
+    parser = get_check_quads_parser()
+    args, _ = parser.parse_known_args()
+
+    fields = args.fields
+    catalog = args.catalog
+    count_sources = args.count_sources
+    minobs = args.minobs
+    save = args.save
+    filename = args.filename
+
     running_total_sources = 0
     has_sources = np.zeros(len(fields), dtype=bool)
     missing_ccd_quad = np.zeros(len(fields), dtype=bool)
@@ -174,6 +184,47 @@ def check_quads_for_sources(
         print(f"Found {running_total_sources} sources.")
 
     return field_dct, has_sources, missing_ccd_quad
+
+
+def get_check_quads_parser():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--fields",
+        type=int,
+        nargs="+",
+        default=np.arange(0, 2000),
+        help="list of integer field numbers to query",
+    )
+    parser.add_argument(
+        "--catalog",
+        type=str,
+        default=source_catalog,
+        help="name of source catalog to query",
+    )
+    parser.add_argument(
+        "--count-sources",
+        action="store_true",
+        help="if set, count number of sources per quad and return",
+    )
+    parser.add_argument(
+        "--minobs",
+        type=int,
+        default=0,
+        help="minimum number of observations needed to count a source",
+    )
+    parser.add_argument(
+        "--save",
+        action="store_true",
+        help="if set, save results dictionary in json format",
+    )
+    parser.add_argument(
+        "--filename",
+        type=str,
+        default="catalog_completeness",
+        help="filename of saved results",
+    )
+
+    return parser
 
 
 def get_slurm_parser():
