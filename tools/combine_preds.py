@@ -105,7 +105,7 @@ def combine_preds(
         os.makedirs(path_to_preds / combined_preds_dirname, exist_ok=True)
 
     done_fields = [
-        str(x).split("/")[-1].split(".")[0]
+        int(str(x).split("/")[-1].split(".")[0].split("_")[1])
         for x in (path_to_preds / combined_preds_dirname).glob("field_*.parquet")
     ]
     fields_to_list = done_fields.copy()
@@ -113,9 +113,15 @@ def combine_preds(
     if fields_to_exclude is not None:
         fields_to_list.extend(fields_to_exclude)
 
-    fields_to_do = list(set(fields_dnn_dict).difference(done_fields))
+    fields_to_do = list(
+        set([int(x.split("_")[1]) for x in fields_dnn_dict.keys()]).difference(
+            fields_to_list
+        )
+    )
     fields_to_list.extend(fields_to_do)
 
+    # Use set to drop duplicate fields before sorting
+    fields_to_list = list(set(fields_to_list))
     fields_to_list.sort()
 
     if save:
@@ -127,8 +133,11 @@ def combine_preds(
     counter = 0
     print(f"Processing {len(fields_to_do)} fields/files...")
 
+    # Reformat fields in field_N format to match filenames
+    fields_to_do = [f"field_{x}" for x in fields_to_do]
+
     for field in fields_dnn_dict.keys():
-        if field not in done_fields:
+        if field in fields_to_do:
             if field in fields_xgb_dict.keys():
                 try:
                     dnn_preds = read_parquet(
