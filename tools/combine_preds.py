@@ -134,10 +134,10 @@ def combine_preds(
     print(f"Processing {len(fields_to_do)} fields/files...")
 
     # Reformat fields in field_N format to match filenames
-    listed_fields = [f"field_{x}" for x in fields_to_list]
+    fields_to_do = [f"field_{x}" for x in fields_to_do]
 
     for field in fields_dnn_dict.keys():
-        if field not in listed_fields:
+        if field in fields_to_do:
             if field in fields_xgb_dict.keys():
                 try:
                     dnn_preds = read_parquet(
