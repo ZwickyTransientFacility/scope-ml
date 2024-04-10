@@ -104,37 +104,40 @@ def combine_preds(
     if save:
         os.makedirs(path_to_preds / combined_preds_dirname, exist_ok=True)
 
-    done_fields = [
-        int(str(x).split("/")[-1].split(".")[0].split("_")[1])
-        for x in (path_to_preds / combined_preds_dirname).glob("field_*.parquet")
-    ]
-    fields_to_list = done_fields.copy()
+    if dateobs is None:
+        done_fields = [
+            int(str(x).split("/")[-1].split(".")[0].split("_")[1])
+            for x in (path_to_preds / combined_preds_dirname).glob("field_*.parquet")
+        ]
+        fields_to_list = done_fields.copy()
 
-    if fields_to_exclude is not None:
-        fields_to_list.extend(fields_to_exclude)
+        if fields_to_exclude is not None:
+            fields_to_list.extend(fields_to_exclude)
 
-    fields_to_do = list(
-        set([int(x.split("_")[1]) for x in fields_dnn_dict.keys()]).difference(
-            fields_to_list
+        fields_to_do = list(
+            set([int(x.split("_")[1]) for x in fields_dnn_dict.keys()]).difference(
+                fields_to_list
+            )
         )
-    )
-    fields_to_list.extend(fields_to_do)
+        fields_to_list.extend(fields_to_do)
 
-    # Use set to drop duplicate fields before sorting
-    fields_to_list = list(set(fields_to_list))
-    fields_to_list.sort()
+        # Use set to drop duplicate fields before sorting
+        fields_to_list = list(set(fields_to_list))
+        fields_to_list.sort()
 
-    if save:
-        # Write json file containing field list
-        with open(path_to_preds / combined_preds_dirname / "fields.json", "w") as f:
-            json.dump(fields_to_list, f)
+        if save:
+            # Write json file containing field list
+            with open(path_to_preds / combined_preds_dirname / "fields.json", "w") as f:
+                json.dump(fields_to_list, f)
+
+        # Reformat fields in field_N format to match filenames
+        fields_to_do = [f"field_{x}" for x in fields_to_do]
+    else:
+        fields_to_do = [x for x in fields_dnn_dict.keys()]
 
     preds_to_save = None
     counter = 0
     print(f"Processing {len(fields_to_do)} fields/files...")
-
-    # Reformat fields in field_N format to match filenames
-    fields_to_do = [f"field_{x}" for x in fields_to_do]
 
     for field in fields_dnn_dict.keys():
         if field in fields_to_do:
