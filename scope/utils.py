@@ -23,7 +23,6 @@ __all__ = [
 from astropy.io import fits
 import datetime
 import json
-import healpy as hp
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -480,6 +479,9 @@ def plot_gaia_density(
     source: https://vlas.dev/post/gaia-dr2-hrd/
 
     """
+    # import healpy here to avoid windows issues
+    import healpy as hp
+
     # plot the H-R diagram for 1 M stars within 200 pc from the Sun
     plt.rc("text", usetex=True)
 
