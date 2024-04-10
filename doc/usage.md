@@ -357,7 +357,7 @@ Because `cron` runs in a simple environment, the usual details of environment se
 ```
 PYTHONPATH = /Users/username/scope
 
-0 */2 * * * /opt/homebrew/bin/gtimeout 2h ~/miniforge3/envs/scope-env/bin/python scope-gcn-cronjob > ~/scope/log_gcn_cronjob.txt 2>&1
+0 */2 * * * /opt/homebrew/bin/gtimeout 2h ~/miniforge3/envs/scope-env/bin/python ~/scope/gcn_cronjob.py > ~/scope/log_gcn_cronjob.txt 2>&1
 
 ```
 In the first line above, the `PYTHONPATH` environment variable is defined to include the `scope` directory. Without this line, any code that imports from `scope` will throw an error, since the user's usual `PYTHONPATH` variable is not accessed in the `cron` environment.

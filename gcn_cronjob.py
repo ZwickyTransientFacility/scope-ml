@@ -403,7 +403,7 @@ def get_parser():
     parser.add_argument(
         "--username",
         type=str,
-        default='bhealy',
+        default='dwarshofsky',
         help="Username for compute resources (e.g. Expanse)",
     )
     parser.add_argument(
