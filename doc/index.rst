@@ -7,6 +7,7 @@ ZTF Variable Source Classification Project
    developer
    quickstart
    usage
+   scripts
    scanner
    field_guide
    allocation

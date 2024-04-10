@@ -202,8 +202,8 @@ def query_gcn_events(
                 os.system(
                     f'ssh -tt {username}@login.expanse.sdsc.edu \
                     "source .bash_profile && \
-                    cd /expanse/lustre/projects/umn131/{username}/{generated_features_dirname}/slurm && \
-                    sbatch --wait --export=DOBS={save_dateobs},DS={filepath.name} {partition}_slurm.sub"'
+                    cd /expanse/lustre/projects/umn131/{username} && \
+                    sbatch --wait --export=DOBS={save_dateobs},DS={filepath.name} {generated_features_dirname}/slurm/{partition}_slurm.sub"'
                 )
                 print("Finished generating features on Expanse.")
 
@@ -251,7 +251,7 @@ def query_gcn_events(
                         try:
                             generator = scope.select_fritz_sample(
                                 fields=[f"{save_dateobs}_specific_ids"],
-                                group="DR16_importance",
+                                group="trained_xgb_models",
                                 algorithm="xgb",
                                 probability_threshold=0.0,
                                 consol_filename=f"inference_results_{save_dateobs}",
@@ -266,7 +266,7 @@ def query_gcn_events(
 
                             generator = scope.select_fritz_sample(
                                 fields=[f"{save_dateobs}_specific_ids"],
-                                group="nobalance_DR16_DNN",
+                                group="trained_dnn_models",
                                 algorithm="dnn",
                                 probability_threshold=0.0,
                                 consol_filename=f"inference_results_{save_dateobs}",
@@ -306,7 +306,7 @@ def query_gcn_events(
                         try:
                             upload_classification(
                                 file=f"{BASE_DIR}/{combined_preds_dirname}/{save_dateobs}/merged_GCN_sources_{save_dateobs}.parquet",
-                                classification="read",
+                                classification=["read"],
                                 taxonomy_map=f"{BASE_DIR}/{taxonomy_map}",
                                 skip_phot=True,
                                 use_existing_obj_id=True,

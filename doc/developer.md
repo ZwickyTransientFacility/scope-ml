@@ -14,6 +14,9 @@
   ```shell script
   scope-initialize
   ```
+
+- If using GPU-accelerated period-finding algorithms, install [periodfind](https://github.com/ZwickyTransientFacility/periodfind) from the source.
+
 - Change directories to `scope` and modify `config.yaml` to finish the initialization process. This config file is used by default when running all scripts. You can also specify another config file using the `--config-path` argument.
 
 
@@ -94,6 +97,9 @@ cp config.defaults.yaml config.yaml
 
 Edit config.yaml to include Kowalski instance and Fritz tokens in the associated empty `token:` fields.
 
+#### (Optional) Install `periodfind`
+If using GPU-accelerated period-finding algorithms, install [periodfind](https://github.com/ZwickyTransientFacility/periodfind) from the source.
+
 #### Testing
 Run `scope-test` to test your installation. Note that for the test to pass, you will need access to the Kowalski database. If you do not have Kowalski access, you can run `scope-test-limited` to run a more limited (but still useful) set of tests.
 
@@ -101,9 +107,8 @@ Run `scope-test` to test your installation. Note that for the test to pass, you 
 Upon encountering installation/testing errors, manually install the package in question using  `conda install xxx` , and remove it from `.requirements/dev.txt`. After that, re-run `pip install -r requirements.txt` to continue.
 
 #### Known issues
-- If using GPU-accelerated period-finding algorithms for feature generation, you will need to install [periodfind](https://github.com/ZwickyTransientFacility/periodfind) separately from the source.
 - Across all platforms, we are currently aware of `scope` dependency issues with Python 3.12.
-- Anaconda continues to cause problems with environment setup.
+- Anaconda may cause problems with environment setup.
 - Using `pip` to install `healpy` on an arm64 Mac can raise an error upon import. We recommend including `h5py` as a requirement during the creation of your `conda` environment.
 - On Windows machines, `healpy` and `cesium` raise errors upon installation.
    - For `healpy`, see [this](https://healpy.readthedocs.io/en/latest/install.html#installation-on-windows-through-the-windows-subsystem-for-linux) guide for a potential workaround.

@@ -1,0 +1,16 @@
+#!/bin/bash
+#SBATCH --job-name=train_xgb.job
+#SBATCH --output=xgb_training/logs/train_xgb_%A_%a.out
+#SBATCH --error=xgb_training/logs/train_xgb_%A_%a.err
+#SBATCH -p shared
+#SBATCH --nodes 1
+#SBATCH --ntasks-per-node 10
+#SBATCH --gpus 0
+#SBATCH --mem 32G
+#SBATCH --time=48:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=warsh029@umn.edu
+#SBATCH -A umn131
+module purge
+source activate scope-env
+scope-train --tag $TID --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models --period-suffix ELS_ECE_EAOV --balance None

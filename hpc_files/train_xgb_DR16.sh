@@ -1,0 +1,47 @@
+#!/bin/bash
+# Phenomenological
+scope-train --tag vnv --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag pnp --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag sin --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag el --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag saw --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag mp --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag longt --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag e --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag ea --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag eb --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag ew --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag wp --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag hp --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag dp --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag i --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag fla --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag dip --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag bogus --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag ext --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag blend --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag bright --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+# Ontological
+scope-train --tag agn --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag bis --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag blher --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag blyr --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag ceph --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag ceph2 --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag cv --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag dscu --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag emsms --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag lpv --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag mir --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag osarg --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag puls --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag rrlyr --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag rrab --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag rrc --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag rrd --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag rrblz --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag rscvn --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag srv --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag wuma --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag wvir --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models
+scope-train --tag yso --algorithm xgb --path-dataset fritzDownload/training_set.parquet --verbose --save --plot --group trained_xgb_models

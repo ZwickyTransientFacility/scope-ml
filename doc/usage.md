@@ -188,7 +188,7 @@ inputs:
 8. --period-batch-size : maximum number of sources to simultaneously perform period finding (int)
 9.  --doCPU : flag to run config-specified CPU period algorithms (bool)
 10. --doGPU : flag to run config-specified GPU period algorithms (bool)
-11. --samples_per_peak : number of samples per periodogram peak (int)
+11. --samples-per-peak : number of samples per periodogram peak (int)
 12. --doScaleMinPeriod : for period finding, scale min period based on min-cadence-minutes (bool). Otherwise, set --max-freq to desired value
 13. --doRemoveTerrestrial : remove terrestrial frequencies from period-finding analysis (bool)
 14. --Ncore : number of CPU cores to parallelize queries (int)

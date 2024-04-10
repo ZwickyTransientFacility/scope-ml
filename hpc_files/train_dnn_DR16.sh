@@ -1,0 +1,47 @@
+#!/bin/bash
+# Phenomenological
+scope-train --tag vnv --algorithm dnn --path-dataset fritzDownload/training_set.parquet --period-suffix ELS_ECE_EAOV --verbose --save --plot --group trained_dnn_models --gpu 0 --epochs 200
+scope-train --tag pnp --algorithm dnn --path-dataset fritzDownload/training_set.parquet --period-suffix ELS_ECE_EAOV --verbose --save --plot --group trained_dnn_models --gpu 0 --epochs 200
+scope-train --tag sin --algorithm dnn --path-dataset fritzDownload/training_set.parquet --period-suffix ELS_ECE_EAOV --verbose --save --plot --group trained_dnn_models --gpu 0 --epochs 200
+scope-train --tag el --algorithm dnn --path-dataset fritzDownload/training_set.parquet --period-suffix ELS_ECE_EAOV --verbose --save --plot --group trained_dnn_models --gpu 0 --epochs 200
+scope-train --tag saw --algorithm dnn --path-dataset fritzDownload/training_set.parquet --period-suffix ELS_ECE_EAOV --verbose --save --plot --group trained_dnn_models --gpu 0 --epochs 200
+scope-train --tag mp --algorithm dnn --path-dataset fritzDownload/training_set.parquet --period-suffix ELS_ECE_EAOV --verbose --save --plot --group trained_dnn_models --gpu 0 --epochs 200
+scope-train --tag longt --algorithm dnn --path-dataset fritzDownload/training_set.parquet --period-suffix ELS_ECE_EAOV --verbose --save --plot --group trained_dnn_models --gpu 0 --epochs 200
+scope-train --tag e --algorithm dnn --path-dataset fritzDownload/training_set.parquet --period-suffix ELS_ECE_EAOV --verbose --save --plot --group trained_dnn_models --gpu 0 --epochs 200
+scope-train --tag ea --algorithm dnn --path-dataset fritzDownload/training_set.parquet --period-suffix ELS_ECE_EAOV --verbose --save --plot --group trained_dnn_models --gpu 0 --epochs 200
+scope-train --tag eb --algorithm dnn --path-dataset fritzDownload/training_set.parquet --period-suffix ELS_ECE_EAOV --verbose --save --plot --group trained_dnn_models --gpu 0 --epochs 200
+scope-train --tag ew --algorithm dnn --path-dataset fritzDownload/training_set.parquet --period-suffix ELS_ECE_EAOV --verbose --save --plot --group trained_dnn_models --gpu 0 --epochs 200
+scope-train --tag wp --algorithm dnn --path-dataset fritzDownload/training_set.parquet --period-suffix ELS_ECE_EAOV --verbose --save --plot --group trained_dnn_models --gpu 0 --epochs 200
+scope-train --tag hp --algorithm dnn --path-dataset fritzDownload/training_set.parquet --period-suffix ELS_ECE_EAOV --verbose --save --plot --group trained_dnn_models --gpu 0 --epochs 200
+scope-train --tag dp --algorithm dnn --path-dataset fritzDownload/training_set.parquet --period-suffix ELS_ECE_EAOV --verbose --save --plot --group trained_dnn_models --gpu 0 --epochs 200
+scope-train --tag i --algorithm dnn --path-dataset fritzDownload/training_set.parquet --period-suffix ELS_ECE_EAOV --verbose --save --plot --group trained_dnn_models --gpu 0 --epochs 200
+scope-train --tag fla --algorithm dnn --path-dataset fritzDownload/training_set.parquet --period-suffix ELS_ECE_EAOV --verbose --save --plot --group trained_dnn_models --gpu 0 --epochs 200
+scope-train --tag dip --algorithm dnn --path-dataset fritzDownload/training_set.parquet --period-suffix ELS_ECE_EAOV --verbose --save --plot --group trained_dnn_models --gpu 0 --epochs 200
+scope-train --tag bogus --algorithm dnn --path-dataset fritzDownload/training_set.parquet --period-suffix ELS_ECE_EAOV --verbose --save --plot --group trained_dnn_models --gpu 0 --epochs 200
+scope-train --tag ext --algorithm dnn --path-dataset fritzDownload/training_set.parquet --period-suffix ELS_ECE_EAOV --verbose --save --plot --group trained_dnn_models --gpu 0 --epochs 200
+scope-train --tag blend --algorithm dnn --path-dataset fritzDownload/training_set.parquet --period-suffix ELS_ECE_EAOV --verbose --save --plot --group trained_dnn_models --gpu 0 --epochs 200
+scope-train --tag bright --algorithm dnn --path-dataset fritzDownload/training_set.parquet --period-suffix ELS_ECE_EAOV --verbose --save --plot --group trained_dnn_models --gpu 0 --epochs 200
+# Ontological
+scope-train --tag agn --algorithm dnn --path-dataset fritzDownload/training_set.parquet --period-suffix ELS_ECE_EAOV --verbose --save --plot --group trained_dnn_models --gpu 0 --epochs 200
+scope-train --tag bis --algorithm dnn --path-dataset fritzDownload/training_set.parquet --period-suffix ELS_ECE_EAOV --verbose --save --plot --group trained_dnn_models --gpu 0 --epochs 200
+scope-train --tag blher --algorithm dnn --path-dataset fritzDownload/training_set.parquet --period-suffix ELS_ECE_EAOV --verbose --save --plot --group trained_dnn_models --gpu 0 --epochs 200
+scope-train --tag blyr --algorithm dnn --path-dataset fritzDownload/training_set.parquet --period-suffix ELS_ECE_EAOV --verbose --save --plot --group trained_dnn_models --gpu 0 --epochs 200
+scope-train --tag ceph --algorithm dnn --path-dataset fritzDownload/training_set.parquet --period-suffix ELS_ECE_EAOV --verbose --save --plot --group trained_dnn_models --gpu 0 --epochs 200
+scope-train --tag ceph2 --algorithm dnn --path-dataset fritzDownload/training_set.parquet --period-suffix ELS_ECE_EAOV --verbose --save --plot --group trained_dnn_models --gpu 0 --epochs 200
+scope-train --tag cv --algorithm dnn --path-dataset fritzDownload/training_set.parquet --period-suffix ELS_ECE_EAOV --verbose --save --plot --group trained_dnn_models --gpu 0 --epochs 200
+scope-train --tag dscu --algorithm dnn --path-dataset fritzDownload/training_set.parquet --period-suffix ELS_ECE_EAOV --verbose --save --plot --group trained_dnn_models --gpu 0 --epochs 200
+scope-train --tag emsms --algorithm dnn --path-dataset fritzDownload/training_set.parquet --period-suffix ELS_ECE_EAOV --verbose --save --plot --group trained_dnn_models --gpu 0 --epochs 200
+scope-train --tag lpv --algorithm dnn --path-dataset fritzDownload/training_set.parquet --period-suffix ELS_ECE_EAOV --verbose --save --plot --group trained_dnn_models --gpu 0 --epochs 200
+scope-train --tag mir --algorithm dnn --path-dataset fritzDownload/training_set.parquet --period-suffix ELS_ECE_EAOV --verbose --save --plot --group trained_dnn_models --gpu 0 --epochs 200
+scope-train --tag osarg --algorithm dnn --path-dataset fritzDownload/training_set.parquet --period-suffix ELS_ECE_EAOV --verbose --save --plot --group trained_dnn_models --gpu 0 --epochs 200
+scope-train --tag puls --algorithm dnn --path-dataset fritzDownload/training_set.parquet --period-suffix ELS_ECE_EAOV --verbose --save --plot --group trained_dnn_models --gpu 0 --epochs 200
+scope-train --tag rrlyr --algorithm dnn --path-dataset fritzDownload/training_set.parquet --period-suffix ELS_ECE_EAOV --verbose --save --plot --group trained_dnn_models --gpu 0 --epochs 200
+scope-train --tag rrab --algorithm dnn --path-dataset fritzDownload/training_set.parquet --period-suffix ELS_ECE_EAOV --verbose --save --plot --group trained_dnn_models --gpu 0 --epochs 200
+scope-train --tag rrc --algorithm dnn --path-dataset fritzDownload/training_set.parquet --period-suffix ELS_ECE_EAOV --verbose --save --plot --group trained_dnn_models --gpu 0 --epochs 200
+scope-train --tag rrd --algorithm dnn --path-dataset fritzDownload/training_set.parquet --period-suffix ELS_ECE_EAOV --verbose --save --plot --group trained_dnn_models --gpu 0 --epochs 200
+scope-train --tag rrblz --algorithm dnn --path-dataset fritzDownload/training_set.parquet --period-suffix ELS_ECE_EAOV --verbose --save --plot --group trained_dnn_models --gpu 0 --epochs 200
+scope-train --tag rscvn --algorithm dnn --path-dataset fritzDownload/training_set.parquet --period-suffix ELS_ECE_EAOV --verbose --save --plot --group trained_dnn_models --gpu 0 --epochs 200
+scope-train --tag srv --algorithm dnn --path-dataset fritzDownload/training_set.parquet --period-suffix ELS_ECE_EAOV --verbose --save --plot --group trained_dnn_models --gpu 0 --epochs 200
+scope-train --tag wuma --algorithm dnn --path-dataset fritzDownload/training_set.parquet --period-suffix ELS_ECE_EAOV --verbose --save --plot --group trained_dnn_models --gpu 0 --epochs 200
+scope-train --tag wvir --algorithm dnn --path-dataset fritzDownload/training_set.parquet --period-suffix ELS_ECE_EAOV --verbose --save --plot --group trained_dnn_models --gpu 0 --epochs 200
+scope-train --tag yso --algorithm dnn --path-dataset fritzDownload/training_set.parquet --period-suffix ELS_ECE_EAOV --verbose --save --plot --group trained_dnn_models --gpu 0 --epochs 200

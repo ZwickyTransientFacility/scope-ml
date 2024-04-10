@@ -1,0 +1,16 @@
+#!/bin/bash
+#SBATCH --job-name=train_dnn.job
+#SBATCH --output=dnn_training/logs/train_dnn_%A_%a.out
+#SBATCH --error=dnn_training/logs/train_dnn_%A_%a.err
+#SBATCH -p shared
+#SBATCH --nodes 1
+#SBATCH --ntasks-per-node 8
+#SBATCH --gpus 0
+#SBATCH --mem 64G
+#SBATCH --time=48:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=warsh029@umn.edu
+#SBATCH -A umn131
+module purge
+source activate scope-env
+scope-train --tag yso --algorithm dnn --path-dataset fritzDownload/training_set.parquet --period-suffix ELS_ECE_EAOV --verbose --save --plot --group trained_dnn_models_sing --epochs 200 --balance None #--gpu=0
