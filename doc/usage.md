@@ -105,6 +105,11 @@ A path to the training set may be provided as input to this method or otherwise 
 
 If `--pre-trained-group-name` is specified and the `--train-all` keyword is set, the output script will train all classes specified in `config.yaml` regardless of whether they have a pre-trained model. If `--train-all` is not set (the default), the script will limit training to classes that have an existing trained model.
 
+### Adding new features for training
+To add a new feature, first ensure that it has been generated and saved in the training set file. Then, update the config file in the `features:` section. This section contains a list of each feature used by scope. Along with the name of the feature, be sure to specify the boolean `include` value (as `true`), the `dtype`, and whether the feature is `periodic` or not (i.e. whether the code should give append a `period_suffix` to the name.)
+
+If the new feature is ontological in nature, add the same config info to both the `phenomenological:` and `ontological:` lists. For a phenomenological feature, only add this info to the `phenomenological:` list. Note that changing the config in this way will raise an error when running scope with pre-existing trained models that lack the new feature.
+
 ## Running inference
 
 Running inference requires the following steps: download ids of a field, download (or generate) features for all downloaded ids, run inference for all available trained models, e.g:
