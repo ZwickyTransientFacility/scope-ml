@@ -675,6 +675,11 @@ class Scope:
             help="if set, generate/save diagnostic training plots",
         )
         parser.add_argument(
+            "--plot-model",
+            action="store_true",
+            help="if set, plot model architecture",
+        )
+        parser.add_argument(
             "--weights-only",
             action="store_true",
             help="if set and pre-trained model specified, load only weights",
@@ -687,37 +692,6 @@ class Scope:
 
         args, _ = parser.parse_known_args()
         self.train(**vars(args))
-
-    # args to add for ds.make (override config-specified values)
-    # threshold
-    # balance
-    # weight_per_class (test this to make sure it works as intended)
-    # scale_features
-    # test_size
-    # val_size
-    # random_state
-    # feature_stats
-    # batch_size
-    # shuffle_buffer_size
-    # epochs
-    # float_convert_types
-
-    # Args to add with descriptions (or references to tf docs)
-    # lr
-    # beta_1
-    # beta_2
-    # epsilon
-    # decay
-    # amsgrad
-    # momentum
-    # monitor
-    # patience
-    # callbacks
-    # run_eagerly
-    # pre_trained_model
-    # save
-    # plot
-    # weights_only
 
     def train(
         self,
@@ -756,6 +730,7 @@ class Scope:
         pre_trained_model: str = None,
         save: bool = False,
         plot: bool = False,
+        plot_model: bool = False,
         weights_only: bool = False,
         skip_cv: bool = False,
         **kwargs,
@@ -797,6 +772,7 @@ class Scope:
         :param pre_trained_model: name of dnn pre-trained model to load, if any (str)
         :param save: if set, save trained model (bool)
         :param plot: if set, generate/save diagnostic training plots (bool)
+        :param plot_model: if set, plot model architecture (bool)
         :param weights_only: if set and pre-trained model specified, load only weights (bool)
         :param skip_cv: if set, skip XGB cross-validation (bool)
 
@@ -1121,7 +1097,7 @@ class Scope:
                     amsgrad=amsgrad,
                 )
 
-            if plot:
+            if plot_model:
                 tf.keras.utils.plot_model(
                     classifier.model,
                     to_file=self.base_path / "DNN.pdf",
