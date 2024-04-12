@@ -2,7 +2,7 @@
 #SBATCH --job-name=generate_features_sing.job
 #SBATCH --output=generated_features_delta/logs/generate_features_sing_%A_%a.out
 #SBATCH --error=generated_features_delta/logs/generate_features_sing_%A_%a.err
-#SBATCH -p gpuA100x4
+#SBATCH -p gpuA40x4
 #SBATCH --nodes 1
 #SBATCH --ntasks-per-node 9
 #SBATCH --gpus 1
