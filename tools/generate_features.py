@@ -759,11 +759,28 @@ def generate_features(
     basic_stats_arr = periodsearch.compute_basic_stats(lightcurves_bs)
 
     stat_keys = [
-        'n', 'median', 'wmean', 'chi2red', 'roms', 'wstd',
-        'norm_peak_to_peak_amp', 'norm_excess_var', 'median_abs_dev',
-        'iqr', 'i60r', 'i70r', 'i80r', 'i90r',
-        'skew', 'smallkurt', 'inv_vonneumannratio', 'welch_i',
-        'stetson_j', 'stetson_k', 'ad', 'sw',
+        'n',
+        'median',
+        'wmean',
+        'chi2red',
+        'roms',
+        'wstd',
+        'norm_peak_to_peak_amp',
+        'norm_excess_var',
+        'median_abs_dev',
+        'iqr',
+        'i60r',
+        'i70r',
+        'i80r',
+        'i90r',
+        'skew',
+        'smallkurt',
+        'inv_vonneumannratio',
+        'welch_i',
+        'stetson_j',
+        'stetson_k',
+        'ad',
+        'sw',
     ]
     for idx, _id in enumerate(id_list_bs):
         for si, key in enumerate(stat_keys):
@@ -1012,9 +1029,20 @@ def generate_features(
         lightcurves_ordered = [tme_dict[_id]['tme'] for _id in id_list]
 
         fourier_names = [
-            'f1_power', 'f1_BIC', 'f1_a', 'f1_b', 'f1_amp', 'f1_phi0',
-            'f1_relamp1', 'f1_relphi1', 'f1_relamp2', 'f1_relphi2',
-            'f1_relamp3', 'f1_relphi3', 'f1_relamp4', 'f1_relphi4',
+            'f1_power',
+            'f1_BIC',
+            'f1_a',
+            'f1_b',
+            'f1_amp',
+            'f1_phi0',
+            'f1_relamp1',
+            'f1_relphi1',
+            'f1_relamp2',
+            'f1_relphi2',
+            'f1_relamp3',
+            'f1_relphi3',
+            'f1_relamp4',
+            'f1_relphi4',
         ]
 
         for algorithm in period_algorithms:
@@ -1034,7 +1062,9 @@ def generate_features(
 
             for idx, _id in enumerate(id_list):
                 for i, name in enumerate(fourier_names):
-                    feature_dict[_id][f'{name}_{algorithm_name}'] = float(fourier_features[idx, i])
+                    feature_dict[_id][f'{name}_{algorithm_name}'] = float(
+                        fourier_features[idx, i]
+                    )
 
         print('Computing dmdt histograms...')
         id_list_dmdt = list(tme_dict.keys())
