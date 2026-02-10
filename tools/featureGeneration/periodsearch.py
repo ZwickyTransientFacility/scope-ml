@@ -309,6 +309,77 @@ def compute_fourier_features(lightcurves, periods):
     return fd.calc(time_stack, mag_stack, err_stack, periods_arr)
 
 
+def compute_dmdt_features(lightcurves, dmdt_ints):
+    """Compute dm-dt histograms via Rust for a batch of light curves.
+
+    Parameters
+    ----------
+    lightcurves : list of tuple
+        Each element is (times, mags, magerrs).
+    dmdt_ints : dict
+        Must contain 'dtints' and 'dmints' keys with bin edge arrays.
+
+    Returns
+    -------
+    ndarray, shape (n_curves, n_dm_bins, n_dt_bins)
+        L2-normalised dm-dt histograms.
+    """
+    time_stack, mag_stack = [], []
+    for lc in lightcurves:
+        time_stack.append(np.asarray(lc[0], dtype=np.float32))
+        mag_stack.append(np.asarray(lc[1], dtype=np.float32))
+
+    dt_edges = np.asarray(dmdt_ints['dtints'], dtype=np.float32)
+    dm_edges = np.asarray(dmdt_ints['dmints'], dtype=np.float32)
+
+    dd = periodfind.DmDt()
+    return dd.calc(time_stack, mag_stack, dt_edges, dm_edges)
+
+
+def compute_basic_stats(lightcurves):
+    """Compute 22 basic statistics via Rust for a batch of light curves.
+
+    Parameters
+    ----------
+    lightcurves : list of tuple
+        Each element is (times, mags, magerrs).
+
+    Returns
+    -------
+    ndarray, shape (n_curves, 22)
+    """
+    time_stack, mag_stack, err_stack = [], [], []
+    for lc in lightcurves:
+        time_stack.append(np.asarray(lc[0], dtype=np.float32))
+        mag_stack.append(np.asarray(lc[1], dtype=np.float32))
+        err_stack.append(np.asarray(lc[2], dtype=np.float32))
+
+    bs = periodfind.BasicStats()
+    return bs.calc(time_stack, mag_stack, err_stack)
+
+
+def remove_high_cadence_batch(tme_list, cadence_minutes=30.0):
+    """Batch high-cadence removal via Rust.
+
+    Parameters
+    ----------
+    tme_list : list of (times, mags, errs)
+        Each element is a tuple of 1D arrays.
+    cadence_minutes : float, default=30.0
+        Minimum cadence in minutes.
+
+    Returns
+    -------
+    list of (ndarray, ndarray, ndarray)
+        Filtered (times, mags, errs) tuples.
+    """
+    times = [np.asarray(tme[0], dtype=np.float32) for tme in tme_list]
+    mags = [np.asarray(tme[1], dtype=np.float32) for tme in tme_list]
+    errs = [np.asarray(tme[2], dtype=np.float32) for tme in tme_list]
+
+    return periodfind.remove_high_cadence(times, mags, errs, cadence_minutes)
+
+
 def calc_AOV(amhw, data, freqs_to_keep, df):
     copy = np.ma.copy(data).T
     copy[:, 1] = (copy[:, 1] - np.min(copy[:, 1])) / (

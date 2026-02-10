@@ -755,37 +755,20 @@ def generate_features(
                 keep_id_list.remove(_id)
                 tme_dict.pop(_id)
 
-    basicStats = Parallel(n_jobs=Ncore)(
-        delayed(lcstats.calc_basic_stats)(id, vals['tme'])
-        for id, vals in tme_dict.items()
-    )
+    id_list_bs = list(tme_dict.keys())
+    lightcurves_bs = [tme_dict[_id]['tme'] for _id in id_list_bs]
+    basic_stats_arr = periodsearch.compute_basic_stats(lightcurves_bs)
 
-    for statline in basicStats:
-        _id = [x for x in statline.keys()][0]
-        statvals = [x for x in statline.values()][0]
-
-        feature_dict[_id]['n'] = statvals[0]
-        feature_dict[_id]['median'] = statvals[1]
-        feature_dict[_id]['wmean'] = statvals[2]
-        feature_dict[_id]['chi2red'] = statvals[3]
-        feature_dict[_id]['roms'] = statvals[4]
-        feature_dict[_id]['wstd'] = statvals[5]
-        feature_dict[_id]['norm_peak_to_peak_amp'] = statvals[6]
-        feature_dict[_id]['norm_excess_var'] = statvals[7]
-        feature_dict[_id]['median_abs_dev'] = statvals[8]
-        feature_dict[_id]['iqr'] = statvals[9]
-        feature_dict[_id]['i60r'] = statvals[10]
-        feature_dict[_id]['i70r'] = statvals[11]
-        feature_dict[_id]['i80r'] = statvals[12]
-        feature_dict[_id]['i90r'] = statvals[13]
-        feature_dict[_id]['skew'] = statvals[14]
-        feature_dict[_id]['smallkurt'] = statvals[15]
-        feature_dict[_id]['inv_vonneumannratio'] = statvals[16]
-        feature_dict[_id]['welch_i'] = statvals[17]
-        feature_dict[_id]['stetson_j'] = statvals[18]
-        feature_dict[_id]['stetson_k'] = statvals[19]
-        feature_dict[_id]['ad'] = statvals[20]
-        feature_dict[_id]['sw'] = statvals[21]
+    stat_keys = [
+        'n', 'median', 'wmean', 'chi2red', 'roms', 'wstd',
+        'norm_peak_to_peak_amp', 'norm_excess_var', 'median_abs_dev',
+        'iqr', 'i60r', 'i70r', 'i80r', 'i90r',
+        'skew', 'smallkurt', 'inv_vonneumannratio', 'welch_i',
+        'stetson_j', 'stetson_k', 'ad', 'sw',
+    ]
+    for idx, _id in enumerate(id_list_bs):
+        for si, key in enumerate(stat_keys):
+            feature_dict[_id][key] = float(basic_stats_arr[idx, si])
 
     if baseline > 0:
         # Define frequency grid using largest LC time baseline
@@ -1055,15 +1038,12 @@ def generate_features(
                     feature_dict[_id][f'{name}_{algorithm_name}'] = float(fourier_features[idx, i])
 
         print('Computing dmdt histograms...')
-        dmdt = Parallel(n_jobs=Ncore)(
-            delayed(lcstats.compute_dmdt)(id, vals['tme'], dmdt_ints)
-            for id, vals in tme_dict.items()
-        )
+        id_list_dmdt = list(tme_dict.keys())
+        lightcurves_dmdt = [tme_dict[_id]['tme'] for _id in id_list_dmdt]
+        dmdt_arr = periodsearch.compute_dmdt_features(lightcurves_dmdt, dmdt_ints)
 
-        for dmdtline in dmdt:
-            _id = [x for x in dmdtline.keys()][0]
-            dmdtvals = [x for x in dmdtline.values()][0]
-            feature_dict[_id]['dmdt'] = dmdtvals.tolist()
+        for idx, _id in enumerate(id_list_dmdt):
+            feature_dict[_id]['dmdt'] = dmdt_arr[idx].tolist()
 
         # Get ZTF alert stats
         alert_stats_dct = alertstats.get_ztf_alert_stats(

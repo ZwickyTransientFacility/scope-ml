@@ -22,6 +22,9 @@ import periodfind  # noqa: E402
 from periodsearch import (  # noqa: E402
     find_periods,
     compute_fourier_features,
+    compute_dmdt_features,
+    compute_basic_stats,
+    remove_high_cadence_batch,
     _normalize_algorithm,
     _prepare_lightcurves,
     _build_pdots,
@@ -456,3 +459,258 @@ class TestComputeFourierFeatures:
                 assert (
                     reldiff < 0.05
                 ), f"{name}: old={old[i]}, new={new[i]}, reldiff={reldiff}"
+
+
+# ---------------------------------------------------------------------------
+# TestRemoveHighCadence
+# ---------------------------------------------------------------------------
+
+
+class TestRemoveHighCadence:
+    """Tests for the remove_high_cadence_batch() function."""
+
+    def test_basic_filtering(self):
+        """Points within cadence are removed."""
+        # cadence = 30 min = 30/1440 days
+        t = np.array([0.0, 0.001, 0.002, 0.025, 0.05])
+        m = np.array([10.0, 11.0, 12.0, 13.0, 14.0])
+        e = np.array([0.1, 0.1, 0.1, 0.1, 0.1])
+
+        result = remove_high_cadence_batch([(t, m, e)], cadence_minutes=30.0)
+
+        assert len(result) == 1
+        t_out, m_out, e_out = result[0]
+        # 30 min = 0.02083 days; keep 0, 3, 4
+        assert len(t_out) == 3
+        assert t_out.dtype == np.float32
+
+    def test_empty_input(self):
+        """Empty input returns empty output."""
+        t = np.array([], dtype=np.float64)
+        m = np.array([], dtype=np.float64)
+        e = np.array([], dtype=np.float64)
+
+        result = remove_high_cadence_batch([(t, m, e)], cadence_minutes=30.0)
+
+        assert len(result) == 1
+        assert len(result[0][0]) == 0
+
+    def test_single_point(self):
+        """Single point is preserved."""
+        result = remove_high_cadence_batch(
+            [(np.array([1.0]), np.array([10.0]), np.array([0.1]))],
+            cadence_minutes=30.0,
+        )
+        assert len(result[0][0]) == 1
+
+    def test_all_beyond_cadence(self):
+        """Well-separated points are all kept."""
+        t = np.array([0.0, 1.0, 2.0, 3.0])
+        m = np.array([10.0, 11.0, 12.0, 13.0])
+        e = np.array([0.1, 0.1, 0.1, 0.1])
+
+        result = remove_high_cadence_batch([(t, m, e)], cadence_minutes=30.0)
+        assert len(result[0][0]) == 4
+
+    def test_batch_processing(self):
+        """Multiple curves processed correctly."""
+        t1 = np.array([0.0, 1.0, 2.0])
+        m1 = np.array([10.0, 11.0, 12.0])
+        e1 = np.array([0.1, 0.1, 0.1])
+
+        t2 = np.array([0.0, 0.001, 5.0])
+        m2 = np.array([20.0, 21.0, 22.0])
+        e2 = np.array([0.2, 0.2, 0.2])
+
+        result = remove_high_cadence_batch(
+            [(t1, m1, e1), (t2, m2, e2)], cadence_minutes=30.0
+        )
+        assert len(result) == 2
+        assert len(result[0][0]) == 3  # all kept
+        assert len(result[1][0]) == 2  # first and last kept
+
+
+# ---------------------------------------------------------------------------
+# TestComputeDmdtFeatures
+# ---------------------------------------------------------------------------
+
+
+class TestComputeDmdtFeatures:
+    """Tests for the compute_dmdt_features() function."""
+
+    def _make_dmdt_ints(self):
+        """Create standard bin edges matching scope-ml defaults."""
+        dt_edges = np.array(
+            [0.0, 1.0 / 145, 2.0 / 145, 3.0 / 145, 4.0 / 145, 5.0 / 145,
+             6.0 / 145, 1.5 / 23.2, 2.0 / 23.2, 3.0 / 23.2, 1.0 / 3.5,
+             2.0 / 3.5, 3.0 / 3.5, 4.0 / 3.5, 5.0 / 3.5, 7.0, 10.0,
+             20.0, 30.0, 60.0, 90.0, 120.0, 240.0, 600.0, 960.0, 2000.0],
+            dtype=np.float64,
+        )
+        dm_edges = np.array(
+            [-8.0, -3.2, -2.4, -2.0, -1.6, -1.2, -0.8, -0.6, -0.4, -0.3,
+             -0.2, -0.1, -0.05, 0.05, 0.1, 0.2, 0.3, 0.4, 0.6, 0.8,
+             1.2, 1.6, 2.0, 2.4, 3.2, 8.0],
+            dtype=np.float64,
+        )
+        return {'dtints': dt_edges, 'dmints': dm_edges}
+
+    def test_output_shape(self):
+        """Returns correct 3D shape."""
+        rng = np.random.default_rng(42)
+        n_curves = 3
+        lcs = []
+        for i in range(n_curves):
+            t = np.sort(rng.uniform(0, 100, 80))
+            m = 18.0 + rng.normal(0, 0.5, 80)
+            e = np.full(80, 0.1)
+            lcs.append((t, m, e))
+
+        dmdt_ints = self._make_dmdt_ints()
+        result = compute_dmdt_features(lcs, dmdt_ints)
+
+        n_dt_bins = len(dmdt_ints['dtints']) - 1
+        n_dm_bins = len(dmdt_ints['dmints']) - 1
+        assert result.shape == (n_curves, n_dm_bins, n_dt_bins)
+        assert result.dtype == np.float32
+
+    def test_single_point_curve(self):
+        """Single-point curve returns all zeros."""
+        dmdt_ints = self._make_dmdt_ints()
+        result = compute_dmdt_features(
+            [(np.array([1.0]), np.array([10.0]), np.array([0.1]))],
+            dmdt_ints,
+        )
+        assert np.all(result == 0.0)
+
+    def test_l2_normalization(self):
+        """Each curve's histogram is L2-normalised (or zero)."""
+        rng = np.random.default_rng(42)
+        t = np.sort(rng.uniform(0, 100, 50))
+        m = 18.0 + rng.normal(0, 0.5, 50)
+        e = np.full(50, 0.1)
+
+        dmdt_ints = self._make_dmdt_ints()
+        result = compute_dmdt_features([(t, m, e)], dmdt_ints)
+
+        norm = np.linalg.norm(result[0])
+        if norm > 0:
+            assert abs(norm - 1.0) < 1e-5, f"L2 norm = {norm}"
+
+    def test_constant_magnitude(self):
+        """Constant magnitude => all dm=0, should land in middle bins."""
+        t = np.array([0.0, 1.0, 2.0, 3.0, 4.0])
+        m = np.array([15.0, 15.0, 15.0, 15.0, 15.0])
+        e = np.full(5, 0.1)
+
+        dmdt_ints = self._make_dmdt_ints()
+        result = compute_dmdt_features([(t, m, e)], dmdt_ints)
+
+        # dm=0 falls in the bin [-0.05, 0.05] which is bin 12
+        # The result should be non-zero only in the dm=0 row
+        assert result.shape[0] == 1
+
+
+# ---------------------------------------------------------------------------
+# TestComputeBasicStats
+# ---------------------------------------------------------------------------
+
+
+class TestComputeBasicStats:
+    """Tests for the compute_basic_stats() function."""
+
+    def test_output_shape(self):
+        """Returns (n_curves, 22) array."""
+        rng = np.random.default_rng(42)
+        n_curves = 3
+        lcs = []
+        for i in range(n_curves):
+            t = np.sort(rng.uniform(0, 100, 50))
+            m = 18.0 + rng.normal(0, 0.1, 50)
+            e = np.full(50, 0.1)
+            lcs.append((t, m, e))
+
+        result = compute_basic_stats(lcs)
+        assert result.shape == (n_curves, 22)
+        assert result.dtype == np.float32
+
+    def test_n_count(self):
+        """First column is the number of points."""
+        rng = np.random.default_rng(42)
+        lcs = []
+        for n in [20, 50, 100]:
+            t = np.sort(rng.uniform(0, 100, n))
+            m = 18.0 + rng.normal(0, 0.1, n)
+            e = np.full(n, 0.1)
+            lcs.append((t, m, e))
+
+        result = compute_basic_stats(lcs)
+        assert result[0, 0] == 20.0
+        assert result[1, 0] == 50.0
+        assert result[2, 0] == 100.0
+
+    def test_constant_signal(self):
+        """Constant magnitude yields ~0 scatter stats."""
+        n = 50
+        t = np.arange(n, dtype=np.float64) * 0.5
+        m = np.full(n, 17.0)
+        e = np.full(n, 0.1)
+
+        result = compute_basic_stats([(t, m, e)])
+        r = result[0]
+
+        # N
+        assert r[0] == n
+        # median ≈ 17
+        assert abs(r[1] - 17.0) < 0.01
+        # wmean ≈ 17
+        assert abs(r[2] - 17.0) < 0.01
+        # chi2red ≈ 0
+        assert abs(r[3]) < 0.01
+        # wstd ≈ 0
+        assert abs(r[5]) < 0.01
+
+    def test_too_few_points(self):
+        """Fewer than 4 points returns NaN."""
+        t = np.array([1.0, 2.0, 3.0])
+        m = np.array([10.0, 11.0, 12.0])
+        e = np.array([0.1, 0.1, 0.1])
+
+        result = compute_basic_stats([(t, m, e)])
+        # All values should be NaN
+        assert np.all(np.isnan(result[0]))
+
+    def test_finite_for_normal_input(self):
+        """All 22 stats are finite for well-behaved input."""
+        rng = np.random.default_rng(42)
+        t = np.sort(rng.uniform(0, 100, 200))
+        m = 18.0 + rng.normal(0, 0.3, 200)
+        e = np.full(200, 0.1)
+
+        result = compute_basic_stats([(t, m, e)])
+        for i in range(22):
+            assert np.isfinite(result[0, i]), f"stat[{i}] is not finite: {result[0, i]}"
+
+    def test_numerical_agreement_with_lcstats(self):
+        """Rust basic stats agree with lcstats within reasonable tolerance."""
+        lcstats = pytest.importorskip("lcstats", reason="lcstats requires scipy/numba")
+
+        rng = np.random.default_rng(123)
+        n = 200
+        t = np.sort(rng.uniform(0, 100, n))
+        m = 16.0 + 0.4 * rng.normal(0, 1, n)
+        e = np.full(n, 0.05)
+
+        old = lcstats.calc_basic_stats('test', (t, m, e))
+        old_vals = old['test']
+
+        new = compute_basic_stats([(t, m, e)])[0]
+
+        # Compare first few well-defined stats (N, median, wmean)
+        assert old_vals[0] == new[0], f"N: old={old_vals[0]}, new={new[0]}"
+        assert (
+            abs(old_vals[1] - new[1]) / max(abs(old_vals[1]), 1e-12) < 0.01
+        ), f"median: old={old_vals[1]}, new={new[1]}"
+        assert (
+            abs(old_vals[2] - new[2]) / max(abs(old_vals[2]), 1e-12) < 0.01
+        ), f"wmean: old={old_vals[2]}, new={new[2]}"

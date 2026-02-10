@@ -310,10 +310,9 @@ def generate_features_rubin(
 
     # --- 4. Basic Statistics ---
     print("Computing basic statistics...")
-    basicStats = Parallel(n_jobs=Ncore)(
-        delayed(lcstats.calc_basic_stats)(id, vals['tme'])
-        for id, vals in tme_dict.items()
-    )
+    id_list_bs = list(tme_dict.keys())
+    lightcurves_bs = [tme_dict[_id]['tme'] for _id in id_list_bs]
+    basic_stats_arr = periodsearch.compute_basic_stats(lightcurves_bs)
 
     stat_names = [
         'n',
@@ -340,11 +339,9 @@ def generate_features_rubin(
         'sw',
     ]
 
-    for statline in basicStats:
-        _id = list(statline.keys())[0]
-        statvals = list(statline.values())[0]
-        for i, name in enumerate(stat_names):
-            feature_dict[_id][name] = statvals[i]
+    for idx, _id in enumerate(id_list_bs):
+        for si, name in enumerate(stat_names):
+            feature_dict[_id][name] = float(basic_stats_arr[idx, si])
 
     # --- 5. Period Finding ---
     if doScaleMinPeriod:
@@ -592,15 +589,12 @@ def generate_features_rubin(
 
     # --- 7. dmdt Histograms ---
     print('Computing dmdt histograms...')
-    dmdt = Parallel(n_jobs=Ncore)(
-        delayed(lcstats.compute_dmdt)(id, vals['tme'], dmdt_ints)
-        for id, vals in tme_dict.items()
-    )
+    id_list_dmdt = list(tme_dict.keys())
+    lightcurves_dmdt = [tme_dict[_id]['tme'] for _id in id_list_dmdt]
+    dmdt_arr = periodsearch.compute_dmdt_features(lightcurves_dmdt, dmdt_ints)
 
-    for dmdtline in dmdt:
-        _id = list(dmdtline.keys())[0]
-        dmdtvals = list(dmdtline.values())[0]
-        feature_dict[_id]['dmdt'] = dmdtvals.tolist()
+    for idx, _id in enumerate(id_list_dmdt):
+        feature_dict[_id]['dmdt'] = dmdt_arr[idx].tolist()
 
     # --- 8. Alert Stats (skipped for Rubin) ---
     print('Skipping ZTF alert stats for Rubin data (setting to 0)...')
