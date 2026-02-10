@@ -33,8 +33,7 @@ from scope.utils import (
 )
 from scope.rubin import RubinTAPClient
 from tools.get_rubin_ids import get_rubin_objects_by_cone, get_rubin_objects_from_file
-from tools.featureGeneration import lcstats, periodsearch
-from joblib import Parallel, delayed
+from tools.featureGeneration import periodsearch
 
 BASE_DIR = pathlib.Path.cwd()
 config = parse_load_config()

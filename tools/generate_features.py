@@ -22,11 +22,10 @@ import pandas as pd
 from astropy.coordinates import SkyCoord, angular_separation
 import astropy.units as u
 from datetime import datetime
-from tools.featureGeneration import lcstats, periodsearch, alertstats, external_xmatch
+from tools.featureGeneration import periodsearch, alertstats, external_xmatch
 import warnings
 from cesium.featurize import time_series, featurize_single_ts
 import json
-from joblib import Parallel, delayed
 from scipy.stats import circmean
 import time
 
