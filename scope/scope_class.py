@@ -876,6 +876,7 @@ class Scope:
             shuffle_buffer_size=shuffle_buffer_size,
             epochs=epochs,
             float_convert_types=float_convert_types,
+            algorithm=algorithm,
         )
 
         if lr is None:

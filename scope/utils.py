@@ -1139,6 +1139,7 @@ class Dataset(object):
         shuffle_buffer_size: int = 256,
         epochs: int = 300,
         float_convert_types: list = [64, 32],
+        algorithm: str = "dnn",
     ):
         """Make datasets for target_label
 
@@ -1293,71 +1294,6 @@ class Dataset(object):
             )
         )
 
-        import tensorflow as tf
-
-        train_dataset = tf.data.Dataset.from_tensor_slices(
-            (
-                {
-                    "features": self.df_ds.loc[train_indexes, self.features].values,
-                    "dmdt": self.dmdt[train_indexes],
-                },
-                target[train_indexes],
-            )
-        )
-        val_dataset = tf.data.Dataset.from_tensor_slices(
-            (
-                {
-                    "features": self.df_ds.loc[val_indexes, self.features].values,
-                    "dmdt": self.dmdt[val_indexes],
-                },
-                target[val_indexes],
-            )
-        )
-        test_dataset = tf.data.Dataset.from_tensor_slices(
-            (
-                {
-                    "features": self.df_ds.loc[test_indexes, self.features].values,
-                    "dmdt": self.dmdt[test_indexes],
-                },
-                target[test_indexes],
-            )
-        )
-        dropped_samples = (
-            tf.data.Dataset.from_tensor_slices(
-                (
-                    {
-                        "features": self.df_ds.loc[index_dropped, self.features].values,
-                        "dmdt": self.dmdt[index_dropped],
-                    },
-                    target[index_dropped],
-                )
-            )
-            if balance
-            else None
-        )
-
-        # Shuffle and batch the datasets:
-
-        train_dataset_repeat = (
-            train_dataset.shuffle(shuffle_buffer_size).batch(batch_size).repeat(epochs)
-        )
-        val_dataset_repeat = val_dataset.batch(batch_size).repeat(epochs)
-
-        train_dataset = train_dataset.batch(batch_size)
-        val_dataset = val_dataset.batch(batch_size)
-        test_dataset = test_dataset.batch(batch_size)
-
-        dropped_samples = dropped_samples.batch(batch_size) if balance else None
-
-        datasets = {
-            "train": train_dataset,
-            "train_repeat": train_dataset_repeat,
-            "val": val_dataset,
-            "val_repeat": val_dataset_repeat,
-            "test": test_dataset,
-            "dropped_samples": dropped_samples,
-        }
-
         indexes = {
             "train": np.array(train_indexes),
             "val": np.array(val_indexes),
@@ -1367,19 +1303,90 @@ class Dataset(object):
             ),
         }
 
-        # How many steps per epoch?
+        if algorithm == "dnn":
+            import tensorflow as tf
 
-        steps_per_epoch_train = len(train_indexes) // batch_size - 1
-        steps_per_epoch_val = len(val_indexes) // batch_size - 1
-        steps_per_epoch_test = len(test_indexes) // batch_size - 1
+            train_dataset = tf.data.Dataset.from_tensor_slices(
+                (
+                    {
+                        "features": self.df_ds.loc[train_indexes, self.features].values,
+                        "dmdt": self.dmdt[train_indexes],
+                    },
+                    target[train_indexes],
+                )
+            )
+            val_dataset = tf.data.Dataset.from_tensor_slices(
+                (
+                    {
+                        "features": self.df_ds.loc[val_indexes, self.features].values,
+                        "dmdt": self.dmdt[val_indexes],
+                    },
+                    target[val_indexes],
+                )
+            )
+            test_dataset = tf.data.Dataset.from_tensor_slices(
+                (
+                    {
+                        "features": self.df_ds.loc[test_indexes, self.features].values,
+                        "dmdt": self.dmdt[test_indexes],
+                    },
+                    target[test_indexes],
+                )
+            )
+            dropped_samples = (
+                tf.data.Dataset.from_tensor_slices(
+                    (
+                        {
+                            "features": self.df_ds.loc[
+                                index_dropped, self.features
+                            ].values,
+                            "dmdt": self.dmdt[index_dropped],
+                        },
+                        target[index_dropped],
+                    )
+                )
+                if balance
+                else None
+            )
 
-        steps_per_epoch = {
-            "train": steps_per_epoch_train,
-            "val": steps_per_epoch_val,
-            "test": steps_per_epoch_test,
-        }
-        if self.verbose:
-            print(f"Steps per epoch: {steps_per_epoch}")
+            # Shuffle and batch the datasets:
+
+            train_dataset_repeat = (
+                train_dataset.shuffle(shuffle_buffer_size)
+                .batch(batch_size)
+                .repeat(epochs)
+            )
+            val_dataset_repeat = val_dataset.batch(batch_size).repeat(epochs)
+
+            train_dataset = train_dataset.batch(batch_size)
+            val_dataset = val_dataset.batch(batch_size)
+            test_dataset = test_dataset.batch(batch_size)
+
+            dropped_samples = dropped_samples.batch(batch_size) if balance else None
+
+            datasets = {
+                "train": train_dataset,
+                "train_repeat": train_dataset_repeat,
+                "val": val_dataset,
+                "val_repeat": val_dataset_repeat,
+                "test": test_dataset,
+                "dropped_samples": dropped_samples,
+            }
+
+            steps_per_epoch_train = len(train_indexes) // batch_size - 1
+            steps_per_epoch_val = len(val_indexes) // batch_size - 1
+            steps_per_epoch_test = len(test_indexes) // batch_size - 1
+
+            steps_per_epoch = {
+                "train": steps_per_epoch_train,
+                "val": steps_per_epoch_val,
+                "test": steps_per_epoch_test,
+            }
+            if self.verbose:
+                print(f"Steps per epoch: {steps_per_epoch}")
+        else:
+            datasets = None
+            steps_per_epoch = None
 
         # Weight training data depending on the number of samples?
         # Very useful for imbalanced classification, especially in the cases with a small number of examples.
