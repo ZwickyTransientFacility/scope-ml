@@ -93,14 +93,16 @@ class TestFormatAsKowalski:
         """Helper to create mock TAP result rows."""
         rows = []
         for i in range(n):
-            rows.append({
-                "objectId": objectId,
-                "band": band,
-                "psfFlux": 1000.0 + i * 10,
-                "psfFluxErr": 50.0 + i,
-                "expMidptMJD": 60000.0 + i,
-                "pixelFlags": 0,
-            })
+            rows.append(
+                {
+                    "objectId": objectId,
+                    "band": band,
+                    "psfFlux": 1000.0 + i * 10,
+                    "psfFluxErr": 50.0 + i,
+                    "expMidptMJD": 60000.0 + i,
+                    "pixelFlags": 0,
+                }
+            )
         return rows
 
     def test_basic_conversion(self):
@@ -129,9 +131,12 @@ class TestFormatAsKowalski:
         """MJD values should be stored in the 'hjd' field."""
         rows = [
             {
-                "objectId": 1, "band": "r",
-                "psfFlux": 1000.0, "psfFluxErr": 50.0,
-                "expMidptMJD": 60123.456, "pixelFlags": 0,
+                "objectId": 1,
+                "band": "r",
+                "psfFlux": 1000.0,
+                "psfFluxErr": 50.0,
+                "expMidptMJD": 60123.456,
+                "pixelFlags": 0,
             }
         ]
         result = _format_as_kowalski(rows)
@@ -141,9 +146,12 @@ class TestFormatAsKowalski:
         """pixelFlags should be mapped to catflags."""
         rows = [
             {
-                "objectId": 1, "band": "r",
-                "psfFlux": 1000.0, "psfFluxErr": 50.0,
-                "expMidptMJD": 60000.0, "pixelFlags": 42,
+                "objectId": 1,
+                "band": "r",
+                "psfFlux": 1000.0,
+                "psfFluxErr": 50.0,
+                "expMidptMJD": 60000.0,
+                "pixelFlags": 42,
             }
         ]
         result = _format_as_kowalski(rows)
@@ -171,19 +179,28 @@ class TestFormatAsKowalski:
         """Rows with non-positive flux should be excluded."""
         rows = [
             {
-                "objectId": 1, "band": "g",
-                "psfFlux": -100.0, "psfFluxErr": 10.0,
-                "expMidptMJD": 60000.0, "pixelFlags": 0,
+                "objectId": 1,
+                "band": "g",
+                "psfFlux": -100.0,
+                "psfFluxErr": 10.0,
+                "expMidptMJD": 60000.0,
+                "pixelFlags": 0,
             },
             {
-                "objectId": 1, "band": "g",
-                "psfFlux": 0.0, "psfFluxErr": 10.0,
-                "expMidptMJD": 60001.0, "pixelFlags": 0,
+                "objectId": 1,
+                "band": "g",
+                "psfFlux": 0.0,
+                "psfFluxErr": 10.0,
+                "expMidptMJD": 60001.0,
+                "pixelFlags": 0,
             },
             {
-                "objectId": 1, "band": "g",
-                "psfFlux": 1000.0, "psfFluxErr": 50.0,
-                "expMidptMJD": 60002.0, "pixelFlags": 0,
+                "objectId": 1,
+                "band": "g",
+                "psfFlux": 1000.0,
+                "psfFluxErr": 50.0,
+                "expMidptMJD": 60002.0,
+                "pixelFlags": 0,
             },
         ]
         result = _format_as_kowalski(rows)
@@ -227,9 +244,12 @@ class TestMJDHandling:
         mjd = 60457.123456789
         rows = [
             {
-                "objectId": 1, "band": "g",
-                "psfFlux": 1000.0, "psfFluxErr": 50.0,
-                "expMidptMJD": mjd, "pixelFlags": 0,
+                "objectId": 1,
+                "band": "g",
+                "psfFlux": 1000.0,
+                "psfFluxErr": 50.0,
+                "expMidptMJD": mjd,
+                "pixelFlags": 0,
             }
         ]
         result = _format_as_kowalski(rows)
@@ -239,14 +259,20 @@ class TestMJDHandling:
         """Format conversion should not reorder points (that's sort_lightcurve's job)."""
         rows = [
             {
-                "objectId": 1, "band": "g",
-                "psfFlux": 1000.0, "psfFluxErr": 50.0,
-                "expMidptMJD": 60002.0, "pixelFlags": 0,
+                "objectId": 1,
+                "band": "g",
+                "psfFlux": 1000.0,
+                "psfFluxErr": 50.0,
+                "expMidptMJD": 60002.0,
+                "pixelFlags": 0,
             },
             {
-                "objectId": 1, "band": "g",
-                "psfFlux": 1000.0, "psfFluxErr": 50.0,
-                "expMidptMJD": 60001.0, "pixelFlags": 0,
+                "objectId": 1,
+                "band": "g",
+                "psfFlux": 1000.0,
+                "psfFluxErr": 50.0,
+                "expMidptMJD": 60001.0,
+                "pixelFlags": 0,
             },
         ]
         result = _format_as_kowalski(rows)
@@ -284,8 +310,10 @@ class TestIntegrationRubinTAP:
         """Cone search should return objects as a dict."""
         try:
             objects = self.client.get_objects_by_cone(
-                ra=DP1_TEST_RA, dec=DP1_TEST_DEC,
-                radius_arcsec=30.0, limit=10,
+                ra=DP1_TEST_RA,
+                dec=DP1_TEST_DEC,
+                radius_arcsec=30.0,
+                limit=10,
             )
         except Exception as e:
             pytest.skip(f"TAP service unavailable: {e}")
@@ -299,8 +327,10 @@ class TestIntegrationRubinTAP:
         """Should retrieve lightcurves for discovered objects."""
         try:
             objects = self.client.get_objects_by_cone(
-                ra=DP1_TEST_RA, dec=DP1_TEST_DEC,
-                radius_arcsec=30.0, limit=5,
+                ra=DP1_TEST_RA,
+                dec=DP1_TEST_DEC,
+                radius_arcsec=30.0,
+                limit=5,
             )
         except Exception as e:
             pytest.skip(f"TAP service unavailable: {e}")
@@ -328,8 +358,10 @@ class TestIntegrationRubinTAP:
 
         try:
             objects = self.client.get_objects_by_cone(
-                ra=DP1_TEST_RA, dec=DP1_TEST_DEC,
-                radius_arcsec=30.0, limit=5,
+                ra=DP1_TEST_RA,
+                dec=DP1_TEST_DEC,
+                radius_arcsec=30.0,
+                limit=5,
             )
         except Exception as e:
             pytest.skip(f"TAP service unavailable: {e}")

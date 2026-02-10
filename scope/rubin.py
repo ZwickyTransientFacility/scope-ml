@@ -18,8 +18,6 @@ try:
 except ImportError:
     HAS_PYVO = False
 
-from .utils import parse_load_config
-
 # Band name -> integer filter ID mapping
 # g=1, r=2, i=3 match ZTF filter IDs; u, z, y are Rubin-only
 DEFAULT_BAND_MAP = {"u": 0, "g": 1, "r": 2, "i": 3, "z": 4, "y": 5}
@@ -150,7 +148,9 @@ class RubinTAPClient:
 
         # Resolve from config if provided
         if config is not None:
-            tap_url = tap_url or config.get("tap_url", "https://data.lsst.cloud/api/tap")
+            tap_url = tap_url or config.get(
+                "tap_url", "https://data.lsst.cloud/api/tap"
+            )
             token = token or config.get("token")
             timeout = timeout if timeout is not None else config.get("timeout", 300)
             band_map = band_map or config.get("band_map", DEFAULT_BAND_MAP)
@@ -249,9 +249,16 @@ class RubinTAPClient:
             return []
 
         all_rows = []
+        n_batches = (len(objectids) + batch_size - 1) // batch_size
 
         # Batch the queries
         for i in range(0, len(objectids), batch_size):
+            batch_num = i // batch_size + 1
+            if batch_num % 10 == 1 or batch_num == n_batches:
+                print(
+                    f"  TAP batch {batch_num}/{n_batches} "
+                    f"({len(all_rows):,} rows so far)"
+                )
             batch = objectids[i : i + batch_size]
             id_list = ", ".join(str(oid) for oid in batch)
 
@@ -280,7 +287,9 @@ class RubinTAPClient:
                 if len(batch) > 100:
                     job = self.service.submit_job(query)
                     job.run()
-                    job.wait(phases=["COMPLETED", "ERROR", "ABORTED"], timeout=self.timeout)
+                    job.wait(
+                        phases=["COMPLETED", "ERROR", "ABORTED"], timeout=self.timeout
+                    )
                     if job.phase == "COMPLETED":
                         result = job.fetch_result()
                     else:
@@ -305,16 +314,12 @@ class RubinTAPClient:
                     )
 
             except Exception as e:
-                warnings.warn(
-                    f"TAP query failed for batch starting at index {i}: {e}"
-                )
+                warnings.warn(f"TAP query failed for batch starting at index {i}: {e}")
                 continue
 
         return _format_as_kowalski(all_rows, band_map=self.band_map)
 
-    def get_lightcurves_for_cone(
-        self, ra, dec, radius_arcsec, bands=None, limit=10000
-    ):
+    def get_lightcurves_for_cone(self, ra, dec, radius_arcsec, bands=None, limit=10000):
         """
         Convenience method: cone search + lightcurve retrieval in one call.
 

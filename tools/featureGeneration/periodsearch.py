@@ -4,7 +4,6 @@ import warnings
 
 import periodfind
 
-
 # ---------------------------------------------------------------------------
 # Algorithm name mapping
 # ---------------------------------------------------------------------------
@@ -150,7 +149,7 @@ def find_periods(
     # -----------------------------------------------------------------------
     if algo_name in _ALGO_MAP:
         device = 'gpu' if doGPU else 'cpu'
-        needs_errs = (algo_name == "FPW")
+        needs_errs = algo_name == "FPW"
 
         # Create algorithm via unified factory
         if algo_name == "CE":
@@ -184,8 +183,12 @@ def find_periods(
         output_mode = 'periodogram' if is_periodogram else 'stats'
         extra_kwargs = {"errs": err_stack} if needs_errs else {}
         data_out = algo.calc(
-            time_stack, mag_stack, periods, pdots_to_test,
-            output=output_mode, **extra_kwargs
+            time_stack,
+            mag_stack,
+            periods,
+            pdots_to_test,
+            output=output_mode,
+            **extra_kwargs,
         )
 
         # Process results

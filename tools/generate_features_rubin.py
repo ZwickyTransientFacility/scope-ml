@@ -48,6 +48,7 @@ if rubin_token_env is not None:
 dmdt_ints = config['feature_generation']['dmdt_ints']
 period_algorithms = config['feature_generation']['period_algorithms']
 path_to_features = config['feature_generation']['path_to_features']
+period_search_config = config['feature_generation'].get('period_search', {})
 
 if path_to_features is not None:
     BASE_DIR = pathlib.Path(path_to_features)
@@ -96,23 +97,25 @@ def generate_features_rubin(
     objectid_file=None,
     bands=None,
     period_algorithms=period_algorithms,
-    period_batch_size=1000,
+    period_batch_size=period_search_config.get('period_batch_size', 1000),
     doCPU=False,
     doGPU=False,
-    samples_per_peak=10,
+    samples_per_peak=period_search_config.get('samples_per_peak', 10),
     doScaleMinPeriod=False,
     doRemoveTerrestrial=False,
     Ncore=8,
-    min_n_lc_points=50,
-    min_cadence_minutes=30.0,
+    min_n_lc_points=period_search_config.get('min_n_lc_points', 50),
+    min_cadence_minutes=period_search_config.get('min_cadence_minutes', 5.0),
     dirname='generated_features_rubin',
     filename='gen_features_rubin',
     doNotSave=False,
     stop_early=False,
     limit=10000,
     top_n_periods=50,
-    max_freq=48.0,
+    max_freq=period_search_config.get('max_freq', 288.0),
     xmatch_radius_arcsec=2.0,
+    phase_bins=period_search_config.get('phase_bins', 20),
+    mag_bins=period_search_config.get('mag_bins', 10),
 ):
     """
     Generate features for Rubin LSST light curves.
@@ -162,9 +165,14 @@ def generate_features_rubin(
     top_n_periods : int
         Number of top periods for nested algorithms.
     max_freq : float
-        Maximum frequency for period finding.
+        Maximum frequency for period finding (cycles/day).
+        288.0 = 5-minute periods, 48.0 = 30-minute periods.
     xmatch_radius_arcsec : float
         Cross-match radius in arcseconds.
+    phase_bins : int
+        Number of phase bins for CE/AOV/FPW.
+    mag_bins : int
+        Number of magnitude bins for CE.
 
     Returns
     -------
@@ -209,9 +217,7 @@ def generate_features_rubin(
     # Build mapping from objectId -> object metadata
     # One lc entry per (objectId, band) pair
     lc_ids = set(lc['_id'] for lc in lcs)
-    feature_gen_source_dict = {
-        oid: objects[oid] for oid in objects if oid in lc_ids
-    }
+    feature_gen_source_dict = {oid: objects[oid] for oid in objects if oid in lc_ids}
 
     # Select period algorithms from config based on CPU or GPU specification
     pa = period_algorithms
@@ -297,8 +303,9 @@ def generate_features_rubin(
     if len(keep_id_list) == 0 or baseline == 0:
         print("No light curves meet selection criteria.")
         feature_df = pd.DataFrame()
-        _save_results(feature_df, start_dt, code_version, dirname, filename,
-                      doNotSave, BASE_DIR)
+        _save_results(
+            feature_df, start_dt, code_version, dirname, filename, doNotSave, BASE_DIR
+        )
         return feature_df
 
     # --- 4. Basic Statistics ---
@@ -309,11 +316,28 @@ def generate_features_rubin(
     )
 
     stat_names = [
-        'n', 'median', 'wmean', 'chi2red', 'roms', 'wstd',
-        'norm_peak_to_peak_amp', 'norm_excess_var', 'median_abs_dev',
-        'iqr', 'i60r', 'i70r', 'i80r', 'i90r', 'skew', 'smallkurt',
-        'inv_vonneumannratio', 'welch_i', 'stetson_j', 'stetson_k',
-        'ad', 'sw',
+        'n',
+        'median',
+        'wmean',
+        'chi2red',
+        'roms',
+        'wstd',
+        'norm_peak_to_peak_amp',
+        'norm_excess_var',
+        'median_abs_dev',
+        'iqr',
+        'i60r',
+        'i70r',
+        'i80r',
+        'i90r',
+        'skew',
+        'smallkurt',
+        'inv_vonneumannratio',
+        'welch_i',
+        'stetson_j',
+        'stetson_k',
+        'ad',
+        'sw',
     ]
 
     for statline in basicStats:
@@ -335,10 +359,19 @@ def generate_features_rubin(
     # Terrestrial frequencies
     if doRemoveTerrestrial:
         freqs_to_remove = [
-            [0.0025, 0.003], [0.00125, 0.0015], [0.000833, 0.001],
-            [0.000625, 0.00075], [0.0005, 0.0006], [0.005, 0.006],
-            [3e-2, 4e-2], [3.95, 4.05], [2.95, 3.05],
-            [1.95, 2.05], [0.95, 1.05], [0.48, 0.52], [0.32, 0.34],
+            [0.0025, 0.003],
+            [0.00125, 0.0015],
+            [0.000833, 0.001],
+            [0.000625, 0.00075],
+            [0.0005, 0.0006],
+            [0.005, 0.006],
+            [3e-2, 4e-2],
+            [3.95, 4.05],
+            [2.95, 3.05],
+            [1.95, 2.05],
+            [0.95, 1.05],
+            [0.48, 0.52],
+            [0.32, 0.34],
         ]
     else:
         freqs_to_remove = None
@@ -402,7 +435,8 @@ def generate_features_rubin(
                 periods, significances, pdots = periodsearch.find_periods(
                     algorithm,
                     tme_collection[
-                        i * period_batch_size : min(
+                        i
+                        * period_batch_size : min(
                             n_sources, (i + 1) * period_batch_size
                         )
                     ],
@@ -413,8 +447,8 @@ def generate_features_rubin(
                     doUsePDot=False,
                     doSingleTimeSegment=False,
                     freqs_to_remove=freqs_to_remove,
-                    phase_bins=20,
-                    mag_bins=10,
+                    phase_bins=phase_bins,
+                    mag_bins=mag_bins,
                     Ncore=Ncore,
                 )
 
@@ -435,8 +469,7 @@ def generate_features_rubin(
                         ]
                     elif algorithm in ('ECE_periodogram', 'CE_periodogram'):
                         topN_significance_indices_ECE = [
-                            np.argsort(ps.flatten())[:top_n_periods]
-                            for ps in p_stats
+                            np.argsort(ps.flatten())[:top_n_periods] for ps in p_stats
                         ]
                     elif algorithm in ('EAOV_periodogram', 'AOV_periodogram'):
                         ELS_ECE_top_indices = np.concatenate(
@@ -479,9 +512,7 @@ def generate_features_rubin(
                 all_significances[algorithm] = np.concatenate(
                     [all_significances[algorithm], significances]
                 )
-                all_pdots[algorithm] = np.concatenate(
-                    [all_pdots[algorithm], pdots]
-                )
+                all_pdots[algorithm] = np.concatenate([all_pdots[algorithm], pdots])
 
         period_dict = all_periods
         significance_dict = all_significances
@@ -522,9 +553,20 @@ def generate_features_rubin(
     lightcurves_ordered = [tme_dict[_id]['tme'] for _id in id_list]
 
     fourier_names = [
-        'f1_power', 'f1_BIC', 'f1_a', 'f1_b', 'f1_amp', 'f1_phi0',
-        'f1_relamp1', 'f1_relphi1', 'f1_relamp2', 'f1_relphi2',
-        'f1_relamp3', 'f1_relphi3', 'f1_relamp4', 'f1_relphi4',
+        'f1_power',
+        'f1_BIC',
+        'f1_a',
+        'f1_b',
+        'f1_amp',
+        'f1_phi0',
+        'f1_relamp1',
+        'f1_relphi1',
+        'f1_relamp2',
+        'f1_relphi2',
+        'f1_relamp3',
+        'f1_relphi3',
+        'f1_relamp4',
+        'f1_relphi4',
     ]
 
     for algorithm in pa:
@@ -544,7 +586,9 @@ def generate_features_rubin(
 
         for idx, _id in enumerate(id_list):
             for i, name in enumerate(fourier_names):
-                feature_dict[_id][f'{name}_{algorithm_name}'] = float(fourier_features[idx, i])
+                feature_dict[_id][f'{name}_{algorithm_name}'] = float(
+                    fourier_features[idx, i]
+                )
 
     # --- 7. dmdt Histograms ---
     print('Computing dmdt histograms...')
@@ -599,8 +643,9 @@ def generate_features_rubin(
                 pass
 
     # --- 11. Save ---
-    _save_results(feature_df, start_dt, code_version, dirname, filename,
-                  doNotSave, BASE_DIR)
+    _save_results(
+        feature_df, start_dt, code_version, dirname, filename, doNotSave, BASE_DIR
+    )
 
     t1 = time.time()
     print(f"Finished running in {t1 - t0} seconds.")
@@ -608,8 +653,9 @@ def generate_features_rubin(
     return feature_df
 
 
-def _save_results(feature_df, start_dt, code_version, dirname, filename,
-                  doNotSave, base_dir):
+def _save_results(
+    feature_df, start_dt, code_version, dirname, filename, doNotSave, base_dir
+):
     """Save feature DataFrame and metadata."""
     utcnow = datetime.utcnow()
     end_dt = utcnow.strftime("%Y-%m-%d %H:%M:%S")
@@ -662,94 +708,152 @@ def get_parser(**kwargs):
     )
 
     parser.add_argument(
-        "--ra", type=float, default=None,
+        "--ra",
+        type=float,
+        default=None,
         help="Right ascension in degrees (for cone search)",
     )
     parser.add_argument(
-        "--dec", type=float, default=None,
+        "--dec",
+        type=float,
+        default=None,
         help="Declination in degrees (for cone search)",
     )
     parser.add_argument(
-        "--radius", type=float, default=30.0,
+        "--radius",
+        type=float,
+        default=30.0,
         help="Cone search radius in arcseconds (default 30)",
     )
     parser.add_argument(
-        "--objectid-file", type=str, default=None,
+        "--objectid-file",
+        type=str,
+        default=None,
         help="Path to CSV file with objectId column",
     )
     parser.add_argument(
-        "--bands", nargs='+', default=None,
+        "--bands",
+        nargs='+',
+        default=None,
         help="Bands to use (e.g., g r i). Default: all bands.",
     )
     parser.add_argument(
-        "--period-algorithms", nargs='+', default=period_algorithms,
+        "--period-algorithms",
+        nargs='+',
+        default=period_algorithms,
         help="Period-finding algorithms to use",
     )
     parser.add_argument(
-        "--period-batch-size", type=int, default=1000,
+        "--period-batch-size",
+        type=int,
+        default=period_search_config.get('period_batch_size', 1000),
         help="Batch size for period algorithms",
     )
     parser.add_argument(
-        "--doCPU", action='store_true', default=False,
+        "--doCPU",
+        action='store_true',
+        default=False,
         help="Run period finding on CPU",
     )
     parser.add_argument(
-        "--doGPU", action='store_true', default=False,
+        "--doGPU",
+        action='store_true',
+        default=False,
         help="Run period finding on GPU",
     )
     parser.add_argument(
-        "--samples-per-peak", default=10, type=int,
+        "--samples-per-peak",
+        default=period_search_config.get('samples_per_peak', 10),
+        type=int,
     )
     parser.add_argument(
-        "--doScaleMinPeriod", action='store_true', default=False,
+        "--doScaleMinPeriod",
+        action='store_true',
+        default=False,
         help="Scale min period using --min-cadence-minutes",
     )
     parser.add_argument(
-        "--doRemoveTerrestrial", action='store_true', default=False,
+        "--doRemoveTerrestrial",
+        action='store_true',
+        default=False,
         help="Remove terrestrial frequencies from period analysis",
     )
     parser.add_argument(
-        "--Ncore", default=8, type=int,
+        "--Ncore",
+        default=8,
+        type=int,
         help="Number of cores for parallel processing",
     )
     parser.add_argument(
-        "--min-n-lc-points", type=int, default=50,
+        "--min-n-lc-points",
+        type=int,
+        default=period_search_config.get('min_n_lc_points', 50),
         help="Minimum lightcurve points to generate features",
     )
     parser.add_argument(
-        "--min-cadence-minutes", type=float, default=30.0,
+        "--min-cadence-minutes",
+        type=float,
+        default=period_search_config.get('min_cadence_minutes', 5.0),
         help="Minimum cadence between lightcurve points (minutes)",
     )
     parser.add_argument(
-        "--dirname", type=str, default='generated_features_rubin',
+        "--phase-bins",
+        type=int,
+        default=period_search_config.get('phase_bins', 20),
+        help="Number of phase bins for CE/AOV/FPW",
+    )
+    parser.add_argument(
+        "--mag-bins",
+        type=int,
+        default=period_search_config.get('mag_bins', 10),
+        help="Number of magnitude bins for CE",
+    )
+    parser.add_argument(
+        "--dirname",
+        type=str,
+        default='generated_features_rubin',
         help="Directory name for generated features",
     )
     parser.add_argument(
-        "--filename", type=str, default='gen_features_rubin',
+        "--filename",
+        type=str,
+        default='gen_features_rubin',
         help="Prefix for generated feature file",
     )
     parser.add_argument(
-        "--doNotSave", action='store_true', default=False,
+        "--doNotSave",
+        action='store_true',
+        default=False,
         help="Do not save features to disk",
     )
     parser.add_argument(
-        "--stop-early", action='store_true', default=False,
+        "--stop-early",
+        action='store_true',
+        default=False,
         help="Stop after --limit sources",
     )
     parser.add_argument(
-        "--query-size-limit", type=int, default=10000,
+        "--query-size-limit",
+        type=int,
+        default=10000,
         help="Maximum sources for cone search / batch queries",
     )
     parser.add_argument(
-        "--top-n-periods", type=int, default=50,
+        "--top-n-periods",
+        type=int,
+        default=50,
         help="Number of top periods for nested algorithms",
     )
     parser.add_argument(
-        "--max-freq", type=float, default=48.0,
-        help="Maximum frequency [1/days] for period finding",
+        "--max-freq",
+        type=float,
+        default=period_search_config.get('max_freq', 288.0),
+        help="Maximum frequency [1/days] for period finding (288=5min, 48=30min)",
     )
     parser.add_argument(
-        "--xmatch-radius-arcsec", type=float, default=2.0,
+        "--xmatch-radius-arcsec",
+        type=float,
+        default=2.0,
         help="Cross-match radius in arcseconds",
     )
     return parser
@@ -783,6 +887,8 @@ def main():
         top_n_periods=args.top_n_periods,
         max_freq=args.max_freq,
         xmatch_radius_arcsec=args.xmatch_radius_arcsec,
+        phase_bins=args.phase_bins,
+        mag_bins=args.mag_bins,
     )
 
 

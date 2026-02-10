@@ -1459,6 +1459,22 @@ feature_generation:
   # Once generate_features.py is run with --doSpecificIDs, a file will be saved with the default name below.
   # Set --skipCloseSources to load the file below and skip the idenfication of close sources:
   ids_skipGaia: specific_ids_dropCloseSources.json
+  period_search:
+    # Maximum frequency in cycles/day (determines shortest period searched).
+    # 288.0 = 5-minute periods; 48.0 = 30-minute periods
+    max_freq: 288.0
+    # Number of frequency samples per spectral peak (controls grid density)
+    samples_per_peak: 10
+    # Minimum number of lightcurve points required for period finding
+    min_n_lc_points: 50
+    # Minimum cadence between lightcurve points in minutes
+    # (points closer together are merged by removeHighCadence)
+    min_cadence_minutes: 5.0
+    # Number of phase/magnitude bins for CE, AOV, FPW
+    phase_bins: 20
+    mag_bins: 10
+    # Batch size for period finding (number of curves per batch)
+    period_batch_size: 1000
   period_algorithms:
     CPU:
       - LS

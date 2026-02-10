@@ -58,8 +58,10 @@ def get_rubin_objects_by_cone(ra, dec, radius_arcsec, limit=10000, client=None):
     if client is None:
         client = _get_rubin_client()
 
-    print(f"Searching for Rubin objects within {radius_arcsec}\" of "
-          f"(RA={ra}, Dec={dec})...")
+    print(
+        f"Searching for Rubin objects within {radius_arcsec}\" of "
+        f"(RA={ra}, Dec={dec})..."
+    )
     objects = client.get_objects_by_cone(ra, dec, radius_arcsec, limit=limit)
     print(f"Found {len(objects)} objects.")
     return objects
@@ -90,13 +92,20 @@ def get_rubin_objects_from_file(filepath):
 
     has_coords = "coord_ra" in df.columns and "coord_dec" in df.columns
 
+    # Use column arrays directly instead of iterrows() to avoid
+    # int64 -> float64 precision loss on 18-digit Rubin objectIds.
+    oid_arr = df["objectId"].values
+    if has_coords:
+        ra_arr = df["coord_ra"].values
+        dec_arr = df["coord_dec"].values
+
     objects = {}
-    for _, row in df.iterrows():
-        oid = int(row["objectId"])
+    for i in range(len(df)):
+        oid = int(oid_arr[i])
         if has_coords:
             objects[oid] = {
-                "coord_ra": float(row["coord_ra"]),
-                "coord_dec": float(row["coord_dec"]),
+                "coord_ra": float(ra_arr[i]),
+                "coord_dec": float(dec_arr[i]),
             }
         else:
             objects[oid] = {"coord_ra": None, "coord_dec": None}

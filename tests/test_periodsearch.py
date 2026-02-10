@@ -6,24 +6,24 @@ Run with:
     python -m pytest tests/test_periodsearch.py -v
 """
 
-import numpy as np
-
-import periodfind
-
 import sys
 import os
 
-from periodsearch import (
+# Add the tools directory to the path so we can import periodsearch
+sys.path.insert(
+    0, os.path.join(os.path.dirname(__file__), '..', 'tools', 'featureGeneration')
+)
+
+import numpy as np  # noqa: E402
+
+import periodfind  # noqa: E402
+
+from periodsearch import (  # noqa: E402
     find_periods,
     compute_fourier_features,
     _normalize_algorithm,
     _prepare_lightcurves,
     _build_pdots,
-)
-
-# Add the tools directory to the path so we can import periodsearch
-sys.path.insert(
-    0, os.path.join(os.path.dirname(__file__), '..', 'tools', 'featureGeneration')
 )
 
 # ---------------------------------------------------------------------------
@@ -438,18 +438,20 @@ class TestComputeFourierFeatures:
         new = compute_fourier_features([(t, m, e)], np.array([period]))[0]
 
         # Power and BIC should be very close
-        assert abs(old[0] - new[0]) / max(abs(old[0]), 1e-12) < 0.01, (
-            f"power: old={old[0]}, new={new[0]}"
-        )
-        assert abs(old[1] - new[1]) / max(abs(old[1]), 1e-12) < 0.01, (
-            f"BIC: old={old[1]}, new={new[1]}"
-        )
+        assert (
+            abs(old[0] - new[0]) / max(abs(old[0]), 1e-12) < 0.01
+        ), f"power: old={old[0]}, new={new[0]}"
+        assert (
+            abs(old[1] - new[1]) / max(abs(old[1]), 1e-12) < 0.01
+        ), f"BIC: old={old[1]}, new={new[1]}"
         # Offset
-        assert abs(old[2] - new[2]) / max(abs(old[2]), 1e-12) < 0.01, (
-            f"offset: old={old[2]}, new={new[2]}"
-        )
+        assert (
+            abs(old[2] - new[2]) / max(abs(old[2]), 1e-12) < 0.01
+        ), f"offset: old={old[2]}, new={new[2]}"
         # A1, B1 should be close (allow 5% for f32/f64 + method differences)
         for i, name in [(4, "A1"), (5, "B1")]:
             if abs(old[i]) > 0.01:
                 reldiff = abs(old[i] - new[i]) / abs(old[i])
-                assert reldiff < 0.05, f"{name}: old={old[i]}, new={new[i]}, reldiff={reldiff}"
+                assert (
+                    reldiff < 0.05
+                ), f"{name}: old={old[i]}, new={new[i]}, reldiff={reldiff}"
