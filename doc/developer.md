@@ -15,7 +15,13 @@
   scope-initialize
   ```
 
-- If using GPU-accelerated period-finding algorithms, install [periodfind](https://github.com/ZwickyTransientFacility/periodfind) from the source.
+- For accelerated period finding, install [periodfind](https://github.com/ZwickyTransientFacility/periodfind). The GPU (CUDA) backend requires `nvcc`; the CPU (Rust) backend requires `maturin`:
+  ```bash
+  # GPU backend
+  pip install cython numpy && pip install -e .
+  # CPU backend
+  cd rust && maturin develop --release
+  ```
 
 - Change directories to `scope` and modify `config.yaml` to finish the initialization process. This config file is used by default when running all scripts. You can also specify another config file using the `--config-path` argument.
 
@@ -98,7 +104,14 @@ cp config.defaults.yaml config.yaml
 Edit config.yaml to include Kowalski instance and Fritz tokens in the associated empty `token:` fields.
 
 #### (Optional) Install `periodfind`
-If using GPU-accelerated period-finding algorithms, install [periodfind](https://github.com/ZwickyTransientFacility/periodfind) from the source.
+For accelerated period finding, install [periodfind](https://github.com/ZwickyTransientFacility/periodfind).
+The GPU (CUDA) backend requires `nvcc`; the CPU (Rust) backend requires `maturin`:
+```bash
+# GPU backend
+pip install cython numpy && pip install -e .
+# CPU backend
+cd rust && maturin develop --release
+```
 
 #### Testing
 Run `scope-test` to test your installation. Note that for the test to pass, you will need access to the Kowalski database. If you do not have Kowalski access, you can run `scope-test-limited` to run a more limited (but still useful) set of tests.
