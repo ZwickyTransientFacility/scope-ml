@@ -795,20 +795,6 @@ class Scope:
         :return:
         """
 
-        import tensorflow as tf
-
-        if gpu is not None:
-            # specified a GPU to run on?
-            gpus = tf.config.list_physical_devices("GPU")
-            tf.config.experimental.set_visible_devices(gpus[gpu], "GPU")
-        else:
-            # otherwise run on CPU
-            tf.config.experimental.set_visible_devices([], "GPU")
-
-        import wandb
-        from wandb.keras import WandbCallback
-
-        from .nn import DNN
         from .xgb import XGB
         from .utils import Dataset
 
@@ -1026,6 +1012,19 @@ class Scope:
         output_path = self.base_path / f"models_{algorithm}" / group
 
         if algorithm == "dnn":
+
+            import tensorflow as tf
+
+            if gpu is not None:
+                gpus = tf.config.list_physical_devices("GPU")
+                tf.config.experimental.set_visible_devices(gpus[gpu], "GPU")
+            else:
+                tf.config.experimental.set_visible_devices([], "GPU")
+
+            import wandb
+            from wandb.keras import WandbCallback
+
+            from .nn import DNN
 
             classifier = DNN(name=tag)
 
@@ -2434,7 +2433,14 @@ class Scope:
                 df_mock_orig = pd.DataFrame.from_records(entries)
                 df_mock_orig.to_csv(path_mock / dataset, index=False)
 
-                algorithms = ["xgb", "dnn"]
+                algorithms = ["xgb"]
+                try:
+                    import tensorflow  # noqa: F401
+
+                    algorithms.append("dnn")
+                except ImportError:
+                    print("tensorflow not installed, skipping DNN training test")
+
                 model_paths = []
 
                 # Train twice: once on Kowalski features, once on generated features with different periodic feature names
