@@ -15,6 +15,7 @@ sys.path.insert(
 )
 
 import numpy as np  # noqa: E402
+import pytest  # noqa: E402
 
 import periodfind  # noqa: E402
 
@@ -423,7 +424,7 @@ class TestComputeFourierFeatures:
 
     def test_numerical_agreement_with_lcstats(self):
         """Rust Fourier agrees with lcstats.fourier_decomposition within ~1%."""
-        from tools.featureGeneration import lcstats
+        lcstats = pytest.importorskip("lcstats", reason="lcstats requires scipy/numba")
 
         rng = np.random.default_rng(123)
         n = 200
