@@ -1,7 +1,6 @@
 import numpy as np
 import fast_histogram
 import warnings
-from joblib import Parallel, delayed
 
 import periodfind
 
@@ -58,9 +57,7 @@ def _prepare_lightcurves(lightcurves, doSingleTimeSegment):
     time_stack, mag_stack = [], []
     for lightcurve in lightcurves:
         if doSingleTimeSegment:
-            _, x_ind, y_ind = np.intersect1d(
-                tt, lightcurve[0], return_indices=True
-            )
+            _, x_ind, y_ind = np.intersect1d(tt, lightcurve[0], return_indices=True)
             mag_array = 999 * np.ones(tt.shape)
             magerr_array = 999 * np.ones(tt.shape)
             mag_array[x_ind] = lightcurve[1][y_ind]
@@ -100,9 +97,7 @@ def _build_pdots(doUsePDot):
         num_pdots = 10
         max_pdot = 1e-10
         min_pdot = 1e-12
-        pdots_to_test = -np.logspace(
-            np.log10(min_pdot), np.log10(max_pdot), num_pdots
-        )
+        pdots_to_test = -np.logspace(np.log10(min_pdot), np.log10(max_pdot), num_pdots)
         pdots_to_test = np.append(0, pdots_to_test)
     else:
         pdots_to_test = np.array([0.0])
@@ -128,9 +123,6 @@ def find_periods(
     mag_bins=10,
     Ncore=8,
 ):
-    fr0 = np.min(freqs)
-    fstep = np.diff(freqs)[0]
-    fstop = np.max(freqs) + fstep
 
     if doRemoveTerrestrial and (freqs_to_remove is not None):
         indexes = []
@@ -163,9 +155,7 @@ def find_periods(
             algo = periodfind.LombScargle(device=device)
 
         # Prepare data
-        time_stack, mag_stack = _prepare_lightcurves(
-            lightcurves, doSingleTimeSegment
-        )
+        time_stack, mag_stack = _prepare_lightcurves(lightcurves, doSingleTimeSegment)
         periods = (1.0 / freqs).astype(np.float32)
         pdots_to_test = _build_pdots(doUsePDot)
 

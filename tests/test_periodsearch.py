@@ -7,27 +7,32 @@ Run with:
 """
 
 import numpy as np
-import pytest
 
 import periodfind
-from periodfind import Statistics, Periodogram
 
 import sys
 import os
+
+from periodsearch import (
+    find_periods,
+    _normalize_algorithm,
+    _prepare_lightcurves,
+    _build_pdots,
+)
 
 # Add the tools directory to the path so we can import periodsearch
 sys.path.insert(
     0, os.path.join(os.path.dirname(__file__), '..', 'tools', 'featureGeneration')
 )
-from periodsearch import find_periods, _normalize_algorithm, _prepare_lightcurves, _build_pdots
-
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-def make_sinusoidal_lightcurve(period, n_points=500, amplitude=1.0,
-                                noise_std=0.05, t_span=100.0, seed=42):
+
+def make_sinusoidal_lightcurve(
+    period, n_points=500, amplitude=1.0, noise_std=0.05, t_span=100.0, seed=42
+):
     """Generate a synthetic sinusoidal lightcurve as (times, mags, magerrs).
 
     Returns the tuple format expected by scope-ml's find_periods:
@@ -52,6 +57,7 @@ def make_freq_grid(f_min=0.1, f_max=5.0, n_freqs=500):
 # TestFindPeriods
 # ---------------------------------------------------------------------------
 
+
 class TestFindPeriods:
     """Unit tests for the find_periods() function."""
 
@@ -60,9 +66,7 @@ class TestFindPeriods:
         lcs = [make_sinusoidal_lightcurve(period=3.0, seed=i) for i in range(2)]
         freqs = make_freq_grid(0.1, 2.0, 200)
 
-        periods, sigs, pdots = find_periods(
-            "CE", lcs, freqs, doCPU=True
-        )
+        periods, sigs, pdots = find_periods("CE", lcs, freqs, doCPU=True)
 
         assert periods.shape == (2,)
         assert sigs.shape == (2,)
@@ -75,9 +79,7 @@ class TestFindPeriods:
         lcs = [make_sinusoidal_lightcurve(period=3.0)]
         freqs = make_freq_grid(0.1, 2.0, 200)
 
-        periods, sigs, pdots = find_periods(
-            "AOV", lcs, freqs, doCPU=True
-        )
+        periods, sigs, pdots = find_periods("AOV", lcs, freqs, doCPU=True)
 
         assert periods.shape == (1,)
         assert sigs.shape == (1,)
@@ -88,9 +90,7 @@ class TestFindPeriods:
         lcs = [make_sinusoidal_lightcurve(period=3.0)]
         freqs = make_freq_grid(0.1, 2.0, 200)
 
-        periods, sigs, pdots = find_periods(
-            "LS", lcs, freqs, doCPU=True
-        )
+        periods, sigs, pdots = find_periods("LS", lcs, freqs, doCPU=True)
 
         assert periods.shape == (1,)
         assert sigs.shape == (1,)
@@ -99,46 +99,46 @@ class TestFindPeriods:
     def test_ce_detects_known_period(self):
         """CE recovers a known sinusoidal period."""
         true_period = 5.0
-        lcs = [make_sinusoidal_lightcurve(
-            period=true_period, n_points=800, noise_std=0.02, t_span=200.0
-        )]
+        lcs = [
+            make_sinusoidal_lightcurve(
+                period=true_period, n_points=800, noise_std=0.02, t_span=200.0
+            )
+        ]
         freqs = make_freq_grid(0.1, 1.0, 500)
 
-        periods, sigs, pdots = find_periods(
-            "CE", lcs, freqs, doCPU=True
-        )
+        periods, sigs, pdots = find_periods("CE", lcs, freqs, doCPU=True)
 
         detected = periods[0]
         # Allow 5% tolerance or detection of a harmonic
         candidates = [true_period, true_period / 2, 2 * true_period]
-        assert any(abs(detected - c) / c < 0.05 for c in candidates), \
-            f"Expected ~{true_period}, got {detected}"
+        assert any(
+            abs(detected - c) / c < 0.05 for c in candidates
+        ), f"Expected ~{true_period}, got {detected}"
 
     def test_ls_detects_known_period(self):
         """LS recovers a known sinusoidal period."""
         true_period = 5.0
-        lcs = [make_sinusoidal_lightcurve(
-            period=true_period, n_points=800, noise_std=0.02, t_span=200.0
-        )]
+        lcs = [
+            make_sinusoidal_lightcurve(
+                period=true_period, n_points=800, noise_std=0.02, t_span=200.0
+            )
+        ]
         freqs = make_freq_grid(0.1, 1.0, 500)
 
-        periods, sigs, pdots = find_periods(
-            "LS", lcs, freqs, doCPU=True
-        )
+        periods, sigs, pdots = find_periods("LS", lcs, freqs, doCPU=True)
 
         detected = periods[0]
         candidates = [true_period, true_period / 2, 2 * true_period]
-        assert any(abs(detected - c) / c < 0.05 for c in candidates), \
-            f"Expected ~{true_period}, got {detected}"
+        assert any(
+            abs(detected - c) / c < 0.05 for c in candidates
+        ), f"Expected ~{true_period}, got {detected}"
 
     def test_periodogram_output_format(self):
         """*_periodogram algorithms return list of dicts with 'period' and 'data' keys."""
         lcs = [make_sinusoidal_lightcurve(period=3.0)]
         freqs = make_freq_grid(0.1, 2.0, 100)
 
-        periods, sigs, pdots = find_periods(
-            "CE_periodogram", lcs, freqs, doCPU=True
-        )
+        periods, sigs, pdots = find_periods("CE_periodogram", lcs, freqs, doCPU=True)
 
         # periods_best is an array of dicts for periodogram output
         assert len(periods) == 1
@@ -154,9 +154,7 @@ class TestFindPeriods:
         lcs = [make_sinusoidal_lightcurve(period=3.0, seed=i) for i in range(n_curves)]
         freqs = make_freq_grid(0.1, 2.0, 100)
 
-        periods, sigs, pdots = find_periods(
-            "CE", lcs, freqs, doCPU=True
-        )
+        periods, sigs, pdots = find_periods("CE", lcs, freqs, doCPU=True)
 
         assert periods.shape == (n_curves,)
         assert sigs.shape == (n_curves,)
@@ -168,16 +166,17 @@ class TestFindPeriods:
         freqs = make_freq_grid(0.1, 2.0, 100)
 
         for algo_name in ["ECE", "EAOV", "ELS"]:
-            periods, sigs, pdots = find_periods(
-                algo_name, lcs, freqs, doCPU=True
-            )
+            periods, sigs, pdots = find_periods(algo_name, lcs, freqs, doCPU=True)
             assert periods.shape == (1,), f"{algo_name} failed"
-            assert np.all(np.isfinite(periods)), f"{algo_name} returned non-finite period"
+            assert np.all(
+                np.isfinite(periods)
+            ), f"{algo_name} returned non-finite period"
 
 
 # ---------------------------------------------------------------------------
 # TestDeviceAPIIntegration
 # ---------------------------------------------------------------------------
+
 
 class TestDeviceAPIIntegration:
     """Verify periodfind device API works from scope-ml."""
@@ -197,6 +196,7 @@ class TestDeviceAPIIntegration:
             AOV as CpuAOV,
             LombScargle as CpuLS,
         )
+
         periodfind.set_device('cpu')
         ce = periodfind.ConditionalEntropy(n_phase=10, n_mag=10)
         aov = periodfind.AOV(n_phase=10)
@@ -208,6 +208,7 @@ class TestDeviceAPIIntegration:
     def test_factory_with_device_kwarg(self):
         """periodfind.ConditionalEntropy(device='cpu') returns CPU backend."""
         from periodfind.cpu import ConditionalEntropy as CpuCE
+
         ce = periodfind.ConditionalEntropy(n_phase=10, n_mag=10, device='cpu')
         assert isinstance(ce, CpuCE)
 
@@ -215,6 +216,7 @@ class TestDeviceAPIIntegration:
 # ---------------------------------------------------------------------------
 # Internal helper tests
 # ---------------------------------------------------------------------------
+
 
 class TestNormalizeAlgorithm:
     """Tests for _normalize_algorithm helper."""
