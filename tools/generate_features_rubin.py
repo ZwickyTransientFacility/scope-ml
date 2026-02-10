@@ -383,6 +383,8 @@ def generate_features_rubin(
     significance_dict = {}
     pdot_dict = {}
     do_nested_algorithms = False
+    do_top_n = False
+    top_n_periods_dict = {}
 
     if doCPU or doGPU:
         if doCPU and doGPU:
@@ -403,6 +405,17 @@ def generate_features_rubin(
                 'Other algorithms in config will be ignored.'
             )
 
+        # When top_n_periods > 1, request periodogram output for all
+        # algorithms so we can extract the top-N peaks.
+        do_top_n = top_n_periods > 1 and not do_nested_algorithms
+        if do_top_n:
+            pa_run = [
+                a if '_periodogram' in a else a + '_periodogram'
+                for a in pa
+            ]
+        else:
+            pa_run = list(pa)
+
         n_sources = len(feature_dict)
         if n_sources % period_batch_size != 0:
             n_iterations = n_sources // period_batch_size + 1
@@ -412,6 +425,9 @@ def generate_features_rubin(
         all_periods = {algorithm: [] for algorithm in pa}
         all_significances = {algorithm: [] for algorithm in pa}
         all_pdots = {algorithm: [] for algorithm in pa}
+        # top-N storage: keyed by original algo name
+        all_top_n_periods = {algorithm: [] for algorithm in pa} if do_top_n else {}
+        all_top_n_sigs = {algorithm: [] for algorithm in pa} if do_top_n else {}
 
         if do_nested_algorithms:
             nested_key = 'ELS_ECE_EAOV'
@@ -423,13 +439,16 @@ def generate_features_rubin(
             f'Running {len(pa)} period algorithms for {n_sources} sources '
             f'in batches of {period_batch_size}...'
         )
+        if do_top_n:
+            print(f'Saving top {top_n_periods} periods per algorithm.')
+
         for i in range(n_iterations):
             print(f"Iteration {i+1} of {n_iterations}...")
 
-            for algorithm in pa:
-                print(f'Running {algorithm} algorithm:')
+            for algorithm, algo_run in zip(pa, pa_run):
+                print(f'Running {algo_run} algorithm:')
                 periods, significances, pdots = periodsearch.find_periods(
-                    algorithm,
+                    algo_run,
                     tme_collection[
                         i
                         * period_batch_size : min(
@@ -449,9 +468,23 @@ def generate_features_rubin(
                 )
 
                 if not do_nested_algorithms:
-                    all_periods[algorithm] = np.concatenate(
-                        [all_periods[algorithm], periods]
-                    )
+                    if do_top_n:
+                        # periods is list of dicts with 'period' and 'data'
+                        p_vals = np.array([p['period'] for p in periods])
+                        all_periods[algorithm] = np.concatenate(
+                            [all_periods[algorithm], p_vals]
+                        )
+                        top_p, top_s = periodsearch.extract_top_n_periods(
+                            periods,
+                            freqs_no_terrestrial if doRemoveTerrestrial else freqs,
+                            n_top=top_n_periods,
+                        )
+                        all_top_n_periods[algorithm].append(top_p)
+                        all_top_n_sigs[algorithm].append(top_s)
+                    else:
+                        all_periods[algorithm] = np.concatenate(
+                            [all_periods[algorithm], periods]
+                        )
                 else:
                     p_vals = [p['period'] for p in periods]
                     p_stats = [p['data'] for p in periods]
@@ -514,6 +547,19 @@ def generate_features_rubin(
         significance_dict = all_significances
         pdot_dict = all_pdots
 
+        # Concatenate top-N arrays across batches
+        if do_top_n:
+            top_n_periods_dict = {}
+            top_n_sigs_dict = {}
+            for algorithm in pa:
+                if all_top_n_periods[algorithm]:
+                    top_n_periods_dict[algorithm] = np.concatenate(
+                        all_top_n_periods[algorithm], axis=0
+                    )
+                    top_n_sigs_dict[algorithm] = np.concatenate(
+                        all_top_n_sigs[algorithm], axis=0
+                    )
+
         if do_nested_algorithms:
             pa = pa + [nested_key]
 
@@ -542,6 +588,92 @@ def generate_features_rubin(
             feature_dict[_id][f'period_{algorithm_name}'] = period
             feature_dict[_id][f'significance_{algorithm_name}'] = significance
             feature_dict[_id][f'pdot_{algorithm_name}'] = pdot
+
+    # --- 5b. Top-N periods and cross-algorithm agreement ---
+    if do_top_n and top_n_periods_dict:
+        print(f'Storing top {top_n_periods} periods per algorithm...')
+        for algorithm in pa:
+            if algorithm not in top_n_periods_dict:
+                continue
+            if algorithm not in ["ELS_ECE_EAOV", "LS_CE_AOV"]:
+                algorithm_name = algorithm.split('_')[0]
+            else:
+                algorithm_name = algorithm
+            top_p = top_n_periods_dict[algorithm]
+            top_s = top_n_sigs_dict[algorithm]
+            for idx, _id in enumerate(keep_id_list):
+                for rank in range(top_n_periods):
+                    feature_dict[_id][f'period_{rank+1}_{algorithm_name}'] = float(
+                        top_p[idx, rank]
+                    )
+                    feature_dict[_id][f'significance_{rank+1}_{algorithm_name}'] = float(
+                        top_s[idx, rank]
+                    )
+
+        # Cross-algorithm agreement score: for each source, count how many
+        # algorithm pairs have a matching period (within 5%) in their top-N
+        # lists, considering harmonics (P, 2P, P/2).
+        print('Computing cross-algorithm agreement scores...')
+        algo_names = []
+        for algorithm in pa:
+            if algorithm in top_n_periods_dict:
+                if algorithm not in ["ELS_ECE_EAOV", "LS_CE_AOV"]:
+                    algo_names.append(algorithm.split('_')[0])
+                else:
+                    algo_names.append(algorithm)
+
+        for idx, _id in enumerate(keep_id_list):
+            n_agree_pairs = 0
+            best_agree_period = np.nan
+            total_pairs = 0
+
+            top_lists = {}
+            for algorithm in pa:
+                if algorithm not in top_n_periods_dict:
+                    continue
+                aname = algorithm.split('_')[0] if algorithm not in [
+                    "ELS_ECE_EAOV", "LS_CE_AOV"
+                ] else algorithm
+                top_lists[aname] = top_n_periods_dict[algorithm][idx]
+
+            anames = list(top_lists.keys())
+            for ii in range(len(anames)):
+                for jj in range(ii + 1, len(anames)):
+                    total_pairs += 1
+                    ps_a = top_lists[anames[ii]]
+                    ps_b = top_lists[anames[jj]]
+                    matched = False
+                    for pa_val in ps_a:
+                        if np.isnan(pa_val) or pa_val <= 0:
+                            continue
+                        for pb_val in ps_b:
+                            if np.isnan(pb_val) or pb_val <= 0:
+                                continue
+                            for harmonic in [1.0, 2.0, 0.5]:
+                                ratio = pa_val / (pb_val * harmonic)
+                                if 0.95 < ratio < 1.05:
+                                    matched = True
+                                    if np.isnan(best_agree_period):
+                                        best_agree_period = pa_val
+                                    break
+                            if matched:
+                                break
+                        if matched:
+                            break
+                    if matched:
+                        n_agree_pairs += 1
+
+            feature_dict[_id]['n_agree_pairs'] = n_agree_pairs
+            feature_dict[_id]['n_total_pairs'] = total_pairs
+            feature_dict[_id]['agree_score'] = (
+                n_agree_pairs / total_pairs if total_pairs > 0 else 0.0
+            )
+            feature_dict[_id]['best_agree_period'] = best_agree_period
+    elif not (doCPU or doGPU):
+        pass  # no period finding was done
+    else:
+        # Single-period mode: no top-N columns
+        do_top_n = False
 
     # --- 6. Fourier Statistics ---
     print(f'Computing Fourier stats for {len(period_dict)} algorithms...')

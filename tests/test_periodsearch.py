@@ -21,6 +21,7 @@ import periodfind  # noqa: E402
 
 from periodsearch import (  # noqa: E402
     find_periods,
+    extract_top_n_periods,
     compute_fourier_features,
     compute_dmdt_features,
     compute_basic_stats,
@@ -229,6 +230,62 @@ class TestFindPeriods:
             assert np.all(
                 np.isfinite(periods)
             ), f"{algo_name} returned non-finite period"
+
+
+# ---------------------------------------------------------------------------
+# TestExtractTopNPeriods
+# ---------------------------------------------------------------------------
+
+
+class TestExtractTopNPeriods:
+    """Tests for extract_top_n_periods()."""
+
+    def test_returns_correct_shape(self):
+        """Output arrays have shape (n_sources, n_top)."""
+        lcs = [make_sinusoidal_lightcurve(period=3.0, seed=i) for i in range(3)]
+        freqs = make_freq_grid(0.1, 2.0, 200)
+
+        periods, sigs, pdots = find_periods("LS_periodogram", lcs, freqs, doCPU=True)
+
+        n_top = 8
+        top_p, top_s = extract_top_n_periods(periods, freqs, n_top=n_top)
+        assert top_p.shape == (3, n_top)
+        assert top_s.shape == (3, n_top)
+
+    def test_best_period_is_first(self):
+        """The first column should match the single-best period from find_periods."""
+        true_period = 3.0
+        lcs = [make_sinusoidal_lightcurve(period=true_period)]
+        freqs = make_freq_grid(0.1, 2.0, 500)
+
+        periods, sigs, pdots = find_periods("LS_periodogram", lcs, freqs, doCPU=True)
+        top_p, top_s = extract_top_n_periods(periods, freqs, n_top=4)
+
+        # Top-1 should match best period from find_periods
+        assert np.isclose(top_p[0, 0], periods[0]['period'], rtol=1e-4)
+
+    def test_significances_are_sorted_descending(self):
+        """Significances should decrease from rank 1 to rank N."""
+        lcs = [make_sinusoidal_lightcurve(period=3.0)]
+        freqs = make_freq_grid(0.1, 2.0, 500)
+
+        periods, sigs, pdots = find_periods("LS_periodogram", lcs, freqs, doCPU=True)
+        top_p, top_s = extract_top_n_periods(periods, freqs, n_top=8)
+
+        valid = top_s[0][~np.isnan(top_s[0])]
+        assert len(valid) > 1
+        assert np.all(np.diff(valid) <= 1e-10)  # non-increasing
+
+    def test_works_with_ce_algorithm(self):
+        """CE algorithm uses minima — verify extract_top_n_periods handles it."""
+        lcs = [make_sinusoidal_lightcurve(period=3.0)]
+        freqs = make_freq_grid(0.1, 2.0, 300)
+
+        periods, sigs, pdots = find_periods("CE_periodogram", lcs, freqs, doCPU=True)
+        top_p, top_s = extract_top_n_periods(periods, freqs, n_top=4)
+
+        assert top_p.shape == (1, 4)
+        assert np.isclose(top_p[0, 0], periods[0]['period'], rtol=1e-4)
 
 
 # ---------------------------------------------------------------------------

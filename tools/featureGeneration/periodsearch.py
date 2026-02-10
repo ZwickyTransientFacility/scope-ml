@@ -276,6 +276,65 @@ def find_periods(
     return np.array(periods_best), np.array(significances), np.array(pdots)
 
 
+def extract_top_n_periods(periodogram_results, freqs, n_top=8):
+    """Extract top N periods from periodogram output of find_periods.
+
+    Parameters
+    ----------
+    periodogram_results : list of dict
+        Output from ``find_periods`` when called with a ``_periodogram``
+        algorithm suffix.  Each dict has ``'period'`` (best float) and
+        ``'data'`` (full periodogram array).
+    freqs : ndarray
+        The frequency grid used for period finding.
+    n_top : int
+        Number of top periods to return per source.
+
+    Returns
+    -------
+    top_periods : ndarray, shape (n_sources, n_top)
+        Periods in descending order of significance.
+    top_significances : ndarray, shape (n_sources, n_top)
+        Corresponding significance values.
+    """
+    periods_grid = 1.0 / freqs
+    n_sources = len(periodogram_results)
+    top_periods = np.full((n_sources, n_top), np.nan, dtype=np.float64)
+    top_significances = np.full((n_sources, n_top), np.nan, dtype=np.float64)
+
+    for i, res in enumerate(periodogram_results):
+        data = res['data'].flatten()
+        if len(data) == 0:
+            continue
+
+        mean_val = np.mean(data)
+        std_val = np.std(data)
+        if std_val == 0:
+            continue
+
+        # CE uses minima; others use maxima
+        best_idx_min = np.argmin(data)
+        best_idx_max = np.argmax(data)
+        best_period = res['period']
+
+        # Determine if this is a CE algorithm (minima = best) by checking
+        # which extreme matches the reported best period
+        use_minima = np.isclose(periods_grid[best_idx_min], best_period, rtol=1e-4)
+
+        if use_minima:
+            sorted_indices = np.argsort(data)  # ascending = best CE first
+            sigs = np.abs(mean_val - data[sorted_indices]) / std_val
+        else:
+            sorted_indices = np.argsort(data)[::-1]  # descending = best LS/AOV first
+            sigs = np.abs(data[sorted_indices] - mean_val) / std_val
+
+        n_fill = min(n_top, len(sorted_indices))
+        top_periods[i, :n_fill] = periods_grid[sorted_indices[:n_fill]]
+        top_significances[i, :n_fill] = sigs[:n_fill]
+
+    return top_periods, top_significances
+
+
 def compute_fourier_features(lightcurves, periods):
     """Compute Fourier decomposition features for a batch of light curves.
 
