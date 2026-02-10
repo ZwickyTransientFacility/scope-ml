@@ -160,12 +160,65 @@ class TestFindPeriods:
         assert sigs.shape == (n_curves,)
         assert pdots.shape == (n_curves,)
 
-    def test_gpu_algorithm_names(self):
-        """ECE/EAOV/ELS names work with doCPU=True (maps to same underlying algo)."""
+    def test_fpw_stats_output(self):
+        """FPW algorithm returns flat arrays of correct length."""
+        lcs = [make_sinusoidal_lightcurve(period=3.0)]
+        freqs = make_freq_grid(0.1, 2.0, 200)
+
+        periods, sigs, pdots = find_periods("FPW", lcs, freqs, doCPU=True)
+
+        assert periods.shape == (1,)
+        assert sigs.shape == (1,)
+        assert np.all(np.isfinite(periods))
+
+    def test_fpw_detects_known_period(self):
+        """FPW recovers a known sinusoidal period."""
+        true_period = 5.0
+        lcs = [
+            make_sinusoidal_lightcurve(
+                period=true_period, n_points=800, noise_std=0.02, t_span=200.0
+            )
+        ]
+        freqs = make_freq_grid(0.1, 1.0, 500)
+
+        periods, sigs, pdots = find_periods("FPW", lcs, freqs, doCPU=True)
+
+        detected = periods[0]
+        candidates = [true_period, true_period / 2, 2 * true_period]
+        assert any(
+            abs(detected - c) / c < 0.05 for c in candidates
+        ), f"Expected ~{true_period}, got {detected}"
+
+    def test_fpw_multiple_lightcurves(self):
+        """FPW handles batched light curves."""
+        n_curves = 5
+        lcs = [make_sinusoidal_lightcurve(period=3.0, seed=i) for i in range(n_curves)]
+        freqs = make_freq_grid(0.1, 2.0, 100)
+
+        periods, sigs, pdots = find_periods("FPW", lcs, freqs, doCPU=True)
+
+        assert periods.shape == (n_curves,)
+        assert sigs.shape == (n_curves,)
+
+    def test_fpw_periodogram_output(self):
+        """FPW_periodogram returns list of dicts with 'period' and 'data' keys."""
         lcs = [make_sinusoidal_lightcurve(period=3.0)]
         freqs = make_freq_grid(0.1, 2.0, 100)
 
-        for algo_name in ["ECE", "EAOV", "ELS"]:
+        periods, sigs, pdots = find_periods("FPW_periodogram", lcs, freqs, doCPU=True)
+
+        assert len(periods) == 1
+        entry = periods[0]
+        assert isinstance(entry, dict)
+        assert 'period' in entry
+        assert 'data' in entry
+
+    def test_gpu_algorithm_names(self):
+        """ECE/EAOV/ELS/EFPW names work with doCPU=True (maps to same underlying algo)."""
+        lcs = [make_sinusoidal_lightcurve(period=3.0)]
+        freqs = make_freq_grid(0.1, 2.0, 100)
+
+        for algo_name in ["ECE", "EAOV", "ELS", "EFPW"]:
             periods, sigs, pdots = find_periods(algo_name, lcs, freqs, doCPU=True)
             assert periods.shape == (1,), f"{algo_name} failed"
             assert np.all(
@@ -195,15 +248,18 @@ class TestDeviceAPIIntegration:
             ConditionalEntropy as CpuCE,
             AOV as CpuAOV,
             LombScargle as CpuLS,
+            FPW as CpuFPW,
         )
 
         periodfind.set_device('cpu')
         ce = periodfind.ConditionalEntropy(n_phase=10, n_mag=10)
         aov = periodfind.AOV(n_phase=10)
         ls = periodfind.LombScargle()
+        fpw = periodfind.FPW(n_bins=10)
         assert isinstance(ce, CpuCE)
         assert isinstance(aov, CpuAOV)
         assert isinstance(ls, CpuLS)
+        assert isinstance(fpw, CpuFPW)
 
     def test_factory_with_device_kwarg(self):
         """periodfind.ConditionalEntropy(device='cpu') returns CPU backend."""
@@ -225,16 +281,20 @@ class TestNormalizeAlgorithm:
         assert _normalize_algorithm("CE") == ("CE", False)
         assert _normalize_algorithm("AOV") == ("AOV", False)
         assert _normalize_algorithm("LS") == ("LS", False)
+        assert _normalize_algorithm("FPW") == ("FPW", False)
 
     def test_e_prefix(self):
         assert _normalize_algorithm("ECE") == ("CE", False)
         assert _normalize_algorithm("EAOV") == ("AOV", False)
         assert _normalize_algorithm("ELS") == ("LS", False)
+        assert _normalize_algorithm("EFPW") == ("FPW", False)
 
     def test_periodogram_suffix(self):
         assert _normalize_algorithm("CE_periodogram") == ("CE", True)
         assert _normalize_algorithm("ECE_periodogram") == ("CE", True)
         assert _normalize_algorithm("EAOV_periodogram") == ("AOV", True)
+        assert _normalize_algorithm("FPW_periodogram") == ("FPW", True)
+        assert _normalize_algorithm("EFPW_periodogram") == ("FPW", True)
 
     def test_aov_cython_unrecognized(self):
         name, is_pg = _normalize_algorithm("AOV_cython")

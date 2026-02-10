@@ -9,7 +9,7 @@ import periodfind
 # Algorithm name mapping
 # ---------------------------------------------------------------------------
 
-_ALGO_MAP = {"CE", "AOV", "LS"}
+_ALGO_MAP = {"CE", "AOV", "LS", "FPW"}
 
 
 def _normalize_algorithm(algorithm):
@@ -34,7 +34,7 @@ def _normalize_algorithm(algorithm):
 # ---------------------------------------------------------------------------
 
 
-def _prepare_lightcurves(lightcurves, doSingleTimeSegment):
+def _prepare_lightcurves(lightcurves, doSingleTimeSegment, return_errs=False):
     """Sort by time, subtract tmin, normalize mags, and cast to float32.
 
     Parameters
@@ -43,18 +43,21 @@ def _prepare_lightcurves(lightcurves, doSingleTimeSegment):
         Each element is (times, mags, magerrs).
     doSingleTimeSegment : bool
         If True, build a common time grid across all lightcurves.
+    return_errs : bool, default=False
+        If True, also return the magnitude error arrays (for FPW).
 
     Returns
     -------
     time_stack : list of ndarray (float32)
     mag_stack : list of ndarray (float32)
+    err_stack : list of ndarray (float32), only if return_errs=True
     """
     if doSingleTimeSegment:
         tt = np.empty((0, 1))
         for lightcurve in lightcurves:
             tt = np.unique(np.append(tt, lightcurve[0]))
 
-    time_stack, mag_stack = [], []
+    time_stack, mag_stack, err_stack = [], [], []
     for lightcurve in lightcurves:
         if doSingleTimeSegment:
             _, x_ind, y_ind = np.intersect1d(tt, lightcurve[0], return_indices=True)
@@ -76,7 +79,11 @@ def _prepare_lightcurves(lightcurves, doSingleTimeSegment):
         lc = np.asarray(lightcurve[1], dtype=np.float64)
         lc = (lc - np.min(lc)) / (np.max(lc) - np.min(lc))
         mag_stack.append(np.asarray(lc, dtype=np.float32))
+        if return_errs:
+            err_stack.append(np.asarray(lightcurve[2], dtype=np.float32))
 
+    if return_errs:
+        return time_stack, mag_stack, err_stack
     return time_stack, mag_stack
 
 
@@ -143,6 +150,7 @@ def find_periods(
     # -----------------------------------------------------------------------
     if algo_name in _ALGO_MAP:
         device = 'gpu' if doGPU else 'cpu'
+        needs_errs = (algo_name == "FPW")
 
         # Create algorithm via unified factory
         if algo_name == "CE":
@@ -153,9 +161,18 @@ def find_periods(
             algo = periodfind.AOV(n_phase=phase_bins, device=device)
         elif algo_name == "LS":
             algo = periodfind.LombScargle(device=device)
+        elif algo_name == "FPW":
+            algo = periodfind.FPW(n_bins=phase_bins, device=device)
 
         # Prepare data
-        time_stack, mag_stack = _prepare_lightcurves(lightcurves, doSingleTimeSegment)
+        if needs_errs:
+            time_stack, mag_stack, err_stack = _prepare_lightcurves(
+                lightcurves, doSingleTimeSegment, return_errs=True
+            )
+        else:
+            time_stack, mag_stack = _prepare_lightcurves(
+                lightcurves, doSingleTimeSegment
+            )
         periods = (1.0 / freqs).astype(np.float32)
         pdots_to_test = _build_pdots(doUsePDot)
 
@@ -165,8 +182,10 @@ def find_periods(
         print("Number of magnitude bins: %d" % mag_bins)
 
         output_mode = 'periodogram' if is_periodogram else 'stats'
+        extra_kwargs = {"errs": err_stack} if needs_errs else {}
         data_out = algo.calc(
-            time_stack, mag_stack, periods, pdots_to_test, output=output_mode
+            time_stack, mag_stack, periods, pdots_to_test,
+            output=output_mode, **extra_kwargs
         )
 
         # Process results
