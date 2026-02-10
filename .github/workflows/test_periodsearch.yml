@@ -30,16 +30,27 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
+      # NEW: create a virtualenv that maturin can detect
+      - name: Create virtualenv
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          python -m pip install --upgrade pip
+
       - name: Install Python dependencies
         run: |
-          python -m pip install --upgrade pip
+          source .venv/bin/activate
           pip install numpy cython pytest maturin fast-histogram joblib
 
       - name: Build periodfind Rust CPU backend
         working-directory: periodfind/rust
-        run: maturin develop --release
+        run: |
+          source ${{ github.workspace }}/.venv/bin/activate
+          maturin develop --release
 
       - name: Run periodsearch tests
         env:
           PYTHONPATH: ${{ github.workspace }}/periodfind
-        run: pytest tests/test_periodsearch.py -v
+        run: |
+          source .venv/bin/activate
+          pytest tests/test_periodsearch.py -v
