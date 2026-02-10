@@ -28,7 +28,6 @@ import numpy as np
 import pandas as pd
 import pathlib
 from sklearn.model_selection import train_test_split
-import tensorflow as tf
 from tqdm.auto import tqdm
 from typing import Mapping, Optional, Union
 import yaml
@@ -1293,6 +1292,8 @@ class Dataset(object):
                 float_type_dict[float_final]
             )
         )
+
+        import tensorflow as tf
 
         train_dataset = tf.data.Dataset.from_tensor_slices(
             (

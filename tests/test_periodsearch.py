@@ -15,6 +15,7 @@ import os
 
 from periodsearch import (
     find_periods,
+    compute_fourier_features,
     _normalize_algorithm,
     _prepare_lightcurves,
     _build_pdots,
@@ -340,3 +341,115 @@ class TestPrepareLightcurves:
         # Mags should be normalized to [0, 1]
         assert mag_stack[0].min() >= 0.0
         assert mag_stack[0].max() <= 1.0
+
+
+# ---------------------------------------------------------------------------
+# TestComputeFourierFeatures
+# ---------------------------------------------------------------------------
+
+
+class TestComputeFourierFeatures:
+    """Tests for the compute_fourier_features() function."""
+
+    def test_output_shape(self):
+        """Returns (n_curves, 14) array."""
+        rng = np.random.default_rng(42)
+        n_curves = 3
+        lcs = []
+        for i in range(n_curves):
+            t = np.sort(rng.uniform(0, 100, 100))
+            m = 18.0 + rng.normal(0, 0.1, 100)
+            e = np.full(100, 0.1)
+            lcs.append((t, m, e))
+        periods = np.array([1.0, 2.0, 3.0])
+
+        result = compute_fourier_features(lcs, periods)
+        assert result.shape == (n_curves, 14)
+        assert result.dtype == np.float32
+
+    def test_known_sinusoid_recovery(self):
+        """Fourier decomposition recovers known sinusoidal signal."""
+        n = 300
+        period = 5.0
+        t = np.sort(np.random.default_rng(42).uniform(0, 50, n))
+        phi = 2.0 * np.pi * t / period
+        m = 18.0 + 0.5 * np.cos(phi)
+        e = np.full(n, 0.01)
+
+        result = compute_fourier_features([(t, m, e)], np.array([period]))
+        r = result[0]
+
+        # Power should be close to 1
+        assert r[0] > 0.9, f"power = {r[0]}"
+        # Offset should be close to 18
+        assert abs(r[2] - 18.0) < 0.1, f"offset = {r[2]}"
+        # A1 should be close to 0.5
+        assert abs(r[4] - 0.5) < 0.1, f"A1 = {r[4]}"
+        # B1 should be close to 0
+        assert abs(r[5]) < 0.1, f"B1 = {r[5]}"
+
+    def test_constant_signal_low_power(self):
+        """Constant magnitude yields ~0 power."""
+        n = 100
+        t = np.arange(n, dtype=np.float64) * 0.5
+        m = np.full(n, 17.0)
+        e = np.full(n, 0.01)
+
+        result = compute_fourier_features([(t, m, e)], np.array([2.0]))
+        assert abs(result[0, 0]) < 0.01, f"power = {result[0, 0]}"
+
+    def test_multiple_curves_independent(self):
+        """Each curve is processed independently."""
+        rng = np.random.default_rng(99)
+        n = 200
+        period = 3.0
+
+        # Curve 0: sinusoidal
+        t = np.sort(rng.uniform(0, 30, n))
+        phi = 2.0 * np.pi * t / period
+        m_sin = 18.0 + 1.0 * np.cos(phi)
+        e = np.full(n, 0.01)
+
+        # Curve 1: constant
+        m_const = np.full(n, 18.0)
+
+        result = compute_fourier_features(
+            [(t, m_sin, e), (t, m_const, e)],
+            np.array([period, period]),
+        )
+
+        assert result[0, 0] > 0.9, "sinusoidal curve should have high power"
+        assert result[1, 0] < 0.01, "constant curve should have ~0 power"
+
+    def test_numerical_agreement_with_lcstats(self):
+        """Rust Fourier agrees with lcstats.fourier_decomposition within ~1%."""
+        from tools.featureGeneration import lcstats
+
+        rng = np.random.default_rng(123)
+        n = 200
+        t = np.sort(rng.uniform(0, 100, n))
+        period = 4.0
+        phi = 2.0 * np.pi * t / period
+        m = 16.0 + 0.4 * np.cos(phi) + 0.2 * np.sin(phi)
+        m += rng.normal(0, 0.02, n)
+        e = np.full(n, 0.02)
+
+        old = lcstats.fourier_decomposition(t, m, e, period)
+        new = compute_fourier_features([(t, m, e)], np.array([period]))[0]
+
+        # Power and BIC should be very close
+        assert abs(old[0] - new[0]) / max(abs(old[0]), 1e-12) < 0.01, (
+            f"power: old={old[0]}, new={new[0]}"
+        )
+        assert abs(old[1] - new[1]) / max(abs(old[1]), 1e-12) < 0.01, (
+            f"BIC: old={old[1]}, new={new[1]}"
+        )
+        # Offset
+        assert abs(old[2] - new[2]) / max(abs(old[2]), 1e-12) < 0.01, (
+            f"offset: old={old[2]}, new={new[2]}"
+        )
+        # A1, B1 should be close (allow 5% for f32/f64 + method differences)
+        for i, name in [(4, "A1"), (5, "B1")]:
+            if abs(old[i]) > 0.01:
+                reldiff = abs(old[i] - new[i]) / abs(old[i])
+                assert reldiff < 0.05, f"{name}: old={old[i]}, new={new[i]}, reldiff={reldiff}"

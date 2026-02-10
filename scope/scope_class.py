@@ -18,6 +18,7 @@ from .utils import (
     parse_load_config,
 )
 from .fritz import radec_to_iau_name
+from .rubin import RubinTAPClient, HAS_PYVO
 import json
 import shutil
 import argparse
@@ -66,6 +67,11 @@ class Scope:
             if melman_token_env is not None:
                 self.config["kowalski"]["hosts"]["melman"]["token"] = melman_token_env
 
+            # Rubin TAP token from environment variable
+            rubin_token_env = os.environ.get("RUBIN_TAP_TOKEN")
+            if rubin_token_env is not None:
+                self.config["rubin"]["token"] = rubin_token_env
+
             hosts = [
                 x
                 for x in self.config["kowalski"]["hosts"]
@@ -91,6 +97,16 @@ class Scope:
             self.kowalski = None
             # raise ConnectionError("Could not connect to Kowalski.")
             print("Kowalski not available")
+
+        # Try setting up Rubin TAP connection if token is available
+        rubin_config = self.config.get("rubin", {})
+        if rubin_config.get("token") is not None and HAS_PYVO:
+            with status("Setting up Rubin TAP connection"):
+                self.rubin = RubinTAPClient(config=rubin_config)
+        else:
+            self.rubin = None
+            if rubin_config.get("token") is not None and not HAS_PYVO:
+                print("Rubin TAP not available (pyvo not installed)")
 
     def _get_features(
         self,

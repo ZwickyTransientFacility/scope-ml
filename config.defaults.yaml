@@ -12,8 +12,8 @@ kowalski:
   timeout: 300
   collections:
     gaia: Gaia_EDR3
-    # Current sources are from DR20 (on melman)
-    sources: ZTF_sources_20240117
+    # Current sources (on gloria)
+    sources: ZTF_sources_20240515
     # Current features generated from DR16 (on gloria)
     features: ZTF_source_features_DR16
     # Current classifications are from DR16 (on gloria)
@@ -24,6 +24,16 @@ kowalski:
   # (JD corrected for Earth/Sun light travel time)
   # By default, this is set at the end of DR16 (2459951.5)
   max_timestamp_hjd: 2459951.5
+rubin:
+  tap_url: https://data.lsst.cloud/api/tap
+  token:
+  timeout: 300
+  bands: [u, g, r, i, z, y]
+  band_map: {u: 0, g: 1, r: 2, i: 3, z: 4, y: 5}
+  tables:
+    object: dp1.Object
+    forced_source: dp1.ForcedSource
+    visit: dp1.Visit
 fritz:
   token:
   protocol: https
@@ -1453,7 +1463,7 @@ feature_generation:
     CPU:
       - LS
       - CE
-      #- AOV
+      - AOV
       - FPW
     GPU:
       # If ELS_ECE_EAOV is set, period finding will be run using a nested approach which passes the top N ELS and ECE periods to EAOV.

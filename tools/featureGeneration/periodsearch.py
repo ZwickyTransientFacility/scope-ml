@@ -273,6 +273,39 @@ def find_periods(
     return np.array(periods_best), np.array(significances), np.array(pdots)
 
 
+def compute_fourier_features(lightcurves, periods):
+    """Compute Fourier decomposition features for a batch of light curves.
+
+    Uses the periodfind Rust backend (weighted linear least-squares with
+    BIC model selection) instead of the per-source scipy curve_fit loop.
+
+    Parameters
+    ----------
+    lightcurves : list of tuple
+        Each element is (times, mags, magerrs).  Raw magnitudes are used
+        (no normalization to [0,1]).
+    periods : array-like, shape (n_curves,)
+        Best-fit period for each light curve.
+
+    Returns
+    -------
+    features : ndarray, shape (n_curves, 14)
+        Columns: [power, BIC, offset, slope, A1, B1, A2, B2, A3, B3,
+                  A4, B4, A5, B5]
+    """
+    time_stack, mag_stack, err_stack = [], [], []
+    for lightcurve in lightcurves:
+        idx = np.argsort(lightcurve[0])
+        time_stack.append(np.asarray(lightcurve[0][idx], dtype=np.float32))
+        mag_stack.append(np.asarray(lightcurve[1][idx], dtype=np.float32))
+        err_stack.append(np.asarray(lightcurve[2][idx], dtype=np.float32))
+
+    periods_arr = np.asarray(periods, dtype=np.float32)
+
+    fd = periodfind.FourierDecomposition(device='cpu')
+    return fd.calc(time_stack, mag_stack, err_stack, periods_arr)
+
+
 def calc_AOV(amhw, data, freqs_to_keep, df):
     copy = np.ma.copy(data).T
     copy[:, 1] = (copy[:, 1] - np.min(copy[:, 1])) / (

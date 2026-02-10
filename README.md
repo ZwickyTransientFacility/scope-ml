@@ -5,7 +5,9 @@
 [![arXiv](https://img.shields.io/badge/arXiv-2009.14071-blue)](https://arxiv.org/abs/2009.14071)
 [![arXiv](https://img.shields.io/badge/arXiv-2312.00143-blue)](https://arxiv.org/abs/2312.00143)
 
-`scope-ml` uses machine learning to classify light curves from the Zwicky Transient Facility ([ZTF](https://www.ztf.caltech.edu)). The documentation is hosted at [https://zwickytransientfacility.github.io/scope-docs/](https://zwickytransientfacility.github.io/scope-docs/). To generate HTML files of the documentation locally, clone the repository and run `scope-doc` after installing.
+`scope-ml` uses machine learning to classify light curves from the Zwicky Transient Facility ([ZTF](https://www.ztf.caltech.edu)) and the Vera C. Rubin Observatory ([LSST](https://rubinobs.org)). The documentation is hosted at [https://zwickytransientfacility.github.io/scope-docs/](https://zwickytransientfacility.github.io/scope-docs/). To generate HTML files of the documentation locally, clone the repository and run `scope-doc` after installing.
+
+Feature generation includes period-finding (Conditional Entropy, Analysis of Variance, Lomb-Scargle, FPW) and Fourier decomposition via the [periodfind](https://github.com/ZwickyTransientFacility/periodfind) library. Fourier features are computed using a batched weighted linear least-squares solver with BIC model selection, replacing the previous per-source `scipy.optimize.curve_fit` loop.
 
 ## Funding
  We gratefully acknowledge previous and current support from the U.S. National Science Foundation (NSF) Harnessing the Data Revolution (HDR) Institute for <a href="https://a3d3.ai">Accelerated AI Algorithms for Data-Driven Discovery (A3D3)</a> under Cooperative Agreement No. <a href="https://www.nsf.gov/awardsearch/showAward?AWD_ID=2117997">PHY-2117997</a>.

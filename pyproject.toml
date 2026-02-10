@@ -27,11 +27,9 @@ include = ["config.defaults.yaml", "tools/golden_dataset_mapper.json", "tools/fr
 python = "^3.9, <3.12"
 deepdiff = ">=5.0"
 gsutil = ">=4.60"
-keras-tuner = ">=1.0.2"
 matplotlib = ">=3.3"
 questionary = ">=1.8.1"
 scikit-learn = ">=0.24.1"
-tensorflow = ">=2.14.0,<=2.15.0"
 wandb = ">=0.16.6"
 h5py = ">=3.10.0"
 astropy = ">=5.2.2"
@@ -53,6 +51,10 @@ pydot = ">=1.4.2"
 notebook = ">=7.0.6"
 cython = ">=3.0.10"
 tables = ">=3.7,<3.9.2"
+pyvo = ">=1.5"
+
+[tool.poetry.extras]
+train = ["tensorflow", "keras-tuner"]
 
 [tool.poetry.dev-dependencies]
 pre-commit = ">=3.5.0"
@@ -89,5 +91,7 @@ run-inference-job-submission = "tools.run_inference_job_submission:main"
 combine-preds = "tools.combine_preds:main"
 combine-preds-slurm = "tools.combine_preds_slurm:main"
 get-quad-ids = "tools.get_quad_ids:main"
+get-rubin-ids = "tools.get_rubin_ids:main"
+generate-features-rubin = "tools.generate_features_rubin:main"
 run-scope-local = "tools.run_scope_local:main"
 analyze-logs = "tools.analyze_logs:main"

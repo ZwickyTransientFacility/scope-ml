@@ -1026,37 +1026,33 @@ def generate_features(
                 feature_dict[_id][f'pdot_{algorithm_name}'] = pdot
 
         print(f'Computing Fourier stats for {len(period_dict)} algorithms...')
+        id_list = list(tme_dict.keys())
+        lightcurves_ordered = [tme_dict[_id]['tme'] for _id in id_list]
+
+        fourier_names = [
+            'f1_power', 'f1_BIC', 'f1_a', 'f1_b', 'f1_amp', 'f1_phi0',
+            'f1_relamp1', 'f1_relphi1', 'f1_relamp2', 'f1_relphi2',
+            'f1_relamp3', 'f1_relphi3', 'f1_relamp4', 'f1_relphi4',
+        ]
+
         for algorithm in period_algorithms:
             if algorithm not in ["ELS_ECE_EAOV", "LS_CE_AOV"]:
                 algorithm_name = algorithm.split('_')[0]
             else:
                 algorithm_name = algorithm
             print(f'- Algorithm: {algorithm}')
-            fourierStats = Parallel(n_jobs=Ncore)(
-                delayed(lcstats.calc_fourier_stats)(
-                    id, vals['tme'], vals[f'period_{algorithm_name}']
-                )
-                for id, vals in tme_dict.items()
+
+            periods_for_algo = np.array(
+                [tme_dict[_id][f'period_{algorithm_name}'] for _id in id_list],
+                dtype=np.float32,
+            )
+            fourier_features = periodsearch.compute_fourier_features(
+                lightcurves_ordered, periods_for_algo
             )
 
-            for statline in fourierStats:
-                _id = [x for x in statline.keys()][0]
-                statvals = [x for x in statline.values()][0]
-
-                feature_dict[_id][f'f1_power_{algorithm_name}'] = statvals[0]
-                feature_dict[_id][f'f1_BIC_{algorithm_name}'] = statvals[1]
-                feature_dict[_id][f'f1_a_{algorithm_name}'] = statvals[2]
-                feature_dict[_id][f'f1_b_{algorithm_name}'] = statvals[3]
-                feature_dict[_id][f'f1_amp_{algorithm_name}'] = statvals[4]
-                feature_dict[_id][f'f1_phi0_{algorithm_name}'] = statvals[5]
-                feature_dict[_id][f'f1_relamp1_{algorithm_name}'] = statvals[6]
-                feature_dict[_id][f'f1_relphi1_{algorithm_name}'] = statvals[7]
-                feature_dict[_id][f'f1_relamp2_{algorithm_name}'] = statvals[8]
-                feature_dict[_id][f'f1_relphi2_{algorithm_name}'] = statvals[9]
-                feature_dict[_id][f'f1_relamp3_{algorithm_name}'] = statvals[10]
-                feature_dict[_id][f'f1_relphi3_{algorithm_name}'] = statvals[11]
-                feature_dict[_id][f'f1_relamp4_{algorithm_name}'] = statvals[12]
-                feature_dict[_id][f'f1_relphi4_{algorithm_name}'] = statvals[13]
+            for idx, _id in enumerate(id_list):
+                for i, name in enumerate(fourier_names):
+                    feature_dict[_id][f'{name}_{algorithm_name}'] = float(fourier_features[idx, i])
 
         print('Computing dmdt histograms...')
         dmdt = Parallel(n_jobs=Ncore)(
