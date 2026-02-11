@@ -1,0 +1,95 @@
+site_name: "SCoPe: ZTF Source Classification Project"
+site_description: Machine learning classification of astronomical light curves from ZTF and Rubin
+site_author: The SCoPe Collaboration
+site_url: https://zwickytransientfacility.github.io/scope-ml/
+repo_url: https://github.com/ZwickyTransientFacility/scope-ml
+repo_name: ZwickyTransientFacility/scope-ml
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: deep purple
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: deep purple
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - toc.follow
+  icon:
+    repo: fontawesome/brands/github
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Installation: getting-started/installation.md
+    - Quick Start: getting-started/quickstart.md
+  - User Guide:
+    - Feature Generation: user-guide/feature-generation.md
+    - Training Models: user-guide/training.md
+    - Running Inference: user-guide/inference.md
+    - Rubin DP1: user-guide/rubin-dp1.md
+    - HPC Scripts: user-guide/hpc-scripts.md
+  - Field Guide:
+    - Overview: field-guide/index.md
+    - Variable Stars: field-guide/variable.md
+    - Periodic Variables: field-guide/periodic.md
+    - RR Lyrae: field-guide/rr-lyrae.md
+    - W UMa: field-guide/w-uma.md
+    - Delta Scuti: field-guide/delta-scuti.md
+    - Classical Cepheids: field-guide/cepheid.md
+    - Cataclysmic Variables: field-guide/cvs.md
+    - Flaring Variables: field-guide/flaring.md
+    - Beta Lyrae: field-guide/beta-lyr.md
+    - Long Period Variables: field-guide/lpv.md
+    - Bogus Variability: field-guide/bogus.md
+  - Reference:
+    - CLI Reference: reference/cli.md
+    - Fritz Scanner Guide: reference/scanner.md
+    - ACCESS Allocation: reference/allocation.md
+    - Zenodo Data Releases: reference/zenodo.md
+  - Contributing: contributing.md
+  - License: license.md
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.details
+
+plugins:
+  - search
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/ZwickyTransientFacility/scope-ml
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/scope-ml/

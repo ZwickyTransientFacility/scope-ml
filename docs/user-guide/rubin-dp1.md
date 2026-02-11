@@ -1,19 +1,8 @@
-# SCoPe: ZTF Source Classification Project
-
-[![PyPI version](https://badge.fury.io/py/scope-ml.svg)](https://badge.fury.io/py/scope-ml)
-[![arXiv](https://img.shields.io/badge/arXiv-2102.11304-blue)](https://arxiv.org/abs/2102.11304)
-[![arXiv](https://img.shields.io/badge/arXiv-2009.14071-blue)](https://arxiv.org/abs/2009.14071)
-[![arXiv](https://img.shields.io/badge/arXiv-2312.00143-blue)](https://arxiv.org/abs/2312.00143)
-
-`scope-ml` uses machine learning to classify light curves from the Zwicky Transient Facility ([ZTF](https://www.ztf.caltech.edu)) and the Vera C. Rubin Observatory ([LSST](https://rubinobs.org)). The documentation is hosted at [https://zwickytransientfacility.github.io/scope-ml/](https://zwickytransientfacility.github.io/scope-ml/). For local preview, install `mkdocs-material` and run `mkdocs serve`.
-
-Feature generation includes period-finding (Conditional Entropy, Analysis of Variance, Lomb-Scargle, FPW) and Fourier decomposition via the [periodfind](https://github.com/ZwickyTransientFacility/periodfind) library. Fourier features are computed using a batched weighted linear least-squares solver with BIC model selection, replacing the previous per-source `scipy.optimize.curve_fit` loop.
-
-## Rubin DP1 Feature Generation (Local Parquet Files)
+# Rubin DP1 Feature Generation
 
 The pipeline supports running against Rubin Data Preview 1 (DP1) data stored as local parquet files, bypassing the TAP API entirely. This is the recommended approach for large-scale feature generation.
 
-### Prerequisites
+## Prerequisites
 
 You need three gzip-compressed parquet files downloaded from the Rubin Science Platform and placed in a single directory:
 
@@ -24,7 +13,7 @@ You need three gzip-compressed parquet files downloaded from the Rubin Science P
   Visit.parquet.gzip
 ```
 
-### Configuration
+## Configuration
 
 Tell scope-ml to use local files instead of the TAP API by setting `data_path` in `config.yaml`:
 
@@ -41,7 +30,7 @@ export RUBIN_DATA_PATH=/path/to/dp1_data/
 
 When `data_path` (or `RUBIN_DATA_PATH`) is set, all Rubin commands automatically use the local parquet backend (`RubinLocalClient`) instead of the TAP client. No token is needed for local mode.
 
-### Single-run feature generation
+## Single-Run Feature Generation
 
 For a small number of sources (e.g. a cone search or a short object list):
 
@@ -55,11 +44,13 @@ generate-features-rubin --objectid-file my_objects.csv --doCPU
 
 Output is written to `generated_features_rubin/gen_features_rubin.parquet` by default.
 
-### Large-scale processing with SLURM
+## Large-Scale Processing with SLURM
 
 For processing the full DP1 catalog, use the chunked SLURM workflow:
 
-**1. Prepare chunks** -- scan the local parquet files, filter to objects with enough detections, and split into chunk CSVs:
+### 1. Prepare Chunks
+
+Scan the local parquet files, filter to objects with enough detections, and split into chunk CSVs:
 
 ```bash
 prepare-rubin-chunks \
@@ -71,7 +62,7 @@ prepare-rubin-chunks \
 
 This writes `rubin_chunks/chunk_000.csv`, `rubin_chunks/chunk_001.csv`, etc., plus a master list `rubin_chunks/all_eligible_objectids.csv`.
 
-**2. Generate the SLURM array script:**
+### 2. Generate the SLURM Array Script
 
 ```bash
 generate-features-rubin-slurm \
@@ -84,7 +75,7 @@ generate-features-rubin-slurm \
 
 This writes `rubin_slurm/run_rubin_features.sh`. Edit the script to adjust partition, account, memory, and module loads for your cluster.
 
-**3. Submit the array job:**
+### 3. Submit the Array Job
 
 ```bash
 sbatch rubin_slurm/run_rubin_features.sh
@@ -92,7 +83,9 @@ sbatch rubin_slurm/run_rubin_features.sh
 
 Each array task processes one chunk and writes `generated_features_rubin/gen_features_rubin_<TASK_ID>.parquet`.
 
-**4. Combine results** after all jobs finish:
+### 4. Combine Results
+
+After all jobs finish:
 
 ```bash
 combine-rubin-features \
@@ -100,7 +93,7 @@ combine-rubin-features \
   --output generated_features_rubin/dp1_features_combined.parquet
 ```
 
-### Single-node chunked runner (no SLURM)
+## Single-Node Chunked Runner (No SLURM)
 
 If you don't have a SLURM cluster, you can run chunks sequentially (or resume after interruption) with:
 
@@ -114,7 +107,7 @@ python tools/run_rubin_chunked.py \
 
 Completed chunks are saved to `generated_features_rubin/chunks/` and skipped on restart, so the job is resumable.
 
-### CLI reference
+## CLI Reference
 
 | Command | Description |
 |---------|-------------|
@@ -123,10 +116,3 @@ Completed chunks are saved to `generated_features_rubin/chunks/` and skipped on 
 | `prepare-rubin-chunks` | Scan local parquet files and split eligible objects into chunk CSVs |
 | `generate-features-rubin-slurm` | Generate a SLURM array job script from chunk files |
 | `combine-rubin-features` | Merge per-chunk parquet outputs into a single file |
-
-## Funding
- We gratefully acknowledge previous and current support from the U.S. National Science Foundation (NSF) Harnessing the Data Revolution (HDR) Institute for <a href="https://a3d3.ai">Accelerated AI Algorithms for Data-Driven Discovery (A3D3)</a> under Cooperative Agreement No. <a href="https://www.nsf.gov/awardsearch/showAward?AWD_ID=2117997">PHY-2117997</a>.
-
- <p align="center">
- <img src="https://github.com/ZwickyTransientFacility/scope/raw/main/assets/a3d3.png" alt="A3D3" width="200"/>
- <img src="https://github.com/ZwickyTransientFacility/scope/raw/main/assets/nsf.png" alt="NSF" width="200"/>

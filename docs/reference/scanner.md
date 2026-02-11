@@ -78,7 +78,7 @@ The following SCoPe workflow currently runs every two hours as a cron job:
 - Consolidate light curve classifications by matching Gaia, AllWISE or Pan-STARRS1 IDs, computing the mean probabilities among all light curves for a source.
   - Each source will now have a set of classifications from both the DNN and XGB algorithms.
 - For each ZTF source, compute mean classification probabilities between DNN and XGB results.
-- For classifications having a mean probability ≥ 0.7, post to the candidate page.
+- For classifications having a mean probability >= 0.7, post to the candidate page.
   - SCoPe classifications will be color-coded with blue text (instead of the default black) and will be preceded by the `ML: ` prefix.
   - ***Note that these classifications do not pertain to the candidate itself, but persistent ZTF sources within 0.5 arcsec.***
   - The time series and phase-folded ZTF light curves used for classification are posted as comments on their associated candidate.
@@ -86,5 +86,5 @@ The following SCoPe workflow currently runs every two hours as a cron job:
 
 ## Classifier performance
 The bar plots below show the precision and recall metrics for the DNN and XGB classifiers. 'Missing' bars indicate classifiers which did not have enough examples to train successfully.
-<img src="data/DNN_performance.png" alt="dnn classifier precision/recall" width="900"/>
-<img src="data/XGB_performance.png" alt="xgb classifier precision/recall" width="900"/>
+<img src="../images/DNN_performance.png" alt="dnn classifier precision/recall" width="900"/>
+<img src="../images/XGB_performance.png" alt="xgb classifier precision/recall" width="900"/>

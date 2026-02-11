@@ -357,17 +357,19 @@ class Scope:
 
         # generate taxonomy.html
         with status("Generating taxonomy visualization"):
-            path_static = self.base_path / "doc" / "_static"
-            if not path_static.exists():
-                path_static.mkdir(parents=True, exist_ok=True)
+            path_assets = self.base_path / "docs" / "assets"
+            if not path_assets.exists():
+                path_assets.mkdir(parents=True, exist_ok=True)
             tdtax.write_viz(
                 make_tdtax_taxonomy(self.config["taxonomy"]),
-                outname=path_static / "taxonomy.html",
+                outname=path_assets / "taxonomy.html",
             )
 
         # generate images for the Field Guide
         if self.kowalski is None:
-            print("Kowalski connection not established, cannot generate docs.")
+            print("Kowalski not available, skipping image generation.")
+            print("Building docs from existing content...")
+            subprocess.run(["mkdocs", "build"], check=True)
             return
 
         period_limits = {
@@ -387,7 +389,7 @@ class Scope:
 
         # example periods
         with status("Generating example period histograms"):
-            path_doc_data = self.base_path / "doc" / "data"
+            path_doc_data = self.base_path / "docs" / "images"
 
             # stored as ra/decs in csv format under /data/golden
             golden_sets = self.base_path / "data" / "golden"
@@ -415,7 +417,7 @@ class Scope:
 
         # example skymaps for all Golden sets
         with status("Generating skymaps diagrams for Golden sets"):
-            path_doc_data = self.base_path / "doc" / "data"
+            path_doc_data = self.base_path / "docs" / "images"
 
             path_gaia_density = self.base_path / "data" / "Gaia_hp8_densitymap.fits"
             # stored as ra/decs in csv format under /data/golden
@@ -432,7 +434,7 @@ class Scope:
 
         # example light curves
         with status("Generating example light curves"):
-            path_doc_data = self.base_path / "doc" / "data"
+            path_doc_data = self.base_path / "docs" / "images"
 
             for sample_object_name, sample_object in self.config["docs"][
                 "field_guide"
@@ -452,7 +454,7 @@ class Scope:
         # example HR diagrams for all Golden sets
         with status("Generating HR diagrams for Golden sets"):
             path_gaia_hr_histogram = (
-                self.base_path / "doc" / "data" / "gaia_hr_histogram.dat"
+                self.base_path / "docs" / "images" / "gaia_hr_histogram.dat"
             )
             # stored as ra/decs in csv format under /data/golden
             golden_sets = self.base_path / "data" / "golden"
@@ -468,7 +470,7 @@ class Scope:
                 )
 
         # build docs
-        subprocess.run(["make", "html"], cwd="doc", check=True)
+        subprocess.run(["mkdocs", "build"], check=True)
 
     @staticmethod
     def fetch_models(gcs_path: str = "gs://ztf-scope/models"):

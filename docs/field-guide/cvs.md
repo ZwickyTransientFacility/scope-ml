@@ -21,10 +21,10 @@ have 9-15 mag outbursts from thermonuclear events on the white dwarf surface), d
 
 
 ### ZTF light curves
-![ZTF CV U Gem](data/cv_U_Gem.png)
-![ZTF CV Z Cam](data/cv_Z_Cam.png)
-![ZTF CV SU UMa](data/cv_SU_UMa.png)
-![ZTF CV Novalike](data/cv_Novalike.png)
+![ZTF CV U Gem](../images/cv_U_Gem.png)
+![ZTF CV Z Cam](../images/cv_Z_Cam.png)
+![ZTF CV SU UMa](../images/cv_SU_UMa.png)
+![ZTF CV Novalike](../images/cv_Novalike.png)
 
 #### Description
 CVs are easy to recognize by their distinctive light curve shape, colors and
@@ -49,7 +49,7 @@ They can sometimes be confused with supernovae, flare stars or long period varia
   Reddening is usually not important except for places in the galactic plane.
 - absolute magnitude at quiescence: 8<G<14
 
-![HR diagram of CVs](data/hr__cv.png)
+![HR diagram of CVs](../images/hr__cv.png)
 
 ### References and further reading:
 - Warner 1995: Cataclysmic Variable Stars

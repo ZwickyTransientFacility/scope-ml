@@ -6,7 +6,7 @@ This project (and others in the group) are supported in large part by computing 
 
 Users with the Allocation Manager role can view available allocations on the [ACCESS website](https://allocations.access-ci.org/). The different tabs show available resources, current users, and request history. The figure below shows the "Credits + Resouces" tab that is useful for viewing how much of each allocated resource remains.
 
-<img src="data/access_credit_view.png" alt="ACCESS Allocation UI" width="900"/>
+<img src="../images/access_credit_view.png" alt="ACCESS Allocation UI" width="900"/>
 
 ## Making Requests
 

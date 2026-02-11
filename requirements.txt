@@ -3,7 +3,6 @@ astropy>=5.2.2
 fast-histogram>=0.11
 healpy>=1.16.2
 Jinja2<=3.1
-myst-parser>=0.18.1
 pandas>=1.2
 penquins>=2.4.0
 pyyaml>=5.3.1

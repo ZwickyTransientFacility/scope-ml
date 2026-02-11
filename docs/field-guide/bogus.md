@@ -3,8 +3,8 @@
 Not all light curve variability pertains to a source's intrinsic astrophysical nature. Some is caused by nearby extended objects, bright stars, blends and image artifacts, and being aware of how such bogus light curves appear can help avoid confusion.
 
 ### ZTF light curves
-![ZTF bogus](data/bogus_1.png)
-![ZTF bogus](data/bogus_2.png)
+![ZTF bogus](../images/bogus_1.png)
+![ZTF bogus](../images/bogus_2.png)
 
 #### Description
 The first light curve above demonstrates a saturation ghost artifact, and the second light curve suffers from another kind of artifact. These artifacts were identified and affected data masked after ZTF began, but data from earlier releases were not retroactively masked. This produces the apparent cutoff in variability after a certain point in time.

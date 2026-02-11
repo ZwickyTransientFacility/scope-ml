@@ -1,53 +1,51 @@
-name: Build, test, and upload docs
+name: Build and deploy docs
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
 jobs:
-  docs:
+  build:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     steps:
+      - uses: actions/checkout@v4
 
-    - uses: actions/checkout@v3
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
-    - uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
+      - name: Install MkDocs
+        run: pip install mkdocs-material
 
-    - name: Install dependencies and use default config
-      run: |
-        sudo apt-get update
-        sudo apt install texlive texlive-latex-extra texlive-fonts-recommended dvipng cm-super --fix-missing
-        python -m pip install --upgrade pip
-        pip install wheel latex poetry
-        poetry install
-        cp config.defaults.yaml config.yaml
-        poetry run scope-develop
-    - name: Lint sources
-      run: |
-        poetry run scope-lint
-    - name: Build docs
-      env:
-        KOWALSKI_INSTANCE_TOKEN: ${{ secrets.KOWALSKI_INSTANCE_TOKEN }}
-        GLORIA_INSTANCE_TOKEN: ${{ secrets.GLORIA_INSTANCE_TOKEN }}
-        MELMAN_INSTANCE_TOKEN: ${{ secrets.MELMAN_INSTANCE_TOKEN }}
-      run: |
-        poetry run scope-doc
-    - name: Install SSH Client
-      if: github.event_name == 'push' && github.repository_owner == 'ZwickyTransientFacility'
-      uses: webfactory/ssh-agent@v0.4.1
-      with:
-        ssh-private-key: ${{ secrets.CI_DEPLOY_KEY }}
+      - name: Build docs
+        run: mkdocs build
 
-    - name: Deploy docs
-      if: github.event_name == 'push' && github.repository_owner == 'ZwickyTransientFacility'
-      uses: JamesIves/github-pages-deploy-action@releases/v4
-      with:
-        folder: doc/_build/html
-        repository-name: ZwickyTransientFacility/scope-docs
-        branch: master
-        single-commit: true
-        ssh-key: true
+      - name: Upload artifact
+        if: github.event_name == 'push' && github.repository_owner == 'ZwickyTransientFacility'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/
+
+  deploy:
+    if: github.event_name == 'push' && github.repository_owner == 'ZwickyTransientFacility'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

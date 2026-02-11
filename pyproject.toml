@@ -15,7 +15,7 @@ authors = ["Brian F. Healy, Michael W. Coughlin, Ashish A. Mahabal, Theophile J.
 maintainers = ["Brian F. Healy <healyb@umn.edu>"]
 license = "MIT"
 repository = "https://github.com/ZwickyTransientFacility/scope"
-documentation = "https://zwickytransientfacility.github.io/scope-docs/"
+documentation = "https://zwickytransientfacility.github.io/scope-ml/"
 packages = [
     {include = "scope"},
     {include = "tools"},
@@ -36,7 +36,6 @@ astropy = ">=5.2.2"
 fast-histogram = ">=0.11"
 healpy = ">=1.16.2"
 jinja2 = "<=3.1"
-myst-parser = ">=0.18.1"
 pandas = ">=1.2"
 penquins = ">=2.4.0"
 pyyaml = ">=5.3.1"
@@ -59,8 +58,7 @@ train = ["tensorflow", "keras-tuner"]
 [tool.poetry.dev-dependencies]
 pre-commit = ">=3.5.0"
 pytest = ">=6.1.2"
-sphinx = ">=4.2,<8"
-sphinx-press-theme = ">=0.8.0"
+mkdocs-material = ">=9.0"
 poetry = ">=1.7.1"
 
 [tool.poetry.scripts]
