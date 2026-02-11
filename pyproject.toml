@@ -59,7 +59,7 @@ train = ["tensorflow", "keras-tuner"]
 [tool.poetry.dev-dependencies]
 pre-commit = ">=3.5.0"
 pytest = ">=6.1.2"
-sphinx = ">=4.2"
+sphinx = ">=4.2,<8"
 sphinx-press-theme = ">=0.8.0"
 poetry = ">=1.7.1"
 
