@@ -18,7 +18,7 @@ from .utils import (
     parse_load_config,
 )
 from .fritz import radec_to_iau_name
-from .rubin import RubinTAPClient, HAS_PYVO
+from .rubin import make_rubin_client, HAS_PYVO
 import json
 import shutil
 import argparse
@@ -98,11 +98,17 @@ class Scope:
             # raise ConnectionError("Could not connect to Kowalski.")
             print("Kowalski not available")
 
-        # Try setting up Rubin TAP connection if token is available
+        # Try setting up Rubin client (local parquet or TAP)
         rubin_config = self.config.get("rubin", {})
-        if rubin_config.get("token") is not None and HAS_PYVO:
+        rubin_data_path = rubin_config.get("data_path") or os.environ.get(
+            "RUBIN_DATA_PATH"
+        )
+        if rubin_data_path:
+            with status("Setting up Rubin local client"):
+                self.rubin = make_rubin_client(config=rubin_config)
+        elif rubin_config.get("token") is not None and HAS_PYVO:
             with status("Setting up Rubin TAP connection"):
-                self.rubin = RubinTAPClient(config=rubin_config)
+                self.rubin = make_rubin_client(config=rubin_config)
         else:
             self.rubin = None
             if rubin_config.get("token") is not None and not HAS_PYVO:

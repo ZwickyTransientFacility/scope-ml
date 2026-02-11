@@ -11,7 +11,7 @@ import os
 import pathlib
 import pandas as pd
 from scope.utils import parse_load_config
-from scope.rubin import RubinTAPClient
+from scope.rubin import make_rubin_client
 
 BASE_DIR = pathlib.Path.cwd()
 config = parse_load_config()
@@ -23,14 +23,9 @@ if rubin_token_env is not None:
 
 
 def _get_rubin_client():
-    """Create a RubinTAPClient from the current config."""
+    """Create a Rubin client from the current config (local or TAP)."""
     rubin_config = config.get("rubin", {})
-    if rubin_config.get("token") is None:
-        raise ValueError(
-            "Rubin TAP token not found. Set it in config.yaml under "
-            "rubin.token or via the RUBIN_TAP_TOKEN environment variable."
-        )
-    return RubinTAPClient(config=rubin_config)
+    return make_rubin_client(config=rubin_config)
 
 
 def get_rubin_objects_by_cone(ra, dec, radius_arcsec, limit=10000, client=None):

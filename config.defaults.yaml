@@ -27,6 +27,7 @@ kowalski:
 rubin:
   tap_url: https://data.lsst.cloud/api/tap
   token:
+  data_path:
   timeout: 300
   bands: [u, g, r, i, z, y]
   band_map: {u: 0, g: 1, r: 2, i: 3, z: 4, y: 5}

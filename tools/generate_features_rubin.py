@@ -31,7 +31,7 @@ from scope.utils import (
     sort_lightcurve,
     parse_load_config,
 )
-from scope.rubin import RubinTAPClient
+from scope.rubin import make_rubin_client
 from tools.get_rubin_ids import get_rubin_objects_by_cone, get_rubin_objects_from_file
 from tools.featureGeneration import periodsearch
 
@@ -205,7 +205,7 @@ def generate_features_rubin(
     # --- 2. Lightcurve Retrieval ---
     print(f"Fetching lightcurves for {len(objects)} objects...")
     rubin_config = config.get("rubin", {})
-    client = RubinTAPClient(config=rubin_config)
+    client = make_rubin_client(config=rubin_config)
     objectids = list(objects.keys())
     lcs = client.get_lightcurves(objectids, bands=bands)
 
