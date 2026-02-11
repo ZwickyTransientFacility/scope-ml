@@ -805,9 +805,7 @@ class TestGoldenReferenceDP1:
     def test_negative_flux_filtered(self):
         """Objects 579574500513809549 and 579574569233285963 each have a
         negative-flux r-band row that must be excluded."""
-        lcs = self.client.get_lightcurves(
-            [579574500513809549], bands=["r"]
-        )
+        lcs = self.client.get_lightcurves([579574500513809549], bands=["r"])
         # Only 1 valid r-band row (visit 2024120600027), the other is negative
         assert len(lcs) == 1
         assert len(lcs[0]["data"]) == 1
@@ -818,9 +816,7 @@ class TestGoldenReferenceDP1:
         Reference: objectId 579574500513809549, g-band, psfFlux=729.59 nJy
         Expected mag = -2.5*log10(729.59) + 31.4 = 24.24230...
         """
-        lcs = self.client.get_lightcurves(
-            [579574500513809549], bands=["g"]
-        )
+        lcs = self.client.get_lightcurves([579574500513809549], bands=["g"])
         assert len(lcs) == 1
         point = lcs[0]["data"][0]
         expected_mag = -2.5 * np.log10(729.5900268554688) + 31.4
@@ -830,9 +826,7 @@ class TestGoldenReferenceDP1:
 
     def test_mjd_values(self):
         """MJD should match the Visit table's expMidptMJD exactly."""
-        lcs = self.client.get_lightcurves(
-            [579574500513809549], bands=["g"]
-        )
+        lcs = self.client.get_lightcurves([579574500513809549], bands=["g"])
         # The g-band row uses visit 2024120600053 → expMidptMJD 60651.07542607068
         assert np.isclose(lcs[0]["data"][0]["hjd"], 60651.07542607068, atol=1e-8)
 
@@ -855,9 +849,7 @@ class TestGoldenReferenceDP1:
     def test_multi_row_object(self):
         """Object 579574500513809560 has 2 valid r-band rows (visits
         2024120600027 and 2024113000109)."""
-        lcs = self.client.get_lightcurves(
-            [579574500513809560], bands=["r"]
-        )
+        lcs = self.client.get_lightcurves([579574500513809560], bands=["r"])
         assert len(lcs) == 1
         assert len(lcs[0]["data"]) == 2
 
@@ -884,8 +876,6 @@ class TestGoldenReferenceDP1:
     def test_matches_format_as_kowalski_directly(self):
         """Local client output should exactly match _format_as_kowalski
         applied to the same rows, ensuring parity with the TAP path."""
-        import pandas as pd
-
         # Manually replicate what get_lightcurves does
         oids = [579574500513809549, 579574500513809560, 579574569233285963]
 
@@ -895,26 +885,62 @@ class TestGoldenReferenceDP1:
         # Build the same rows the TAP query would return
         # (positive flux only, with pixelFlags sum and expMidptMJD joined)
         tap_rows = [
-            {"objectId": 579574569233285963, "band": "g", "psfFlux": 301.9809875488281,
-             "psfFluxErr": 209.0, "expMidptMJD": 60651.07542607068, "pixelFlags": 0},
-            {"objectId": 579574569233285963, "band": "r", "psfFlux": 604.708984375,
-             "psfFluxErr": 251.61500549316406, "expMidptMJD": 60651.05833247099,
-             "pixelFlags": 0},
-            {"objectId": 579574500513809560, "band": "r", "psfFlux": 279.75299072265625,
-             "psfFluxErr": 248.8820037841797, "expMidptMJD": 60651.05833247099,
-             "pixelFlags": 0},
-            {"objectId": 579574500513809560, "band": "g", "psfFlux": 814.885986328125,
-             "psfFluxErr": 210.5500030517578, "expMidptMJD": 60651.07542607068,
-             "pixelFlags": 0},
-            {"objectId": 579574500513809560, "band": "r", "psfFlux": 455.89599609375,
-             "psfFluxErr": 288.19500732421875, "expMidptMJD": 60645.05975877311,
-             "pixelFlags": 0},
-            {"objectId": 579574500513809549, "band": "r", "psfFlux": 1219.18994140625,
-             "psfFluxErr": 250.33200073242188, "expMidptMJD": 60651.05833247099,
-             "pixelFlags": 0},
-            {"objectId": 579574500513809549, "band": "g", "psfFlux": 729.5900268554688,
-             "psfFluxErr": 210.42100524902344, "expMidptMJD": 60651.07542607068,
-             "pixelFlags": 0},
+            {
+                "objectId": 579574569233285963,
+                "band": "g",
+                "psfFlux": 301.9809875488281,
+                "psfFluxErr": 209.0,
+                "expMidptMJD": 60651.07542607068,
+                "pixelFlags": 0,
+            },
+            {
+                "objectId": 579574569233285963,
+                "band": "r",
+                "psfFlux": 604.708984375,
+                "psfFluxErr": 251.61500549316406,
+                "expMidptMJD": 60651.05833247099,
+                "pixelFlags": 0,
+            },
+            {
+                "objectId": 579574500513809560,
+                "band": "r",
+                "psfFlux": 279.75299072265625,
+                "psfFluxErr": 248.8820037841797,
+                "expMidptMJD": 60651.05833247099,
+                "pixelFlags": 0,
+            },
+            {
+                "objectId": 579574500513809560,
+                "band": "g",
+                "psfFlux": 814.885986328125,
+                "psfFluxErr": 210.5500030517578,
+                "expMidptMJD": 60651.07542607068,
+                "pixelFlags": 0,
+            },
+            {
+                "objectId": 579574500513809560,
+                "band": "r",
+                "psfFlux": 455.89599609375,
+                "psfFluxErr": 288.19500732421875,
+                "expMidptMJD": 60645.05975877311,
+                "pixelFlags": 0,
+            },
+            {
+                "objectId": 579574500513809549,
+                "band": "r",
+                "psfFlux": 1219.18994140625,
+                "psfFluxErr": 250.33200073242188,
+                "expMidptMJD": 60651.05833247099,
+                "pixelFlags": 0,
+            },
+            {
+                "objectId": 579574500513809549,
+                "band": "g",
+                "psfFlux": 729.5900268554688,
+                "psfFluxErr": 210.42100524902344,
+                "expMidptMJD": 60651.07542607068,
+                "pixelFlags": 0,
+            },
         ]
         tap_result = _format_as_kowalski(tap_rows)
 
@@ -963,8 +989,10 @@ class TestIntegrationRubinLocal:
     def test_cone_search(self):
         """Cone search should return objects from real data."""
         objects = self.client.get_objects_by_cone(
-            ra=DP1_LOCAL_TEST_RA, dec=DP1_LOCAL_TEST_DEC,
-            radius_arcsec=30.0, limit=10,
+            ra=DP1_LOCAL_TEST_RA,
+            dec=DP1_LOCAL_TEST_DEC,
+            radius_arcsec=30.0,
+            limit=10,
         )
         assert isinstance(objects, dict)
         assert len(objects) > 0
@@ -975,8 +1003,10 @@ class TestIntegrationRubinLocal:
     def test_lightcurve_retrieval(self):
         """Should retrieve lightcurves for discovered objects."""
         objects = self.client.get_objects_by_cone(
-            ra=DP1_LOCAL_TEST_RA, dec=DP1_LOCAL_TEST_DEC,
-            radius_arcsec=30.0, limit=5,
+            ra=DP1_LOCAL_TEST_RA,
+            dec=DP1_LOCAL_TEST_DEC,
+            radius_arcsec=30.0,
+            limit=5,
         )
         assert len(objects) > 0
 
@@ -1000,8 +1030,10 @@ class TestIntegrationRubinLocal:
         from scope.utils import sort_lightcurve
 
         objects = self.client.get_objects_by_cone(
-            ra=DP1_LOCAL_TEST_RA, dec=DP1_LOCAL_TEST_DEC,
-            radius_arcsec=30.0, limit=5,
+            ra=DP1_LOCAL_TEST_RA,
+            dec=DP1_LOCAL_TEST_DEC,
+            radius_arcsec=30.0,
+            limit=5,
         )
         assert len(objects) > 0
 

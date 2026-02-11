@@ -13,7 +13,6 @@ Usage:
 """
 
 import argparse
-import sys
 import numpy as np
 import pandas as pd
 
@@ -78,7 +77,11 @@ def compare(n1_path, n8_path, do_plots=False):
     extra_cols = set(df8.columns) - set(df1.columns)
     print(f"\nNew columns in N=8 ({len(extra_cols)}):")
     agree_cols = sorted(c for c in extra_cols if "agree" in c)
-    topn_cols = sorted(c for c in extra_cols if c.startswith("period_") or c.startswith("significance_"))
+    topn_cols = sorted(
+        c
+        for c in extra_cols
+        if c.startswith("period_") or c.startswith("significance_")
+    )
     print(f"  Agreement: {agree_cols}")
     print(f"  Top-N period/sig columns: {len(topn_cols)}")
 
@@ -100,7 +103,7 @@ def compare(n1_path, n8_path, do_plots=False):
     df1c["n1_total"] = [x[1] for x in n1_pairs]
     df1c["n1_agree_score"] = df1c["n1_agree"] / df1c["n1_total"].replace(0, np.nan)
 
-    print(f"\nN=1 agreement score distribution:")
+    print("\nN=1 agreement score distribution:")
     print(df1c["n1_agree_score"].describe().to_string())
     n1_any = (df1c["n1_agree"] > 0).sum()
     n1_all = (df1c["n1_agree"] == df1c["n1_total"]).sum()
@@ -112,7 +115,7 @@ def compare(n1_path, n8_path, do_plots=False):
         print("\n" + "=" * 60)
         print("N=8 CROSS-ALGORITHM AGREEMENT (top-8 periods with harmonics)")
         print("=" * 60)
-        print(f"\nN=8 agreement score distribution:")
+        print("\nN=8 agreement score distribution:")
         print(df8c["agree_score"].describe().to_string())
 
         n8_any = (df8c["n_agree_pairs"] > 0).sum()
@@ -140,7 +143,9 @@ def compare(n1_path, n8_path, do_plots=False):
         gained = ((df1c["n1_agree"] == 0) & (df8c["n_agree_pairs"] > 0)).sum()
         n1_zero = (df1c["n1_agree"] == 0).sum()
         print(f"\n  Sources with N=1 agree=0: {n1_zero:,}")
-        print(f"  Of those, gained agreement with N=8: {gained:,} ({100*gained/max(n1_zero,1):.1f}%)")
+        print(
+            f"  Of those, gained agreement with N=8: {gained:,} ({100*gained/max(n1_zero,1):.1f}%)"
+        )
 
     # ── 5. Period quality comparison ─────────────────────────────────────
     print("\n" + "=" * 60)
@@ -149,7 +154,11 @@ def compare(n1_path, n8_path, do_plots=False):
 
     for algo in ALGOS:
         col1 = f"period_{algo}"
-        col8_best = f"period_1_{algo.lstrip('E')}" if algo.startswith("E") else f"period_1_{algo}"
+        col8_best = (
+            f"period_1_{algo.lstrip('E')}"
+            if algo.startswith("E")
+            else f"period_1_{algo}"
+        )
         # Also check the agreed-upon period
         frac1 = spurious_fraction(df1c[col1]) if col1 in df1c.columns else np.nan
         print(f"  {algo:6s} N=1 best: {100*frac1:.1f}% spurious", end="")
@@ -163,8 +172,10 @@ def compare(n1_path, n8_path, do_plots=False):
         agree_p = df8c["best_agree_period"].dropna()
         if len(agree_p) > 0:
             frac_agree = (agree_p < 0.007).sum() / len(agree_p)
-            print(f"\n  Best-agree period: {100*frac_agree:.1f}% spurious "
-                  f"({len(agree_p):,} sources with agreement)")
+            print(
+                f"\n  Best-agree period: {100*frac_agree:.1f}% spurious "
+                f"({len(agree_p):,} sources with agreement)"
+            )
 
     # ── 6. Best candidates from N=8 ─────────────────────────────────────
     if "agree_score" in df8c.columns and "best_agree_period" in df8c.columns:
@@ -180,7 +191,9 @@ def compare(n1_path, n8_path, do_plots=False):
         ].copy()
 
         # Add max significance across algos
-        sig_cols = [f"significance_{a}" for a in ALGOS if f"significance_{a}" in df8c.columns]
+        sig_cols = [
+            f"significance_{a}" for a in ALGOS if f"significance_{a}" in df8c.columns
+        ]
         if sig_cols:
             candidates["max_sig"] = candidates[sig_cols].max(axis=1)
             candidates = candidates.sort_values("max_sig", ascending=False)
@@ -188,7 +201,7 @@ def compare(n1_path, n8_path, do_plots=False):
         print(f"\n  Candidates with agree>=0.5, 0.04d < P < 10d: {len(candidates):,}")
 
         if len(candidates) > 0:
-            print(f"\n  Top 20 by significance:")
+            print("\n  Top 20 by significance:")
             show_cols = ["best_agree_period", "agree_score", "n_agree_pairs"]
             if "max_sig" in candidates.columns:
                 show_cols.append("max_sig")
@@ -211,14 +224,17 @@ def compare(n1_path, n8_path, do_plots=False):
                 spur = (vals < 0.007).sum() / len(vals) * 100 if len(vals) > 0 else 0
                 med = vals.median()
                 reasonable = ((vals > 0.04) & (vals < 10)).sum()
-                print(f"  Rank {rank}: median={med:.5f}d, "
-                      f"spurious(<0.007d)={spur:.0f}%, "
-                      f"reasonable(0.04-10d)={reasonable:,}")
+                print(
+                    f"  Rank {rank}: median={med:.5f}d, "
+                    f"spurious(<0.007d)={spur:.0f}%, "
+                    f"reasonable(0.04-10d)={reasonable:,}"
+                )
 
     # ── plots ────────────────────────────────────────────────────────────
     if do_plots and "agree_score" in df8c.columns:
         try:
             import matplotlib
+
             matplotlib.use("Agg")
             import matplotlib.pyplot as plt
 
@@ -227,8 +243,20 @@ def compare(n1_path, n8_path, do_plots=False):
             # Panel 1: Agreement score histograms
             ax = axes[0, 0]
             bins = np.linspace(0, 1, 21)
-            ax.hist(df1c["n1_agree_score"].dropna(), bins=bins, alpha=0.6, label="N=1", density=True)
-            ax.hist(df8c["agree_score"].dropna(), bins=bins, alpha=0.6, label="N=8", density=True)
+            ax.hist(
+                df1c["n1_agree_score"].dropna(),
+                bins=bins,
+                alpha=0.6,
+                label="N=1",
+                density=True,
+            )
+            ax.hist(
+                df8c["agree_score"].dropna(),
+                bins=bins,
+                alpha=0.6,
+                label="N=8",
+                density=True,
+            )
             ax.set_xlabel("Agreement Score")
             ax.set_ylabel("Density")
             ax.set_title("Cross-Algorithm Agreement: N=1 vs N=8")
@@ -239,8 +267,12 @@ def compare(n1_path, n8_path, do_plots=False):
             agree_p = df8c["best_agree_period"].dropna()
             agree_p_log = np.log10(agree_p[agree_p > 0])
             ax.hist(agree_p_log, bins=50, color="steelblue", alpha=0.7)
-            ax.axvline(np.log10(0.007), color="red", ls="--", label="Spurious edge (0.007d)")
-            ax.axvline(np.log10(0.04), color="green", ls="--", label="Reasonable start (0.04d)")
+            ax.axvline(
+                np.log10(0.007), color="red", ls="--", label="Spurious edge (0.007d)"
+            )
+            ax.axvline(
+                np.log10(0.04), color="green", ls="--", label="Reasonable start (0.04d)"
+            )
             ax.set_xlabel("log10(Best Agree Period [days])")
             ax.set_ylabel("Count")
             ax.set_title("Period Distribution (N=8 agreed period)")
@@ -251,7 +283,9 @@ def compare(n1_path, n8_path, do_plots=False):
             ax.scatter(
                 df1c["n1_agree_score"].values,
                 df8c["agree_score"].values,
-                s=1, alpha=0.1, rasterized=True,
+                s=1,
+                alpha=0.1,
+                rasterized=True,
             )
             ax.plot([0, 1], [0, 1], "r--", alpha=0.5)
             ax.set_xlabel("N=1 Agreement Score")
@@ -260,19 +294,30 @@ def compare(n1_path, n8_path, do_plots=False):
 
             # Panel 4: Significance vs agreement (N=8)
             ax = axes[1, 1]
-            sig_cols = [f"significance_{a}" for a in ALGOS if f"significance_{a}" in df8c.columns]
+            sig_cols = [
+                f"significance_{a}"
+                for a in ALGOS
+                if f"significance_{a}" in df8c.columns
+            ]
             if sig_cols:
                 max_sig = df8c[sig_cols].max(axis=1)
-                ax.scatter(df8c["agree_score"].values, max_sig.values,
-                           s=1, alpha=0.1, rasterized=True)
+                ax.scatter(
+                    df8c["agree_score"].values,
+                    max_sig.values,
+                    s=1,
+                    alpha=0.1,
+                    rasterized=True,
+                )
                 ax.set_xlabel("N=8 Agreement Score")
                 ax.set_ylabel("Max Significance (any algo)")
                 ax.set_title("Significance vs Agreement")
 
             plt.tight_layout()
-            out_path = str(pd.io.common.stringify_path(
-                "generated_features_rubin/compare_n1_vs_n8.png"
-            ))
+            out_path = str(
+                pd.io.common.stringify_path(
+                    "generated_features_rubin/compare_n1_vs_n8.png"
+                )
+            )
             plt.savefig(out_path, dpi=150)
             print(f"\nSaved comparison plot to {out_path}")
             plt.close()
@@ -286,7 +331,9 @@ def main():
     parser = argparse.ArgumentParser(description="Compare N=1 vs N=8 period features")
     parser.add_argument("--n1", required=True, help="N=1 parquet path")
     parser.add_argument("--n8", required=True, help="N=8 parquet path")
-    parser.add_argument("--plots", action="store_true", help="Generate comparison plots")
+    parser.add_argument(
+        "--plots", action="store_true", help="Generate comparison plots"
+    )
     args = parser.parse_args()
     compare(args.n1, args.n8, do_plots=args.plots)
 

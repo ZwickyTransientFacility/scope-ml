@@ -409,10 +409,7 @@ def generate_features_rubin(
         # algorithms so we can extract the top-N peaks.
         do_top_n = top_n_periods > 1 and not do_nested_algorithms
         if do_top_n:
-            pa_run = [
-                a if '_periodogram' in a else a + '_periodogram'
-                for a in pa
-            ]
+            pa_run = [a if '_periodogram' in a else a + '_periodogram' for a in pa]
         else:
             pa_run = list(pa)
 
@@ -606,8 +603,8 @@ def generate_features_rubin(
                     feature_dict[_id][f'period_{rank+1}_{algorithm_name}'] = float(
                         top_p[idx, rank]
                     )
-                    feature_dict[_id][f'significance_{rank+1}_{algorithm_name}'] = float(
-                        top_s[idx, rank]
+                    feature_dict[_id][f'significance_{rank+1}_{algorithm_name}'] = (
+                        float(top_s[idx, rank])
                     )
 
         # Cross-algorithm agreement score: for each source, count how many
@@ -631,9 +628,11 @@ def generate_features_rubin(
             for algorithm in pa:
                 if algorithm not in top_n_periods_dict:
                     continue
-                aname = algorithm.split('_')[0] if algorithm not in [
-                    "ELS_ECE_EAOV", "LS_CE_AOV"
-                ] else algorithm
+                aname = (
+                    algorithm.split('_')[0]
+                    if algorithm not in ["ELS_ECE_EAOV", "LS_CE_AOV"]
+                    else algorithm
+                )
                 top_lists[aname] = top_n_periods_dict[algorithm][idx]
 
             anames = list(top_lists.keys())

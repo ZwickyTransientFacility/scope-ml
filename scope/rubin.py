@@ -391,9 +391,7 @@ class RubinLocalClient:
 
         # Visit table is small (~203 KB), load eagerly
         visit_path = os.path.join(data_path, "Visit.parquet.gzip")
-        self._visit_df = pd.read_parquet(
-            visit_path, columns=["visit", "expMidptMJD"]
-        )
+        self._visit_df = pd.read_parquet(visit_path, columns=["visit", "expMidptMJD"])
 
         # Lazy-loaded caches
         self._obj_ids = None
@@ -462,9 +460,7 @@ class RubinLocalClient:
             "pixelFlags_saturated",
             "pixelFlags_suspect",
         ]
-        fs_df["pixelFlags"] = sum(
-            fs_df[c].astype(int) for c in flag_cols
-        )
+        fs_df["pixelFlags"] = sum(fs_df[c].astype(int) for c in flag_cols)
 
         # Sort by objectId for searchsorted lookups
         fs_df.sort_values("objectId", inplace=True)
@@ -511,9 +507,7 @@ class RubinLocalClient:
         obj_dec_rad = self._obj_dec_rad[isolated_mask]
 
         # Vectorized angular separation
-        sep = angular_separation(
-            center_ra_rad, center_dec_rad, obj_ra_rad, obj_dec_rad
-        )
+        sep = angular_separation(center_ra_rad, center_dec_rad, obj_ra_rad, obj_dec_rad)
 
         cone_mask = sep <= radius_rad
         obj_ids = self._obj_ids[isolated_mask][cone_mask]

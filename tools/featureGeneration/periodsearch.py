@@ -314,7 +314,6 @@ def extract_top_n_periods(periodogram_results, freqs, n_top=8):
 
         # CE uses minima; others use maxima
         best_idx_min = np.argmin(data)
-        best_idx_max = np.argmax(data)
         best_period = res['period']
 
         # Determine if this is a CE algorithm (minima = best) by checking

@@ -20,12 +20,11 @@ import sys
 import time
 import pathlib
 import pandas as pd
-import numpy as np
 
 # Add project root to path
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
-from tools.generate_features_rubin import generate_features_rubin
+from tools.generate_features_rubin import generate_features_rubin  # noqa: E402
 
 
 def run_chunked(
@@ -79,10 +78,14 @@ def run_chunked(
             continue
 
         print(f"\n{'='*60}")
-        print(f"CHUNK {chunk_idx + 1}/{n_chunks} "
-              f"(objects {start:,}–{end - 1:,}, {end - start:,} objects)")
-        print(f"Completed so far: {completed + skipped}/{n_chunks} "
-              f"({skipped} resumed)")
+        print(
+            f"CHUNK {chunk_idx + 1}/{n_chunks} "
+            f"(objects {start:,}–{end - 1:,}, {end - start:,} objects)"
+        )
+        print(
+            f"Completed so far: {completed + skipped}/{n_chunks} "
+            f"({skipped} resumed)"
+        )
         print(f"{'='*60}")
 
         # Write temporary chunk CSV
@@ -112,19 +115,24 @@ def run_chunked(
 
             if result_df is not None and len(result_df) > 0:
                 result_df.to_parquet(str(chunk_file))
-                print(f"  Saved {len(result_df)} sources to {chunk_file} "
-                      f"({chunk_elapsed:.0f}s)")
+                print(
+                    f"  Saved {len(result_df)} sources to {chunk_file} "
+                    f"({chunk_elapsed:.0f}s)"
+                )
                 completed += 1
             else:
                 # Write empty marker so we don't re-process
                 pd.DataFrame().to_parquet(str(chunk_file))
-                print(f"  No sources passed filters in this chunk "
-                      f"({chunk_elapsed:.0f}s)")
+                print(
+                    f"  No sources passed filters in this chunk "
+                    f"({chunk_elapsed:.0f}s)"
+                )
                 completed += 1
 
         except Exception as e:
             print(f"  ERROR on chunk {chunk_idx}: {e}")
             import traceback
+
             traceback.print_exc()
             # Don't write output — this chunk will be retried on resume
             continue
@@ -150,8 +158,10 @@ def run_chunked(
         output_path = dirpath / f"{output_filename}.parquet"
         merged.to_parquet(str(output_path))
         elapsed = time.time() - t0
-        print(f"\nMerged {len(merged):,} sources from {len(dfs)} chunks "
-              f"into {output_path}")
+        print(
+            f"\nMerged {len(merged):,} sources from {len(dfs)} chunks "
+            f"into {output_path}"
+        )
         print(f"Total wall time: {elapsed / 3600:.1f} hours")
     else:
         print("No data to merge.")
@@ -161,12 +171,18 @@ def main():
     parser = argparse.ArgumentParser(
         description="Chunked Rubin feature generation with resume"
     )
-    parser.add_argument("--objectid-file", required=True,
-                        help="CSV with objectId column")
-    parser.add_argument("--chunk-size", type=int, default=10000,
-                        help="Objects per chunk (default 10000)")
-    parser.add_argument("--dirname", default="generated_features_rubin",
-                        help="Output directory")
+    parser.add_argument(
+        "--objectid-file", required=True, help="CSV with objectId column"
+    )
+    parser.add_argument(
+        "--chunk-size",
+        type=int,
+        default=10000,
+        help="Objects per chunk (default 10000)",
+    )
+    parser.add_argument(
+        "--dirname", default="generated_features_rubin", help="Output directory"
+    )
     parser.add_argument("--doGPU", action="store_true", default=False)
     parser.add_argument("--doCPU", action="store_true", default=False)
     parser.add_argument("--min-n-lc-points", type=int, default=50)
@@ -176,12 +192,22 @@ def main():
     parser.add_argument("--phase-bins", type=int, default=20)
     parser.add_argument("--mag-bins", type=int, default=10)
     parser.add_argument("--Ncore", type=int, default=8)
-    parser.add_argument("--top-n-periods", type=int, default=1,
-                        help="Save top N periods per algorithm (default 1)")
-    parser.add_argument("--chunk-subdir", default="chunks",
-                        help="Subdirectory for chunk files (default 'chunks')")
-    parser.add_argument("--output-filename", default="gen_features_rubin_full",
-                        help="Merged output filename (without .parquet)")
+    parser.add_argument(
+        "--top-n-periods",
+        type=int,
+        default=1,
+        help="Save top N periods per algorithm (default 1)",
+    )
+    parser.add_argument(
+        "--chunk-subdir",
+        default="chunks",
+        help="Subdirectory for chunk files (default 'chunks')",
+    )
+    parser.add_argument(
+        "--output-filename",
+        default="gen_features_rubin_full",
+        help="Merged output filename (without .parquet)",
+    )
     args = parser.parse_args()
 
     run_chunked(
