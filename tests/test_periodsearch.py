@@ -318,10 +318,16 @@ class TestExtractTopNPeriods:
         top_p, top_s = extract_top_n_periods(pg_result, freqs, n_top=4)
 
         # Both peaks should appear in the top-4
-        found_peak1 = any(np.isclose(top_p[0, k], 1.0, rtol=0.1)
-                         for k in range(4) if not np.isnan(top_p[0, k]))
-        found_peak2 = any(np.isclose(top_p[0, k], 1.0 / 3.0, rtol=0.1)
-                         for k in range(4) if not np.isnan(top_p[0, k]))
+        found_peak1 = any(
+            np.isclose(top_p[0, k], 1.0, rtol=0.1)
+            for k in range(4)
+            if not np.isnan(top_p[0, k])
+        )
+        found_peak2 = any(
+            np.isclose(top_p[0, k], 1.0 / 3.0, rtol=0.1)
+            for k in range(4)
+            if not np.isnan(top_p[0, k])
+        )
         assert found_peak1, f"Peak at P=1.0 not found in {top_p[0]}"
         assert found_peak2, f"Peak at P=0.333 not found in {top_p[0]}"
 
@@ -344,12 +350,13 @@ class TestExtractTopNPeriods:
         # The peak at freq=2.0 corresponds to period=0.5
         # With hybrid chunking, at most one entry should be near P=0.5
         near_peak = sum(
-            1 for k in range(4)
+            1
+            for k in range(4)
             if not np.isnan(top_p[0, k]) and np.isclose(top_p[0, k], 0.5, rtol=0.1)
         )
-        assert near_peak <= 1, (
-            f"Expected at most 1 entry near P=0.5, got {near_peak}: {top_p[0]}"
-        )
+        assert (
+            near_peak <= 1
+        ), f"Expected at most 1 entry near P=0.5, got {near_peak}: {top_p[0]}"
 
     def test_n_chunks_multiplier_controls_diversity(self):
         """Higher n_chunks_multiplier increases period diversity."""
@@ -365,17 +372,21 @@ class TestExtractTopNPeriods:
         pg_result = [{'period': periods_grid[np.argmax(data)], 'data': data}]
 
         # With multiplier=1 (just n_top chunks), might miss peaks
-        top_p_1, _ = extract_top_n_periods(pg_result, freqs, n_top=4,
-                                           n_chunks_multiplier=1)
+        top_p_1, _ = extract_top_n_periods(
+            pg_result, freqs, n_top=4, n_chunks_multiplier=1
+        )
         # With multiplier=3 (3*n_top chunks), should find all 3 peaks
-        top_p_3, _ = extract_top_n_periods(pg_result, freqs, n_top=4,
-                                           n_chunks_multiplier=3)
+        top_p_3, _ = extract_top_n_periods(
+            pg_result, freqs, n_top=4, n_chunks_multiplier=3
+        )
 
         def count_distinct(periods, targets, rtol=0.15):
             found = 0
             for target in targets:
-                if any(not np.isnan(p) and np.isclose(p, target, rtol=rtol)
-                       for p in periods):
+                if any(
+                    not np.isnan(p) and np.isclose(p, target, rtol=rtol)
+                    for p in periods
+                ):
                     found += 1
             return found
 
@@ -1015,9 +1026,7 @@ class TestComputeAgreementScores:
             'LS': np.array([[5.0, 3.0]]),
             'CE': np.array([[10.0, 7.0]]),
         }
-        results = compute_agreement_scores(
-            period_dict, top_n, ['src1'], ['LS', 'CE']
-        )
+        results = compute_agreement_scores(period_dict, top_n, ['src1'], ['LS', 'CE'])
         # Should match via 0.5 harmonic: 5.0 / (10.0 * 0.5) = 1.0
         assert results['src1']['agree_score'] == 1.0
         assert results['src1']['agree_strict'] == 1.0
@@ -1033,7 +1042,10 @@ class TestComputeAgreementScores:
             'CE': np.array([[0.001, 0.002]]),
         }
         results = compute_agreement_scores(
-            period_dict, top_n, ['src1'], ['LS', 'CE'],
+            period_dict,
+            top_n,
+            ['src1'],
+            ['LS', 'CE'],
             min_agree_period=0.007,
         )
         # Both periods are below the threshold, so no agreement
@@ -1044,9 +1056,7 @@ class TestComputeAgreementScores:
         """Single algorithm -> 0 pairs, no division by zero."""
         period_dict = {'LS': np.array([5.0])}
         top_n = {'LS': np.array([[5.0, 2.5]])}
-        results = compute_agreement_scores(
-            period_dict, top_n, ['src1'], ['LS']
-        )
+        results = compute_agreement_scores(period_dict, top_n, ['src1'], ['LS'])
         assert results['src1']['n_total_pairs'] == 0
         assert results['src1']['agree_score'] == 0.0
         assert results['src1']['agree_strict'] == 0.0
@@ -1078,9 +1088,7 @@ class TestComputeAgreementScores:
             'LS': np.array([[5.0, 0.8, 0.1]]),
             'CE': np.array([[5.0, 0.9, 0.2]]),
         }
-        res_a = compute_agreement_scores(
-            period_dict_a, top_n_a, ['s'], ['LS', 'CE']
-        )
+        res_a = compute_agreement_scores(period_dict_a, top_n_a, ['s'], ['LS', 'CE'])
 
         # Case B: agreement only in lower-ranked positions (rank 2)
         # Use periods that don't accidentally match via harmonics
@@ -1089,9 +1097,7 @@ class TestComputeAgreementScores:
             'LS': np.array([[0.8, 0.1, 5.0]]),
             'CE': np.array([[0.9, 0.2, 5.0]]),
         }
-        res_b = compute_agreement_scores(
-            period_dict_b, top_n_b, ['s'], ['LS', 'CE']
-        )
+        res_b = compute_agreement_scores(period_dict_b, top_n_b, ['s'], ['LS', 'CE'])
 
         assert res_a['s']['agree_weighted'] > res_b['s']['agree_weighted']
 
@@ -1124,9 +1130,7 @@ class TestComputeAgreementScores:
             'LS': np.array([[5.0, np.nan, np.nan]]),
             'CE': np.array([[5.0, np.nan, np.nan]]),
         }
-        results = compute_agreement_scores(
-            period_dict, top_n, ['src1'], ['LS', 'CE']
-        )
+        results = compute_agreement_scores(period_dict, top_n, ['src1'], ['LS', 'CE'])
         assert results['src1']['agree_score'] == 1.0
         assert results['src1']['n_agree_pairs'] == 1
 
@@ -1196,9 +1200,9 @@ class TestCadenceAlias:
 
         # The alias at f=48 c/d (1/0.5hr) should be strong
         freq_48_idx = np.argmin(np.abs(freqs - 48.0))
-        assert wp[freq_48_idx] > 0.5, (
-            f"Expected alias peak near f=48, got wp={wp[freq_48_idx]:.3f}"
-        )
+        assert (
+            wp[freq_48_idx] > 0.5
+        ), f"Expected alias peak near f=48, got wp={wp[freq_48_idx]:.3f}"
 
     def test_regular_cadence_alias_zones(self):
         """Regular cadence produces identifiable alias zones."""
@@ -1218,10 +1222,13 @@ class TestCadenceAlias:
     def test_build_field_alias_map_no_field_column(self):
         """Without field RA column, all visits are grouped as 'ALL'."""
         import pandas as pd
+
         rng = np.random.default_rng(42)
-        visit_df = pd.DataFrame({
-            'expMidptMJD': np.sort(rng.uniform(60000, 60050, 300)),
-        })
+        visit_df = pd.DataFrame(
+            {
+                'expMidptMJD': np.sort(rng.uniform(60000, 60050, 300)),
+            }
+        )
         freqs = np.linspace(0.1, 10.0, 500)
         fam, fw = build_field_alias_map(visit_df, freqs, threshold=0.5)
         assert 'ALL' in fam or len(fam) == 0
@@ -1229,6 +1236,7 @@ class TestCadenceAlias:
     def test_build_field_alias_map_with_field_ra(self):
         """With fieldRA column, visits are grouped into per-field windows."""
         import pandas as pd
+
         rng = np.random.default_rng(42)
 
         # Create visits in two fields: RA53 and RA95
@@ -1242,10 +1250,12 @@ class TestCadenceAlias:
         times_95 = np.sort(rng.uniform(60000, 60050, n_95))
         ra_95 = np.full(n_95, 95.0)
 
-        visit_df = pd.DataFrame({
-            'expMidptMJD': np.concatenate([times_53, times_95]),
-            'fieldRA': np.concatenate([ra_53, ra_95]),
-        })
+        visit_df = pd.DataFrame(
+            {
+                'expMidptMJD': np.concatenate([times_53, times_95]),
+                'fieldRA': np.concatenate([ra_53, ra_95]),
+            }
+        )
 
         freqs = np.linspace(0.1, 60.0, 5000)
         fam, fw = build_field_alias_map(visit_df, freqs, threshold=0.5)
@@ -1295,7 +1305,7 @@ class TestCadenceAlias:
 
         # Window function has strong power at f=40 but not f=20
         wp = np.full(n, 0.05)
-        wp[alias_peak_idx - 5:alias_peak_idx + 5] = 0.9
+        wp[alias_peak_idx - 5 : alias_peak_idx + 5] = 0.9
 
         detrended = detrend_periodogram(pg, wp, floor=0.01)
 
@@ -1391,7 +1401,9 @@ class TestCadenceAlias:
     def test_neighbour_alias_empty_input(self):
         """Empty arrays return empty result."""
         fracs = compute_neighbour_alias_fraction(
-            np.array([]), np.array([]), np.array([]),
+            np.array([]),
+            np.array([]),
+            np.array([]),
             radius_arcmin=2.0,
         )
         assert len(fracs) == 0

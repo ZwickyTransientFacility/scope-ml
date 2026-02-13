@@ -49,9 +49,18 @@ def _load_label_columns():
 
 # Columns that are identifiers/metadata rather than features or labels
 _ID_COLUMNS = {
-    '_id', 'ztf_id', 'obj_id', 'fritz_name',
-    'ra', 'dec', 'radec_geojson', 'coordinates',
-    'field', 'ccd', 'quad', 'filter',
+    '_id',
+    'ztf_id',
+    'obj_id',
+    'fritz_name',
+    'ra',
+    'dec',
+    'radec_geojson',
+    'coordinates',
+    'field',
+    'ccd',
+    'quad',
+    'filter',
 }
 
 
@@ -85,9 +94,7 @@ def extract_source_list(old_df):
             # ZTF GeoJSON convention: lon = ra - 180
             ra_geojson = row['ra'] - 180.0
             dec_geojson = row['dec']
-            coords.append({
-                'radec_geojson': {'coordinates': [ra_geojson, dec_geojson]}
-            })
+            coords.append({'radec_geojson': {'coordinates': [ra_geojson, dec_geojson]}})
     elif 'coordinates' in old_df.columns:
         coords = old_df['coordinates'].values.tolist()
     elif 'radec_geojson' in old_df.columns:
@@ -201,11 +208,12 @@ def regenerate(
         lc_pkl_path = cache_dir / 'lightcurves.pkl'
         if lc_path.exists():
             from tools.download_kowalski_cache import load_lcs_parquet
+
             local_lightcurves = load_lcs_parquet(lc_path)
             print(f"  Loaded {len(local_lightcurves)} light curves from cache")
         elif lc_pkl_path.exists():
             print(f"  WARNING: Using legacy pickle {lc_pkl_path} (high memory).")
-            print(f"  Run download_kowalski_cache.py to migrate to parquet.")
+            print("  Run download_kowalski_cache.py to migrate to parquet.")
             with open(lc_pkl_path, 'rb') as f:
                 local_lightcurves = pickle.load(f)
             print(f"  Loaded {len(local_lightcurves)} light curves from cache")
@@ -221,7 +229,9 @@ def regenerate(
                     'n_ztf_alerts': row['n_ztf_alerts'],
                     'mean_ztf_alert_braai': row['mean_ztf_alert_braai'],
                 }
-            print(f"  Loaded alert stats for {len(local_alert_stats)} sources from cache")
+            print(
+                f"  Loaded alert stats for {len(local_alert_stats)} sources from cache"
+            )
         else:
             raise FileNotFoundError(f"Expected {alert_path}")
 
@@ -269,7 +279,23 @@ def regenerate(
         start = chunk_index * chunk_size
         end = min(start + chunk_size, total)
         source_list_df = source_list_df.iloc[start:end].reset_index(drop=True)
-        print(f"  Chunk {chunk_index}/{n_chunks}: sources {start}-{end} ({len(source_list_df)} sources)")
+        print(
+            f"  Chunk {chunk_index}/{n_chunks}: sources {start}-{end} ({len(source_list_df)} sources)"
+        )
+
+        # Filter local caches to only this chunk's sources
+        chunk_ids = set(source_list_df['ztf_id'])
+        if local_lightcurves is not None:
+            local_lightcurves = [
+                lc for lc in local_lightcurves if lc['_id'] in chunk_ids
+            ]
+            print(f"  Filtered light curves to {len(local_lightcurves)} for this chunk")
+        if local_alert_stats is not None:
+            local_alert_stats = {
+                k: v for k, v in local_alert_stats.items() if k in chunk_ids
+            }
+        if local_xmatch is not None:
+            local_xmatch = {k: v for k, v in local_xmatch.items() if k in chunk_ids}
 
     # Save source list to temp parquet for generate_features
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -283,7 +309,9 @@ def regenerate(
         ckpt_dir = checkpoint_dir
         if ckpt_dir is None and chunk_index is not None:
             # Auto-create per-chunk checkpoint dir
-            ckpt_dir = str(pathlib.Path(output_path).parent / f'checkpoints/chunk_{chunk_index}')
+            ckpt_dir = str(
+                pathlib.Path(output_path).parent / f'checkpoints/chunk_{chunk_index}'
+            )
         elif ckpt_dir is None:
             ckpt_dir = str(pathlib.Path(output_path).parent / 'checkpoints')
 
@@ -331,7 +359,7 @@ def regenerate(
     n_merged = len(merged_df)
     n_old = len(old_df)
     n_new = len(new_feature_df)
-    print(f"\nValidation:")
+    print("\nValidation:")
     print(f"  Old training set:  {n_old} sources")
     print(f"  New features:      {n_new} sources")
     print(f"  Merged (inner):    {n_merged} sources")
@@ -344,16 +372,26 @@ def regenerate(
     print(f"  Label columns:     {len(label_cols_in_merged)}")
 
     # Check for new feature columns
-    new_feature_cols = [c for c in merged_df.columns if 'agree' in c or 'consensus' in c]
-    topn_cols = [c for c in merged_df.columns if c.startswith('period_') and '_' in c[7:]]
+    new_feature_cols = [
+        c for c in merged_df.columns if 'agree' in c or 'consensus' in c
+    ]
+    topn_cols = [
+        c for c in merged_df.columns if c.startswith('period_') and '_' in c[7:]
+    ]
     print(f"  Agreement features: {len(new_feature_cols)}")
     print(f"  Top-N period cols:  {len(topn_cols)}")
 
     # Check that old cesium features are absent (if doCesium=False)
     if not doCesium:
-        cesium_cols = [c for c in merged_df.columns if c in config.get('feature_generation', {}).get('cesium_features', [])]
+        cesium_cols = [
+            c
+            for c in merged_df.columns
+            if c in config.get('feature_generation', {}).get('cesium_features', [])
+        ]
         if cesium_cols:
-            print(f"  NOTE: {len(cesium_cols)} cesium columns still present (from labels join)")
+            print(
+                f"  NOTE: {len(cesium_cols)} cesium columns still present (from labels join)"
+            )
 
     # --- 6. Save ---
     merged_df = merged_df.reset_index()

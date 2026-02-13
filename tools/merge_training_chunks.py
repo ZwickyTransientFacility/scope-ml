@@ -8,6 +8,7 @@ Usage:
         --output regenerate_training/new_training_set.parquet \
         --n-chunks 8
 """
+
 import argparse
 import pathlib
 import sys
@@ -15,7 +16,9 @@ import sys
 import pandas as pd
 
 
-def merge_chunks(chunks_dir, output_path, n_chunks=None, chunk_pattern='chunk_*.parquet'):
+def merge_chunks(
+    chunks_dir, output_path, n_chunks=None, chunk_pattern='chunk_*.parquet'
+):
     chunks_dir = pathlib.Path(chunks_dir)
 
     if n_chunks is not None:
@@ -51,22 +54,40 @@ def merge_chunks(chunks_dir, output_path, n_chunks=None, chunk_pattern='chunk_*.
     id_col = 'ztf_id' if 'ztf_id' in merged.columns else '_id'
     n_dupes = merged[id_col].duplicated().sum()
     if n_dupes > 0:
-        print(f"WARNING: {n_dupes} duplicate IDs found — removing duplicates (keeping first)")
+        print(
+            f"WARNING: {n_dupes} duplicate IDs found — removing duplicates (keeping first)"
+        )
         merged = merged.drop_duplicates(subset=id_col, keep='first')
 
     merged.to_parquet(str(output_path), index=False)
-    print(f"\nMerged training set: {len(merged)} sources, {len(merged.columns)} columns")
+    print(
+        f"\nMerged training set: {len(merged)} sources, {len(merged.columns)} columns"
+    )
     print(f"Saved to {output_path}")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Merge chunk parquets into final training set")
-    parser.add_argument('--chunks-dir', type=str, default='regenerate_training',
-                        help='Directory containing chunk_*.parquet files')
-    parser.add_argument('--output', type=str, default='regenerate_training/new_training_set.parquet',
-                        help='Output path for merged parquet')
-    parser.add_argument('--n-chunks', type=int, default=None,
-                        help='Expected number of chunks (checks for missing)')
+    parser = argparse.ArgumentParser(
+        description="Merge chunk parquets into final training set"
+    )
+    parser.add_argument(
+        '--chunks-dir',
+        type=str,
+        default='regenerate_training',
+        help='Directory containing chunk_*.parquet files',
+    )
+    parser.add_argument(
+        '--output',
+        type=str,
+        default='regenerate_training/new_training_set.parquet',
+        help='Output path for merged parquet',
+    )
+    parser.add_argument(
+        '--n-chunks',
+        type=int,
+        default=None,
+        help='Expected number of chunks (checks for missing)',
+    )
     args = parser.parse_args()
     merge_chunks(args.chunks_dir, args.output, args.n_chunks)
 

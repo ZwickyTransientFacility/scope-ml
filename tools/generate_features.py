@@ -35,7 +35,6 @@ from scipy.stats import circmean
 import time
 import pickle as _pickle
 
-
 BASE_DIR = pathlib.Path.cwd()
 config = parse_load_config()
 
@@ -435,19 +434,32 @@ def update_id_dict(
                 break
 
 
-def _save_period_checkpoint(checkpoint_dir, batch_idx, all_periods, all_significances,
-                            all_pdots, all_top_n_periods, all_top_n_sigs):
+def _save_period_checkpoint(
+    checkpoint_dir,
+    batch_idx,
+    all_periods,
+    all_significances,
+    all_pdots,
+    all_top_n_periods,
+    all_top_n_sigs,
+):
     """Save period-finding progress after a completed batch."""
     ckpt_path = os.path.join(checkpoint_dir, 'period_checkpoint.pkl')
     tmp_path = ckpt_path + '.tmp'
     state = {
         'completed_batch': batch_idx,
-        'all_periods': {k: np.array(v) if isinstance(v, np.ndarray) else v
-                        for k, v in all_periods.items()},
-        'all_significances': {k: np.array(v) if isinstance(v, np.ndarray) else v
-                              for k, v in all_significances.items()},
-        'all_pdots': {k: np.array(v) if isinstance(v, np.ndarray) else v
-                      for k, v in all_pdots.items()},
+        'all_periods': {
+            k: np.array(v) if isinstance(v, np.ndarray) else v
+            for k, v in all_periods.items()
+        },
+        'all_significances': {
+            k: np.array(v) if isinstance(v, np.ndarray) else v
+            for k, v in all_significances.items()
+        },
+        'all_pdots': {
+            k: np.array(v) if isinstance(v, np.ndarray) else v
+            for k, v in all_pdots.items()
+        },
         'all_top_n_periods': {k: list(v) for k, v in all_top_n_periods.items()},
         'all_top_n_sigs': {k: list(v) for k, v in all_top_n_sigs.items()},
     }
@@ -465,7 +477,10 @@ def _load_period_checkpoint(checkpoint_dir):
     try:
         with open(ckpt_path, 'rb') as f:
             state = _pickle.load(f)
-        print(f'  [checkpoint] Resuming from batch {state["completed_batch"] + 2}', flush=True)
+        print(
+            f'  [checkpoint] Resuming from batch {state["completed_batch"] + 2}',
+            flush=True,
+        )
         return state
     except Exception as e:
         print(f'  [checkpoint] Failed to load checkpoint: {e}', flush=True)
@@ -690,7 +705,9 @@ def generate_features(
                             'radec_geojson': {'coordinates': coord}
                         }
 
-                print(f'Loaded {len(feature_gen_source_dict)} sources from {fg_dataset} (skipping Gaia filtering).')
+                print(
+                    f'Loaded {len(feature_gen_source_dict)} sources from {fg_dataset} (skipping Gaia filtering).'
+                )
             else:
                 # Load pre-saved dataset if Gaia analysis already complete
                 fg_sources_config = config['feature_generation']['ids_skipGaia']
@@ -988,8 +1005,12 @@ def generate_features(
             all_significances = {algorithm: [] for algorithm in period_algorithms}
             all_pdots = {algorithm: [] for algorithm in period_algorithms}
             # top-N storage: keyed by original algo name
-            all_top_n_periods = {algorithm: [] for algorithm in period_algorithms} if do_top_n else {}
-            all_top_n_sigs = {algorithm: [] for algorithm in period_algorithms} if do_top_n else {}
+            all_top_n_periods = (
+                {algorithm: [] for algorithm in period_algorithms} if do_top_n else {}
+            )
+            all_top_n_sigs = (
+                {algorithm: [] for algorithm in period_algorithms} if do_top_n else {}
+            )
 
             if do_nested_algorithms:
                 if doGPU:
@@ -1022,7 +1043,10 @@ def generate_features(
                     all_pdots = ckpt['all_pdots']
                     all_top_n_periods = ckpt.get('all_top_n_periods', {})
                     all_top_n_sigs = ckpt.get('all_top_n_sigs', {})
-                    print(f'  Skipping batches 1-{start_batch} (already completed)', flush=True)
+                    print(
+                        f'  Skipping batches 1-{start_batch} (already completed)',
+                        flush=True,
+                    )
 
             for i in range(start_batch, n_iterations):
                 print(f"Iteration {i+1} of {n_iterations}...", flush=True)
@@ -1149,8 +1173,13 @@ def generate_features(
                 # --- Save checkpoint after each batch ---
                 if checkpoint_dir is not None:
                     _save_period_checkpoint(
-                        checkpoint_dir, i, all_periods, all_significances,
-                        all_pdots, all_top_n_periods, all_top_n_sigs,
+                        checkpoint_dir,
+                        i,
+                        all_periods,
+                        all_significances,
+                        all_pdots,
+                        all_top_n_periods,
+                        all_top_n_sigs,
                     )
 
             # --- Clean up checkpoint on successful completion ---
@@ -1158,7 +1187,10 @@ def generate_features(
                 ckpt_path = os.path.join(checkpoint_dir, 'period_checkpoint.pkl')
                 if os.path.exists(ckpt_path):
                     os.remove(ckpt_path)
-                    print('  [checkpoint] Period finding complete, checkpoint removed.', flush=True)
+                    print(
+                        '  [checkpoint] Period finding complete, checkpoint removed.',
+                        flush=True,
+                    )
 
             period_dict = all_periods
             significance_dict = all_significances
@@ -1225,8 +1257,8 @@ def generate_features(
                         feature_dict[_id][f'period_{rank+1}_{algorithm_name}'] = float(
                             top_p[idx, rank]
                         )
-                        feature_dict[_id][f'significance_{rank+1}_{algorithm_name}'] = float(
-                            top_s[idx, rank]
+                        feature_dict[_id][f'significance_{rank+1}_{algorithm_name}'] = (
+                            float(top_s[idx, rank])
                         )
 
             # Cross-algorithm agreement scores
@@ -1240,7 +1272,9 @@ def generate_features(
             for _id, scores in agree_results.items():
                 feature_dict[_id].update(scores)
 
-        print(f'Computing Fourier stats for {len(period_dict)} algorithms...', flush=True)
+        print(
+            f'Computing Fourier stats for {len(period_dict)} algorithms...', flush=True
+        )
         id_list = list(tme_dict.keys())
         lightcurves_ordered = [tme_dict[_id]['tme'] for _id in id_list]
 
@@ -1293,9 +1327,13 @@ def generate_features(
         # Get ZTF alert stats
         if local_alert_stats is not None:
             for _id in feature_dict.keys():
-                stats = local_alert_stats.get(_id, {'n_ztf_alerts': 0, 'mean_ztf_alert_braai': 0.0})
+                stats = local_alert_stats.get(
+                    _id, {'n_ztf_alerts': 0, 'mean_ztf_alert_braai': 0.0}
+                )
                 feature_dict[_id]['n_ztf_alerts'] = stats['n_ztf_alerts']
-                feature_dict[_id]['mean_ztf_alert_braai'] = stats['mean_ztf_alert_braai']
+                feature_dict[_id]['mean_ztf_alert_braai'] = stats[
+                    'mean_ztf_alert_braai'
+                ]
         else:
             alert_stats_dct = alertstats.get_ztf_alert_stats(
                 feature_dict,
@@ -1326,7 +1364,9 @@ def generate_features(
                 Ncore=Ncore,
             )
         else:
-            warnings.warn("Skipping external cross-matches (Kowalski not available and no local cache).")
+            warnings.warn(
+                "Skipping external cross-matches (Kowalski not available and no local cache)."
+            )
         feature_df = pd.DataFrame.from_dict(feature_dict, orient='index')
 
         # Rename index column to '_id' and reset index

@@ -247,8 +247,7 @@ def find_periods(
     return np.array(periods_best), np.array(significances), np.array(pdots)
 
 
-def extract_top_n_periods(periodogram_results, freqs, n_top=8,
-                          n_chunks_multiplier=3):
+def extract_top_n_periods(periodogram_results, freqs, n_top=8, n_chunks_multiplier=3):
     """Extract top N periods from periodogram using hybrid chunking.
 
     The frequency grid is divided into ``n_chunks_multiplier * n_top``
@@ -301,9 +300,7 @@ def extract_top_n_periods(periodogram_results, freqs, n_top=8,
         # CE uses minima; others use maxima
         best_idx_min = np.argmin(data)
         best_period = res['period']
-        use_minima = np.isclose(
-            periods_grid[best_idx_min], best_period, rtol=1e-4
-        )
+        use_minima = np.isclose(periods_grid[best_idx_min], best_period, rtol=1e-4)
 
         chunk_size = n_freqs // n_chunks
         if chunk_size < 1:
@@ -533,12 +530,8 @@ def compute_agreement_scores(
         results[_id] = {
             'n_agree_pairs': n_agree_pairs,
             'n_total_pairs': total_pairs,
-            'agree_score': (
-                n_agree_pairs / total_pairs if total_pairs > 0 else 0.0
-            ),
-            'agree_strict': (
-                n_strict / total_pairs if total_pairs > 0 else 0.0
-            ),
+            'agree_score': (n_agree_pairs / total_pairs if total_pairs > 0 else 0.0),
+            'agree_strict': (n_strict / total_pairs if total_pairs > 0 else 0.0),
             'agree_weighted': (
                 weighted_sum / weight_total if weight_total > 0 else 0.0
             ),
@@ -651,5 +644,3 @@ def remove_high_cadence_batch(tme_list, cadence_minutes=30.0):
     errs = [np.asarray(tme[2], dtype=np.float32) for tme in tme_list]
 
     return periodfind.remove_high_cadence(times, mags, errs, cadence_minutes)
-
-
