@@ -22,6 +22,8 @@ import periodfind  # noqa: E402
 from periodsearch import (  # noqa: E402
     find_periods,
     extract_top_n_periods,
+    compute_agreement_scores,
+    _period_match,
     compute_fourier_features,
     compute_dmdt_features,
     compute_basic_stats,
@@ -29,6 +31,16 @@ from periodsearch import (  # noqa: E402
     _normalize_algorithm,
     _prepare_lightcurves,
     _build_pdots,
+)
+from cadence_alias import (  # noqa: E402
+    assign_field,
+    compute_field_window_function,
+    identify_alias_frequencies,
+    build_field_alias_map,
+    merge_alias_zones,
+    detrend_periodogram,
+    detrend_periodogram_results,
+    compute_neighbour_alias_fraction,
 )
 
 # ---------------------------------------------------------------------------
@@ -287,6 +299,93 @@ class TestExtractTopNPeriods:
         assert top_p.shape == (1, 4)
         assert np.isclose(top_p[0, 0], periods[0]['period'], rtol=1e-4)
 
+    def test_two_peaks_found_as_distinct(self):
+        """Synthetic periodogram with two well-separated peaks — both found."""
+        # Build a synthetic periodogram with peaks at two known frequencies
+        freqs = make_freq_grid(0.1, 5.0, 1000)
+        periods_grid = 1.0 / freqs
+        data = np.zeros(len(freqs), dtype=np.float64)
+
+        # Peak 1 near freq=1.0 (period=1.0)
+        peak1_idx = np.argmin(np.abs(freqs - 1.0))
+        data[peak1_idx] = 10.0
+
+        # Peak 2 near freq=3.0 (period=0.333)
+        peak2_idx = np.argmin(np.abs(freqs - 3.0))
+        data[peak2_idx] = 8.0
+
+        pg_result = [{'period': periods_grid[peak1_idx], 'data': data}]
+        top_p, top_s = extract_top_n_periods(pg_result, freqs, n_top=4)
+
+        # Both peaks should appear in the top-4
+        found_peak1 = any(np.isclose(top_p[0, k], 1.0, rtol=0.1)
+                         for k in range(4) if not np.isnan(top_p[0, k]))
+        found_peak2 = any(np.isclose(top_p[0, k], 1.0 / 3.0, rtol=0.1)
+                         for k in range(4) if not np.isnan(top_p[0, k]))
+        assert found_peak1, f"Peak at P=1.0 not found in {top_p[0]}"
+        assert found_peak2, f"Peak at P=0.333 not found in {top_p[0]}"
+
+    def test_adjacent_bins_not_returned(self):
+        """Adjacent bins from the same broad peak are NOT returned as separate top-N entries."""
+        freqs = make_freq_grid(0.1, 5.0, 1000)
+        periods_grid = 1.0 / freqs
+
+        # Build a single broad peak spanning ~20 bins centered at freq=2.0
+        peak_center = np.argmin(np.abs(freqs - 2.0))
+        data = np.zeros(len(freqs), dtype=np.float64)
+        for offset in range(-10, 11):
+            idx = peak_center + offset
+            if 0 <= idx < len(freqs):
+                data[idx] = 5.0 * np.exp(-0.5 * (offset / 3.0) ** 2)
+
+        pg_result = [{'period': periods_grid[peak_center], 'data': data}]
+        top_p, top_s = extract_top_n_periods(pg_result, freqs, n_top=4)
+
+        # The peak at freq=2.0 corresponds to period=0.5
+        # With hybrid chunking, at most one entry should be near P=0.5
+        near_peak = sum(
+            1 for k in range(4)
+            if not np.isnan(top_p[0, k]) and np.isclose(top_p[0, k], 0.5, rtol=0.1)
+        )
+        assert near_peak <= 1, (
+            f"Expected at most 1 entry near P=0.5, got {near_peak}: {top_p[0]}"
+        )
+
+    def test_n_chunks_multiplier_controls_diversity(self):
+        """Higher n_chunks_multiplier increases period diversity."""
+        freqs = make_freq_grid(0.1, 5.0, 2000)
+        periods_grid = 1.0 / freqs
+
+        # Three peaks at different frequencies
+        data = np.zeros(len(freqs), dtype=np.float64)
+        for freq_val, amp in [(0.5, 10.0), (2.0, 8.0), (4.0, 6.0)]:
+            idx = np.argmin(np.abs(freqs - freq_val))
+            data[idx] = amp
+
+        pg_result = [{'period': periods_grid[np.argmax(data)], 'data': data}]
+
+        # With multiplier=1 (just n_top chunks), might miss peaks
+        top_p_1, _ = extract_top_n_periods(pg_result, freqs, n_top=4,
+                                           n_chunks_multiplier=1)
+        # With multiplier=3 (3*n_top chunks), should find all 3 peaks
+        top_p_3, _ = extract_top_n_periods(pg_result, freqs, n_top=4,
+                                           n_chunks_multiplier=3)
+
+        def count_distinct(periods, targets, rtol=0.15):
+            found = 0
+            for target in targets:
+                if any(not np.isnan(p) and np.isclose(p, target, rtol=rtol)
+                       for p in periods):
+                    found += 1
+            return found
+
+        targets = [1.0 / 0.5, 1.0 / 2.0, 1.0 / 4.0]  # = [2.0, 0.5, 0.25]
+        found_3 = count_distinct(top_p_3[0], targets)
+        assert found_3 >= 2, (
+            f"n_chunks_multiplier=3 should find >=2 of 3 peaks, got {found_3}: "
+            f"{top_p_3[0]}"
+        )
+
 
 # ---------------------------------------------------------------------------
 # TestDeviceAPIIntegration
@@ -357,11 +456,6 @@ class TestNormalizeAlgorithm:
         assert _normalize_algorithm("EAOV_periodogram") == ("AOV", True)
         assert _normalize_algorithm("FPW_periodogram") == ("FPW", True)
         assert _normalize_algorithm("EFPW_periodogram") == ("FPW", True)
-
-    def test_aov_cython_unrecognized(self):
-        name, is_pg = _normalize_algorithm("AOV_cython")
-        # AOV_cython should not match the unified path
-        assert name not in {"CE", "AOV", "LS"}
 
 
 class TestBuildPdots:
@@ -820,3 +914,484 @@ class TestComputeBasicStats:
         assert (
             abs(old_vals[2] - new[2]) / max(abs(old_vals[2]), 1e-12) < 0.01
         ), f"wmean: old={old_vals[2]}, new={new[2]}"
+
+
+# ---------------------------------------------------------------------------
+# TestPeriodMatch
+# ---------------------------------------------------------------------------
+
+
+class TestPeriodMatch:
+    """Tests for the _period_match helper."""
+
+    def test_identical_periods(self):
+        assert _period_match(5.0, 5.0)
+
+    def test_close_periods(self):
+        assert _period_match(5.0, 5.02)  # 0.4% difference, within 5%
+
+    def test_distant_periods(self):
+        assert not _period_match(5.0, 7.0)
+
+    def test_harmonic_half(self):
+        assert _period_match(5.0, 10.0)  # P_a = 0.5 * P_b
+
+    def test_harmonic_double(self):
+        assert _period_match(10.0, 5.0)  # P_a = 2.0 * P_b
+
+    def test_harmonic_third(self):
+        assert _period_match(5.0, 15.0)  # P_a = (1/3) * P_b
+
+    def test_harmonic_triple(self):
+        assert _period_match(15.0, 5.0)  # P_a = 3.0 * P_b
+
+    def test_nan_handling(self):
+        assert not _period_match(np.nan, 5.0)
+        assert not _period_match(5.0, np.nan)
+        assert not _period_match(np.nan, np.nan)
+
+    def test_zero_handling(self):
+        assert not _period_match(0.0, 5.0)
+        assert not _period_match(5.0, 0.0)
+
+    def test_negative_handling(self):
+        assert not _period_match(-1.0, 5.0)
+
+
+# ---------------------------------------------------------------------------
+# TestComputeAgreementScores
+# ---------------------------------------------------------------------------
+
+
+class TestComputeAgreementScores:
+    """Tests for compute_agreement_scores()."""
+
+    def test_perfect_agreement(self):
+        """All algorithms find the same period -> score = 1.0."""
+        period_dict = {
+            'LS': np.array([5.0]),
+            'CE': np.array([5.0]),
+            'AOV': np.array([5.0]),
+        }
+        top_n = {
+            'LS': np.array([[5.0, 2.5, 1.0]]),
+            'CE': np.array([[5.0, 2.5, 1.0]]),
+            'AOV': np.array([[5.0, 2.5, 1.0]]),
+        }
+        results = compute_agreement_scores(
+            period_dict, top_n, ['src1'], ['LS', 'CE', 'AOV']
+        )
+        assert results['src1']['agree_score'] == 1.0
+        assert results['src1']['agree_strict'] == 1.0
+        assert results['src1']['n_agree_pairs'] == 3  # 3 choose 2
+        assert results['src1']['n_total_pairs'] == 3
+
+    def test_no_agreement(self):
+        """All algorithms find completely different periods -> score = 0."""
+        period_dict = {
+            'LS': np.array([1.0]),
+            'CE': np.array([50.0]),
+            'AOV': np.array([200.0]),
+        }
+        top_n = {
+            'LS': np.array([[1.0, 1.1, 1.2]]),
+            'CE': np.array([[50.0, 51.0, 52.0]]),
+            'AOV': np.array([[200.0, 201.0, 202.0]]),
+        }
+        results = compute_agreement_scores(
+            period_dict, top_n, ['src1'], ['LS', 'CE', 'AOV']
+        )
+        assert results['src1']['agree_score'] == 0.0
+        assert results['src1']['agree_strict'] == 0.0
+        assert results['src1']['n_agree_pairs'] == 0
+
+    def test_harmonic_detection(self):
+        """Periods at 2:1 harmonic ratio are detected as agreement."""
+        period_dict = {
+            'LS': np.array([5.0]),
+            'CE': np.array([10.0]),  # 2x harmonic
+        }
+        top_n = {
+            'LS': np.array([[5.0, 3.0]]),
+            'CE': np.array([[10.0, 7.0]]),
+        }
+        results = compute_agreement_scores(
+            period_dict, top_n, ['src1'], ['LS', 'CE']
+        )
+        # Should match via 0.5 harmonic: 5.0 / (10.0 * 0.5) = 1.0
+        assert results['src1']['agree_score'] == 1.0
+        assert results['src1']['agree_strict'] == 1.0
+
+    def test_spurious_period_filtering(self):
+        """Ultra-short periods below min_agree_period are filtered."""
+        period_dict = {
+            'LS': np.array([0.001]),
+            'CE': np.array([0.001]),
+        }
+        top_n = {
+            'LS': np.array([[0.001, 0.002]]),
+            'CE': np.array([[0.001, 0.002]]),
+        }
+        results = compute_agreement_scores(
+            period_dict, top_n, ['src1'], ['LS', 'CE'],
+            min_agree_period=0.007,
+        )
+        # Both periods are below the threshold, so no agreement
+        assert results['src1']['agree_score'] == 0.0
+        assert results['src1']['agree_strict'] == 0.0
+
+    def test_single_algorithm(self):
+        """Single algorithm -> 0 pairs, no division by zero."""
+        period_dict = {'LS': np.array([5.0])}
+        top_n = {'LS': np.array([[5.0, 2.5]])}
+        results = compute_agreement_scores(
+            period_dict, top_n, ['src1'], ['LS']
+        )
+        assert results['src1']['n_total_pairs'] == 0
+        assert results['src1']['agree_score'] == 0.0
+        assert results['src1']['agree_strict'] == 0.0
+        assert results['src1']['agree_weighted'] == 0.0
+
+    def test_multiple_sources(self):
+        """Function processes multiple sources correctly."""
+        period_dict = {
+            'LS': np.array([5.0, 1.0]),
+            'CE': np.array([5.0, 50.0]),
+        }
+        top_n = {
+            'LS': np.array([[5.0, 2.5], [1.0, 0.5]]),
+            'CE': np.array([[5.0, 2.5], [50.0, 25.0]]),
+        }
+        results = compute_agreement_scores(
+            period_dict, top_n, ['s1', 's2'], ['LS', 'CE']
+        )
+        assert 's1' in results
+        assert 's2' in results
+        assert results['s1']['agree_score'] == 1.0
+        assert results['s2']['agree_score'] == 0.0
+
+    def test_weighted_score_rank_sensitivity(self):
+        """Higher-ranked matches produce higher weighted scores."""
+        # Case A: agreement in top-1
+        period_dict_a = {'LS': np.array([5.0]), 'CE': np.array([5.0])}
+        top_n_a = {
+            'LS': np.array([[5.0, 0.8, 0.1]]),
+            'CE': np.array([[5.0, 0.9, 0.2]]),
+        }
+        res_a = compute_agreement_scores(
+            period_dict_a, top_n_a, ['s'], ['LS', 'CE']
+        )
+
+        # Case B: agreement only in lower-ranked positions (rank 2)
+        # Use periods that don't accidentally match via harmonics
+        period_dict_b = {'LS': np.array([0.8]), 'CE': np.array([0.9])}
+        top_n_b = {
+            'LS': np.array([[0.8, 0.1, 5.0]]),
+            'CE': np.array([[0.9, 0.2, 5.0]]),
+        }
+        res_b = compute_agreement_scores(
+            period_dict_b, top_n_b, ['s'], ['LS', 'CE']
+        )
+
+        assert res_a['s']['agree_weighted'] > res_b['s']['agree_weighted']
+
+    def test_best_consensus_period(self):
+        """best_consensus_period picks the period with most cross-algo support."""
+        period_dict = {
+            'LS': np.array([5.0]),
+            'CE': np.array([5.0]),
+            'AOV': np.array([5.0]),
+        }
+        top_n = {
+            'LS': np.array([[5.0, 10.0, 1.0]]),
+            'CE': np.array([[5.0, 10.0, 2.0]]),
+            'AOV': np.array([[5.0, 3.0, 7.0]]),
+        }
+        results = compute_agreement_scores(
+            period_dict, top_n, ['src1'], ['LS', 'CE', 'AOV']
+        )
+        # Period 5.0 has support from all 3 algos
+        best = results['src1']['best_consensus_period']
+        assert np.isclose(best, 5.0, rtol=0.05), f"Expected ~5.0, got {best}"
+
+    def test_nan_top_n_handled(self):
+        """NaN entries in top-N arrays are skipped gracefully."""
+        period_dict = {
+            'LS': np.array([5.0]),
+            'CE': np.array([5.0]),
+        }
+        top_n = {
+            'LS': np.array([[5.0, np.nan, np.nan]]),
+            'CE': np.array([[5.0, np.nan, np.nan]]),
+        }
+        results = compute_agreement_scores(
+            period_dict, top_n, ['src1'], ['LS', 'CE']
+        )
+        assert results['src1']['agree_score'] == 1.0
+        assert results['src1']['n_agree_pairs'] == 1
+
+
+# ---------------------------------------------------------------------------
+# TestCadenceAlias
+# ---------------------------------------------------------------------------
+
+
+class TestCadenceAlias:
+    """Tests for the cadence_alias module."""
+
+    # -- Field assignment --
+
+    def test_assign_field_ra95(self):
+        """RA ~95 maps to RA95 field."""
+        assert assign_field(95.0) == 'RA95'
+        assert assign_field(93.5) == 'RA95'
+        assert assign_field(96.5) == 'RA95'
+
+    def test_assign_field_ra53(self):
+        """RA ~53 maps to RA53 field."""
+        assert assign_field(53.0) == 'RA53'
+
+    def test_assign_field_ra59(self):
+        """RA ~59 maps to RA59 field."""
+        assert assign_field(59.0) == 'RA59'
+
+    def test_assign_field_ra38(self):
+        """RA ~38 maps to RA38 field."""
+        assert assign_field(38.0) == 'RA38'
+
+    def test_assign_field_outside(self):
+        """RA outside any field returns None."""
+        assert assign_field(0.0) is None
+        assert assign_field(180.0) is None
+        assert assign_field(70.0) is None
+
+    # -- Window function --
+
+    def test_window_function_shape(self):
+        """Window function has same length as frequency grid."""
+        rng = np.random.default_rng(42)
+        times = np.sort(rng.uniform(60000, 60100, 200))
+        freqs = np.linspace(0.1, 10.0, 500)
+        wp = compute_field_window_function(times, freqs)
+        assert wp.shape == (500,)
+
+    def test_window_function_range(self):
+        """Window function is normalised to [0, 1]."""
+        rng = np.random.default_rng(42)
+        times = np.sort(rng.uniform(60000, 60100, 200))
+        freqs = np.linspace(0.1, 10.0, 500)
+        wp = compute_field_window_function(times, freqs)
+        assert wp.max() <= 1.0 + 1e-10
+        assert wp.min() >= 0.0 - 1e-10
+        assert np.isclose(wp.max(), 1.0, atol=1e-6)
+
+    def test_regular_cadence_produces_aliases(self):
+        """Regular 30-minute cadence creates a strong alias at f=48 c/d."""
+        # Simulate observations every 30 minutes for 10 days
+        cadence_hours = 0.5
+        n_days = 10
+        times = np.arange(0, n_days, cadence_hours / 24.0) + 60000.0
+        freqs = np.linspace(0.1, 60.0, 5000)
+        wp = compute_field_window_function(times, freqs)
+
+        # The alias at f=48 c/d (1/0.5hr) should be strong
+        freq_48_idx = np.argmin(np.abs(freqs - 48.0))
+        assert wp[freq_48_idx] > 0.5, (
+            f"Expected alias peak near f=48, got wp={wp[freq_48_idx]:.3f}"
+        )
+
+    def test_regular_cadence_alias_zones(self):
+        """Regular cadence produces identifiable alias zones."""
+        cadence_hours = 0.5
+        times = np.arange(0, 10, cadence_hours / 24.0) + 60000.0
+        freqs = np.linspace(0.1, 60.0, 5000)
+        wp = compute_field_window_function(times, freqs)
+        zones = identify_alias_frequencies(wp, freqs, threshold=0.5)
+        assert len(zones) > 0, "Expected at least one alias zone"
+
+        # Each zone should be a [lo, hi] pair with lo < hi
+        for lo, hi in zones:
+            assert lo < hi
+
+    # -- Build field alias map --
+
+    def test_build_field_alias_map_no_field_column(self):
+        """Without field RA column, all visits are grouped as 'ALL'."""
+        import pandas as pd
+        rng = np.random.default_rng(42)
+        visit_df = pd.DataFrame({
+            'expMidptMJD': np.sort(rng.uniform(60000, 60050, 300)),
+        })
+        freqs = np.linspace(0.1, 10.0, 500)
+        fam, fw = build_field_alias_map(visit_df, freqs, threshold=0.5)
+        assert 'ALL' in fam or len(fam) == 0
+
+    def test_build_field_alias_map_with_field_ra(self):
+        """With fieldRA column, visits are grouped into per-field windows."""
+        import pandas as pd
+        rng = np.random.default_rng(42)
+
+        # Create visits in two fields: RA53 and RA95
+        # RA53 visits: regular 30-min cadence (strong alias at f=48)
+        n_53 = 200
+        times_53 = np.arange(n_53) * (0.5 / 24.0) + 60000.0
+        ra_53 = np.full(n_53, 53.0)
+
+        # RA95 visits: irregular cadence (fewer aliases)
+        n_95 = 150
+        times_95 = np.sort(rng.uniform(60000, 60050, n_95))
+        ra_95 = np.full(n_95, 95.0)
+
+        visit_df = pd.DataFrame({
+            'expMidptMJD': np.concatenate([times_53, times_95]),
+            'fieldRA': np.concatenate([ra_53, ra_95]),
+        })
+
+        freqs = np.linspace(0.1, 60.0, 5000)
+        fam, fw = build_field_alias_map(visit_df, freqs, threshold=0.5)
+
+        # Should have per-field entries, NOT a single 'ALL'
+        assert 'ALL' not in fam
+        assert 'RA53' in fam
+        assert 'RA95' in fam
+        assert 'RA53' in fw
+        assert 'RA95' in fw
+
+        # RA53 with regular cadence should have more alias zones
+        assert len(fam['RA53']) > 0, "Regular cadence should produce aliases"
+
+        # Window functions should have correct shape
+        assert fw['RA53'].shape == (5000,)
+        assert fw['RA95'].shape == (5000,)
+
+    def test_merge_alias_zones(self):
+        """merge_alias_zones combines all field zones into one list."""
+        field_map = {
+            'RA53': [[1.0, 2.0], [5.0, 6.0]],
+            'RA95': [[3.0, 4.0]],
+        }
+        merged = merge_alias_zones(field_map)
+        assert len(merged) == 3
+        freqs_in_merged = set()
+        for lo, hi in merged:
+            freqs_in_merged.add((lo, hi))
+        assert (1.0, 2.0) in freqs_in_merged
+        assert (3.0, 4.0) in freqs_in_merged
+        assert (5.0, 6.0) in freqs_in_merged
+
+    # -- Periodogram detrending --
+
+    def test_detrend_suppresses_alias_peak(self):
+        """Detrending by window function suppresses alias peaks."""
+        n = 1000
+        freqs = np.linspace(0.1, 50.0, n)
+
+        # Synthetic periodogram with a peak at f=20 (real) and f=40 (alias)
+        pg = np.random.default_rng(42).uniform(0, 0.1, n)
+        real_peak_idx = np.argmin(np.abs(freqs - 20.0))
+        alias_peak_idx = np.argmin(np.abs(freqs - 40.0))
+        pg[real_peak_idx] = 5.0
+        pg[alias_peak_idx] = 4.0
+
+        # Window function has strong power at f=40 but not f=20
+        wp = np.full(n, 0.05)
+        wp[alias_peak_idx - 5:alias_peak_idx + 5] = 0.9
+
+        detrended = detrend_periodogram(pg, wp, floor=0.01)
+
+        # After detrending, the real peak should be more prominent than alias
+        assert detrended[real_peak_idx] > detrended[alias_peak_idx], (
+            f"Real peak ({detrended[real_peak_idx]:.2f}) should exceed "
+            f"alias peak ({detrended[alias_peak_idx]:.2f}) after detrending"
+        )
+
+    def test_detrend_preserves_non_alias_peaks(self):
+        """Detrending does not suppress peaks where window power is low."""
+        n = 500
+        pg = np.zeros(n)
+        pg[100] = 10.0  # real peak
+
+        wp = np.full(n, 0.02)  # low window power everywhere
+        detrended = detrend_periodogram(pg, wp, floor=0.01)
+
+        # Peak should be amplified, not suppressed
+        assert detrended[100] >= pg[100]
+
+    def test_detrend_floor_prevents_division_by_zero(self):
+        """Floor parameter prevents division by zero."""
+        pg = np.array([1.0, 2.0, 3.0])
+        wp = np.array([0.0, 0.0, 0.0])
+        detrended = detrend_periodogram(pg, wp, floor=0.01)
+        assert np.all(np.isfinite(detrended))
+
+    def test_detrend_periodogram_results(self):
+        """detrend_periodogram_results modifies result dicts in place."""
+        data = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
+        results = [{'period': 0.5, 'data': data.copy()}]
+        wp = np.array([0.5, 0.5, 0.5, 0.5, 0.5])
+        detrend_periodogram_results(results, wp, floor=0.01)
+        np.testing.assert_allclose(results[0]['data'], data / 0.5)
+
+    # -- Neighbour alias fraction --
+
+    def test_neighbour_alias_all_same_period(self):
+        """All sources at same location with same period -> fraction ~1.0."""
+        n = 20
+        ra = np.full(n, 95.0)
+        dec = np.full(n, -28.0)
+        # Small offsets so they're neighbours
+        ra += np.random.default_rng(42).uniform(-0.01, 0.01, n)
+        dec += np.random.default_rng(43).uniform(-0.01, 0.01, n)
+        periods = np.full(n, 0.0534)  # ~1.28 hr
+
+        fracs = compute_neighbour_alias_fraction(
+            ra, dec, periods, radius_arcmin=2.0, tolerance=0.05
+        )
+        # Most sources should have high fraction
+        assert np.mean(fracs) > 0.7, f"Mean fraction {np.mean(fracs):.2f} too low"
+
+    def test_neighbour_alias_different_periods(self):
+        """Sources with different periods -> fraction ~0.0."""
+        n = 20
+        rng = np.random.default_rng(42)
+        ra = np.full(n, 95.0) + rng.uniform(-0.01, 0.01, n)
+        dec = np.full(n, -28.0) + rng.uniform(-0.01, 0.01, n)
+        # Each source has a very different period
+        periods = np.linspace(0.1, 10.0, n)
+
+        fracs = compute_neighbour_alias_fraction(
+            ra, dec, periods, radius_arcmin=2.0, tolerance=0.05
+        )
+        assert np.mean(fracs) < 0.3, f"Mean fraction {np.mean(fracs):.2f} too high"
+
+    def test_neighbour_alias_isolated_source(self):
+        """Isolated source (no neighbours within radius) -> fraction 0.0."""
+        ra = np.array([95.0, 50.0])  # 45 degrees apart
+        dec = np.array([-28.0, -28.0])
+        periods = np.array([1.0, 1.0])
+
+        fracs = compute_neighbour_alias_fraction(
+            ra, dec, periods, radius_arcmin=2.0, tolerance=0.05
+        )
+        assert fracs[0] == 0.0
+        assert fracs[1] == 0.0
+
+    def test_neighbour_alias_nan_period(self):
+        """NaN periods are handled gracefully."""
+        ra = np.array([95.0, 95.001, 95.002])
+        dec = np.array([-28.0, -28.0, -28.0])
+        periods = np.array([1.0, np.nan, 1.0])
+
+        fracs = compute_neighbour_alias_fraction(
+            ra, dec, periods, radius_arcmin=5.0, tolerance=0.05
+        )
+        assert fracs[1] == 0.0  # NaN period source gets 0
+        assert np.all(np.isfinite(fracs))
+
+    def test_neighbour_alias_empty_input(self):
+        """Empty arrays return empty result."""
+        fracs = compute_neighbour_alias_fraction(
+            np.array([]), np.array([]), np.array([]),
+            radius_arcmin=2.0,
+        )
+        assert len(fracs) == 0

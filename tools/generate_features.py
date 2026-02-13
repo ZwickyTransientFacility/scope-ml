@@ -3,7 +3,13 @@ import scope
 import argparse
 import pathlib
 import os
-from tools.get_quad_ids import get_ids_loop, get_field_ids
+
+try:
+    from tools.get_quad_ids import get_ids_loop, get_field_ids
+except Exception:
+    get_ids_loop = None
+    get_field_ids = None
+
 from scope.fritz import get_lightcurves_via_ids
 from scope.utils import (
     TychoBVfromGaia,
@@ -17,7 +23,6 @@ from scope.utils import (
     parse_load_config,
 )
 import numpy as np
-from penquins import Kowalski
 import pandas as pd
 from astropy.coordinates import SkyCoord, angular_separation
 import astropy.units as u
@@ -28,39 +33,11 @@ from cesium.featurize import time_series, featurize_single_ts
 import json
 from scipy.stats import circmean
 import time
+import pickle as _pickle
 
 
 BASE_DIR = pathlib.Path.cwd()
 config = parse_load_config()
-
-# use tokens specified as env vars (if exist)
-kowalski_token_env = os.environ.get("KOWALSKI_INSTANCE_TOKEN")
-gloria_token_env = os.environ.get("GLORIA_INSTANCE_TOKEN")
-melman_token_env = os.environ.get("MELMAN_INSTANCE_TOKEN")
-
-if kowalski_token_env is not None:
-    config["kowalski"]["hosts"]["kowalski"]["token"] = kowalski_token_env
-if gloria_token_env is not None:
-    config["kowalski"]["hosts"]["gloria"]["token"] = gloria_token_env
-if melman_token_env is not None:
-    config["kowalski"]["hosts"]["melman"]["token"] = melman_token_env
-
-timeout = config['kowalski']['timeout']
-
-hosts = [
-    x
-    for x in config['kowalski']['hosts']
-    if config['kowalski']['hosts'][x]['token'] is not None
-]
-instances = {
-    host: {
-        'protocol': config['kowalski']['protocol'],
-        'port': config['kowalski']['port'],
-        'host': f'{host}.caltech.edu',
-        'token': config['kowalski']['hosts'][host]['token'],
-    }
-    for host in hosts
-}
 
 source_catalog = config['kowalski']['collections']['sources']
 alerts_catalog = config['kowalski']['collections']['alerts']
@@ -74,7 +51,42 @@ path_to_features = config['feature_generation']['path_to_features']
 if path_to_features is not None:
     BASE_DIR = pathlib.Path(path_to_features)
 
-kowalski_instances = Kowalski(timeout=timeout, instances=instances)
+kowalski_instances = None
+try:
+    from penquins import Kowalski
+
+    # use tokens specified as env vars (if exist)
+    kowalski_token_env = os.environ.get("KOWALSKI_INSTANCE_TOKEN")
+    gloria_token_env = os.environ.get("GLORIA_INSTANCE_TOKEN")
+    melman_token_env = os.environ.get("MELMAN_INSTANCE_TOKEN")
+
+    if kowalski_token_env is not None:
+        config["kowalski"]["hosts"]["kowalski"]["token"] = kowalski_token_env
+    if gloria_token_env is not None:
+        config["kowalski"]["hosts"]["gloria"]["token"] = gloria_token_env
+    if melman_token_env is not None:
+        config["kowalski"]["hosts"]["melman"]["token"] = melman_token_env
+
+    timeout = config['kowalski']['timeout']
+
+    hosts = [
+        x
+        for x in config['kowalski']['hosts']
+        if config['kowalski']['hosts'][x]['token'] is not None
+    ]
+    instances = {
+        host: {
+            'protocol': config['kowalski']['protocol'],
+            'port': config['kowalski']['port'],
+            'host': f'{host}.caltech.edu',
+            'token': config['kowalski']['hosts'][host]['token'],
+        }
+        for host in hosts
+    }
+
+    kowalski_instances = Kowalski(timeout=timeout, instances=instances)
+except Exception:
+    pass
 
 
 def drop_close_bright_stars(
@@ -423,6 +435,43 @@ def update_id_dict(
                 break
 
 
+def _save_period_checkpoint(checkpoint_dir, batch_idx, all_periods, all_significances,
+                            all_pdots, all_top_n_periods, all_top_n_sigs):
+    """Save period-finding progress after a completed batch."""
+    ckpt_path = os.path.join(checkpoint_dir, 'period_checkpoint.pkl')
+    tmp_path = ckpt_path + '.tmp'
+    state = {
+        'completed_batch': batch_idx,
+        'all_periods': {k: np.array(v) if isinstance(v, np.ndarray) else v
+                        for k, v in all_periods.items()},
+        'all_significances': {k: np.array(v) if isinstance(v, np.ndarray) else v
+                              for k, v in all_significances.items()},
+        'all_pdots': {k: np.array(v) if isinstance(v, np.ndarray) else v
+                      for k, v in all_pdots.items()},
+        'all_top_n_periods': {k: list(v) for k, v in all_top_n_periods.items()},
+        'all_top_n_sigs': {k: list(v) for k, v in all_top_n_sigs.items()},
+    }
+    with open(tmp_path, 'wb') as f:
+        _pickle.dump(state, f, protocol=4)
+    os.replace(tmp_path, ckpt_path)
+    print(f'  [checkpoint] Saved after batch {batch_idx + 1}', flush=True)
+
+
+def _load_period_checkpoint(checkpoint_dir):
+    """Load period-finding checkpoint if it exists. Returns dict or None."""
+    ckpt_path = os.path.join(checkpoint_dir, 'period_checkpoint.pkl')
+    if not os.path.exists(ckpt_path):
+        return None
+    try:
+        with open(ckpt_path, 'rb') as f:
+            state = _pickle.load(f)
+        print(f'  [checkpoint] Resuming from batch {state["completed_batch"] + 2}', flush=True)
+        return state
+    except Exception as e:
+        print(f'  [checkpoint] Failed to load checkpoint: {e}', flush=True)
+        return None
+
+
 def generate_features(
     source_catalog: str = source_catalog,
     alerts_catalog: str = alerts_catalog,
@@ -453,10 +502,16 @@ def generate_features(
     quadrant_index: int = 0,
     doSpecificIDs: bool = False,
     skipCloseSources: bool = False,
-    top_n_periods: int = 50,
+    top_n_periods: int = 10,
     max_freq: float = 48.0,
     fg_dataset: str = None,
     max_timestamp_hjd: float = None,
+    local_lightcurves=None,
+    local_alert_stats=None,
+    local_xmatch=None,
+    checkpoint_dir=None,
+    qmin=0.01,
+    qmax=0.5,
 ):
     """
     Generate features for ZTF light curves
@@ -494,6 +549,9 @@ def generate_features(
     :param max_freq: maximum frequency [1 / days] to use for period finding. Overridden by --doScaleMinPeriod (float)
     :param fg_dataset*: path to parquet, hdf5 or csv file containing specific sources for feature generation (str)
     :param max_timestamp_hjd*: maximum timestamp of queried light curves, HJD (float)
+    :param local_lightcurves: pre-fetched light curve list, same format as get_lightcurves_via_ids return (list or None)
+    :param local_alert_stats: dict {source_id: {n_ztf_alerts, mean_ztf_alert_braai}} or None
+    :param local_xmatch: dict {source_id: {catalog__field: value, ...}} or None
 
     :return feature_df: dataframe containing generated features
 
@@ -591,21 +649,71 @@ def generate_features(
                 warnings.warn('No obj_id column found in dataset.')
 
         else:
-            # Load pre-saved dataset if Gaia analysis already complete
-            fg_sources_config = config['feature_generation']['ids_skipGaia']
-            fg_sources_path = str(BASE_DIR / dirname / fg_sources_config)
+            if fg_dataset is not None:
+                # Load source list directly from the provided dataset
+                fg_sources_path = str(BASE_DIR / fg_dataset)
 
-            if fg_sources_path.endswith('.json'):
-                with open(fg_sources_path, 'r') as f:
-                    fg_sources = json.load(f)
+                if fg_sources_path.endswith('.parquet'):
+                    fg_sources_df = read_parquet(fg_sources_path)
+                elif fg_sources_path.endswith('.h5'):
+                    fg_sources_df = read_hdf(fg_sources_path)
+                elif fg_sources_path.endswith('.csv'):
+                    fg_sources_df = pd.read_csv(fg_sources_path)
+                else:
+                    raise ValueError(
+                        "Sources must be stored in .parquet, .h5 or .csv format."
+                    )
+
+                try:
+                    ztf_ids = fg_sources_df['ztf_id'].values.tolist()
+                    coordinates = fg_sources_df['coordinates'].values.tolist()
+                except KeyError:
+                    raise KeyError(
+                        'Columns "ztf_id" and "coordinates" must be included in source dataset.'
+                    )
+
+                n_fg_sources = len(ztf_ids)
+                if stop_early:
+                    n_fg_sources = limit
+
+                feature_gen_source_dict = {}
+                for i in range(n_fg_sources):
+                    coord = coordinates[i]
+                    if isinstance(coord, dict):
+                        feature_gen_source_dict[ztf_ids[i]] = {
+                            'radec_geojson': {
+                                'coordinates': coord['radec_geojson']['coordinates']
+                            }
+                        }
+                    else:
+                        feature_gen_source_dict[ztf_ids[i]] = {
+                            'radec_geojson': {'coordinates': coord}
+                        }
+
+                print(f'Loaded {len(feature_gen_source_dict)} sources from {fg_dataset} (skipping Gaia filtering).')
             else:
-                raise ValueError("Sources must be stored in .json format.")
+                # Load pre-saved dataset if Gaia analysis already complete
+                fg_sources_config = config['feature_generation']['ids_skipGaia']
+                fg_sources_path = str(BASE_DIR / dirname / fg_sources_config)
 
-        n_fg_sources = len(fg_sources)
-        if stop_early:
-            n_fg_sources = limit
+                if fg_sources_path.endswith('.json'):
+                    with open(fg_sources_path, 'r') as f:
+                        fg_sources = json.load(f)
+                else:
+                    raise ValueError("Sources must be stored in .json format.")
+
+                n_fg_sources = len(fg_sources)
+                if stop_early:
+                    n_fg_sources = limit
+
+                feature_gen_source_dict = {
+                    int(k): fg_sources[k] for k in list(fg_sources)[:n_fg_sources]
+                }
 
         if not skipCloseSources:
+            n_fg_sources = len(fg_sources)
+            if stop_early:
+                n_fg_sources = min(n_fg_sources, limit)
             # Create list with same structure as query results
             if hasFritzNames:
                 dct_for_lst = {
@@ -647,28 +755,28 @@ def generate_features(
                 save_directory=dirname,
             )
 
-        else:
-            feature_gen_source_dict = {
-                int(k): fg_sources[k] for k in list(fg_sources)[:n_fg_sources]
-            }
-
-    print('Getting lightcurves...')
-    # For small source lists, shrink LC query limit until batching occurs
-    lc_limit = limit
-    if len(feature_gen_source_dict) < limit:
-        lc_limit = int(np.ceil(len(feature_gen_source_dict) / Ncore))
-
+    print('Getting lightcurves...', flush=True)
     feature_gen_ids = [x for x in feature_gen_source_dict.keys()]
 
-    lcs = get_lightcurves_via_ids(
-        kowalski_instances=kowalski_instances,
-        ids=feature_gen_ids,
-        catalog=source_catalog,
-        limit_per_query=lc_limit,
-        Ncore=Ncore,
-        get_basic_data=True,
-        max_timestamp_hjd=max_timestamp_hjd,
-    )
+    if local_lightcurves is not None:
+        lcs = local_lightcurves
+    elif kowalski_instances is not None:
+        # For small source lists, shrink LC query limit until batching occurs
+        lc_limit = limit
+        if len(feature_gen_source_dict) < limit:
+            lc_limit = int(np.ceil(len(feature_gen_source_dict) / Ncore))
+
+        lcs = get_lightcurves_via_ids(
+            kowalski_instances=kowalski_instances,
+            ids=feature_gen_ids,
+            catalog=source_catalog,
+            limit_per_query=lc_limit,
+            Ncore=Ncore,
+            get_basic_data=True,
+            max_timestamp_hjd=max_timestamp_hjd,
+        )
+    else:
+        raise ConnectionError("No Kowalski connection and no local light curve cache.")
 
     # Remake feature_gen_source_dict if some light curves are missing
     lc_ids = [lc['_id'] for lc in lcs]
@@ -676,7 +784,7 @@ def generate_features(
         feature_gen_source_dict = {x: feature_gen_source_dict[x] for x in lc_ids}
 
     feature_dict = feature_gen_source_dict.copy()
-    print('Analyzing lightcuves and computing basic features...')
+    print('Analyzing lightcuves and computing basic features...', flush=True)
     # Start by dropping flagged points
     count = 0
     baseline = 0
@@ -832,6 +940,8 @@ def generate_features(
         significance_dict = {}
         pdot_dict = {}
         do_nested_algorithms = False
+        do_top_n = False
+        top_n_periods_dict = {}
         if doCPU or doGPU:
             if doCPU and doGPU:
                 raise KeyError('Please set only one of --doCPU or --doGPU.')
@@ -857,6 +967,17 @@ def generate_features(
                     'Performing nested ELS/ECE -> EAOV period search. Other algorithms in config will be ignored.'
                 )
 
+            # When top_n_periods > 1, request periodogram output for all
+            # algorithms so we can extract the top-N peaks.
+            do_top_n = top_n_periods > 1 and not do_nested_algorithms
+            if do_top_n:
+                pa_run = [
+                    a if '_periodogram' in a else a + '_periodogram'
+                    for a in period_algorithms
+                ]
+            else:
+                pa_run = list(period_algorithms)
+
             n_sources = len(feature_dict)
             if n_sources % period_batch_size != 0:
                 n_iterations = n_sources // period_batch_size + 1
@@ -866,6 +987,9 @@ def generate_features(
             all_periods = {algorithm: [] for algorithm in period_algorithms}
             all_significances = {algorithm: [] for algorithm in period_algorithms}
             all_pdots = {algorithm: [] for algorithm in period_algorithms}
+            # top-N storage: keyed by original algo name
+            all_top_n_periods = {algorithm: [] for algorithm in period_algorithms} if do_top_n else {}
+            all_top_n_sigs = {algorithm: [] for algorithm in period_algorithms} if do_top_n else {}
 
             if do_nested_algorithms:
                 if doGPU:
@@ -883,14 +1007,31 @@ def generate_features(
             print(
                 f'Running {len(period_algorithms)} period algorithms for {len(feature_dict)} sources in batches of {period_batch_size}...'
             )
-            for i in range(0, n_iterations):
-                print(f"Iteration {i+1} of {n_iterations}...")
+            if do_top_n:
+                print(f'Saving top {top_n_periods} periods per algorithm.')
 
-                for algorithm in period_algorithms:
-                    print(f'Running {algorithm} algorithm:')
+            # --- Checkpoint resume ---
+            start_batch = 0
+            if checkpoint_dir is not None:
+                os.makedirs(checkpoint_dir, exist_ok=True)
+                ckpt = _load_period_checkpoint(checkpoint_dir)
+                if ckpt is not None:
+                    start_batch = ckpt['completed_batch'] + 1
+                    all_periods = ckpt['all_periods']
+                    all_significances = ckpt['all_significances']
+                    all_pdots = ckpt['all_pdots']
+                    all_top_n_periods = ckpt.get('all_top_n_periods', {})
+                    all_top_n_sigs = ckpt.get('all_top_n_sigs', {})
+                    print(f'  Skipping batches 1-{start_batch} (already completed)', flush=True)
+
+            for i in range(start_batch, n_iterations):
+                print(f"Iteration {i+1} of {n_iterations}...", flush=True)
+
+                for algorithm, algo_run in zip(period_algorithms, pa_run):
+                    print(f'Running {algo_run} algorithm:', flush=True)
                     # Iterate over algorithms
                     periods, significances, pdots = periodsearch.find_periods(
-                        algorithm,
+                        algo_run,
                         tme_collection[
                             i
                             * period_batch_size : min(
@@ -907,12 +1048,28 @@ def generate_features(
                         phase_bins=20,
                         mag_bins=10,
                         Ncore=Ncore,
+                        qmin=qmin,
+                        qmax=qmax,
                     )
 
                     if not do_nested_algorithms:
-                        all_periods[algorithm] = np.concatenate(
-                            [all_periods[algorithm], periods]
-                        )
+                        if do_top_n:
+                            # periods is list of dicts with 'period' and 'data'
+                            p_vals = np.array([p['period'] for p in periods])
+                            all_periods[algorithm] = np.concatenate(
+                                [all_periods[algorithm], p_vals]
+                            )
+                            top_p, top_s = periodsearch.extract_top_n_periods(
+                                periods,
+                                freqs_no_terrestrial if doRemoveTerrestrial else freqs,
+                                n_top=top_n_periods,
+                            )
+                            all_top_n_periods[algorithm].append(top_p)
+                            all_top_n_sigs[algorithm].append(top_s)
+                        else:
+                            all_periods[algorithm] = np.concatenate(
+                                [all_periods[algorithm], periods]
+                            )
 
                     else:
                         p_vals = [p['period'] for p in periods]
@@ -989,9 +1146,36 @@ def generate_features(
                     )
                     all_pdots[algorithm] = np.concatenate([all_pdots[algorithm], pdots])
 
+                # --- Save checkpoint after each batch ---
+                if checkpoint_dir is not None:
+                    _save_period_checkpoint(
+                        checkpoint_dir, i, all_periods, all_significances,
+                        all_pdots, all_top_n_periods, all_top_n_sigs,
+                    )
+
+            # --- Clean up checkpoint on successful completion ---
+            if checkpoint_dir is not None:
+                ckpt_path = os.path.join(checkpoint_dir, 'period_checkpoint.pkl')
+                if os.path.exists(ckpt_path):
+                    os.remove(ckpt_path)
+                    print('  [checkpoint] Period finding complete, checkpoint removed.', flush=True)
+
             period_dict = all_periods
             significance_dict = all_significances
             pdot_dict = all_pdots
+
+            # Concatenate top-N arrays across batches
+            if do_top_n:
+                top_n_periods_dict = {}
+                top_n_sigs_dict = {}
+                for algorithm in period_algorithms:
+                    if all_top_n_periods.get(algorithm):
+                        top_n_periods_dict[algorithm] = np.concatenate(
+                            all_top_n_periods[algorithm], axis=0
+                        )
+                        top_n_sigs_dict[algorithm] = np.concatenate(
+                            all_top_n_sigs[algorithm], axis=0
+                        )
 
             if do_nested_algorithms:
                 period_algorithms += [nested_key]
@@ -1024,7 +1208,39 @@ def generate_features(
                 feature_dict[_id][f'significance_{algorithm_name}'] = significance
                 feature_dict[_id][f'pdot_{algorithm_name}'] = pdot
 
-        print(f'Computing Fourier stats for {len(period_dict)} algorithms...')
+        # --- Top-N periods and cross-algorithm agreement ---
+        if do_top_n and top_n_periods_dict:
+            print(f'Storing top {top_n_periods} periods per algorithm...', flush=True)
+            for algorithm in period_algorithms:
+                if algorithm not in top_n_periods_dict:
+                    continue
+                if algorithm not in ["ELS_ECE_EAOV", "LS_CE_AOV"]:
+                    algorithm_name = algorithm.split('_')[0]
+                else:
+                    algorithm_name = algorithm
+                top_p = top_n_periods_dict[algorithm]
+                top_s = top_n_sigs_dict[algorithm]
+                for idx, _id in enumerate(keep_id_list):
+                    for rank in range(top_n_periods):
+                        feature_dict[_id][f'period_{rank+1}_{algorithm_name}'] = float(
+                            top_p[idx, rank]
+                        )
+                        feature_dict[_id][f'significance_{rank+1}_{algorithm_name}'] = float(
+                            top_s[idx, rank]
+                        )
+
+            # Cross-algorithm agreement scores
+            print('Computing cross-algorithm agreement scores...')
+            agree_results = periodsearch.compute_agreement_scores(
+                period_dict,
+                top_n_periods_dict,
+                keep_id_list,
+                period_algorithms,
+            )
+            for _id, scores in agree_results.items():
+                feature_dict[_id].update(scores)
+
+        print(f'Computing Fourier stats for {len(period_dict)} algorithms...', flush=True)
         id_list = list(tme_dict.keys())
         lightcurves_ordered = [tme_dict[_id]['tme'] for _id in id_list]
 
@@ -1066,7 +1282,7 @@ def generate_features(
                         fourier_features[idx, i]
                     )
 
-        print('Computing dmdt histograms...')
+        print('Computing dmdt histograms...', flush=True)
         id_list_dmdt = list(tme_dict.keys())
         lightcurves_dmdt = [tme_dict[_id]['tme'] for _id in id_list_dmdt]
         dmdt_arr = periodsearch.compute_dmdt_features(lightcurves_dmdt, dmdt_ints)
@@ -1075,29 +1291,42 @@ def generate_features(
             feature_dict[_id]['dmdt'] = dmdt_arr[idx].tolist()
 
         # Get ZTF alert stats
-        alert_stats_dct = alertstats.get_ztf_alert_stats(
-            feature_dict,
-            kowalski_instances,
-            catalog=alerts_catalog,
-            radius_arcsec=xmatch_radius_arcsec,
-            limit=limit,
-            Ncore=Ncore,
-        )
-        for _id in feature_dict.keys():
-            feature_dict[_id]['n_ztf_alerts'] = alert_stats_dct[_id]['n_ztf_alerts']
-            feature_dict[_id]['mean_ztf_alert_braai'] = alert_stats_dct[_id][
-                'mean_ztf_alert_braai'
-            ]
+        if local_alert_stats is not None:
+            for _id in feature_dict.keys():
+                stats = local_alert_stats.get(_id, {'n_ztf_alerts': 0, 'mean_ztf_alert_braai': 0.0})
+                feature_dict[_id]['n_ztf_alerts'] = stats['n_ztf_alerts']
+                feature_dict[_id]['mean_ztf_alert_braai'] = stats['mean_ztf_alert_braai']
+        else:
+            alert_stats_dct = alertstats.get_ztf_alert_stats(
+                feature_dict,
+                kowalski_instances,
+                catalog=alerts_catalog,
+                radius_arcsec=xmatch_radius_arcsec,
+                limit=limit,
+                Ncore=Ncore,
+            )
+            for _id in feature_dict.keys():
+                feature_dict[_id]['n_ztf_alerts'] = alert_stats_dct[_id]['n_ztf_alerts']
+                feature_dict[_id]['mean_ztf_alert_braai'] = alert_stats_dct[_id][
+                    'mean_ztf_alert_braai'
+                ]
 
         # Add crossmatches to Gaia, AllWISE and PS1 (by default, see config.yaml)
-        feature_dict = external_xmatch.xmatch(
-            feature_dict,
-            kowalski_instances,
-            ext_catalog_info,
-            radius_arcsec=xmatch_radius_arcsec,
-            limit=limit,
-            Ncore=Ncore,
-        )
+        if local_xmatch is not None:
+            for _id in feature_dict.keys():
+                xm = local_xmatch.get(_id, {})
+                feature_dict[_id].update(xm)
+        elif kowalski_instances is not None:
+            feature_dict = external_xmatch.xmatch(
+                feature_dict,
+                kowalski_instances,
+                ext_catalog_info,
+                radius_arcsec=xmatch_radius_arcsec,
+                limit=limit,
+                Ncore=Ncore,
+            )
+        else:
+            warnings.warn("Skipping external cross-matches (Kowalski not available and no local cache).")
         feature_df = pd.DataFrame.from_dict(feature_dict, orient='index')
 
         # Rename index column to '_id' and reset index
@@ -1354,7 +1583,7 @@ def get_parser(**kwargs):
     parser.add_argument(
         "--top-n-periods",
         type=int,
-        default=50,
+        default=10,
         help="number of (E)LS, (E)CE periods to pass to (E)AOV if using (E)LS_(E)CE_(E)AOV algorithm",
     )
     parser.add_argument(
@@ -1373,6 +1602,24 @@ def get_parser(**kwargs):
         "--max-timestamp-hjd",
         type=float,
         help="maximum timestamp for queried light curves (HJD)",
+    )
+    parser.add_argument(
+        "--checkpoint-dir",
+        type=str,
+        default=None,
+        help="directory for period-finding checkpoints (enables resume on restart)",
+    )
+    parser.add_argument(
+        "--qmin",
+        type=float,
+        default=0.01,
+        help="BLS minimum transit/eclipse duration as fraction of period (default 0.01)",
+    )
+    parser.add_argument(
+        "--qmax",
+        type=float,
+        default=0.5,
+        help="BLS maximum transit/eclipse duration as fraction of period (default 0.5)",
     )
     return parser
 
@@ -1417,4 +1664,7 @@ def main():
         max_freq=args.max_freq,
         fg_dataset=args.fg_dataset,
         max_timestamp_hjd=args.max_timestamp_hjd,
+        checkpoint_dir=args.checkpoint_dir,
+        qmin=args.qmin,
+        qmax=args.qmax,
     )

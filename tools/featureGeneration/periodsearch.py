@@ -1,5 +1,4 @@
 import numpy as np
-import fast_histogram
 import warnings
 
 import periodfind
@@ -8,7 +7,7 @@ import periodfind
 # Algorithm name mapping
 # ---------------------------------------------------------------------------
 
-_ALGO_MAP = {"CE", "AOV", "LS", "FPW"}
+_ALGO_MAP = {"CE", "AOV", "LS", "FPW", "BLS"}
 
 
 def _normalize_algorithm(algorithm):
@@ -128,13 +127,13 @@ def find_periods(
     phase_bins=20,
     mag_bins=10,
     Ncore=8,
+    qmin=0.01,
+    qmax=0.5,
 ):
 
-    if doRemoveTerrestrial and (freqs_to_remove is not None):
-        indexes = []
+    if freqs_to_remove is not None:
         for pair in freqs_to_remove:
             idx = np.where((freqs < pair[0]) | (freqs > pair[1]))[0]
-            indexes += [idx]
             freqs = freqs[idx]
 
     periods_best, significances = [], []
@@ -149,7 +148,7 @@ def find_periods(
     # -----------------------------------------------------------------------
     if algo_name in _ALGO_MAP:
         device = 'gpu' if doGPU else 'cpu'
-        needs_errs = algo_name == "FPW"
+        needs_errs = algo_name in ("FPW", "BLS")
 
         # Create algorithm via unified factory
         if algo_name == "CE":
@@ -162,6 +161,10 @@ def find_periods(
             algo = periodfind.LombScargle(device=device)
         elif algo_name == "FPW":
             algo = periodfind.FPW(n_bins=phase_bins, device=device)
+        elif algo_name == "BLS":
+            algo = periodfind.BoxLeastSquares(
+                n_bins=50, qmin=qmin, qmax=qmax, device=device
+            )
 
         # Prepare data
         if needs_errs:
@@ -241,43 +244,19 @@ def find_periods(
             pdots = pdots.flatten()
             significances = significances.flatten()
 
-    # -----------------------------------------------------------------------
-    # AOV_cython (separate Cython library, not periodfind)
-    # -----------------------------------------------------------------------
-    elif algorithm == "AOV_cython":
-        from AOV_cython import aov as pyaov
-
-        for ii, data in enumerate(lightcurves):
-            if (np.mod(ii, 10) == 0) | ((ii + 1) == len(lightcurves)):
-                print("%d/%d" % (ii + 1, len(lightcurves)))
-
-            copy = np.ma.copy(data).T
-            copy[:, 1] = (copy[:, 1] - np.min(copy[:, 1])) / (
-                np.max(copy[:, 1]) - np.min(copy[:, 1])
-            )
-
-            aov = pyaov(
-                freqs,
-                copy[:, 0],
-                copy[:, 1],
-                np.mean(copy[:, 1]),
-                len(copy[:, 0]),
-                10,
-                len(freqs),
-            )
-
-            significance = np.abs(np.mean(aov) - np.max(aov)) / np.std(aov)
-            freq = freqs[np.argmax(aov)]
-            period = 1.0 / freq
-
-            periods_best.append(period)
-            significances.append(significance)
-
     return np.array(periods_best), np.array(significances), np.array(pdots)
 
 
-def extract_top_n_periods(periodogram_results, freqs, n_top=8):
-    """Extract top N periods from periodogram output of find_periods.
+def extract_top_n_periods(periodogram_results, freqs, n_top=8,
+                          n_chunks_multiplier=3):
+    """Extract top N periods from periodogram using hybrid chunking.
+
+    The frequency grid is divided into ``n_chunks_multiplier * n_top``
+    equal-width chunks.  The single best peak from each chunk is recorded,
+    then all chunk-winners are ranked by significance and the top ``n_top``
+    are returned.  This guarantees that the returned periods come from
+    distinct regions of frequency space, avoiding the adjacent-bin
+    duplication problem of the previous sort-and-take approach.
 
     Parameters
     ----------
@@ -289,6 +268,10 @@ def extract_top_n_periods(periodogram_results, freqs, n_top=8):
         The frequency grid used for period finding.
     n_top : int
         Number of top periods to return per source.
+    n_chunks_multiplier : int
+        The periodogram is split into ``n_chunks_multiplier * n_top``
+        chunks.  Higher values give finer coverage but may split real
+        peaks across chunk boundaries.  Default 3.
 
     Returns
     -------
@@ -302,9 +285,12 @@ def extract_top_n_periods(periodogram_results, freqs, n_top=8):
     top_periods = np.full((n_sources, n_top), np.nan, dtype=np.float64)
     top_significances = np.full((n_sources, n_top), np.nan, dtype=np.float64)
 
+    n_chunks = n_chunks_multiplier * n_top
+
     for i, res in enumerate(periodogram_results):
         data = res['data'].flatten()
-        if len(data) == 0:
+        n_freqs = len(data)
+        if n_freqs == 0:
             continue
 
         mean_val = np.mean(data)
@@ -315,23 +301,252 @@ def extract_top_n_periods(periodogram_results, freqs, n_top=8):
         # CE uses minima; others use maxima
         best_idx_min = np.argmin(data)
         best_period = res['period']
+        use_minima = np.isclose(
+            periods_grid[best_idx_min], best_period, rtol=1e-4
+        )
 
-        # Determine if this is a CE algorithm (minima = best) by checking
-        # which extreme matches the reported best period
-        use_minima = np.isclose(periods_grid[best_idx_min], best_period, rtol=1e-4)
-
-        if use_minima:
-            sorted_indices = np.argsort(data)  # ascending = best CE first
-            sigs = np.abs(mean_val - data[sorted_indices]) / std_val
-        else:
-            sorted_indices = np.argsort(data)[::-1]  # descending = best LS/AOV first
+        chunk_size = n_freqs // n_chunks
+        if chunk_size < 1:
+            # Fewer frequency bins than chunks — fall back to simple sort
+            if use_minima:
+                sorted_indices = np.argsort(data)
+            else:
+                sorted_indices = np.argsort(data)[::-1]
             sigs = np.abs(data[sorted_indices] - mean_val) / std_val
+            n_fill = min(n_top, len(sorted_indices))
+            top_periods[i, :n_fill] = periods_grid[sorted_indices[:n_fill]]
+            top_significances[i, :n_fill] = sigs[:n_fill]
+            continue
 
-        n_fill = min(n_top, len(sorted_indices))
-        top_periods[i, :n_fill] = periods_grid[sorted_indices[:n_fill]]
-        top_significances[i, :n_fill] = sigs[:n_fill]
+        # Find best peak in each chunk
+        chunk_periods = np.empty(n_chunks, dtype=np.float64)
+        chunk_sigs = np.empty(n_chunks, dtype=np.float64)
+
+        for c in range(n_chunks):
+            lo = c * chunk_size
+            hi = lo + chunk_size if c < n_chunks - 1 else n_freqs
+            chunk_data = data[lo:hi]
+
+            if use_minima:
+                best_local = np.argmin(chunk_data)
+            else:
+                best_local = np.argmax(chunk_data)
+
+            best_global = lo + best_local
+            chunk_periods[c] = periods_grid[best_global]
+            chunk_sigs[c] = abs(data[best_global] - mean_val) / std_val
+
+        # Rank by significance and keep top n_top
+        order = np.argsort(chunk_sigs)[::-1]
+        n_fill = min(n_top, len(order))
+        top_periods[i, :n_fill] = chunk_periods[order[:n_fill]]
+        top_significances[i, :n_fill] = chunk_sigs[order[:n_fill]]
 
     return top_periods, top_significances
+
+
+def _period_match(pa_val, pb_val, tolerance=0.05, harmonics=None):
+    """Check if two periods match within tolerance, allowing harmonics.
+
+    Parameters
+    ----------
+    pa_val, pb_val : float
+        Period values to compare.
+    tolerance : float
+        Fractional tolerance for matching (default 0.05 = 5%).
+    harmonics : list of float or None
+        Harmonic ratios to check.  ``None`` uses [1, 0.5, 2, 1/3, 3].
+
+    Returns
+    -------
+    bool
+    """
+    if harmonics is None:
+        harmonics = [1.0, 0.5, 2.0, 1.0 / 3, 3.0]
+    if np.isnan(pa_val) or np.isnan(pb_val) or pa_val <= 0 or pb_val <= 0:
+        return False
+    for h in harmonics:
+        if abs(pa_val / (pb_val * h) - 1.0) < tolerance:
+            return True
+    return False
+
+
+def compute_agreement_scores(
+    period_dict,
+    top_n_periods_dict,
+    keep_id_list,
+    period_algorithms,
+    min_agree_period=0.007,
+    harmonics=None,
+    tolerance=0.05,
+):
+    """Compute cross-algorithm agreement scores for period finding.
+
+    Multi-tier scoring with spurious-period filtering and expanded
+    harmonics.  This was originally inlined in
+    ``generate_features_rubin.py`` and is now shared across pipelines.
+
+    Parameters
+    ----------
+    period_dict : dict
+        ``{algorithm_key: 1-D array}`` of best periods per source,
+        indexed in the same order as *keep_id_list*.
+    top_n_periods_dict : dict
+        ``{algorithm_key: 2-D array (n_sources, n_top)}`` of ranked
+        periods per source.
+    keep_id_list : list
+        Source identifiers, one per row in the arrays above.
+    period_algorithms : list of str
+        Algorithm keys present in *period_dict* / *top_n_periods_dict*.
+        Names like ``"ELS_ECE_EAOV"`` or ``"LS_CE_AOV"`` are kept
+        verbatim; all others are shortened with ``algo.split('_')[0]``.
+    min_agree_period : float
+        Periods shorter than this (days) are treated as spurious and
+        excluded from agreement checks.
+    harmonics : list of float or None
+        Harmonic ratios passed to :func:`_period_match`.
+    tolerance : float
+        Fractional tolerance passed to :func:`_period_match`.
+
+    Returns
+    -------
+    dict
+        ``{source_id: {feature_name: value, ...}}`` with keys:
+        ``n_agree_pairs``, ``n_total_pairs``, ``agree_score``,
+        ``agree_strict``, ``agree_weighted``, ``best_agree_period``,
+        ``best_consensus_period``.
+    """
+    if harmonics is None:
+        harmonics = [1.0, 0.5, 2.0, 1.0 / 3, 3.0]
+
+    NESTED_NAMES = {"ELS_ECE_EAOV", "LS_CE_AOV"}
+
+    def _algo_display(algo):
+        return algo if algo in NESTED_NAMES else algo.split('_')[0]
+
+    # Build ordered list of (algo_key, display_name) for algorithms that
+    # have top-N data.
+    algo_pairs = []
+    for algo in period_algorithms:
+        if algo in top_n_periods_dict:
+            algo_pairs.append((algo, _algo_display(algo)))
+
+    results = {}
+    for idx, _id in enumerate(keep_id_list):
+        # Per-source lookup tables
+        top_lists = {}
+        best_period_per_algo = {}
+        for algo_key, aname in algo_pairs:
+            top_lists[aname] = top_n_periods_dict[algo_key][idx]
+            best_period_per_algo[aname] = period_dict[algo_key][idx]
+
+        anames = list(top_lists.keys())
+        total_pairs = len(anames) * (len(anames) - 1) // 2
+
+        # --- agree_strict: top-1 only, filtered, expanded harmonics ---
+        n_strict = 0
+        for ii in range(len(anames)):
+            for jj in range(ii + 1, len(anames)):
+                p_a = best_period_per_algo[anames[ii]]
+                p_b = best_period_per_algo[anames[jj]]
+                if p_a >= min_agree_period and p_b >= min_agree_period:
+                    if _period_match(p_a, p_b, tolerance, harmonics):
+                        n_strict += 1
+
+        # --- agree_score: top-N with filtering ---
+        n_agree_pairs = 0
+        best_agree_period = np.nan
+        for ii in range(len(anames)):
+            for jj in range(ii + 1, len(anames)):
+                ps_a = top_lists[anames[ii]]
+                ps_b = top_lists[anames[jj]]
+                matched = False
+                for pa_val in ps_a:
+                    if np.isnan(pa_val) or pa_val < min_agree_period:
+                        continue
+                    if matched:
+                        break
+                    for pb_val in ps_b:
+                        if np.isnan(pb_val) or pb_val < min_agree_period:
+                            continue
+                        if _period_match(pa_val, pb_val, tolerance, harmonics):
+                            matched = True
+                            if np.isnan(best_agree_period):
+                                best_agree_period = pa_val
+                            break
+                if matched:
+                    n_agree_pairs += 1
+
+        # --- agree_weighted: rank-weighted, weight = 1/(rank_i * rank_j) ---
+        weighted_sum = 0.0
+        weight_total = 0.0
+        for ii in range(len(anames)):
+            for jj in range(ii + 1, len(anames)):
+                ps_a = top_lists[anames[ii]]
+                ps_b = top_lists[anames[jj]]
+                pair_weight = 0.0
+                for ri, pa_val in enumerate(ps_a):
+                    if np.isnan(pa_val) or pa_val < min_agree_period:
+                        continue
+                    for rj, pb_val in enumerate(ps_b):
+                        if np.isnan(pb_val) or pb_val < min_agree_period:
+                            continue
+                        if _period_match(pa_val, pb_val, tolerance, harmonics):
+                            w = 1.0 / ((ri + 1) * (rj + 1))
+                            if w > pair_weight:
+                                pair_weight = w
+                weighted_sum += pair_weight
+                weight_total += 1.0
+
+        # --- best_consensus_period: period with most weighted matches ---
+        period_votes = {}
+        for aname in anames:
+            for rank, p in enumerate(top_lists[aname]):
+                if np.isnan(p) or p < min_agree_period:
+                    continue
+                vote_weight = 0.0
+                for other in anames:
+                    if other == aname:
+                        continue
+                    for rj, p_other in enumerate(top_lists[other]):
+                        if np.isnan(p_other) or p_other < min_agree_period:
+                            continue
+                        if _period_match(p, p_other, tolerance, harmonics):
+                            vote_weight += 1.0 / ((rank + 1) * (rj + 1))
+                            break
+                matched_key = None
+                for existing_p in period_votes:
+                    if _period_match(p, existing_p, tolerance, harmonics):
+                        matched_key = existing_p
+                        break
+                if matched_key is not None:
+                    period_votes[matched_key] += vote_weight
+                else:
+                    period_votes[p] = vote_weight
+
+        best_consensus = np.nan
+        if period_votes:
+            best_consensus = max(period_votes, key=period_votes.get)
+            if period_votes[best_consensus] == 0:
+                best_consensus = np.nan
+
+        results[_id] = {
+            'n_agree_pairs': n_agree_pairs,
+            'n_total_pairs': total_pairs,
+            'agree_score': (
+                n_agree_pairs / total_pairs if total_pairs > 0 else 0.0
+            ),
+            'agree_strict': (
+                n_strict / total_pairs if total_pairs > 0 else 0.0
+            ),
+            'agree_weighted': (
+                weighted_sum / weight_total if weight_total > 0 else 0.0
+            ),
+            'best_agree_period': best_agree_period,
+            'best_consensus_period': best_consensus,
+        }
+
+    return results
 
 
 def compute_fourier_features(lightcurves, periods):
@@ -438,168 +653,3 @@ def remove_high_cadence_batch(tme_list, cadence_minutes=30.0):
     return periodfind.remove_high_cadence(times, mags, errs, cadence_minutes)
 
 
-def calc_AOV(amhw, data, freqs_to_keep, df):
-    copy = np.ma.copy(data).T
-    copy[:, 1] = (copy[:, 1] - np.min(copy[:, 1])) / (
-        np.max(copy[:, 1]) - np.min(copy[:, 1])
-    )
-
-    freqs, aovs = np.empty((0, 1)), np.empty((0, 1))
-    for _, fr0 in enumerate(freqs_to_keep):
-        err = copy[:, 2]
-        aov, frtmp, _ = amhw(
-            copy[:, 0],
-            copy[:, 1],
-            err,
-            fr0=fr0 - 50 * df,
-            fstop=fr0 + 50 * df,
-            fstep=df / 2.0,
-            nh2=4,
-        )
-        idx = np.where(frtmp > 0)[0]
-
-        aovs = np.append(aovs, aov[idx])
-        freqs = np.append(freqs, frtmp[idx])
-
-    significance = np.abs(np.mean(aovs) - np.max(aovs)) / np.std(aovs)
-    periods = 1.0 / freqs
-    significance = np.max(aovs)
-    period = periods[np.argmax(aovs)]
-
-    return [period, significance]
-
-
-def CE(period, data, xbins=10, ybins=5):
-    """
-    Returns the conditional entropy of *data* rephased with *period*.
-
-    **Parameters**
-
-    period : number
-        The period to rephase *data* by.
-    data : array-like, shape = [n_samples, 2] or [n_samples, 3]
-        Array containing columns *time*, *mag*, and (optional) *error*.
-    xbins : int, optional
-        Number of phase bins (default 10).
-    ybins : int, optional
-        Number of magnitude bins (default 5).
-    """
-    if period <= 0:
-        return np.PINF
-
-    r = np.ma.array(data, copy=True)
-    r[:, 0] = np.mod(r[:, 0], period) / period
-
-    bins = fast_histogram.histogram2d(
-        r[:, 0], r[:, 1], range=[[0, 1], [0, 1]], bins=[xbins, ybins]
-    )
-    size = r.shape[0]
-
-    if size > 0:
-        divided_bins = bins / size
-
-        # indices where that is positive to avoid division by zero
-        arg_positive = divided_bins > 0
-
-        # array containing the sums of each column in the bins array
-        column_sums = np.sum(divided_bins, axis=1)  # changed 0 by 1
-
-        # array is repeated row-wise, so that it can be sliced by arg_positive
-        column_sums = np.repeat(np.atleast_2d(column_sums).T, ybins, axis=1)
-
-        # select only the elements in both arrays which correspond to a positive bin
-        select_divided_bins = divided_bins[arg_positive]
-        select_column_sums = column_sums[arg_positive]
-
-        # initialize the result array
-        A = np.empty((xbins, ybins), dtype=float)
-
-        # store at every index [i,j] in A which corresponds to a positive bin:
-        A[arg_positive] = select_divided_bins * np.log(
-            select_column_sums / select_divided_bins
-        )
-
-        # store 0 at every index in A which corresponds to a non-positive bin
-        A[~arg_positive] = 0
-
-        # return the summation
-        return np.sum(A)
-
-    else:
-        return np.PINF
-
-
-def amhw(time, amplitude, error, fstop, fstep, nh2=3, fr0=0.0):
-    '''
-    th,fr,frmax=pyaov.amhw(time, valin, error, fstop, fstep, nh2=3, fr0=0.)
-
-    Purpose: Returns multiharmonic AOV periodogram, obtained by fitting data
-        with a series of trigonometric polynomials. For default nh2=3 this
-        is Lomb-Scargle periodogram corrected for constant shift.
-    Input:
-        time, amplitude, error : numpy arrays of size (n*1)
-        fstop: frequency to stop calculation at, float
-        fstep: size of frequency steps, float
-    Optional input:
-        nh2[=3]: no. of model parms. (number of harmonics=nh2/2)
-        fr0[=0.]: start frequency
-
-    Output:
-        th,fr: periodogram values & frequencies: numpy arrays of size (m*1)
-              where m = (fstop-fr0)/fstep+1
-        frmax: frequency of maximum
-
-    Method:
-        General method involving projection onto orthogonal trigonometric
-        polynomials is due to Schwarzenberg-Czerny, 1996. For nh2=2 or 3 it reduces
-        Ferraz-Mello (1991), i.e. to Lomb-Scargle periodogram improved by constant
-        shift of values. Advantage of the shift is vividly illustrated by Foster (1995).
-    Please quote:
-        A.Schwarzenberg-Czerny, 1996, Astrophys. J.,460, L107.
-    Other references:
-        Foster, G., 1995, AJ v.109, p.1889 (his Fig.1).
-        Ferraz-Mello, S., 1981, AJ v.86, p.619.
-        Lomb, N. R., 1976, Ap&SS v.39, p.447.
-        Scargle, J. D., 1982, ApJ v.263, p.835.
-    '''
-    #
-    # Python wrapper for period search routines
-    # (C) Alex Schwarzenberg-Czerny, 2011                alex@camk.edu.pl
-    # Based on the wrapper scheme contributed by Ewald Zietsman <ewald.zietsman@gmail.com>
-    import aov as _aov
-
-    # check the arrays here, make sure they are all the same size
-    try:
-        assert time.size == amplitude.size == error.size
-    except AssertionError:
-        print('Input arrays must be the same dimensions')
-        return 0
-
-    # check the other input values
-    try:
-        assert fstop > 0
-        assert fstep > 0
-    except AssertionError:
-        print('Frequency stop and step values must be greater than 0')
-        return 0
-
-    # maybe something else can go wrong?
-    try:
-        th, frmax = _aov.aov.aovmhw(
-            time,
-            amplitude,
-            error,
-            fstep,
-            int((fstop - fr0) / fstep + 1),
-            fr0=fr0,
-            nh2=nh2,
-        )
-
-        # make an array that contains the frequencies too
-        freqs = np.linspace(fr0, fstop, int((fstop - fr0) / fstep + 1))
-        return th, freqs, frmax
-
-    except Exception as e:
-        print(e)
-        print("Something unexpected went wrong!!")
-        return 0
