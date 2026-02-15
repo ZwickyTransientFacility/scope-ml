@@ -395,6 +395,7 @@ class Scope:
             golden_sets = self.base_path / "data" / "golden"
             for golden_set in golden_sets.glob("*.csv"):
                 golden_set_name = golden_set.stem
+                display_name = golden_set_name.replace("_", " ").title()
                 positions = pd.read_csv(golden_set).to_numpy().tolist()
                 features = self._get_features(
                     positions=positions, period_suffix=period_suffix_config
@@ -411,6 +412,7 @@ class Scope:
                     features=features,
                     limits=limits,
                     loglimits=loglimits,
+                    title=f"Period Distribution: {display_name}",
                     save=path_doc_data / f"period__{golden_set_name}",
                     period_suffix=period_suffix_config,
                 )
@@ -424,11 +426,13 @@ class Scope:
             golden_sets = self.base_path / "data" / "golden"
             for golden_set in golden_sets.glob("*.csv"):
                 golden_set_name = golden_set.stem
+                display_name = golden_set_name.replace("_", " ").title()
                 positions = pd.read_csv(golden_set).to_numpy().tolist()
 
                 plot_gaia_density(
                     positions=positions,
                     path_gaia_density=path_gaia_density,
+                    title=f"Sky Distribution: {display_name}",
                     save=path_doc_data / f"radec__{golden_set_name}",
                 )
 
@@ -460,12 +464,14 @@ class Scope:
             golden_sets = self.base_path / "data" / "golden"
             for golden_set in golden_sets.glob("*.csv"):
                 golden_set_name = golden_set.stem
+                display_name = golden_set_name.replace("_", " ").title()
                 positions = pd.read_csv(golden_set).to_numpy().tolist()
                 gaia_sources = self._get_nearest_gaia(positions=positions)
 
                 plot_gaia_hr(
                     gaia_data=gaia_sources,
                     path_gaia_hr_histogram=path_gaia_hr_histogram,
+                    title=f"HR Diagram: {display_name}",
                     save=path_doc_data / f"hr__{golden_set_name}",
                 )
 
