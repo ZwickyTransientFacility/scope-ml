@@ -18,6 +18,7 @@ Refer to [arXiv:2102.11304](https://arxiv.org/pdf/2102.11304.pdf) for more detai
 - [Cataclysmic Variables](cvs.md)
 - [Flaring Variables](flaring.md)
 - [Beta Lyrae](beta-lyr.md)
+- [Ellipsoidal Variables](ellipsoidal.md)
 - [Eclipsing Variables](eclipsing.md)
 - [RS CVn](rs-cvn.md)
 - [Long Period Variables](lpv.md)
