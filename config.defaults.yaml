@@ -390,6 +390,42 @@ docs:
     srv:
       coordinates: [ 330.302266, 66.153712 ]
       title: Semi Regular Variable
+    eclipsing:
+      coordinates: [13.572527, 8.874651]
+      period: 1.739625
+      title: Eclipsing variable
+    rs_cvn_1:
+      coordinates: [344.8924, 6.1829]
+      period: 2.834970
+      title: RS CVn
+    rs_cvn_2:
+      coordinates: [349.1745, 36.5569]
+      period: 5.900631
+      title: RS CVn with modulation
+    yso_sinusoidal:
+      coordinates: [313.4279, 44.0635]
+      title: YSO (sinusoidal)
+    yso_quasi_periodic:
+      coordinates: [312.7287, 44.3828]
+      title: YSO (quasi-periodic)
+    yso_stochastic:
+      coordinates: [313.5670, 44.4029]
+      title: YSO (stochastic)
+    yso_burster:
+      coordinates: [313.5959, 44.3209]
+      title: YSO (burster)
+    yso_outburster:
+      coordinates: [313.7666, 44.7407]
+      title: YSO (outburster)
+    yso_dipper:
+      coordinates: [312.8311, 44.3251]
+      title: YSO (dipper)
+    yso_fader:
+      coordinates: [314.1945, 43.7672]
+      title: YSO (fader)
+    yso_longterm_drifter:
+      coordinates: [314.5451, 43.8856]
+      title: YSO (longterm drifter)
     variable:
       coordinates: [ 102.5537728, 44.1032507 ]
       title: Variable stars
@@ -1482,6 +1518,7 @@ feature_generation:
       - CE
       - AOV
       - FPW
+      - MHF
     GPU:
       # If ELS_ECE_EAOV is set, period finding will be run using a nested approach which passes the top N ELS and ECE periods to EAOV.
       # Individual ELS, ECE and EAOV periods will also be saved.

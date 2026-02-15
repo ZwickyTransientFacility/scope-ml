@@ -58,7 +58,10 @@ nav:
     - Cataclysmic Variables: field-guide/cvs.md
     - Flaring Variables: field-guide/flaring.md
     - Beta Lyrae: field-guide/beta-lyr.md
+    - Eclipsing Variables: field-guide/eclipsing.md
+    - RS CVn: field-guide/rs-cvn.md
     - Long Period Variables: field-guide/lpv.md
+    - Young Stellar Objects: field-guide/yso.md
     - Bogus Variability: field-guide/bogus.md
   - Reference:
     - CLI Reference: reference/cli.md
