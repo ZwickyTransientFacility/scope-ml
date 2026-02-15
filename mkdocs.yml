@@ -50,7 +50,10 @@ nav:
   - Field Guide:
     - Overview: field-guide/index.md
     - Variable Stars: field-guide/variable.md
+    - Irregular Variables: field-guide/irregular.md
+    - Dipping Variables: field-guide/dipping.md
     - Periodic Variables: field-guide/periodic.md
+    - Pulsating Variables: field-guide/pulsating.md
     - RR Lyrae: field-guide/rr-lyrae.md
     - W UMa: field-guide/w-uma.md
     - Delta Scuti: field-guide/delta-scuti.md

@@ -7,7 +7,10 @@ Refer to [arXiv:2102.11304](https://arxiv.org/pdf/2102.11304.pdf) for more detai
 ## Source Classes
 
 - [Variable Stars](variable.md)
+- [Irregular Variables](irregular.md)
+- [Dipping Variables](dipping.md)
 - [Periodic Variables](periodic.md)
+- [Pulsating Variables](pulsating.md)
 - [RR Lyrae](rr-lyrae.md)
 - [W UMa](w-uma.md)
 - [Delta Scuti](delta-scuti.md)
