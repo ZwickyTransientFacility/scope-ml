@@ -763,6 +763,7 @@ class Scope:
         plot_model: bool = False,
         weights_only: bool = False,
         skip_cv: bool = False,
+        evaluate_test: bool = True,
         **kwargs,
     ):
         """Train classifier
@@ -805,12 +806,18 @@ class Scope:
         :param plot_model: if set, plot model architecture (bool)
         :param weights_only: if set and pre-trained model specified, load only weights (bool)
         :param skip_cv: if set, skip XGB cross-validation (bool)
+        :param evaluate_test: if True (default), log test/dropped-sample metrics to WandB.
+            Set to False to skip WandB logging (e.g. during unit tests). (bool)
 
         :return:
         """
 
         from .xgb import XGB
         from .utils import Dataset
+
+        # backward compatibility: accept test=True to mean evaluate_test=False
+        if "test" in kwargs:
+            evaluate_test = not kwargs.pop("test")
 
         if path_dataset is None:
             path_dataset = self.default_path_dataset
@@ -1145,7 +1152,7 @@ class Scope:
             if verbose:
                 print(classifier.model.summary())
 
-            if not kwargs.get("test", False):
+            if evaluate_test:
                 wandb.login(key=self.config["wandb"]["token"])
                 wandb.init(
                     job_type=job_type,
@@ -1267,7 +1274,7 @@ class Scope:
                 "recall",
                 "auc",
             )
-            if not kwargs.get("test", False):
+            if evaluate_test:
                 # log model performance on the test set
                 for param, value in zip(param_names, stats_test):
                     wandb.run.summary[f"test_{param}"] = value
@@ -1275,7 +1282,9 @@ class Scope:
                     wandb.run.summary["test_precision"],
                     wandb.run.summary["test_recall"],
                 )
-                wandb.run.summary["test_f1"] = 2 * p * r / (p + r)
+                wandb.run.summary["test_f1"] = (
+                    2 * p * r / (p + r) if (p + r) > 0 else 0.0
+                )
 
             if datasets["dropped_samples"] is not None:
                 # log model performance on the dropped samples
@@ -1287,14 +1296,16 @@ class Scope:
                 if verbose:
                     print(stats)
 
-                if not kwargs.get("test", False):
+                if evaluate_test:
                     for param, value in zip(param_names, stats):
                         wandb.run.summary[f"dropped_samples_{param}"] = value
                     p, r = (
                         wandb.run.summary["dropped_samples_precision"],
                         wandb.run.summary["dropped_samples_recall"],
                     )
-                    wandb.run.summary["dropped_samples_f1"] = 2 * p * r / (p + r)
+                    wandb.run.summary["dropped_samples_f1"] = (
+                        2 * p * r / (p + r) if (p + r) > 0 else 0.0
+                    )
 
         if save:
             if verbose:
@@ -2472,7 +2483,7 @@ class Scope:
                         epochs=3,
                         verbose=True,
                         save=True,
-                        test=True,
+                        evaluate_test=False,
                         algorithm=algorithm,
                         skip_cv=True,
                         group=group_mock,
@@ -2736,7 +2747,7 @@ class Scope:
                         epochs=3,
                         verbose=True,
                         save=True,
-                        test=True,
+                        evaluate_test=False,
                         algorithm=algorithm,
                         skip_cv=True,
                         group=group_mock,
@@ -2764,7 +2775,7 @@ class Scope:
                         epochs=3,
                         verbose=True,
                         save=True,
-                        test=True,
+                        evaluate_test=False,
                         algorithm=algorithm,
                         skip_cv=True,
                         period_suffix=period_suffix_test,
