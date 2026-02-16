@@ -1,0 +1,33 @@
+class: Time series
+subclasses:
+  - class: non-variable
+    subclasses:
+      - class: bogus
+        subclasses:
+          - class: extended
+          - class: blend
+          - class: bright star
+          - class: ccd artifact
+  - class: variable
+    subclasses:
+    - class: periodic
+      subclasses:
+        - class: sinusoidal
+          subclasses:
+            - class: ellipsoidal
+        - class: sawtooth
+        - class: multi periodic
+        - class: long timescale
+        - class: eclipsing
+          subclasses:
+          - class: EA
+          - class: EB
+          - class: EW
+        - class: wrong period
+          subclasses:
+            - class: half period
+            - class: double period
+    - class: irregular
+      subclasses:
+        - class: flaring
+        - class: dipping
