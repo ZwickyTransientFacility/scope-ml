@@ -40,7 +40,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           source .venv/bin/activate
-          pip install numpy cython pytest maturin joblib scipy numba
+          pip install numpy cython pytest maturin joblib scipy numba astropy pandas
 
       - name: Build periodfind Rust CPU backend
         working-directory: periodfind/rust
