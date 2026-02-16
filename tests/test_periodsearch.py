@@ -504,11 +504,12 @@ class TestPrepareLightcurves:
         assert mag_stack[0].dtype == np.float32
         # Times should be sorted
         assert np.all(np.diff(time_stack[0]) >= 0)
-        # Mags should be scaled by range (divided by max-min, not shifted to [0,1])
+        # Mags should be scaled by range (divided by max-min)
         # The function sorts by time, so mags are reordered by time sort
         idx = np.argsort(times)
-        raw_range = mags.max() - mags.min()
-        expected = mags[idx] / raw_range
+        sorted_mags = mags[idx]
+        raw_range = sorted_mags.max() - sorted_mags.min()
+        expected = sorted_mags / raw_range
         np.testing.assert_allclose(mag_stack[0], expected.astype(np.float32), atol=1e-5)
 
 
