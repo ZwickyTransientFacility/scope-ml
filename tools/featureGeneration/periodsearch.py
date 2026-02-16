@@ -7,7 +7,7 @@ import periodfind
 # Algorithm name mapping
 # ---------------------------------------------------------------------------
 
-_ALGO_MAP = {"CE", "AOV", "LS", "FPW", "BLS"}
+_ALGO_MAP = {"CE", "AOV", "LS", "FPW", "BLS", "MHF"}
 
 
 def _normalize_algorithm(algorithm):
@@ -32,7 +32,9 @@ def _normalize_algorithm(algorithm):
 # ---------------------------------------------------------------------------
 
 
-def _prepare_lightcurves(lightcurves, doSingleTimeSegment, return_errs=False):
+def _prepare_lightcurves(
+    lightcurves, doSingleTimeSegment, return_errs=False, bands=None
+):
     """Sort by time, subtract tmin, normalize mags, and cast to float32.
 
     Parameters
@@ -43,6 +45,10 @@ def _prepare_lightcurves(lightcurves, doSingleTimeSegment, return_errs=False):
         If True, build a common time grid across all lightcurves.
     return_errs : bool, default=False
         If True, also return the magnitude error arrays (for FPW).
+    bands : list of ndarray or None
+        Per-point band identifiers for each lightcurve.  When provided,
+        per-band weighted means are subtracted before the [0,1]
+        normalization, removing chromatic offsets from multi-band stacking.
 
     Returns
     -------
@@ -56,7 +62,7 @@ def _prepare_lightcurves(lightcurves, doSingleTimeSegment, return_errs=False):
             tt = np.unique(np.append(tt, lightcurve[0]))
 
     time_stack, mag_stack, err_stack = [], [], []
-    for lightcurve in lightcurves:
+    for ii, lightcurve in enumerate(lightcurves):
         if doSingleTimeSegment:
             _, x_ind, y_ind = np.intersect1d(tt, lightcurve[0], return_indices=True)
             mag_array = 999 * np.ones(tt.shape)
@@ -75,7 +81,28 @@ def _prepare_lightcurves(lightcurves, doSingleTimeSegment, return_errs=False):
 
         time_stack.append(np.asarray(lightcurve[0], dtype=np.float32))
         lc = np.asarray(lightcurve[1], dtype=np.float64)
-        lc = (lc - np.min(lc)) / (np.max(lc) - np.min(lc))
+
+        # Per-band mean subtraction: remove chromatic offsets before
+        # normalizing so multi-band data aligns properly.
+        if bands is not None:
+            bb = bands[ii]
+            # Apply same sort order as lightcurve if we sorted above
+            if not doSingleTimeSegment:
+                bb = bb[idx]
+            for b in np.unique(bb):
+                mask = bb == b
+                w = 1.0 / np.maximum(
+                    np.asarray(lightcurve[2], dtype=np.float64)[mask] ** 2,
+                    1e-30,
+                )
+                wmean = np.average(lc[mask], weights=w)
+                lc[mask] -= wmean
+            # Shift so min is 0 (the subsequent [0,1] norm handles the rest)
+            lc -= np.min(lc)
+
+        lc_range = np.max(lc) - np.min(lc)
+        if lc_range > 0:
+            lc = lc / lc_range
         mag_stack.append(np.asarray(lc, dtype=np.float32))
         if return_errs:
             err_stack.append(np.asarray(lightcurve[2], dtype=np.float32))
@@ -129,6 +156,7 @@ def find_periods(
     Ncore=8,
     qmin=0.01,
     qmax=0.5,
+    bands=None,
 ):
 
     if freqs_to_remove is not None:
@@ -148,7 +176,7 @@ def find_periods(
     # -----------------------------------------------------------------------
     if algo_name in _ALGO_MAP:
         device = 'gpu' if doGPU else 'cpu'
-        needs_errs = algo_name in ("FPW", "BLS")
+        needs_errs = algo_name in ("FPW", "BLS", "MHF")
 
         # Create algorithm via unified factory
         if algo_name == "CE":
@@ -165,15 +193,22 @@ def find_periods(
             algo = periodfind.BoxLeastSquares(
                 n_bins=50, qmin=qmin, qmax=qmax, device=device
             )
+        elif algo_name == "MHF":
+            algo = periodfind.MultiHarmonicFourier(
+                max_harmonics=3, device=device
+            )
 
         # Prepare data
+        # Pass band arrays for MHF so per-band means are subtracted
+        prep_bands = bands if algo_name == "MHF" else None
         if needs_errs:
             time_stack, mag_stack, err_stack = _prepare_lightcurves(
-                lightcurves, doSingleTimeSegment, return_errs=True
+                lightcurves, doSingleTimeSegment, return_errs=True,
+                bands=prep_bands,
             )
         else:
             time_stack, mag_stack = _prepare_lightcurves(
-                lightcurves, doSingleTimeSegment
+                lightcurves, doSingleTimeSegment, bands=prep_bands,
             )
         periods = (1.0 / freqs).astype(np.float32)
         pdots_to_test = _build_pdots(doUsePDot)
@@ -542,11 +577,299 @@ def compute_agreement_scores(
     return results
 
 
+# ---------------------------------------------------------------------------
+# Sidereal-alias family scoring
+# ---------------------------------------------------------------------------
+
+# Sidereal frequency in cycles/day (Earth's rotation period = 23.9345 hr)
+_F_SIDEREAL_D = 24.0 / 23.9345  # ~1.00274 cycles/day
+
+
+def _are_sidereal_aliases(p1_d, p2_d, harmonics=None, max_n=15, tol=0.03):
+    """Check if two periods are sidereal aliases (optionally at harmonics).
+
+    Two periods are related if their frequencies satisfy
+    ``f1 = h * f2 + n * f_sidereal`` for some harmonic ratio *h* and
+    integer *n* with ``|n| <= max_n``.
+
+    Parameters
+    ----------
+    p1_d, p2_d : float
+        Periods in days.
+    harmonics : list of float or None
+        Harmonic ratios to check.  Default ``[1, 0.5, 2]``.
+    max_n : int
+        Maximum sidereal alias order.
+    tol : float
+        Fractional tolerance on the sidereal-integer residual.
+
+    Returns
+    -------
+    bool
+    """
+    if harmonics is None:
+        harmonics = [1.0, 0.5, 2.0]
+    if (
+        np.isnan(p1_d)
+        or np.isnan(p2_d)
+        or p1_d <= 0
+        or p2_d <= 0
+    ):
+        return False
+    f1 = 1.0 / p1_d
+    for h in harmonics:
+        f2h = h / p2_d
+        n_float = (f1 - f2h) / _F_SIDEREAL_D
+        n_int = round(n_float)
+        if abs(n_int) <= max_n and abs(n_float - n_int) < tol:
+            return True
+    return False
+
+
+def compute_sidereal_family_scores(
+    top_n_periods_dict,
+    top_n_sigs_dict,
+    keep_id_list,
+    period_algorithms,
+    f1_power_dict=None,
+    period_dict=None,
+    harmonics=None,
+    max_n=15,
+    tol=0.03,
+):
+    """Score periodicity via sidereal-alias family grouping.
+
+    Groups all top-N periods across algorithms into families of
+    sidereal aliases.  The dominant family's breadth across algorithms
+    is a robust periodicity indicator even when individual algorithms
+    return different aliases of the same true period.
+
+    Parameters
+    ----------
+    top_n_periods_dict : dict
+        ``{algo_key: 2-D array (n_sources, n_top)}`` of ranked periods.
+    top_n_sigs_dict : dict
+        ``{algo_key: 2-D array (n_sources, n_top)}`` of ranked
+        significances, same shape as *top_n_periods_dict*.
+    keep_id_list : list
+        Source identifiers, one per row.
+    period_algorithms : list of str
+        Algorithm keys present in the dicts.
+    f1_power_dict : dict or None
+        ``{algo_key: 1-D array}`` of Fourier f1_power per source.
+        Used to select the best algorithm for phase-folding.
+    period_dict : dict or None
+        ``{algo_key: 1-D array}`` of best (top-1) periods per source.
+    harmonics : list of float or None
+        Harmonic ratios for alias matching.  Default ``[1, 0.5, 2]``.
+    max_n : int
+        Maximum sidereal alias order.
+    tol : float
+        Fractional tolerance on the sidereal-integer residual.
+
+    Returns
+    -------
+    dict
+        ``{source_id: {feature_name: value, ...}}`` with keys:
+        ``family_n_algos``, ``family_rank_score``,
+        ``family_n_members``, ``family_n_total``,
+        ``family_best_period``, ``family_best_algo``,
+        ``family_best_f1_power``.
+    """
+    if harmonics is None:
+        harmonics = [1.0, 0.5, 2.0]
+
+    NESTED_NAMES = {"ELS_ECE_EAOV", "LS_CE_AOV"}
+
+    def _algo_display(algo):
+        return algo if algo in NESTED_NAMES else algo.split('_')[0]
+
+    algo_pairs = []
+    for algo in period_algorithms:
+        if algo in top_n_periods_dict:
+            algo_pairs.append((algo, _algo_display(algo)))
+
+    results = {}
+    for idx, _id in enumerate(keep_id_list):
+        # Collect all (algo_name, rank, period, sig) entries
+        entries = []
+        for algo_key, aname in algo_pairs:
+            periods_row = top_n_periods_dict[algo_key][idx]
+            sigs_row = top_n_sigs_dict[algo_key][idx]
+            for rank, (p, s) in enumerate(zip(periods_row, sigs_row)):
+                if not np.isnan(p) and p > 0:
+                    entries.append((aname, rank, p, s))
+
+        n_total = len(entries)
+
+        if n_total == 0:
+            results[_id] = {
+                'family_n_algos': 0,
+                'family_rank_score': 0.0,
+                'family_n_members': 0,
+                'family_n_total': 0,
+                'family_best_period': np.nan,
+                'family_best_algo': '',
+                'family_best_f1_power': np.nan,
+            }
+            continue
+
+        # Union-find to group sidereal aliases
+        parent = list(range(n_total))
+
+        def _find(x):
+            while parent[x] != x:
+                parent[x] = parent[parent[x]]
+                x = parent[x]
+            return x
+
+        def _union(x, y):
+            px, py = _find(x), _find(y)
+            if px != py:
+                parent[px] = py
+
+        for i in range(n_total):
+            for j in range(i + 1, n_total):
+                if _are_sidereal_aliases(
+                    entries[i][2], entries[j][2],
+                    harmonics=harmonics, max_n=max_n, tol=tol,
+                ):
+                    _union(i, j)
+
+        # Collect families
+        families = {}
+        for i, (aname, rank, p, s) in enumerate(entries):
+            root = _find(i)
+            if root not in families:
+                families[root] = []
+            families[root].append((aname, rank, p, s))
+
+        # Score each family
+        best_family = None
+        best_score = (-1, -1.0)  # (n_algos, rank_score)
+        for fid, members in families.items():
+            algo_set = set(m[0] for m in members)
+            n_algos = len(algo_set)
+            # Best rank per algorithm (0-indexed)
+            best_rank_per_algo = {}
+            for aname, rank, p, s in members:
+                if aname not in best_rank_per_algo or rank < best_rank_per_algo[aname]:
+                    best_rank_per_algo[aname] = rank
+            rank_score = sum(
+                1.0 / (r + 1) for r in best_rank_per_algo.values()
+            )
+            score = (n_algos, rank_score)
+            if score > best_score:
+                best_score = score
+                best_family = (n_algos, rank_score, len(members), members)
+
+        n_algos, rank_score, n_members, members = best_family
+
+        # Select best period: use algorithm with highest f1_power
+        best_period = np.nan
+        best_algo_name = ''
+        best_f1 = np.nan
+        if f1_power_dict is not None and period_dict is not None:
+            for algo_key, aname in algo_pairs:
+                # Check this algo is in the winning family
+                if aname not in set(m[0] for m in members):
+                    continue
+                f1_val = f1_power_dict[algo_key][idx]
+                if np.isnan(f1_val):
+                    continue
+                if np.isnan(best_f1) or f1_val > best_f1:
+                    best_f1 = f1_val
+                    best_algo_name = aname
+                    best_period = period_dict[algo_key][idx]
+
+        # Fallback: use highest-significance period in the family
+        if np.isnan(best_period):
+            best_sig = -1.0
+            for aname, rank, p, s in members:
+                if rank == 0 and s > best_sig:
+                    best_sig = s
+                    best_period = p
+                    best_algo_name = aname
+
+        results[_id] = {
+            'family_n_algos': n_algos,
+            'family_rank_score': rank_score,
+            'family_n_members': n_members,
+            'family_n_total': n_total,
+            'family_best_period': best_period,
+            'family_best_algo': best_algo_name,
+            'family_best_f1_power': best_f1,
+        }
+
+    return results
+
+
+def _ab_to_amp_phi(raw_features):
+    """Convert raw Fourier (A,B) coefficients to (amplitude, phase) form.
+
+    The Rust FourierDecomposition returns raw linear regression coefficients:
+        [power, BIC, offset, slope, A1, B1, A2, B2, A3, B3, A4, B4, A5, B5]
+
+    This converts harmonics to a physically interpretable representation:
+        [power, BIC, offset, slope, amp1, phi1, relamp2, relphi2, ..., relamp5, relphi5]
+
+    where:
+        amp_n   = sqrt(A_n^2 + B_n^2)       (amplitude of n-th harmonic)
+        phi_n   = arctan2(A_n, B_n)          (phase of n-th harmonic)
+        relamp  = amp_n / amp_1              (relative amplitude, n >= 2)
+        relphi  = (phi_n/n - phi_1) / (2pi/n) mod 1   (relative phase, n >= 2)
+
+    This matches the convention in lcstats.AB2AmpPhi and the feature column
+    names (f1_amp, f1_phi0, f1_relamp1, f1_relphi1, ...).
+
+    Parameters
+    ----------
+    raw_features : ndarray, shape (n_curves, 14)
+
+    Returns
+    -------
+    converted : ndarray, shape (n_curves, 14)
+    """
+    out = raw_features.copy()
+    # Columns 4..13 are the (A,B) pairs for harmonics 1..5
+    # Indices: 4=A1, 5=B1, 6=A2, 7=B2, 8=A3, 9=B3, 10=A4, 11=B4, 12=A5, 13=B5
+    for k in range(5):
+        col_a = 4 + 2 * k
+        col_b = 5 + 2 * k
+        a = out[:, col_a]
+        b = out[:, col_b]
+        amp = np.sqrt(a**2 + b**2)
+        phi = np.arctan2(a, b)
+        out[:, col_a] = amp
+        out[:, col_b] = phi
+
+    # Normalize amplitudes relative to fundamental (k >= 2)
+    amp1 = out[:, 4].copy()
+    amp1[amp1 == 0] = np.nan  # avoid division by zero
+    for k in range(1, 5):
+        col_a = 4 + 2 * (k)
+        out[:, col_a] /= amp1
+
+    # Compute relative phase differences (k >= 2)
+    phi1 = out[:, 5].copy()
+    for k in range(1, 5):
+        n = k + 1  # harmonic number (2, 3, 4, 5)
+        col_b = 5 + 2 * k
+        out[:, col_b] = (out[:, col_b] / n - phi1) / (2.0 * np.pi / n) % 1
+
+    return out
+
+
 def compute_fourier_features(lightcurves, periods):
     """Compute Fourier decomposition features for a batch of light curves.
 
     Uses the periodfind Rust backend (weighted linear least-squares with
     BIC model selection) instead of the per-source scipy curve_fit loop.
+
+    The Rust backend returns raw (A_n, B_n) Fourier coefficients.  These
+    are converted to (amplitude, phase, relative_amplitude, relative_phase)
+    form via ``_ab_to_amp_phi`` so that the output matches the feature
+    column names (f1_amp, f1_phi0, f1_relamp1, f1_relphi1, ...).
 
     Parameters
     ----------
@@ -559,8 +882,9 @@ def compute_fourier_features(lightcurves, periods):
     Returns
     -------
     features : ndarray, shape (n_curves, 14)
-        Columns: [power, BIC, offset, slope, A1, B1, A2, B2, A3, B3,
-                  A4, B4, A5, B5]
+        Columns: [power, BIC, offset, slope, amp, phi0,
+                  relamp1, relphi1, relamp2, relphi2,
+                  relamp3, relphi3, relamp4, relphi4]
     """
     time_stack, mag_stack, err_stack = [], [], []
     for lightcurve in lightcurves:
@@ -572,7 +896,44 @@ def compute_fourier_features(lightcurves, periods):
     periods_arr = np.asarray(periods, dtype=np.float32)
 
     fd = periodfind.FourierDecomposition(device='cpu')
-    return fd.calc(time_stack, mag_stack, err_stack, periods_arr)
+    raw = fd.calc(time_stack, mag_stack, err_stack, periods_arr)
+    return _ab_to_amp_phi(raw)
+
+
+def compute_mhf_per_k_features(lightcurves, periods, max_harmonics=3, bands=None):
+    """Compute per-harmonic MHF ΔBIC features at given periods.
+
+    Evaluates the Multi-Harmonic Fourier model at each curve's best period
+    and returns per-K ΔBIC values for morphology discrimination:
+    - ΔBIC(K=3) >> ΔBIC(K=1) -> non-sinusoidal (sawtooth, eclipsing)
+    - ΔBIC(K=3) ~ ΔBIC(K=1) -> sinusoidal (rotation, simple pulsation)
+
+    Parameters
+    ----------
+    lightcurves : list of tuple
+        Each element is (times, mags, magerrs).
+    periods : array-like, shape (n_curves,)
+        Best-fit period for each light curve.
+    max_harmonics : int, default=3
+        Maximum number of Fourier harmonics (1-5).
+    bands : list of ndarray or None
+        Per-point band identifiers for per-band mean subtraction.
+
+    Returns
+    -------
+    features : ndarray, shape (n_curves, max_harmonics + 2)
+        Each row: [ΔBIC_k0, ΔBIC_k1, ..., ΔBIC_kN, best_k]
+    """
+    time_stack, mag_stack, err_stack = _prepare_lightcurves(
+        lightcurves, doSingleTimeSegment=False, return_errs=True, bands=bands,
+    )
+
+    periods_arr = np.asarray(periods, dtype=np.float32)
+
+    mhf = periodfind.MultiHarmonicFourier(
+        max_harmonics=max_harmonics, device='cpu'
+    )
+    return mhf.calc_per_k(time_stack, mag_stack, err_stack, periods_arr)
 
 
 def compute_dmdt_features(lightcurves, dmdt_ints):
