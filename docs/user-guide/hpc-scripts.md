@@ -54,9 +54,65 @@ Each of these directories can be generated with `generate-features-slurm`. `gene
 
 Another way to run SCoPe feature generation is to provide individual ZTF lightcurve IDs instead of fields. This requires some data wrangling to put the source list in the appropriate format for SCoPe to recognize.
 
-#### Notebook: `underMS_data_wrangling_notebook.ipynb`
+#### Preparing a Custom Source List
 
-This notebook contains an example on wrangling a list of designations, right ascensions and declinations into a SCoPe-friendly format. This notebook demonstrates running a cone search for all ZTF lightcurves within a specified radius and then formatting column names as SCoPe requires. The notebook then saves the resulting lightcurve list in batches so the feature generation process does not time out when running on SDSC Expanse.
+When running SCoPe on specific sources rather than whole fields, the source list must be wrangled into the format SCoPe expects. The two most important requirements are:
+
+- **Column names**: input files must contain `ztf_id` and `coordinates` columns in the format returned by Kowalski.
+- **Batch size**: on SDSC Expanse, GPU jobs are capped at 48 hours. If more than ~100,000 light curves need processing, split them across multiple files. Remember that one source can have multiple associated ZTF light curves.
+
+**Step 1 — Convert RA/Dec to IAU names and look up ZTF IDs:**
+
+```python
+import numpy as np
+import pandas as pd
+from tools.get_quad_ids import get_cone_ids
+from scope.fritz import radec_to_iau_name
+from scope.utils import write_parquet
+
+# Load your source list (must have ra, dec columns)
+sources = pd.read_csv("my_sources.csv").dropna()
+
+# Generate IAU-format object IDs from coordinates
+sources["obj_id"] = sources.apply(
+    lambda row: radec_to_iau_name(row["ra"], row["dec"]), axis=1
+)
+
+# Cone search Kowalski for matching ZTF light curve IDs
+ids = get_cone_ids(
+    sources["obj_id"].values,
+    sources["ra"].values,
+    sources["dec"].values,
+    catalog="ZTF_sources_20240117",
+    max_distance=2.0,
+    get_coords=True,
+)
+
+ids = ids.drop_duplicates("_id")
+```
+
+**Step 2 — Rename columns to match SCoPe expectations:**
+
+```python
+ids = ids.rename({"_id": "ztf_id", "obj_id": "fritz_name"}, axis=1)
+```
+
+**Step 3 — Save in batches for HPC submission:**
+
+```python
+import os
+
+os.makedirs("source_batches", exist_ok=True)
+
+n_batches = 15
+block = int(np.ceil(len(ids) / n_batches))
+for i in range(n_batches):
+    batch = ids.iloc[i * block : (i + 1) * block]
+    write_parquet(batch, f"source_batches/batch_{i}.parquet")
+```
+
+!!! note
+    This workflow requires SCoPe installed from source (not PyPI) so that `tools.get_quad_ids` is available.
 
 #### Directory: `generated_features_underMS`
 

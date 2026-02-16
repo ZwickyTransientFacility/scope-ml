@@ -56,6 +56,165 @@ from scope.utils import read_parquet
 preds = read_parquet(path_preds)
 ```
 
+## Analyzing Predictions
+
+### Comparing DNN and XGB Scores
+
+After running inference for multiple fields, compare DNN and XGB prediction agreement:
+
+```python
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from scope.utils import read_parquet
+
+# Load predictions for one or more fields
+field_list = [487, 563, 777]
+path_to_dnn_preds = "preds_dnn"
+path_to_xgb_preds = "preds_xgb"
+
+dnn_frames, xgb_frames = [], []
+for field in field_list:
+    dnn_frames.append(read_parquet(f"{path_to_dnn_preds}/field_{field}/field_{field}.parquet"))
+    xgb_frames.append(read_parquet(f"{path_to_xgb_preds}/field_{field}/field_{field}.parquet"))
+
+field_preds_dnn = pd.concat(dnn_frames)
+field_preds_xgb = pd.concat(xgb_frames)
+
+# Merge into a single DataFrame
+merge_cols = ["_id", "Gaia_EDR3___id", "AllWISE___id", "PS1_DR1___id",
+              "ra", "dec", "period", "field", "ccd", "quad", "filter"]
+dnn_xgb_preds = pd.merge(field_preds_dnn, field_preds_xgb, on=merge_cols)
+```
+
+### DNN vs XGB Histogram
+
+```python
+def hist_plot(classif):
+    """Histogram comparing DNN and XGB score distributions."""
+    fig, ax = plt.subplots()
+    ax.hist(field_preds_dnn[classif + "_dnn"], bins=50, alpha=0.5, label="DNN")
+    ax.hist(field_preds_xgb[classif + "_xgb"], bins=50, alpha=0.5, label="XGB")
+    ax.set_xlabel("Score")
+    ax.set_ylabel("Count")
+    ax.set_title(classif)
+    ax.legend()
+    return fig
+
+hist_plot("e")
+```
+
+### DNN vs XGB Agreement Heatmap
+
+```python
+def heatmap(classif):
+    """2D histogram comparing DNN and XGB predictions."""
+    dnn_scores = dnn_xgb_preds[classif + "_dnn"]
+    xgb_scores = dnn_xgb_preds[classif + "_xgb"]
+
+    fig, ax = plt.subplots()
+    h = ax.hist2d(dnn_scores, xgb_scores, bins=50, cmap="viridis")
+    plt.colorbar(h[3], ax=ax)
+    ax.set_xlabel("DNN")
+    ax.set_ylabel("XGB")
+    ax.set_title(classif)
+
+    # Agreement fraction at threshold
+    thresh = 0.5
+    agree = np.mean(
+        (dnn_scores > thresh) == (xgb_scores > thresh)
+    )
+    return fig, agree
+```
+
+### Training Set Label Distribution
+
+Count the number of positive examples per class in the training set:
+
+```python
+training_set = read_parquet("fritzDownload/training_set.parquet")
+
+threshold = 0.7
+counts = {}
+for col in training_set.columns:
+    if col.startswith(("_", "ra", "dec", "period", "field", "ccd", "quad")):
+        continue
+    n_positive = (training_set[col] >= threshold).sum()
+    if n_positive > 0:
+        counts[col] = n_positive
+
+counts_df = pd.DataFrame.from_dict(counts, orient="index", columns=["count"])
+counts_df = counts_df.sort_values("count", ascending=False)
+```
+
+### Evaluating Training Results
+
+After running `scope.py assemble_training_stats` for DNN and XGB algorithms, load and compare precision/recall:
+
+```python
+import json
+import glob
+
+classifications = sorted(set(
+    c.removesuffix("_dnn") for c in field_preds_dnn.columns if c.endswith("_dnn")
+))
+
+# Load stats from assembled JSON files
+def load_stats(pattern):
+    stats = {}
+    for classif in classifications:
+        files = glob.glob(pattern.format(classif=classif))
+        if files:
+            with open(files[0]) as f:
+                stats[classif] = json.load(f)
+    return pd.DataFrame.from_dict(stats, orient="index")
+
+stats_dnn = load_stats("dnn_revised_stats/{classif}*.json")
+stats_xgb = load_stats("xgb_revised_stats/{classif}*.json")
+```
+
+### Precision/Recall Scatter Plot
+
+```python
+fig, ax = plt.subplots(figsize=(6, 5))
+ax.plot([0, 1], [0, 1], linestyle="--", color="black")
+ax.scatter(
+    stats_dnn["recall"], stats_xgb["recall"],
+    c=counts_df.reindex(stats_dnn.index)["count"],
+    cmap="viridis", edgecolors="k",
+)
+ax.set_xlabel("DNN Recall")
+ax.set_ylabel("XGB Recall")
+ax.set_title("DNN vs XGB Recall")
+plt.colorbar(ax.collections[0], label="Positive examples")
+```
+
+### Feature Importance (XGB)
+
+Identify which features are most important across classifiers:
+
+```python
+from collections import Counter
+
+top_n = 3
+top_features = []
+for classif in classifications:
+    files = glob.glob(f"xgb_feature_importances/{classif}*.json")
+    if not files:
+        continue
+    with open(files[0]) as f:
+        importance = json.load(f)
+    features = sorted(importance, key=importance.get, reverse=True)[:top_n]
+    top_features.extend(features)
+
+feature_counts = Counter(top_features)
+names, freqs = zip(*feature_counts.most_common(20))
+
+fig, ax = plt.subplots(figsize=(10, 8))
+ax.barh(names, freqs, color="navy")
+ax.set_xlabel(f"Occurrences among top {top_n} features")
+```
+
 ## Handling Different File Formats
 
 When our manipulations of `pandas` dataframes are complete, we want to save them in an appropriate file format with the desired metadata. Our code works with multiple formats, each of which have advantages and drawbacks:
