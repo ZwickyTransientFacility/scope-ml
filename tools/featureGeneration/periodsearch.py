@@ -194,21 +194,23 @@ def find_periods(
                 n_bins=50, qmin=qmin, qmax=qmax, device=device
             )
         elif algo_name == "MHF":
-            algo = periodfind.MultiHarmonicFourier(
-                max_harmonics=3, device=device
-            )
+            algo = periodfind.MultiHarmonicFourier(max_harmonics=3, device=device)
 
         # Prepare data
         # Pass band arrays for MHF so per-band means are subtracted
         prep_bands = bands if algo_name == "MHF" else None
         if needs_errs:
             time_stack, mag_stack, err_stack = _prepare_lightcurves(
-                lightcurves, doSingleTimeSegment, return_errs=True,
+                lightcurves,
+                doSingleTimeSegment,
+                return_errs=True,
                 bands=prep_bands,
             )
         else:
             time_stack, mag_stack = _prepare_lightcurves(
-                lightcurves, doSingleTimeSegment, bands=prep_bands,
+                lightcurves,
+                doSingleTimeSegment,
+                bands=prep_bands,
             )
         periods = (1.0 / freqs).astype(np.float32)
         pdots_to_test = _build_pdots(doUsePDot)
@@ -609,12 +611,7 @@ def _are_sidereal_aliases(p1_d, p2_d, harmonics=None, max_n=15, tol=0.03):
     """
     if harmonics is None:
         harmonics = [1.0, 0.5, 2.0]
-    if (
-        np.isnan(p1_d)
-        or np.isnan(p2_d)
-        or p1_d <= 0
-        or p2_d <= 0
-    ):
+    if np.isnan(p1_d) or np.isnan(p2_d) or p1_d <= 0 or p2_d <= 0:
         return False
     f1 = 1.0 / p1_d
     for h in harmonics:
@@ -731,8 +728,11 @@ def compute_sidereal_family_scores(
         for i in range(n_total):
             for j in range(i + 1, n_total):
                 if _are_sidereal_aliases(
-                    entries[i][2], entries[j][2],
-                    harmonics=harmonics, max_n=max_n, tol=tol,
+                    entries[i][2],
+                    entries[j][2],
+                    harmonics=harmonics,
+                    max_n=max_n,
+                    tol=tol,
                 ):
                     _union(i, j)
 
@@ -755,9 +755,7 @@ def compute_sidereal_family_scores(
             for aname, rank, p, s in members:
                 if aname not in best_rank_per_algo or rank < best_rank_per_algo[aname]:
                     best_rank_per_algo[aname] = rank
-            rank_score = sum(
-                1.0 / (r + 1) for r in best_rank_per_algo.values()
-            )
+            rank_score = sum(1.0 / (r + 1) for r in best_rank_per_algo.values())
             score = (n_algos, rank_score)
             if score > best_score:
                 best_score = score
@@ -925,14 +923,15 @@ def compute_mhf_per_k_features(lightcurves, periods, max_harmonics=3, bands=None
         Each row: [ΔBIC_k0, ΔBIC_k1, ..., ΔBIC_kN, best_k]
     """
     time_stack, mag_stack, err_stack = _prepare_lightcurves(
-        lightcurves, doSingleTimeSegment=False, return_errs=True, bands=bands,
+        lightcurves,
+        doSingleTimeSegment=False,
+        return_errs=True,
+        bands=bands,
     )
 
     periods_arr = np.asarray(periods, dtype=np.float32)
 
-    mhf = periodfind.MultiHarmonicFourier(
-        max_harmonics=max_harmonics, device='cpu'
-    )
+    mhf = periodfind.MultiHarmonicFourier(max_harmonics=max_harmonics, device='cpu')
     return mhf.calc_per_k(time_stack, mag_stack, err_stack, periods_arr)
 
 
